@@ -29,14 +29,18 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /*
- * Implements SQL SHOW TAGS to list all tags under a source. Represents statements
- * like: SHOW TAGS IN source
+ * Lists all tags under a source.
+ *
+ * SHOW TAGS [ IN sourceName ]
  */
 public final class SqlShowTags extends SqlVersionBase {
   public static final SqlSpecialOperator OPERATOR =
@@ -50,8 +54,8 @@ public final class SqlShowTags extends SqlVersionBase {
       }
     };
 
-  public SqlShowTags(SqlParserPos pos, SqlIdentifier source) {
-    super(pos, source);
+  public SqlShowTags(SqlParserPos pos, SqlIdentifier sourceName) {
+    super(pos, sourceName);
   }
 
   @Override
@@ -71,17 +75,19 @@ public final class SqlShowTags extends SqlVersionBase {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("SHOW");
     writer.keyword("TAGS");
-    writer.keyword("IN");
-
-    getSourceName().unparse(writer, leftPrec, rightPrec);
+    unparseSourceName(writer, leftPrec, rightPrec);
   }
 
   @Override
   public SqlDirectHandler<?> toDirectHandler(QueryContext context) {
     try {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.ShowTagsHandler");
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
-      return (SqlDirectHandler<?>) ctor.newInstance(context);
+      final Constructor<?> ctor = cl.getConstructor(Catalog.class, OptionResolver.class, UserSession.class);
+
+      return (SqlDirectHandler<?>) ctor.newInstance(
+        context.getCatalog(),
+        context.getOptions(),
+        context.getSession());
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
           .message("SHOW TAGS action is not supported.")

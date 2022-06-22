@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     _shouldAllowChatForUser() {
       return false;
     },
@@ -22,10 +23,10 @@ export default function(input) {
     //  metrics collection (does not configure intercom itself)
     _getExtraBootData() {
       return {
-        'screen_width': screen.width,
-        'screen_height': screen.height,
-        'device_pixel_ratio': window.devicePixelRatio
+        screen_width: screen.width,
+        screen_height: screen.height,
+        device_pixel_ratio: window.devicePixelRatio,
       };
-    }
+    },
   });
 }

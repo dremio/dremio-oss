@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.iceberg.IcebergPartitionData.getPartitionColumnClass;
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
@@ -42,14 +43,19 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.amazonaws.util.CollectionUtils;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -57,7 +63,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
@@ -76,7 +82,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 /**
  * Datafile processor implementation which generates splits from data files
  */
-public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
+public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor {
+  private static final Logger logger = LoggerFactory.getLogger(SplitGeneratingDatafileProcessor.class);
 
   private final OperatorContext context;
   private final BatchSchema outputSchema;
@@ -106,14 +113,17 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     if (functionContext.getExtendedProperty() != null) {
       this.extendedProperty = functionContext.getExtendedProperty().toByteArray();
     }
-    splitGenerator = new BlockBasedSplitGenerator(context, plugin, functionContext.getPluginId(), props, this.extendedProperty, functionContext.getInternalTablePluginId() != null);
+    splitGenerator = new BlockBasedSplitGenerator(context, plugin, this.extendedProperty, functionContext.getInternalTablePluginId() != null);
     partitionCols = functionContext.getPartitionColumns();
     outputSchema = functionContext.getFullSchema();
 
     BatchSchema tableSchema = functionContext.getTableSchema();
     nameToFieldMap = tableSchema.getFields().stream().collect(Collectors.toMap(f -> f.getName().toLowerCase(), f -> f));
-    if(((SplitGenManifestScanTableFunctionContext) functionContext).getPartitionSpecMap() != null){
-      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(((SplitGenManifestScanTableFunctionContext) functionContext).getPartitionSpecMap().toByteArray());
+    if(((ManifestScanTableFunctionContext) functionContext).getJsonPartitionSpecMap() != null) {
+      ManifestScanTableFunctionContext scanTableFunctionContext = (ManifestScanTableFunctionContext) functionContext;
+      partitionSpecMap = IcebergSerDe.deserializeJsonPartitionSpecMap(deserializedJsonAsSchema(scanTableFunctionContext.getIcebergSchema()), scanTableFunctionContext.getJsonPartitionSpecMap().toByteArray());
+    } else if (((ManifestScanTableFunctionContext) functionContext).getPartitionSpecMap() != null) {
+      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(((ManifestScanTableFunctionContext) functionContext).getPartitionSpecMap().toByteArray());
     }
     invalidColumnsForPruning = IcebergUtils.getInvalidColumnsForPruning(partitionSpecMap);
   }
@@ -147,8 +157,11 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     icebergPartitionSpec = partitionSpec;
     fileSchema = icebergPartitionSpec.schema();
     colToIDMap = getColToIDMap();
-    partColToKeyMap = partitionCols != null ? new HashMap<>() : null;
-
+    if (CollectionUtils.isNullOrEmpty(partitionCols)) {
+      logger.debug("Partition columns are null or empty.");
+      return;
+    }
+    partColToKeyMap = new HashMap<>();
     for (int i = 0; i < icebergPartitionSpec.fields().size(); i++) {
       PartitionField partitionField = icebergPartitionSpec.fields().get(i);
       if (partitionField.transform().isIdentity()) {
@@ -158,7 +171,9 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
   }
 
   @Override
-  public int processDatafile(DataFile currentDataFile, int startOutIndex, int maxOutputCount) throws IOException {
+  public int processManifestEntry(ManifestEntryWrapper<? extends ContentFile<?>> manifestEntry, int startOutIndex,
+      int maxOutputCount) throws IOException {
+    DataFile currentDataFile = (DataFile) manifestEntry.file();
     if (isCurrentDatafileProcessed(currentDataFile)) {
       return 0;
     }
@@ -201,7 +216,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
   }
 
   @Override
-  public void closeDatafile() {
+  public void closeManifestEntry() {
     currentDataFileOffset = 0;
   }
 
@@ -224,6 +239,10 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
        * in case2. initially when column was not partition we don't have value.
        */
       if(invalidColumnsForPruning != null && invalidColumnsForPruning.contains(fileSchema.findField(field.sourceId()).name())) {
+        continue;
+      }
+
+      if(!field.transform().isIdentity()) {
         continue;
       }
 

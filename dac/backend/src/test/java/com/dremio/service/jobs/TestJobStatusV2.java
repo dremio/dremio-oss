@@ -86,7 +86,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     server = InProcessServerBuilder.forName(name)
       .directExecutor()
       .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
-      .addService(new Chronicle(p(LocalJobsService.class)))
+      .addService(new Chronicle(p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
       .build();
     server.start();
 

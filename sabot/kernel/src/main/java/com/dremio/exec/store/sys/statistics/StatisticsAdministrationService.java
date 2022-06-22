@@ -24,7 +24,7 @@ import com.dremio.service.namespace.NamespaceKey;
  * Interface for administrating statistics.
  */
 public interface StatisticsAdministrationService {
-  String requestStatistics(List<Field> fields, NamespaceKey key);
+  String requestStatistics(List<Field> fields, NamespaceKey key, Double samplingRate);
 
   List<String> deleteStatistics(List<String> fields, NamespaceKey key);
 

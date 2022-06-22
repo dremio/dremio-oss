@@ -13,60 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FontIcon from 'components/Icon/FontIcon';
-@Radium
+import FontIcon from "components/Icon/FontIcon";
+
 class RawHeader extends PureComponent {
   static propTypes = {
     closeIconHandler: PropTypes.func,
     closeIcon: PropTypes.bool,
     separator: PropTypes.string,
     text: PropTypes.string,
-    subSteps: PropTypes.string
-  }
+    subSteps: PropTypes.string,
+  };
 
   constructor(props) {
     super(props);
-    this.defaultCloseIconClickHandler = this.defaultCloseIconClickHandler.bind(this);
+    this.defaultCloseIconClickHandler =
+      this.defaultCloseIconClickHandler.bind(this);
   }
 
   getCloseIcon() {
     const handler = this.props.closeIconHandler
       ? this.props.closeIconHandler
       : this.defaultCloseIconClickHandler;
-    const icon = this.props.closeIcon
-      ? <FontIcon type='XBig' theme={style.iconTheme} onClick={handler}/>
-      : null;
+    const icon = this.props.closeIcon ? (
+      <FontIcon type="XBig" theme={style.iconTheme} onClick={handler} />
+    ) : null;
     return icon;
   }
 
   getSeparator() {
-    const {separator} = this.props;
-    return separator
-      ? separator
-      : ': ';
+    const { separator } = this.props;
+    return separator ? separator : ": ";
   }
 
   defaultCloseIconClickHandler() {
-    console.info('close icon clicked');
+    console.info("close icon clicked");
   }
 
   subSteps() {
-    const {subSteps} = this.props;
-    return subSteps
-      ? subSteps
-      : null;
+    const { subSteps } = this.props;
+    return subSteps ? subSteps : null;
   }
 
   render() {
     return (
-      <div className='raw-wizard-header' style={[style.base]}>
+      <div className="raw-wizard-header" style={[style.base]}>
         <h5 style={style.content}>
-          {this.props.text}{this.getSeparator()}{this.subSteps()}
+          {this.props.text}
+          {this.getSeparator()}
+          {this.subSteps()}
         </h5>
         {this.getCloseIcon()}
       </div>
@@ -75,28 +74,28 @@ class RawHeader extends PureComponent {
 }
 
 const style = {
-  'base': {
-    'display': 'flex',
-    'height': 38,
-    'justifyContent': 'space-between'
+  base: {
+    display: "flex",
+    height: 38,
+    justifyContent: "space-between",
   },
-  'content': {
-    'display': 'flex',
-    'marginLeft': 15,
-    'alignItems': 'center'
+  content: {
+    display: "flex",
+    marginLeft: 15,
+    alignItems: "center",
   },
-  'iconTheme': {
-    'Container': {
-      display: 'flex',
-      alignItems: 'center',
+  iconTheme: {
+    Container: {
+      display: "flex",
+      alignItems: "center",
       marginRight: 15,
       width: 24,
-      height: 38
+      height: 38,
     },
-    'Icon': {
-      'cursor': 'pointer'
-    }
-  }
+    Icon: {
+      cursor: "pointer",
+    },
+  },
 };
 
-export default RawHeader;
+export default Radium(RawHeader);

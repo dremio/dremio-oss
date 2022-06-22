@@ -42,8 +42,8 @@ export default class CancelablePromise extends Promise {
     const superThen = super.then;
     const cancelHandler = superThen.call(
       this,
-      ((val) => this._cancelObject ? Promise.reject(this._cancelObject) : val),
-      ((error) => Promise.reject(this._cancelObject || error))
+      (val) => (this._cancelObject ? Promise.reject(this._cancelObject) : val),
+      (error) => Promise.reject(this._cancelObject || error)
     );
     return superThen.apply(cancelHandler, arguments);
   }

@@ -13,24 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import hoistNonReactStatic from 'hoist-non-react-statics';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import hoistNonReactStatic from "hoist-non-react-statics";
 
 export default function prefixSection(prefix) {
-  return function(target) {
-
+  return function (target) {
     class WrappedSection extends Component {
       static propTypes = {
-        fields: PropTypes.object
+        fields: PropTypes.object,
       };
 
       static getFields() {
-        return target.getFields ? target.getFields().map((field) => `${prefix}.${field}`) : [];
+        return target.getFields
+          ? target.getFields().map((field) => `${prefix}.${field}`)
+          : [];
       }
 
       render() {
-        return React.createElement(target, {...this.props, fields: this.props.fields ? this.props.fields[prefix] : {}});
+        return React.createElement(target, {
+          ...this.props,
+          fields: this.props.fields ? this.props.fields[prefix] : {},
+        });
       }
     }
 
@@ -41,7 +45,10 @@ export default function prefixSection(prefix) {
 
     WrappedSection.validate = (values) => {
       const result = target.validate ? target.validate(values) : {};
-      return Object.keys(result).reduce((errors, key) => ({...errors, [`${prefix}.${key}`]: result[key]}), {});
+      return Object.keys(result).reduce(
+        (errors, key) => ({ ...errors, [`${prefix}.${key}`]: result[key] }),
+        {}
+      );
     };
 
     return WrappedSection;

@@ -36,7 +36,7 @@ import com.google.common.base.Preconditions;
  */
 public class ChronoConvertlets {
 
-  private static abstract class ChronoConvertlet implements SqlRexConvertlet {
+  private abstract static class ChronoConvertlet implements SqlRexConvertlet {
 
     private final ContextInformation contextInformation;
 

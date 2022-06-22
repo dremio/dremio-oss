@@ -13,33 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { HOME_SPACE_NAME } from '@app/constants/Constants';
+import { HOME_SPACE_NAME } from "@app/constants/Constants";
 
 // history needs current location because its resourcePath is not enough to get client href
 //eg /space/myspace
 
 class SpaceResourcePathUtils {
-
   fromHref(href) {
     const m = href.match(/\/space\/(.*)/);
     if (m) {
       const resourceId = m[1];
-      if (resourceId.indexOf('.') !== -1) {
+      if (resourceId.indexOf(".") !== -1) {
         return `/folder/${resourceId}`;
       }
       return `/space/${resourceId}`;
     }
-    return '/';
+    return "/";
   }
 
   toFullPath(resourcePath) {
     // todo: kill this, this can't be safe
-    const isNameLooksLikeHome = resourcePath && resourcePath.indexOf('.') === -1 && resourcePath.indexOf('@') !== -1;
-    return resourcePath === '/' || isNameLooksLikeHome
+    const isNameLooksLikeHome =
+      resourcePath &&
+      resourcePath.indexOf(".") === -1 &&
+      resourcePath.indexOf("@") !== -1;
+    return resourcePath === "/" || isNameLooksLikeHome
       ? HOME_SPACE_NAME
       : resourcePath.match(/\/space\/(.*)\/list/)[1];
   }
-
 }
 
 const result = new SpaceResourcePathUtils();

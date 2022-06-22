@@ -17,7 +17,6 @@ package com.dremio.common.utils.protos;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;

@@ -476,7 +476,7 @@ public class BasicTypeHelper {
       return structVector;
 
     case NULL:
-      return new ZeroVector();
+      return new ZeroVector(field);
     case TINYINT:
       return new TinyIntVector(field, allocator);
     case UINT1:

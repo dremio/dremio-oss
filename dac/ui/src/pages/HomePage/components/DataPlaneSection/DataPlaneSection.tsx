@@ -13,44 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useIntl } from 'react-intl';
+import { useIntl } from "react-intl";
 // @ts-ignore
-import { useIsDataPlaneEnabled } from 'dyn-load/utils/dataPlaneUtils';
-import FinderNav from '@app/components/FinderNav';
-import { ViewStateWrapper } from '@app/components/ViewStateWrapper';
-import SourceBranchPicker from '../SourceBranchPicker/SourceBranchPicker';
+import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
+import FinderNav from "@app/components/FinderNav";
+import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import SourceBranchPicker from "../SourceBranchPicker/SourceBranchPicker";
+import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
 
 type DataPlaneSectionProps = {
-    dataPlaneSources: any;
-    sourcesViewState: any;
-    addHref: () => void
-    height?: string;
-}
+  dataPlaneSources: any;
+  sourcesViewState: any;
+  addHref: () => void;
+  height?: string;
+  location?: any;
+  onToggle?: any;
+  isCollapsed?: boolean;
+  isCollapsible?: boolean;
+};
 
 function DataPlaneSection({
   dataPlaneSources,
   sourcesViewState,
   addHref,
-  height
+  height,
+  location,
+  onToggle = null,
+  isCollapsed = false,
+  isCollapsible = false,
 }: DataPlaneSectionProps) {
   const intl = useIntl();
-  const show = useIsDataPlaneEnabled();
-  if (!show) return null;
+  if (!isDataPlaneEnabled) return null;
 
   return (
-    <div className='left-tree-wrap' style={{
-      height: dataPlaneSources.size ? height : '175px',
-      overflow: 'hidden'
-    }}>
-      <ViewStateWrapper viewState={sourcesViewState}>
+    <div
+      className="left-tree-wrap"
+      style={{
+        height: dataPlaneSources.size ? height : "auto",
+        overflow: "hidden",
+      }}
+    >
+      <ViewStateWrapper
+        viewState={sourcesViewState}
+        spinnerStyle={spacesSourcesListSpinnerStyleFinderNav}
+      >
         <FinderNav
+          isCollapsed={isCollapsed}
+          isCollapsible={isCollapsible}
+          onToggle={onToggle}
+          location={location}
           navItems={dataPlaneSources}
-          title={intl.formatMessage({ id: 'Source.DataPlanes' })}
-          addTooltip={intl.formatMessage({ id: 'Source.AddDataPlane' })}
-          isInProgress={sourcesViewState.get('isInProgress')}
+          title={intl.formatMessage({ id: "Source.DataPlanes" })}
+          addTooltip={intl.formatMessage({ id: "Source.AddDataPlane" })}
+          isInProgress={sourcesViewState.get("isInProgress")}
           addHref={addHref}
-          listHref='/sources/dataplane/list'
-          renderExtra={(item: any, targetRef: any) => <SourceBranchPicker source={item} anchorEl={targetRef.current} />}
+          listHref="/sources/dataplane/list"
+          renderExtra={(item: any, targetRef: any) => (
+            <SourceBranchPicker source={item} anchorEl={targetRef.current} />
+          )}
         />
       </ViewStateWrapper>
     </div>

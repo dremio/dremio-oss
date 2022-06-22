@@ -20,8 +20,10 @@ export const mapJobs = (payload) => {
 };
 
 export const mapDatasetsJobs = (payload) => {
-  return payload && payload.jobListItem.map((item) => {
-    return item.jobAttempt.info.dataset;
-  });
+  return (
+    payload &&
+    payload.jobListItem.map((item) => {
+      return item.jobAttempt.info.dataset;
+    })
+  );
 };
-

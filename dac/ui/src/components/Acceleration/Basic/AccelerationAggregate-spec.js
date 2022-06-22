@@ -13,99 +13,101 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { Toggle } from 'components/Fields';
-import AggregateForm from 'components/Aggregate/AggregateForm';
-import AccelerationAggregate from './AccelerationAggregate';
+import { Toggle } from "components/Fields";
+import AggregateForm from "components/Aggregate/AggregateForm";
+import AccelerationAggregate from "./AccelerationAggregate";
 
-describe('AccelerationAggregate', () => {
+describe("AccelerationAggregate", () => {
   let minimalProps;
   let commonProps;
 
   beforeEach(() => {
     minimalProps = {
       dataset: Immutable.fromJS({
-        fields: [
-          {name: 'c1', type: {name: 't1'}}
-        ]
+        fields: [{ name: "c1", type: { name: "t1" } }],
       }),
       fields: {
-        aggregationReflections: [{
-          enabled: true
-        }]
-      }
+        aggregationReflections: [
+          {
+            enabled: true,
+          },
+        ],
+      },
     };
     commonProps = {
       location: {},
       style: {},
       textStyle: {},
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccelerationAggregate {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AccelerationAggregate {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AccelerationAggregate {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<AccelerationAggregate {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render Toggle with common props', () => {
-    const wrapper = shallow(<AccelerationAggregate {...commonProps}/>);
+  it("should render Toggle with common props", () => {
+    const wrapper = shallow(<AccelerationAggregate {...commonProps} />);
     expect(wrapper.find(Toggle)).to.have.length(1);
   });
 
-  it('should render AggregateForm with common props', () => {
-    const wrapper = shallow(<AccelerationAggregate {...commonProps}/>);
+  it("should render AggregateForm with common props", () => {
+    const wrapper = shallow(<AccelerationAggregate {...commonProps} />);
     expect(wrapper.find(AggregateForm)).to.have.length(1);
   });
 
-  describe('#getFields', function() {
-
-    it('AggregateForm.getFields should be called', function() {
-      sinon.spy(AggregateForm, 'getFields');
+  describe("#getFields", function () {
+    it("AggregateForm.getFields should be called", function () {
+      sinon.spy(AggregateForm, "getFields");
       AccelerationAggregate.getFields();
       expect(AggregateForm.getFields).to.be.calledOnce;
     });
   });
 
-  describe('#validate', function() {
-
-    it('AggregateForm.validate should be called', function() {
-      sinon.spy(AggregateForm, 'validate');
+  describe("#validate", function () {
+    it("AggregateForm.validate should be called", function () {
+      sinon.spy(AggregateForm, "validate");
       AccelerationAggregate.validate([]);
       expect(AggregateForm.validate).to.be.calledWith([]);
     });
   });
 
-  describe('#mapSchemaToColumns', function() {
-
-    it('should return columns', function() {
-      const instance = shallow(<AccelerationAggregate {...commonProps}/>).instance();
-      const acceleration = Immutable.fromJS({ // update
+  describe("#mapSchemaToColumns", function () {
+    it("should return columns", function () {
+      const instance = shallow(
+        <AccelerationAggregate {...commonProps} />
+      ).instance();
+      const acceleration = Immutable.fromJS({
+        // update
         context: {
           datasetSchema: {
             fieldList: [
               {
-                type: 't1',
-                name: 'c1'
-              }
-            ]
-          }
-        }
+                type: "t1",
+                name: "c1",
+              },
+            ],
+          },
+        },
       });
-      expect(instance.mapSchemaToColumns(acceleration)).to.be.eql(Immutable.fromJS([
-        {
-          type: 't1',
-          name: 'c1',
-          index: 0
-        }
-      ]));
+      expect(instance.mapSchemaToColumns(acceleration)).to.be.eql(
+        Immutable.fromJS([
+          {
+            type: "t1",
+            name: "c1",
+            index: 0,
+          },
+        ])
+      );
     });
   });
 });

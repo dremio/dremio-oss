@@ -13,18 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component, createRef } from "react";
 
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { textInput } from '@app/uiTheme/less/forms.less';
+import { IconButton } from "dremio-ui-lib";
 
-import forms from 'uiTheme/radium/forms';
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import {
+  textInput,
+  numberInput,
+  numberInputDisabled,
+  numberInputButtons,
+  numberInputButtonIcon,
+  numberInputWrapper,
+  numberInputWrapperError,
+  numberInputWrapperFocused,
+  numberInputWrapperDisabled,
+  inputWrapperAdvanced,
+} from "@app/uiTheme/less/forms.less";
 
-@Radium
-export default class TextField extends Component {
+import forms from "uiTheme/radium/forms";
+import { intl } from "@app/utils/intl";
 
+const initializeValue = (initialValue) => {
+  // If the value is not passed or if it is an empty string,
+  // assigning 0 as default value for number input fields
+  if (typeof numberValue === "string") {
+    initialValue = initialValue.trim();
+  }
+  return Number.parseInt(initialValue || 0);
+};
+
+class TextField extends Component {
   static propTypes = {
     initialFocus: PropTypes.bool,
     error: PropTypes.string,
@@ -46,16 +66,30 @@ export default class TextField extends Component {
     pristine: PropTypes.any,
     active: PropTypes.any,
     visited: PropTypes.any,
-    autofilled: PropTypes.any
+    autofilled: PropTypes.any,
+    step: PropTypes.number,
+    maxValue: PropTypes.number,
+    minValue: PropTypes.number,
+    onFocus: PropTypes.func,
+    onBlur: PropTypes.func,
+    wrapperClassName: PropTypes.string,
+    numberInputWrapperStyles: PropTypes.any,
+    disableCommas: PropTypes.bool,
   };
 
   static defaultProps = {
-    type: 'text',
-    autoComplete: 'new-password'
+    type: "text",
+    autoComplete: "new-password",
   };
 
+  constructor(props) {
+    super(props);
+    this.inputRef = createRef();
+    this.state = { isFocused: false };
+  }
+
   componentDidMount() {
-    if (this.props.initialFocus && this.refs.input) {
+    if (this.props.initialFocus && this.inputRef.current) {
       // Timeout makes this work in modals. Maybe field is not visible initially due to modal animation.
       setTimeout(() => {
         this.focus();
@@ -64,32 +98,149 @@ export default class TextField extends Component {
   }
 
   focus() {
-    !this.props.disabled && this.refs.input && this.refs.input.focus();
+    if (!this.props.disabled && this.inputRef.current) {
+      this.inputRef.current.focus();
+    }
   }
 
   render() {
     // remove "initialFocus" from rendered input properties to avoid react warning
     const {
       className,
-      initialFocus, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
+      onChange,
+      error,
+      touched,
       placeholder,
       disabled,
+      type,
+      step = 1,
+      maxValue,
+      minValue,
+      wrapperClassName,
+      numberInputWrapperStyles,
+      disableCommas,
       ...props
     } = this.props;
 
-    return (
+    const { isFocused } = this.state;
+
+    const initialValue = initializeValue(this.props.value);
+
+    const numberInputWrapperClass = classNames(
+      numberInputWrapper,
+      { [numberInputWrapperError]: error && touched },
+      { [numberInputWrapperDisabled]: disabled },
+      { [numberInputWrapperFocused]: isFocused },
+      wrapperClassName === "input-wrapper-advanced"
+        ? inputWrapperAdvanced
+        : null
+    );
+
+    const numberInputClass = classNames(
+      ["field", textInput, numberInput, className],
+      { [numberInputDisabled]: disabled },
+      wrapperClassName === "input-wrapper-advanced"
+        ? inputWrapperAdvanced
+        : null
+    );
+
+    const handleBlur = () => {
+      this.setState({ isFocused: false });
+      this.props.onBlur?.();
+    };
+
+    const handleFocus = () => {
+      this.setState({ isFocused: true });
+      this.props.onFocus?.();
+    };
+
+    const handleChange = (event) => {
+      typeof onChange === "function" &&
+        onChange(
+          Number(initializeValue(event.target.value.replaceAll(/\D/g, "")))
+        );
+    };
+
+    const handleIncrement = (e) => {
+      e.preventDefault();
+      typeof onChange === "function" &&
+        onChange(
+          maxValue != null
+            ? Math.min(maxValue, initialValue + step)
+            : initialValue + step
+        );
+    };
+
+    const handleDecrement = (e) => {
+      e.preventDefault();
+      typeof onChange === "function" &&
+        onChange(
+          minValue != null
+            ? Math.max(minValue, initialValue - step)
+            : initialValue - step
+        );
+    };
+
+    const composedStyles = {
+      ...(this.props.style || {}),
+      ...(this.props.error && this.props.touched && forms.textInputError),
+      ...(this.props.disabled && forms.textInputDisabled),
+    };
+
+    return type !== "number" ? (
       <input
-        ref='input'
+        ref={this.inputRef}
         {...props}
+        type={type}
+        onChange={onChange}
         disabled={disabled}
-        placeholder={props.disabled ? '' : placeholder}
+        placeholder={props.disabled ? "" : placeholder}
         defaultValue={this.props.default}
-        className={classNames(['field', textInput, className])}
-        style={[
-          this.props.style,
-          this.props.error && this.props.touched && forms.textInputError,
-          this.props.disabled && forms.textInputDisabled
-        ]}/>
+        className={classNames(["field", textInput, className])}
+        style={composedStyles}
+      />
+    ) : (
+      <div
+        className={numberInputWrapperClass}
+        style={numberInputWrapperStyles || {}}
+      >
+        <input
+          ref={this.inputRef}
+          {...props}
+          type="text"
+          disabled={disabled}
+          defaultValue={props.default}
+          placeholder={disabled ? "" : placeholder}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
+          onChange={handleChange}
+          className={numberInputClass}
+          value={
+            disableCommas
+              ? Number(props.value)
+              : Number(props.value).toLocaleString()
+          }
+          style={composedStyles}
+        />
+        <div className={numberInputButtons}>
+          <IconButton
+            aria-label={intl.formatMessage({ id: "Common.Increment" })}
+            className={numberInputButtonIcon}
+            onClick={handleIncrement}
+          >
+            <dremio-icon name="interface/caretUp" />
+          </IconButton>
+          <IconButton
+            aria-label={intl.formatMessage({ id: "Common.Decrement" })}
+            className={numberInputButtonIcon}
+            onClick={handleDecrement}
+          >
+            <dremio-icon name="interface/caretDown" />
+          </IconButton>
+        </div>
+      </div>
     );
   }
 }
+TextField.displayName = "TextField"; //Used in SettingsMicroForm-spec.js, remove later
+export default TextField;

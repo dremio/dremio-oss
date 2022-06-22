@@ -45,9 +45,11 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.Reflection;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.metadata.QuerySemantics;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.jobs.metadata.proto.VirtualDatasetState;
@@ -173,6 +175,20 @@ public final class JobsProtoUtil {
   }
 
   /**
+   * Convert SessionId Protostuff to Protobuf
+   */
+  public static JobProtobuf.SessionId toBuf(SessionId sessionId) {
+    return JobsProtoUtil.toBuf(JobProtobuf.SessionId.getDefaultInstance().getParserForType(), sessionId);
+  }
+
+  /**
+   * Convert JobSubmission Protostuff to Protobuf
+   */
+  public static JobProtobuf.JobSubmission toBuf(JobSubmission jobSubmission) {
+    return JobsProtoUtil.toBuf(JobProtobuf.JobSubmission.getDefaultInstance().getParserForType(), jobSubmission);
+  }
+
+  /**
    * Convert ViewFieldType Protostuff to Protobuf
    */
   public static DatasetCommonProtobuf.ViewFieldType toBuf(ViewFieldType viewFieldType) {
@@ -235,6 +251,20 @@ public final class JobsProtoUtil {
    */
   public static JobId toStuff(JobProtobuf.JobId jobId) {
     return JobsProtoUtil.toStuff(JobId.getDefaultInstance().cachedSchema(), jobId);
+  }
+
+  /**
+   * Convert SessionId Protobuf to Protostuff
+   */
+  public static SessionId toStuff(JobProtobuf.SessionId sessionId) {
+    return JobsProtoUtil.toStuff(SessionId.getSchema(), sessionId);
+  }
+
+  /**
+   * Convert JobSubmission Protobuf to Protostuff
+   */
+  public static JobSubmission toStuff(JobProtobuf.JobSubmission jobSubmission) {
+    return JobsProtoUtil.toStuff(JobSubmission.getSchema(), jobSubmission);
   }
 
   /**

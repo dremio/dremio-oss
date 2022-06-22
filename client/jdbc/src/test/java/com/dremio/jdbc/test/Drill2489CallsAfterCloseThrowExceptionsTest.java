@@ -204,7 +204,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
    *
    * @param  <INTF>  JDBC interface type
    */
-  private static abstract class ThrowsClosedBulkChecker<INTF> {
+  private abstract static class ThrowsClosedBulkChecker<INTF> {
     private final Class<INTF> jdbcIntf;
     private final INTF jdbcObject;
     protected final String normalClosedExceptionText;

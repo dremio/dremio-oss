@@ -18,21 +18,13 @@
 // see DX-5388 Clicking on settings button in explore of a physical datasets doesn't work as expected
 // kill with DX-5161 Use classes (reduce bugs, develop faster)
 
-import physicalDataset from './physicalDataset';
-import dataset from './dataset';
-import folder from './folder';
-import file  from './file';
+import physicalDataset from "./physicalDataset";
+import dataset from "./dataset";
+import folder from "./folder";
+import file from "./file";
 
-import home from './home';
-import source from './source';
-import space from './space';
+import home from "./home";
+import source from "./source";
+import space from "./space";
 
-export {
-  physicalDataset,
-  dataset,
-  folder,
-  file,
-  home,
-  source,
-  space
-};
+export { physicalDataset, dataset, folder, file, home, source, space };

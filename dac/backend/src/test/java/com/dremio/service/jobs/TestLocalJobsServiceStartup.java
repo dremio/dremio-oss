@@ -224,8 +224,7 @@ public class TestLocalJobsServiceStartup {
   private static Entry<JobId, JobResult> newJobResult(final JobState jobState) {
     return new Entry<JobId, JobResult>() {
 
-      private final JobId id = new JobId(UUID.randomUUID().toString())
-          .setName("job-name");
+      private final JobId id = new JobId(UUID.randomUUID().toString());
 
       private final JobResult jobResult = new JobResult()
           .setAttemptsList(Lists.newArrayList(new JobAttempt()

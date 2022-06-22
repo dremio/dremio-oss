@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import SelectFrequentValuesOption from './SelectFrequentValuesOption';
+import { shallow } from "enzyme";
+import SelectFrequentValuesOption from "./SelectFrequentValuesOption";
 
-describe('SelectFrequentValuesOption', () => {
+describe("SelectFrequentValuesOption", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -24,52 +24,52 @@ describe('SelectFrequentValuesOption', () => {
       checked: true,
       option: {
         percent: 25,
-        value: 'foo'
+        value: "foo",
       },
       maxPercent: 50,
-      onCheck: sinon.spy()
+      onCheck: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SelectFrequentValuesOption {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SelectFrequentValuesOption {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render Checkbox, Meter', () => {
-    const wrapper = shallow(<SelectFrequentValuesOption {...commonProps}/>);
-    const checkbox = wrapper.find('Checkbox');
-    const meter = wrapper.find('Meter');
+  it("should render Checkbox, Meter", () => {
+    const wrapper = shallow(<SelectFrequentValuesOption {...commonProps} />);
+    const checkbox = wrapper.find("Checkbox");
+    const meter = wrapper.find("Meter");
     expect(checkbox).to.have.length(1);
-    expect(checkbox.prop('checked')).to.be.true;
+    expect(checkbox.prop("checked")).to.be.true;
     expect(meter).to.have.length(1);
-    expect(meter.prop('value')).to.eql(commonProps.option.percent);
-    expect(meter.prop('max')).to.eql(commonProps.maxPercent);
+    expect(meter.prop("value")).to.eql(commonProps.option.percent);
+    expect(meter.prop("max")).to.eql(commonProps.maxPercent);
   });
 
-  describe('#shouldComponentUpdate', () => {
+  describe("#shouldComponentUpdate", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<SelectFrequentValuesOption {...commonProps}/>);
+      wrapper = shallow(<SelectFrequentValuesOption {...commonProps} />);
       instance = wrapper.instance();
     });
-    it('should return true if field value for option change', () => {
+    it("should return true if field value for option change", () => {
       const nextProps = {
         checked: false,
         option: {
-          value: 'bar'
-        }
+          value: "bar",
+        },
       };
       expect(instance.shouldComponentUpdate(nextProps)).to.be.true;
     });
-    it('should return false if field value for option do not change', () => {
+    it("should return false if field value for option do not change", () => {
       const nextProps = {
         checked: true,
         option: {
-          value: 'foo'
-        }
+          value: "foo",
+        },
       };
       expect(instance.shouldComponentUpdate(commonProps)).to.be.false;
 
@@ -77,7 +77,7 @@ describe('SelectFrequentValuesOption', () => {
     });
   });
 
-  describe('#renderLabelValue', () => {
+  describe("#renderLabelValue", () => {
     let testProps;
     beforeEach(() => {
       testProps = {
@@ -85,55 +85,69 @@ describe('SelectFrequentValuesOption', () => {
         checked: true,
         option: {
           percent: 50,
-          value: undefined
+          value: undefined,
         },
-        maxPercent: 100
+        maxPercent: 100,
       };
     });
 
-    it('should render proper color and text for undefined values', () => {
-      const wrapper = shallow(<SelectFrequentValuesOption {...testProps}/>);
+    it("should render proper color and text for undefined values", () => {
+      const wrapper = shallow(<SelectFrequentValuesOption {...testProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal('#aaa');
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal('null');
+      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal(
+        "#aaa"
+      );
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
+        "null"
+      );
     });
-    it('should render proper color and text for empty text values', () => {
+    it("should render proper color and text for empty text values", () => {
       const emptyProps = {
         ...testProps,
         option: {
           percent: 50,
-          value: ''
-        }
+          value: "",
+        },
       };
-      const wrapper = shallow(<SelectFrequentValuesOption {...emptyProps}/>);
+      const wrapper = shallow(<SelectFrequentValuesOption {...emptyProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal('#aaa');
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal('empty text');
+      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal(
+        "#aaa"
+      );
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
+        "empty text"
+      );
     });
-    it('should render proper color and text for null values', () => {
+    it("should render proper color and text for null values", () => {
       const normalProps = {
         ...testProps,
         option: {
           percent: 50,
-          value: null
-        }
+          value: null,
+        },
       };
-      const wrapper = shallow(<SelectFrequentValuesOption {...normalProps}/>);
+      const wrapper = shallow(<SelectFrequentValuesOption {...normalProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal('#aaa');
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal('null');
+      expect(shallow(instance.renderLabelValue()).props().style.color).to.equal(
+        "#aaa"
+      );
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
+        "null"
+      );
     });
-    it('should render correctly for normal values', () => {
+    it("should render correctly for normal values", () => {
       const normalProps = {
         ...testProps,
         option: {
           percent: 50,
-          value: 'foo'
-        }
+          value: "foo",
+        },
       };
-      const wrapper = shallow(<SelectFrequentValuesOption {...normalProps}/>);
+      const wrapper = shallow(<SelectFrequentValuesOption {...normalProps} />);
       const instance = wrapper.instance();
-      expect(shallow(instance.renderLabelValue()).props().children).to.equal('foo');
+      expect(shallow(instance.renderLabelValue()).props().children).to.equal(
+        "foo"
+      );
     });
   });
 });

@@ -13,36 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { FormattedMessage, injectIntl } from 'react-intl';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { FormattedMessage, injectIntl } from "react-intl";
+import Immutable from "immutable";
 
-import Button from 'components/Buttons/Button';
-import ModalFooter from 'components/Modals/components/ModalFooter';
-import ResourceTreeController from 'components/Tree/ResourceTreeController';
-import Message from 'components/Message';
-import { formLabel } from 'uiTheme/radium/typography';
-import { formRow } from 'uiTheme/radium/forms';
-import { FieldWithError, TextField } from 'components/Fields';
-import DependantDatasetsWarning from 'components/Modals/components/DependantDatasetsWarning';
-import { applyValidators, isRequired } from 'utils/validation';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { ModalSize } from 'components/Modals/Modal';
+import Button from "components/Buttons/Button";
+import ModalFooter from "components/Modals/components/ModalFooter";
+import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
+import Message from "components/Message";
+import { formLabel } from "uiTheme/radium/typography";
+import { formRow } from "uiTheme/radium/forms";
+import { FieldWithError, TextField } from "components/Fields";
+import DependantDatasetsWarning from "components/Modals/components/DependantDatasetsWarning";
+import { applyValidators, isRequired } from "utils/validation";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { ModalSize } from "components/Modals/Modal";
 
-import './UpdateDataset.less';
+import "./UpdateDataset.less";
 
 export const UpdateMode = {
-  rename: 'rename',
-  move: 'move',
-  remove: 'remove',
-  removeFormat: 'removeFormat'
+  rename: "rename",
+  move: "move",
+  remove: "remove",
+  removeFormat: "removeFormat",
 };
 
 function validate(values, props) {
-  if (props.mode !== UpdateMode.remove && props.mode !== UpdateMode.removeFormat) {
-    return applyValidators(values, [isRequired('datasetName', 'Dataset name')]);
+  if (
+    props.mode !== UpdateMode.remove &&
+    props.mode !== UpdateMode.removeFormat
+  ) {
+    return applyValidators(values, [isRequired("datasetName", "Dataset name")]);
   }
 }
 
@@ -54,7 +57,7 @@ export class UpdateDatasetView extends Component {
       PropTypes.shape({
         key: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
-        type: PropTypes.string.isRequired
+        type: PropTypes.string.isRequired,
       })
     ),
     dependentDatasets: PropTypes.array,
@@ -69,12 +72,12 @@ export class UpdateDatasetView extends Component {
     mode: PropTypes.oneOf(Object.values(UpdateMode)).isRequired,
     size: PropTypes.oneOf([ModalSize.small, ModalSize.smallest]).isRequired,
     getGraphLink: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   static defaultProps = {
-    name: '',
-    hidePath: false
+    name: "",
+    hidePath: false,
   };
 
   constructor(props) {
@@ -89,15 +92,23 @@ export class UpdateDatasetView extends Component {
   getWarningTextId = (mode, count) => {
     // pluralization does not work well with formatMessage. Hence doing it manually
     switch (mode) {
-    case UpdateMode.remove:
-      return (count === 1) ? 'Dataset.DependantDatasetsRemoveSingleWarning' : 'Dataset.DependantDatasetsRemoveWarning';
-    case UpdateMode.rename:
-      return (count === 1) ? 'Dataset.DependantDatasetsRenameSingleWarning' : 'Dataset.DependantDatasetsRenameWarning';
-    case UpdateMode.removeFormat:
-      return (count === 1) ? 'Dataset.DependantDatasetsRemoveFormatSingleWarning' : 'Dataset.DependantDatasetsRemoveFormatWarning';
-    case UpdateMode.move:
-    default:
-      return (count === 1) ? 'Dataset.DependantDatasetsMoveSingleWarning' : 'Dataset.DependantDatasetsMoveWarning';
+      case UpdateMode.remove:
+        return count === 1
+          ? "Dataset.DependantDatasetsRemoveSingleWarning"
+          : "Dataset.DependantDatasetsRemoveWarning";
+      case UpdateMode.rename:
+        return count === 1
+          ? "Dataset.DependantDatasetsRenameSingleWarning"
+          : "Dataset.DependantDatasetsRenameWarning";
+      case UpdateMode.removeFormat:
+        return count === 1
+          ? "Dataset.DependantDatasetsRemoveFormatSingleWarning"
+          : "Dataset.DependantDatasetsRemoveFormatWarning";
+      case UpdateMode.move:
+      default:
+        return count === 1
+          ? "Dataset.DependantDatasetsMoveSingleWarning"
+          : "Dataset.DependantDatasetsMoveWarning";
     }
   };
 
@@ -105,14 +116,23 @@ export class UpdateDatasetView extends Component {
     const { dependentDatasets, mode, getGraphLink, intl } = this.props;
 
     if (dependentDatasets && dependentDatasets.length > 0) {
+      const messageObj = new Immutable.Map({
+        message: intl.formatMessage(
+          { id: this.getWarningTextId(mode) },
+          { dependentDatasetCount: dependentDatasets.length }
+        ),
+        moreInfo: (
+          <DependantDatasetsWarning dependantDatasets={dependentDatasets} />
+        ),
+      });
+
       return (
-        <DependantDatasetsWarning
-          text={intl.formatMessage(
-            { id: this.getWarningTextId(mode) },
-            { dependentDatasetCount: dependentDatasets.length }
-          )}
-          dependantDatasets={dependentDatasets}
-          getGraphLink={getGraphLink}
+        <Message
+          messageType="warning"
+          message={messageObj}
+          detailsStyle={{ padding: "2px 38px 0px 38px" }}
+          isDismissable={false}
+          customRightButton={getGraphLink ? getGraphLink() : undefined}
         />
       );
     }
@@ -121,33 +141,51 @@ export class UpdateDatasetView extends Component {
 
   renderErrorMessage() {
     const { error } = this.props;
-    return error && (
-      <Message
-        messageType='error'
-        message={error.message}
-        messageId={error.id}
-        detailsStyle={{maxHeight: 100}}
-      />
+    return (
+      error && (
+        <Message
+          messageType="error"
+          message={error.message}
+          messageId={error.id}
+          detailsStyle={{ maxHeight: 100 }}
+        />
+      )
     );
   }
 
   renderFormBody() {
     const { mode, item, fields, intl } = this.props;
     if (mode === UpdateMode.remove) {
-      return <div className='remove-question'>{la(`Are you sure you want to remove "${item.get('name')}"?`)}</div>;
+      return (
+        <div className="remove-question">
+          {la(`Are you sure you want to remove "${item.get("name")}"?`)}
+        </div>
+      );
     }
     if (mode === UpdateMode.removeFormat) {
-      return <div className='remove-question'>{la(`Are you sure you want to remove format for "${item.get('name')}"?`)}</div>;
+      return (
+        <div className="remove-question">
+          {la(
+            `Are you sure you want to remove format for "${item.get("name")}"?`
+          )}
+        </div>
+      );
     }
     return (
       <div style={formRow}>
-        <FieldWithError {...fields.datasetName} touched label='Name' errorPlacement='right'>
+        <FieldWithError
+          {...fields.datasetName}
+          touched
+          label="Name"
+          errorPlacement="right"
+        >
           <TextField
             {...fields.datasetName}
-            name='name'
+            name="name"
             touched
             initialFocus
-            placeholder={intl.formatMessage({ id: 'Dataset.Name' })}/>
+            placeholder={intl.formatMessage({ id: "Dataset.Name" })}
+          />
         </FieldWithError>
       </div>
     );
@@ -159,19 +197,22 @@ export class UpdateDatasetView extends Component {
     if (hidePath) return null;
 
     //setting the height of scrollable space selector (location) block
-    const style = (dependentDatasets && dependentDatasets.length) ? {maxHeight: 165, minHeight: 165} : {maxHeight: 250, minHeight: 250};
+    const style =
+      dependentDatasets && dependentDatasets.length
+        ? { maxHeight: 153, minHeight: 153 }
+        : { maxHeight: 248, minHeight: 248 };
 
     return (
-      <div className='property location'>
+      <div className="property location">
         <label style={formLabel}>
-          <FormattedMessage id = 'Common.Location' />
+          <FormattedMessage id="Common.Location" />
         </label>
-        <ResourceTreeController
+        <ResourceTreeContainer
           preselectedNodeId={initialPath}
           style={style}
-          hideSources
-          hideDatasets
           onChange={fields.selectedEntity.onChange}
+          hideDatasets
+          isSourcesHidden
         />
       </div>
     );
@@ -180,46 +221,60 @@ export class UpdateDatasetView extends Component {
   renderButtons() {
     const { handleSubmit, submit, buttons, hide } = this.props;
     return buttons.map((button, index) => {
-      const onClick = button.key === 'cancel' ? hide : handleSubmit(submit.bind(this, button.key));
-      return <Button
-        style={{marginLeft: 5, marginBottom: 0}}
-        className={button.className}
-        onClick={onClick}
-        text={button.name}
-        type={button.type}
-        key={`${index}_button`}/>;
+      const onClick =
+        button.key === "cancel"
+          ? hide
+          : handleSubmit(submit.bind(this, button.key));
+      return (
+        <Button
+          style={{ marginLeft: 5, marginBottom: 0 }}
+          className={button.className}
+          onClick={onClick}
+          text={button.name}
+          type={button.type}
+          key={`${index}_button`}
+        />
+      );
     });
   }
 
   render() {
     const { size } = this.props;
     const updateDatasetClass = classNames(
-      'update-dataset',
-      {'update-dataset-small': size === ModalSize.small},
-      {'update-dataset-smallest': size === ModalSize.smallest});
+      "update-dataset",
+      { "update-dataset-small": size === ModalSize.small },
+      { "update-dataset-smallest": size === ModalSize.smallest }
+    );
     return (
       <div className={updateDatasetClass} onClick={this.clickHandler}>
-        {this.renderErrorMessage()}
+        <div className="error-message-updateDataset">
+          {this.renderErrorMessage()}
+        </div>
         {this.renderWarning()}
-        <div className='update-dataset-content'>
+        <div className="update-dataset-content">
           {this.renderFormBody()}
           {this.renderLocationBlock()}
         </div>
-        <ModalFooter>
-          {this.renderButtons()}
-        </ModalFooter>
+        <ModalFooter>{this.renderButtons()}</ModalFooter>
       </div>
     );
   }
 }
 function mapStateToProps(state, props) {
   return {
-    initialValues: { datasetName: props.name }
+    initialValues: {
+      datasetName: props.name,
+      selectedEntity: props.initialPath,
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'updateDataset',
-  fields: ['datasetName', 'selectedEntity'],
-  validate
-}, [], mapStateToProps)(UpdateDatasetView);
+export default connectComplexForm(
+  {
+    form: "updateDataset",
+    fields: ["datasetName", "selectedEntity"],
+    validate,
+  },
+  [],
+  mapStateToProps
+)(UpdateDatasetView);

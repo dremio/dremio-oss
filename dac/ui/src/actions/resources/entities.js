@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-export const CLEAR_ENTITIES = 'CLEAR_ENTITIES';
+export const CLEAR_ENTITIES = "CLEAR_ENTITIES";
 
-export const clearEntities = typeList => ({
+export const clearEntities = (typeList) => ({
   type: CLEAR_ENTITIES,
-  typeList
+  typeList,
 });

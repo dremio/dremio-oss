@@ -414,9 +414,9 @@ public class OperatorWrapper {
           builder.endEntry();
         }
       builder.end();
-    }
-    else if (isRuntimeFilterInScanInfoPresent(foundOps)) {
-      final String SCAN_INFO_COLUMNS[] = ArrayUtils.addAll(RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN, SLOW_IO_INFO_COLUMNS);
+    } else if (isRuntimeFilterInScanInfoPresent(foundOps)) {
+      @SuppressWarnings("checkstyle:LocalFinalVariableName")
+      final String[] SCAN_INFO_COLUMNS = ArrayUtils.addAll(RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN, SLOW_IO_INFO_COLUMNS);
       int columnsCount = SCAN_INFO_COLUMNS.length;
       JsonBuilder builder = new JsonBuilder(generator, SCAN_INFO_COLUMNS);
       for (OperatorProfile op : foundOps) {
@@ -424,8 +424,7 @@ public class OperatorWrapper {
       }
       addSlowIOToBuilder(builder, foundOps, columnsCount - SLOW_IO_INFO_COLUMNS.length);
       builder.end();
-    }
-    else {
+    } else {
       JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
       addSlowIOToBuilder(builder, foundOps, 0);
       builder.end();

@@ -13,106 +13,119 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DATASET_TYPES_TO_ICON_TYPES } from '@app/constants/datasetTypes';
-import { formatMessage } from './locale';
+import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
+import { NESSIE } from "@app/constants/sourceTypes";
+import { formatMessage } from "./locale";
 
 const FILE_TYPES_TO_ICON_TYPES = {
-  database: 'Database',
-  table: 'PhysicalDataset',
-  dataset: 'VirtualDataset',
-  physicalDatasets: 'PhysicalDataset'
+  database: "Database",
+  table: "PhysicalDataset",
+  dataset: "VirtualDataset",
+  physicalDatasets: "PhysicalDataset",
 };
 export function getIconDataTypeFromEntity(entity) {
-  const fileType = entity.get('fileType');
-  if (fileType === 'folder') {
-    if (entity.get('queryable')) {
-      return 'FolderData';
+  const fileType = entity.get("fileType");
+  if (fileType === "folder") {
+    if (entity.get("queryable")) {
+      return "FolderData";
     }
-    return 'Folder';
+    return "Folder";
   }
-  if (fileType === 'file') {
-    if (entity.get('queryable')) {
-      return 'File';
+  if (fileType === "file") {
+    if (entity.get("queryable")) {
+      return "File";
     }
-    return 'FileEmpty';
+    return "FileEmpty";
   }
-  return FILE_TYPES_TO_ICON_TYPES[fileType] || 'FileEmpty';
+  return FILE_TYPES_TO_ICON_TYPES[fileType] || "FileEmpty";
 }
 
 export function getIconDataTypeFromDatasetType(datasetType) {
   return DATASET_TYPES_TO_ICON_TYPES[datasetType];
 }
 
-const DATABASE_STATUSES_TO_ICON_TYPES = {
-  good: 'Database',
-  bad: 'Database-Bad',
-  degraded: 'Database-Degraded'
+const STATUSES_ICON_POSTFIX = {
+  good: "",
+  bad: "-Bad",
+  degraded: "-Degraded",
 };
-export function getIconStatusDatabase(status) {
-  return DATABASE_STATUSES_TO_ICON_TYPES[status] || 'Database';
+
+const getSourceIcon = (sourceType) => {
+  return sourceType === NESSIE ? "Repository" : "Database";
+};
+
+export function getIconStatusDatabase(status, sourceType) {
+  return getSourceIcon(sourceType) + (STATUSES_ICON_POSTFIX[status] || "");
 }
 
-export function getIconByEntityType(type) {
+export function getIconByEntityType(type, sourceType = "") {
   switch (type && type.toUpperCase()) {
-  case 'DATASET':
-  case 'VIRTUAL':
-  case 'VIRTUAL_DATASET':
-    return 'VirtualDataset';
-  case 'PHYSICALDATASET':
-  case 'PHYSICAL_DATASET':
-  case 'PHYSICAL':
-  case 'TABLE':
-    return 'PhysicalDataset';
-  case 'SPACE':
-    return 'Space';
-  case 'SOURCE':
-    return 'Database';
-  case 'HOME':
-    return 'Home';
-  case 'FILE':
-    return 'File';
-  case 'PHYSICAL_DATASET_SOURCE_FILE':
-    return 'File';
-  case 'PHYSICAL_DATASET_SOURCE_FOLDER':
-    return 'FolderData';
-  case 'PHYSICAL_DATASET_HOME_FILE':
-    return 'File';
-  case 'FOLDER':
-    return 'Folder';
-  case 'OTHERS':
-    return 'OtherDataSets';
-  default:
-    return 'FileEmpty';
+    case "DATASET":
+    case "VIRTUAL":
+    case "VIRTUAL_DATASET":
+      return "VirtualDataset";
+    case "PHYSICALDATASET":
+    case "PHYSICAL_DATASET":
+    case "PHYSICAL":
+    case "TABLE":
+      return "PhysicalDataset";
+    case "SPACE":
+      return "Space";
+    case "SOURCE":
+      return getSourceIcon(sourceType);
+    case "HOME":
+      return "Home";
+    case "FILE":
+      return "File";
+    case "PHYSICAL_DATASET_SOURCE_FILE":
+      return "File";
+    case "PHYSICAL_DATASET_SOURCE_FOLDER":
+      return "FolderData";
+    case "PHYSICAL_DATASET_HOME_FILE":
+      return "File";
+    case "FOLDER":
+      return "Folder";
+    case "OTHERS":
+      return "OtherDataSets";
+    default:
+      return "FileEmpty";
   }
 }
 
-export function getIconTypeByEntityTypeAndStatus(entityType, sourceStatus) {
-  const iconType = sourceStatus === null ?
-    getIconByEntityType(entityType) :
-    getIconStatusDatabase(sourceStatus);
+export function getIconTypeByEntityTypeAndStatus(
+  entityType,
+  sourceStatus,
+  sourceType
+) {
+  const iconType =
+    sourceStatus === null
+      ? getIconByEntityType(entityType, sourceType)
+      : getIconStatusDatabase(sourceStatus, sourceType);
   return iconType;
 }
 
 export function getFormatMessageIdByEntityIconType(iconType) {
   switch (iconType) {
-  case 'VirtualDataset':
-    return 'Dataset.VirtualDataset';
-  case 'PhysicalDataset':
-    return 'Dataset.PhysicalDataset';
-  case 'Space':
-    return 'Space.Space';
-  case 'Database':
-    return 'Source.Source';
-  case 'Home':
-    return 'Common.Home';
-  case 'File':
-    return 'File.File';
-  case 'FolderData':
-    return 'Folder.FolderData';
-  case 'Folder':
-    return 'Folder.Folder';
-  default:
-    return 'File.FileEmpty';
+    case "VirtualDataset":
+      return "Dataset.VirtualDataset";
+    case "PhysicalDataset":
+      return "Dataset.PhysicalDataset";
+    case "Space":
+      return "Space.Space";
+    case "Database":
+      return "Source.Source";
+    case "Repository":
+      return "Source.NessieSource";
+    case "Home":
+      return "Common.Home";
+    case "File":
+      return "File.File";
+    case "FolderData":
+      return "Folder.FolderData";
+    case "Folder":
+      return "Folder.Folder";
+    default:
+      return "File.FileEmpty";
   }
 }
 
@@ -123,6 +136,6 @@ export function getIconAltTextByEntityIconType(iconType) {
 export function getArtPropsByEntityIconType(iconType) {
   return {
     src: `${iconType}.svg`,
-    alt: getIconAltTextByEntityIconType(iconType)
+    alt: getIconAltTextByEntityIconType(iconType),
   };
 }

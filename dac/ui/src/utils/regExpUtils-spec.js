@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeDblQuotes } from './regExpUtils';
+import { escapeDblQuotes } from "./regExpUtils";
 
-describe('escapeDblQuotes', () => {
-  it('should replace double quotes', () => {
+describe("escapeDblQuotes", () => {
+  it("should replace double quotes", () => {
     expect(escapeDblQuotes('a " b c')).to.equal('a "" b c');
     expect(escapeDblQuotes('a "b" c')).to.equal('a ""b"" c');
     expect(escapeDblQuotes('"a b c"')).to.equal('""a b c""');
   });
-  it('should keep string w/o double quotes', () => {
-    expect(escapeDblQuotes('a b c')).to.equal('a b c');
+  it("should keep string w/o double quotes", () => {
+    expect(escapeDblQuotes("a b c")).to.equal("a b c");
   });
-  it('should return empty string if argument not defined', () => {
-    expect(escapeDblQuotes()).to.equal('');
+  it("should return empty string if argument not defined", () => {
+    expect(escapeDblQuotes()).to.equal("");
   });
 });

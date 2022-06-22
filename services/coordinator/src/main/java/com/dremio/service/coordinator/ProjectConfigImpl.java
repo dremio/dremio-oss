@@ -72,7 +72,7 @@ public class ProjectConfigImpl implements ProjectConfig {
     } else {
       try {
         path = new URI(store.get().getDistStoreConfig().getPath() + subPath);
-        LOGGER.info("Got dist path for {} from store {}. Uri {}", store.get().getDistStoreConfig().getPath(), path);
+        LOGGER.info("Got dist path for {} from store {}. Uri {}", pathString, store.get().getDistStoreConfig().getPath(), path);
       } catch (URISyntaxException e) {
         path = fileProvider.get().getURI(pathString);
         LOGGER.error("Invalid dist path for {} in store {}. Uri {}", pathString, store.get().getDistStoreConfig().getPath(), path);

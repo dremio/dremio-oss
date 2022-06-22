@@ -13,24 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import Input from '../Input';
+import Input from "../Input";
 
 const FormikInput = (props) => {
+  const { field, ...otherProps } = props;
 
-  const {
-    field,
-    ...otherProps
-  } = props;
-
-  return (
-    <Input
-      {...field}
-      {...otherProps}
-    />
-  );
+  return <Input {...field} {...otherProps} />;
 };
 
 FormikInput.propTypes = {
@@ -39,12 +30,12 @@ FormikInput.propTypes = {
   labelStyle: PropTypes.object,
   classes: PropTypes.shape({
     root: PropTypes.string,
-    input: PropTypes.string
+    input: PropTypes.string,
   }),
   field: PropTypes.object.isRequired,
   form: PropTypes.object.isRequired,
   hideError: PropTypes.bool,
-  prefix: PropTypes.string
+  prefix: PropTypes.string,
 };
 
 FormikInput.defaultProps = {
@@ -52,7 +43,7 @@ FormikInput.defaultProps = {
   label: null,
   labelStyle: {},
   classes: {},
-  hideError: false
+  hideError: false,
 };
 
 export default FormikInput;

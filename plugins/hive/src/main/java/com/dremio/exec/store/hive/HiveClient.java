@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import java.util.List;
 
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.LockRequest;
@@ -31,6 +32,7 @@ import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
 import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivObjectActionType;
 
 import com.dremio.hive.thrift.TException;
 
@@ -49,6 +51,8 @@ public interface HiveClient extends AutoCloseable {
 
   Table getTable(String dbName, String tableName, boolean ignoreAuthzErrors) throws TException;
 
+  void dropTable(String dbName, String tableName, boolean ignoreAuthzErrors) throws TException;
+
   List<Partition> getPartitionsByName(String dbName, String tableName, List<String> partitionNames) throws TException;
 
   List<String> getPartitionNames(String dbName, String tableName) throws TException;
@@ -65,6 +69,16 @@ public interface HiveClient extends AutoCloseable {
   void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException;
 
   LockResponse checkLock(long lockid) throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException;
+
+  IMetaStoreClient getMetastoreClient();
+
+  void checkDmlPrivileges(String dbName, String tableName, List<HivePrivObjectActionType> actionTypes);
+
+  void checkCreateTablePrivileges(String dbName, String tableName);
+
+  void checkTruncateTablePrivileges(String dbName, String tableName);
+
+  void checkAlterTablePrivileges(String dbName, String tableName);
 
   @Override
   void close();

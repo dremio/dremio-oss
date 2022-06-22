@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
+import io.protostuff.ByteString;
+
 public class IcebergTableProps {
 
   private String tableLocation;
@@ -39,6 +41,9 @@ public class IcebergTableProps {
   private boolean isMetadataRefresh;
   private List<String> partitionPaths;
   private ResolvedVersionContext version;
+  private String databaseName;
+  private ByteString partitionSpec;
+  private String icebergSchema;
 
   @JsonCreator
   public IcebergTableProps(
@@ -47,17 +52,23 @@ public class IcebergTableProps {
     @JsonProperty("fullSchema") BatchSchema fullSchema,
     @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
     @JsonProperty("icebergOpType") IcebergCommandType icebergOpType,
+    @JsonProperty("databaseName") String databaseName,
     @JsonProperty("tableName") String tableName,
     @JsonProperty("dataTableLocation") String dataTableLocation,
-    @JsonProperty("versionContext") ResolvedVersionContext version) {
+    @JsonProperty("versionContext") ResolvedVersionContext version,
+    @JsonProperty("partitionSpec") ByteString partitionSpec,
+    @JsonProperty("icebergSchema") String icebergSchema) {
       this.tableLocation = tableLocation;
       this.uuid = uuid;
       this.fullSchema = fullSchema;
       this.partitionColumnNames = partitionColumnNames;
       this.icebergOpType = icebergOpType;
+      this.databaseName = databaseName;
       this.tableName = tableName;
       this.dataTableLocation = dataTableLocation;
       this.version = version;
+      this.partitionSpec = partitionSpec;
+      this.icebergSchema = icebergSchema;
   }
 
   public IcebergTableProps(final IcebergTableProps other){
@@ -72,6 +83,21 @@ public class IcebergTableProps {
     this.isMetadataRefresh = other.isMetadataRefresh;
     this.partitionPaths = other.partitionPaths;
     this.version = other.version;
+    this.databaseName = other.databaseName;
+    this.partitionSpec = other.partitionSpec;
+    this.icebergSchema = other.icebergSchema;
+  }
+
+  @Deprecated
+  public IcebergTableProps(ByteString partitionSpec){
+    this.partitionSpec = partitionSpec;
+    this.uuid = null;
+  }
+
+  public IcebergTableProps(ByteString partitionSpec, String icebergSchema){
+    this.partitionSpec = partitionSpec;
+    this.uuid = null;
+    this.icebergSchema = icebergSchema;
   }
 
   public String getTableLocation() {
@@ -108,6 +134,14 @@ public class IcebergTableProps {
 
   public List<String> getPartitionColumnNames() {
     return partitionColumnNames;
+  }
+
+  public String getDatabaseName() {
+    return databaseName;
+  }
+
+  public void setDatabaseName(String databaseName) {
+    this.databaseName = databaseName;
   }
 
   public String getTableName() {
@@ -148,6 +182,35 @@ public class IcebergTableProps {
 
   public ResolvedVersionContext getVersion() {
     return version;
+  }
+
+  public ByteString getPartitionSpec() {
+    return partitionSpec;
+  }
+
+  public void setPartitionSpec(ByteString partitionSpec) {
+    this.partitionSpec = partitionSpec;
+  }
+
+  public String getIcebergSchema() {
+    return icebergSchema;
+  }
+
+  public void setIcebergSchema(String icebergSchema) {
+    this.icebergSchema = icebergSchema;
+  }
+
+  @Override
+  public String toString() {
+    return "IcebergTableProps{" +
+      "tableLocation='" + tableLocation + '\'' +
+      ", uuid='" + uuid + '\'' +
+      ", icebergOpType=" + icebergOpType +
+      ", tableName='" + tableName + '\'' +
+      ", dataTableLocation='" + dataTableLocation + '\'' +
+      ", isMetadataRefresh=" + isMetadataRefresh +
+      ", version=" + version +
+      '}';
   }
 
   @JsonIgnore

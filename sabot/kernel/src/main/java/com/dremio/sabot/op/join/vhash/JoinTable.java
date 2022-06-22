@@ -58,9 +58,7 @@ public interface JoinTable extends AutoCloseable {
    * @param maxKeySize Max key width
    * @return
    */
-  default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    return Optional.empty();
-  }
+  Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize);
 
   /**
    * Returns distinct keys for a given field. In case of composite keys, this method can be used to get distinct values
@@ -73,7 +71,5 @@ public interface JoinTable extends AutoCloseable {
    * @param maxElements
    * @return
    */
-  default Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return Optional.empty();
-  }
+  Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements);
 }

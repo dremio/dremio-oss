@@ -13,35 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const OPTIMISTIC_TRANSFORMS = ['DROP', 'RENAME', 'DESC', 'ASC', 'MULTIPLY'];
+const OPTIMISTIC_TRANSFORMS = ["DROP", "RENAME", "DESC", "ASC", "MULTIPLY"];
 
 class Transforms {
   isTransformOptimistic(type) {
     return OPTIMISTIC_TRANSFORMS.indexOf(type) !== -1;
   }
 
-  sort({table}) {
+  sort({ table }) {
     return table;
   }
 
-  dropColumn({name, table}) {
-    const nextColumns = table.get('columns').filter(col => col.get('name') !== name);
-    const colIndex = table.get('columns').findIndex(col => col.get('name') === name);
+  dropColumn({ name, table }) {
+    const nextColumns = table
+      .get("columns")
+      .filter((col) => col.get("name") !== name);
+    const colIndex = table
+      .get("columns")
+      .findIndex((col) => col.get("name") === name);
 
-    let nextTable = table.set('columns', nextColumns);
+    let nextTable = table.set("columns", nextColumns);
     // the data may be loaded asynchronously, so rows could be not presented
-    let nextRows = table.get('rows');
+    let nextRows = table.get("rows");
     if (nextRows) {
-      nextRows = nextRows.map(row => row.set('row', row.get('row').filter((r, index) => index !== colIndex)));
-      nextTable = nextTable.set('rows', nextRows);
+      nextRows = nextRows.map((row) =>
+        row.set(
+          "row",
+          row.get("row").filter((r, index) => index !== colIndex)
+        )
+      );
+      nextTable = nextTable.set("rows", nextRows);
     }
     return nextTable;
   }
 
-  renameColumn({name, nextName, table}) {
-    const index = table.get('columns').findIndex(col => col.get('name') === name);
-    return table.setIn(['columns', index, name], nextName);
+  renameColumn({ name, nextName, table }) {
+    const index = table
+      .get("columns")
+      .findIndex((col) => col.get("name") === name);
+    return table.setIn(["columns", index, name], nextName);
   }
 }
 
-export default (new Transforms());
+export default new Transforms();

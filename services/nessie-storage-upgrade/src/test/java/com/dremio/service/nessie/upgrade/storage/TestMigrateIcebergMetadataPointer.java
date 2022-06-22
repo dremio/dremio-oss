@@ -17,7 +17,6 @@ package com.dremio.service.nessie.upgrade.storage;
 
 import static com.dremio.service.nessie.upgrade.storage.MigrateToNessieAdapter.MAX_ENTRIES_PER_COMMIT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -31,7 +30,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content;
@@ -49,8 +47,10 @@ import org.projectnessie.versioned.VersionStore;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.ContentId;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.ImmutableCommitAttempt;
+import org.projectnessie.versioned.persist.adapter.ImmutableCommitParams;
 import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
+import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
+import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.store.PersistVersionStore;
 
 import com.dremio.common.config.SabotConfig;
@@ -59,8 +59,6 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
-import com.dremio.service.nessie.ImmutableNessieDatabaseAdapterConfig;
-import com.dremio.service.nessie.NessieDatabaseAdapterConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.protobuf.ByteString;
 
@@ -78,6 +76,8 @@ class TestMigrateIcebergMetadataPointer {
 
   private static final String UPGRADE_BRANCH_NAME = "upgrade-test";
 
+  private final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
+
   private final MigrateIcebergMetadataPointer task = new MigrateIcebergMetadataPointer();
   private LocalKVStoreProvider storeProvider;
   private DatabaseAdapter adapter;
@@ -93,10 +93,13 @@ class TestMigrateIcebergMetadataPointer {
       .build());
     nessieDatastore.initialize();
 
-    NessieDatabaseAdapterConfig adapterCfg = new ImmutableNessieDatabaseAdapterConfig.Builder().build();
+    NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
+      .builder()
+      .build();
     adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)
-      .withConnector(nessieDatastore).build();
+      .withConnector(nessieDatastore)
+      .build(worker);
   }
 
   @AfterEach
@@ -106,14 +109,14 @@ class TestMigrateIcebergMetadataPointer {
     }
   }
 
-  private void commitLegacyData(Key key, ContentId contentId, TableCommitMetaStoreWorker worker)
+  private void commitLegacyData(Key key, ContentId contentId)
     throws ReferenceNotFoundException, ReferenceConflictException {
 
     ByteString refState = ByteString.copyFrom(Base64.getDecoder().decode(LEGACY_REF_STATE_BASE64));
     ByteString globalState = ByteString.copyFrom(Base64.getDecoder().decode(LEGACY_GLOBAL_STATE_BASE64));
 
-    adapter.commit(ImmutableCommitAttempt.builder()
-      .commitToBranch(BranchName.of("main"))
+    adapter.commit(ImmutableCommitParams.builder()
+      .toBranch(BranchName.of("main"))
       .commitMetaSerialized(worker.getMetadataSerializer().toBytes(CommitMeta.fromMessage("test")))
       .putGlobal(contentId, globalState)
       .addPuts(KeyWithBytes.of(
@@ -126,31 +129,14 @@ class TestMigrateIcebergMetadataPointer {
 
 
   @ParameterizedTest
-  @CsvSource({
-    "0,   1",
-    "1,   1",
-    "2,   1",
-    "19,  1",
-    "19,  1000",
-    "20,  1",
-    "20,  1000",
-    "21,  1",
-    "21,  1000",
-    "40,  1",
-    "101, 1",
-    "101, 20",
-    "101, 101",
-    "101, 1000",
-  })
-  void testUpgrade(int numExtraTables, int batchSize) throws Exception {
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-
+  @ValueSource(ints = {0, 1, 2, 19, 20, 21, 40, 99, 100, 101})
+  void testUpgrade(int numExtraTables) throws Exception {
     adapter.initializeRepo("main");
     // Load a legacy entry into the adapter
     List<Key> keys = new ArrayList<>();
     Key key1 = Key.of("test", "table", "11111");
     ContentId contentId1 = ContentId.of("test-content-id");
-    commitLegacyData(key1, contentId1, worker);
+    commitLegacyData(key1, contentId1);
     keys.add(key1);
 
     VersionStore<Content, CommitMeta, Content.Type> versionStore = new PersistVersionStore<>(adapter, worker);
@@ -166,7 +152,7 @@ class TestMigrateIcebergMetadataPointer {
       keys.add(extraKey);
     }
 
-    task.upgrade(storeProvider, batchSize, UPGRADE_BRANCH_NAME);
+    task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
     // Make sure the transient upgrade branch is deleted when the upgrade is over
     assertThat(adapter.namedRefs(GetNamedRefsParams.DEFAULT))
@@ -175,7 +161,7 @@ class TestMigrateIcebergMetadataPointer {
     Map<Key, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
 
     assertThat(tables.keySet()).containsExactlyInAnyOrder(keys.toArray(new Key[0]));
-    assertThat(tables).allSatisfy((k,v) -> {
+    assertThat(tables).allSatisfy((k, v) -> {
       assertThat(v).isInstanceOf(IcebergTable.class)
         .extracting("metadataLocation")
         .isEqualTo("test-metadata-location"); // encoded in LEGACY_REF_STATE_BASE64
@@ -202,16 +188,9 @@ class TestMigrateIcebergMetadataPointer {
       .allSatisfy(e -> assertThat(e.getPuts().size()).isEqualTo(MAX_ENTRIES_PER_COMMIT));
   }
 
-  @ParameterizedTest
-  @ValueSource(ints = {0, -1, -100})
-  void testInvalidBatchSize(int batchSize) throws Exception {
-    assertThatThrownBy(() -> task.upgrade(storeProvider, batchSize, UPGRADE_BRANCH_NAME))
-      .hasMessageContaining("Invalid batch size");
-  }
-
   @Test
   void testEmptyUpgrade() throws Exception {
-    task.upgrade(storeProvider, 10, UPGRADE_BRANCH_NAME);
+    task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
     assertThat(main.getHash()).isEqualTo(adapter.noAncestorHash()); // no change during upgrade
@@ -223,7 +202,6 @@ class TestMigrateIcebergMetadataPointer {
 
     adapter.initializeRepo("main");
     // Create an Iceberg table in current Nessie format
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
     VersionStore<Content, CommitMeta, Content.Type> versionStore = new PersistVersionStore<>(adapter, worker);
     Hash head = versionStore.commit(BranchName.of("main"), Optional.empty(), CommitMeta.fromMessage("test"),
       Collections.singletonList(ImmutablePut.<Content>builder()
@@ -231,7 +209,7 @@ class TestMigrateIcebergMetadataPointer {
         .value(table)
         .build()));
 
-    task.upgrade(storeProvider, 10, UPGRADE_BRANCH_NAME);
+    task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
     assertThat(main.getHash()).isEqualTo(head); // no change during upgrade
@@ -239,22 +217,20 @@ class TestMigrateIcebergMetadataPointer {
 
   @Test
   void testUnnecessaryUpgradeOfDeletedEntry() throws Exception {
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-
     adapter.initializeRepo("main");
     // Load a legacy entry into the adapter
     Key key1 = Key.of("test", "table", "11111");
     ContentId contentId1 = ContentId.of("test-content-id");
-    commitLegacyData(key1, contentId1, worker);
+    commitLegacyData(key1, contentId1);
 
     // Delete the legacy entry
-    Hash head = adapter.commit(ImmutableCommitAttempt.builder()
-      .commitToBranch(BranchName.of("main"))
+    Hash head = adapter.commit(ImmutableCommitParams.builder()
+      .toBranch(BranchName.of("main"))
       .commitMetaSerialized(worker.getMetadataSerializer().toBytes(CommitMeta.fromMessage("test delete")))
       .addDeletes(key1)
       .build());
 
-    task.upgrade(storeProvider, 10, UPGRADE_BRANCH_NAME);
+    task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
     assertThat(main.getHash()).isEqualTo(head); // no change during upgrade
@@ -262,13 +238,11 @@ class TestMigrateIcebergMetadataPointer {
 
   @Test
   void testUnnecessaryUpgradeOfReplacedEntry() throws Exception {
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-
     adapter.initializeRepo("main");
     // Load a legacy entry into the adapter
     Key key1 = Key.of("test", "table", "11111");
     ContentId contentId1 = ContentId.of("test-content-id");
-    commitLegacyData(key1, contentId1, worker);
+    commitLegacyData(key1, contentId1);
 
     // Replace the table using current Nessie format
     IcebergTable table = IcebergTable.of("metadata1", 1, 2, 3, 4, "id123");
@@ -279,7 +253,7 @@ class TestMigrateIcebergMetadataPointer {
         .value(table)
         .build()));
 
-    task.upgrade(storeProvider, 10, UPGRADE_BRANCH_NAME);
+    task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
     ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
     assertThat(main.getHash()).isEqualTo(head); // no change during upgrade
@@ -288,11 +262,10 @@ class TestMigrateIcebergMetadataPointer {
   @Test
   void testUpgradeBranchReset() throws Exception {
     adapter.initializeRepo("main");
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-    commitLegacyData(Key.of("test1"), ContentId.of("test-cid"), worker);
+    commitLegacyData(Key.of("test1"), ContentId.of("test-cid"));
 
     adapter.create(BranchName.of(UPGRADE_BRANCH_NAME), adapter.noAncestorHash());
-    task.upgrade(storeProvider, 10, UPGRADE_BRANCH_NAME);
+    task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
     assertThat(adapter.namedRefs(GetNamedRefsParams.DEFAULT))
       .noneMatch(r -> r.getNamedRef().getName().equals(UPGRADE_BRANCH_NAME));

@@ -204,4 +204,3 @@ class NumberingRelWriter implements RelWriter {
     return buf.toString();
   }
 }
-

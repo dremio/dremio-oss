@@ -13,29 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put } from 'redux-saga/effects';
-import { updateViewState } from 'actions/resources';
+import { put } from "redux-saga/effects";
+import { updateViewState } from "actions/resources";
 
-import { addNotification } from 'actions/notification';
-import { handleDownloadFile } from './downloadFile';
+import { addNotification } from "actions/notification";
+import { handleDownloadFile } from "./downloadFile";
 
-describe('downloadFile saga', () => {
-
-  describe('handleDownloadFile', () => {
+describe("downloadFile saga", () => {
+  describe("handleDownloadFile", () => {
     let gen;
     let next;
     beforeEach(() => {
       gen = handleDownloadFile({
         meta: {
-          downloadUrl: 'foo',
-          viewId: 'viewId'
-        }
+          downloadUrl: "foo",
+          viewId: "viewId",
+        },
       });
     });
 
-    it('should call fetch, getFileDownloadConfigFromResponse, and downloadFile', () => {
+    it("should call fetch, getFileDownloadConfigFromResponse, and downloadFile", () => {
       next = gen.next();
-      expect(next.value).to.eql(put(updateViewState('viewId', { isInProgress: true })));
+      expect(next.value).to.eql(
+        put(updateViewState("viewId", { isInProgress: true }))
+      );
       next = gen.next();
       expect(next.value.CALL).to.not.be.undefined; // call fetch
       next = gen.next();
@@ -43,22 +44,28 @@ describe('downloadFile saga', () => {
       next = gen.next();
       expect(next.value.CALL).to.not.be.undefined; // call downloadFile
       next = gen.next();
-      expect(next.value).to.eql(put(updateViewState('viewId', { isInProgress: false })));
+      expect(next.value).to.eql(
+        put(updateViewState("viewId", { isInProgress: false }))
+      );
       next = gen.next();
       expect(next.done).to.be.true;
     });
 
-    it('should put(addNotification) if download fails', () => {
+    it("should put(addNotification) if download fails", () => {
       next = gen.next();
-      expect(next.value).to.eql(put(updateViewState('viewId', { isInProgress: true })));
+      expect(next.value).to.eql(
+        put(updateViewState("viewId", { isInProgress: true }))
+      );
       next = gen.next();
       expect(next.value.CALL).to.not.be.undefined; // call fetch
       next = gen.next();
       expect(next.value.CALL).to.not.be.undefined; // call getFileDownloadConfigFromResponse
-      next = gen.throw(new Error('someMessage'));
-      expect(next.value).to.eql(put(addNotification('someMessage', 'error')));
+      next = gen.throw(new Error("someMessage"));
+      expect(next.value).to.eql(put(addNotification("someMessage", "error")));
       next = gen.next();
-      expect(next.value).to.eql(put(updateViewState('viewId', { isInProgress: false, isFailed: true })));
+      expect(next.value).to.eql(
+        put(updateViewState("viewId", { isInProgress: false, isFailed: true }))
+      );
       next = gen.next();
       expect(next.done).to.be.true;
     });

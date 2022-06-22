@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import ExtractMapCards from 'pages/ExplorePage/components/Transform/components/forms/sections/ExtractMapCards';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
+import ExtractMapCards from "pages/ExplorePage/components/Transform/components/forms/sections/ExtractMapCards";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 
-import { ExtractMapForm, getExtractMapCards } from './ExtractMapForm';
+import { ExtractMapForm, getExtractMapCards } from "./ExtractMapForm";
 
-describe('ExtractMapForm', () => {
+describe("ExtractMapForm", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -30,74 +30,77 @@ describe('ExtractMapForm', () => {
   beforeEach(() => {
     minimalProps = {
       transform: Immutable.Map({
-        columnName: 'a'
+        columnName: "a",
       }),
-      submit: sinon.stub().returns('submitResponse'),
+      submit: sinon.stub().returns("submitResponse"),
       onCancel: sinon.spy(),
       cards: Immutable.fromJS([{}]),
-      fields: { cards: {addField: sinon.spy()}}
+      fields: { cards: { addField: sinon.spy() } },
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<ExtractMapForm {...commonProps}/>);
+    wrapper = shallow(<ExtractMapForm {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<ExtractMapForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<ExtractMapForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
     expect(wrapper.find(ExtractMapCards)).to.have.length(1);
     expect(wrapper.find(NewFieldSection)).to.have.length(1);
   });
 
-  describe('submit', () => {
+  describe("submit", () => {
     let values;
     beforeEach(() => {
       values = {
-        newFieldName: 'a2',
+        newFieldName: "a2",
         dropSourceField: false,
         activeCard: 0,
-        cards: [{
-          type: 'position',
-          position: {
-            startIndex: { value: 1, direction: 'FROM_THE_START' },
-            endIndex: { value: 2, direction: 'FROM_THE_START' }
-          }
-        }]
+        cards: [
+          {
+            type: "position",
+            position: {
+              startIndex: { value: 1, direction: "FROM_THE_START" },
+              endIndex: { value: 2, direction: "FROM_THE_START" },
+            },
+          },
+        ],
       };
     });
 
-    it('should pass submitType to props.submit', () => {
-      instance.submit(values, 'apply');
-      expect(commonProps.submit.getCall(0).args[1]).to.eql('apply');
+    it("should pass submitType to props.submit", () => {
+      instance.submit(values, "apply");
+      expect(commonProps.submit.getCall(0).args[1]).to.eql("apply");
     });
 
-    it('should return correct values on submit', () => {
+    it("should return correct values on submit", () => {
       const expectedResult = {
         ...fieldsMappers.getCommonValues(values, commonProps.transform),
         fieldTransformation: {
-          type: 'ExtractMap',
-          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard)
-        }
+          type: "ExtractMap",
+          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard),
+        },
       };
-      expect(instance.submit(values)).to.eql('submitResponse');
+      expect(instance.submit(values)).to.eql("submitResponse");
       expect(commonProps.submit.calledOnce).to.eql(true);
       expect(commonProps.submit.getCall(0).args[0]).to.eql(expectedResult);
     });
   });
 
-  describe('getExtractMapCards', () => {
-    it('should return empty card if no selection or selection is empty', () => {
-      expect(getExtractMapCards()).to.eql(Immutable.fromJS([{type: 'map'}]));
-      expect(getExtractMapCards(Immutable.Map())).to.eql(Immutable.fromJS([{type: 'map'}]));
+  describe("getExtractMapCards", () => {
+    it("should return empty card if no selection or selection is empty", () => {
+      expect(getExtractMapCards()).to.eql(Immutable.fromJS([{ type: "map" }]));
+      expect(getExtractMapCards(Immutable.Map())).to.eql(
+        Immutable.fromJS([{ type: "map" }])
+      );
     });
 
-    it('should return card with dotted path', () => {
+    it("should return card with dotted path", () => {
       expect(
-        getExtractMapCards(Immutable.fromJS({mapPathList: ['a', 'b']}))
-      ).to.eql(Immutable.fromJS([{type: 'map', path: 'a.b'}]));
+        getExtractMapCards(Immutable.fromJS({ mapPathList: ["a", "b"] }))
+      ).to.eql(Immutable.fromJS([{ type: "map", path: "a.b" }]));
     });
   });
 });
-

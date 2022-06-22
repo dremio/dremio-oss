@@ -13,31 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import DropdownMenu from '@app/components/Menus/DropdownMenu';
-import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
-import PropTypes from 'prop-types';
+import DropdownMenu from "@app/components/Menus/DropdownMenu";
+import { JobStatusMenu } from "@app/components/Menus/ExplorePage/JobStatusMenu";
+import PropTypes from "prop-types";
 
-const ExploreTableJobStatusDropdown = ({jobId, jobStatusName = '', isJobCancellable, cancelJob}) => {
+const ExploreTableJobStatusDropdown = ({
+  jobId,
+  jobStatusName = "",
+  isJobCancellable,
+  cancelJob,
+}) => {
   const doButtonAction = (actionType) => {
     if (!jobId) return;
 
-    if (actionType === 'cancel') {
+    if (actionType === "cancel") {
       cancelJob(jobId);
     } //else ignore
   };
 
   return (
-    <span className='exploreJobStatus__value'>
-      {jobId &&
+    <span className="exploreJobStatus__value">
+      {jobId && (
         <DropdownMenu
-          className='exploreJobStatus__button'
+          className="exploreJobStatus__button"
           hideArrow
           hideDivider
           style={styles.textLink}
           textStyle={styles.menuText}
           text={jobStatusName}
-          menu={<JobStatusMenu action={doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
-      }
+          menu={
+            <JobStatusMenu
+              action={doButtonAction}
+              jobId={jobId}
+              isCancellable={isJobCancellable}
+            />
+          }
+        />
+      )}
     </span>
   );
 };
@@ -46,17 +58,17 @@ ExploreTableJobStatusDropdown.propTypes = {
   jobId: PropTypes.string.isRequired,
   jobStatusName: PropTypes.string,
   isJobCancellable: PropTypes.bool.isRequired,
-  cancelJob: PropTypes.func.isRequired
+  cancelJob: PropTypes.func.isRequired,
 };
 
 export default ExploreTableJobStatusDropdown;
 
 const styles = {
   textLink: {
-    color: '#43B8C9',
-    marginRight: 0
+    color: "#43B8C9",
+    marginRight: 0,
   },
   menuText: {
-    marginRight: 0
-  }
+    marginRight: 0,
+  },
 };

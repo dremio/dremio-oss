@@ -13,36 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import SampleDataMessage from 'pages/ExplorePage/components/SampleDataMessage';
-import classNames from 'classnames';
-import { base, warning, buttons } from './WizardFooter.less';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import SampleDataMessage from "pages/ExplorePage/components/SampleDataMessage";
+import classNames from "classnames";
+import { base, warning, buttons } from "./WizardFooter.less";
 
-@Radium
-export default class WizardFooter extends Component {
+class WizardFooter extends Component {
   static propTypes = {
     children: PropTypes.node,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   renderPreviewWarning() {
-    return (
-      <SampleDataMessage />
-    );
+    return <SampleDataMessage />;
   }
 
   render() {
     return (
-      <div className={classNames(['wizard-footer', base])} style={[this.props.style]}>
-        <div className={buttons}>
-          {this.props.children}
-        </div>
-        <div className={warning}>
-          {this.renderPreviewWarning()}
-        </div>
+      <div
+        className={classNames(["wizard-footer", base])}
+        style={[this.props.style]}
+      >
+        <div className={buttons}>{this.props.children}</div>
+        <div className={warning}>{this.renderPreviewWarning()}</div>
       </div>
     );
   }
 }
+export default Radium(WizardFooter);

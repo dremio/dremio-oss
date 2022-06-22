@@ -13,23 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { FieldWithError, TextField, PasswordField } from 'components/Fields';
-import { applyValidators, isRequired, confirmPassword, isEmail, noDoubleQuotes, noColons } from 'utils/validation';
-import { formRow } from 'uiTheme/radium/forms';
-import {EDITION} from 'dyn-load/constants/serverStatus';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import * as VersionUtils from '@app/utils/versionUtils';
+import { FieldWithError, TextField, PasswordField } from "components/Fields";
+import {
+  applyValidators,
+  isRequired,
+  confirmPassword,
+  isEmail,
+  noDoubleQuotes,
+  noColons,
+} from "utils/validation";
+import { formRow } from "uiTheme/radium/forms";
+import { EDITION } from "dyn-load/constants/serverStatus";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
+import * as VersionUtils from "@app/utils/versionUtils";
 
 //export for testing only
-export const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'tag', 'extra', 'id', 'active', 'roles', 'source'];
+export const FIELDS = [
+  "firstName",
+  "lastName",
+  "userName",
+  "email",
+  "password",
+  "passwordVerify",
+  "tag",
+  "extra",
+  "id",
+  "active",
+  "roles",
+  "source",
+];
 
-@Radium
-export default class UserForm extends Component { // todo: rename, make proper "Section", since this is not a full "Form"
+class UserForm extends Component {
+  // todo: rename, make proper "Section", since this is not a full "Form"
   static propTypes = {
     fields: PropTypes.object.isRequired,
     className: PropTypes.string,
@@ -37,28 +56,37 @@ export default class UserForm extends Component { // todo: rename, make proper "
     passwordHolderStyles: PropTypes.object,
     isReadMode: PropTypes.bool,
     noExtras: PropTypes.bool,
-    source: PropTypes.string
+    source: PropTypes.string,
   };
 
   static defaultProps = {
     style: {},
     passwordHolderStyles: {},
-    isReadMode: false
+    isReadMode: false,
   };
 
   //#region connectComplexForm.Sections region
 
   static getFields = () => FIELDS;
-  static validate = (values) => { // todo: loc
+  static validate = (values) => {
+    // todo: loc
     const validators = [
-      isRequired('firstName', 'First Name'), isRequired('lastName', 'Last Name'),
-      isRequired('userName', 'Username'), noDoubleQuotes('userName'),
-      noColons('userName'), isEmail('email'), isRequired('email')
+      isRequired("firstName", "First Name"),
+      isRequired("lastName", "Last Name"),
+      isRequired("userName", "Username"),
+      noDoubleQuotes("userName"),
+      noColons("userName"),
+      isEmail("email"),
+      isRequired("email"),
     ];
-    if (values.tag === undefined) { // only require password for a new user
-      validators.push(isRequired('password'), isRequired('passwordVerify', la('Confirm Password')));
+    if (values.tag === undefined) {
+      // only require password for a new user
+      validators.push(
+        isRequired("password"),
+        isRequired("passwordVerify", la("Confirm Password"))
+      );
     }
-    validators.push(confirmPassword('password', 'passwordVerify'));
+    validators.push(confirmPassword("password", "passwordVerify"));
     return applyValidators(values, validators);
   };
 
@@ -68,70 +96,114 @@ export default class UserForm extends Component { // todo: rename, make proper "
     const version = this.props.fields.tag.value;
     // fields.version.value holds empty string even when it should hold undefined.
     // this might be from this https://github.com/erikras/redux-form/issues/621
-    return version !== undefined && version !== '';
+    return version !== undefined && version !== "";
   }
 
   render() {
-    const { fields, style, passwordHolderStyles, isReadMode, className, noExtras, source } = this.props;
+    const {
+      fields,
+      style,
+      passwordHolderStyles,
+      isReadMode,
+      className,
+      noExtras,
+      source,
+    } = this.props;
     const edition = VersionUtils.getEditionFromConfig();
     const isME = edition === EDITION.ME;
     const isAuthed = localStorageUtils.getInstanceId();
 
-    const hidePasswordFields = source === 'external' || isReadMode;
+    const hidePasswordFields = source === "external" || isReadMode;
 
     return (
       <div style={style} className={className}>
         <div style={styles.formRow}>
           <FieldWithError
-            label={la('First Name')} errorPlacement='top' labelStyle={styles.label} {...fields.firstName}
-            style={styles.inlineBlock}>
-            <TextField initialFocus {...fields.firstName} disabled={isReadMode}/>
+            label={la("First Name")}
+            errorPlacement="top"
+            labelStyle={styles.label}
+            {...fields.firstName}
+            style={styles.inlineBlock}
+          >
+            <TextField
+              initialFocus
+              {...fields.firstName}
+              disabled={isReadMode}
+            />
           </FieldWithError>
-          <FieldWithError label={la('Last Name')} errorPlacement='top' labelStyle={styles.label} {...fields.lastName}
-            style={styles.inlineBlock}>
-            <TextField {...fields.lastName} disabled={isReadMode}/>
+          <FieldWithError
+            label={la("Last Name")}
+            errorPlacement="top"
+            labelStyle={styles.label}
+            {...fields.lastName}
+            style={styles.inlineBlock}
+          >
+            <TextField {...fields.lastName} disabled={isReadMode} />
           </FieldWithError>
         </div>
         <div style={styles.formRow}>
-          <FieldWithError label={la('Username')} errorPlacement='top' labelStyle={styles.label} {...fields.userName}
-            style={styles.inlineBlock}>
-            <TextField {...fields.userName} disabled={this.getIsEdit() || isReadMode}/>
+          <FieldWithError
+            label={la("Username")}
+            errorPlacement="top"
+            labelStyle={styles.label}
+            {...fields.userName}
+            style={styles.inlineBlock}
+          >
+            <TextField
+              {...fields.userName}
+              disabled={this.getIsEdit() || isReadMode}
+            />
           </FieldWithError>
-          <FieldWithError label={la('Email')} errorPlacement='top' labelStyle={styles.label} {...fields.email}>
-            <TextField {...fields.email} disabled={isReadMode}/>
+          <FieldWithError
+            label={la("Email")}
+            errorPlacement="top"
+            labelStyle={styles.label}
+            {...fields.email}
+          >
+            <TextField {...fields.email} disabled={isReadMode} />
           </FieldWithError>
         </div>
-        {!hidePasswordFields &&
+        {!hidePasswordFields && (
           <div style={passwordHolderStyles}>
             <div style={styles.formRow}>
-              <div className='field-item' style={styles.formItem}>
+              <div className="field-item" style={styles.formItem}>
                 <FieldWithError
-                  label={la('Password')} errorPlacement='right' labelStyle={styles.label} {...fields.password}>
-                  <PasswordField {...fields.password}/>
+                  label={la("Password")}
+                  errorPlacement="right"
+                  labelStyle={styles.label}
+                  {...fields.password}
+                >
+                  <PasswordField {...fields.password} />
                 </FieldWithError>
               </div>
             </div>
             <div style={styles.formRow}>
-              <div className='field-item' style={styles.formItem}>
+              <div className="field-item" style={styles.formItem}>
                 <FieldWithError
-                  label={la('Confirm Password')}
-                  errorPlacement='right'
+                  label={la("Confirm Password")}
+                  errorPlacement="right"
                   labelStyle={styles.label}
-                  {...fields.passwordVerify}>
-                  <PasswordField {...fields.passwordVerify}/>
+                  {...fields.passwordVerify}
+                >
+                  <PasswordField {...fields.passwordVerify} />
                 </FieldWithError>
               </div>
             </div>
           </div>
-        }
-        {!noExtras && !isAuthed && isME &&
+        )}
+        {!noExtras && !isAuthed && isME && (
           <div style={styles.formRow}>
-            <FieldWithError label={la('Instance-id for Authentication')} errorPlacement='top' labelStyle={styles.label} {...fields.extra}
-              style={styles.inlineBlock}>
-              <TextField {...fields.extra} disabled={isReadMode}/>
+            <FieldWithError
+              label={la("Instance-id for Authentication")}
+              errorPlacement="top"
+              labelStyle={styles.label}
+              {...fields.extra}
+              style={styles.inlineBlock}
+            >
+              <TextField {...fields.extra} disabled={isReadMode} />
             </FieldWithError>
           </div>
-        }
+        )}
       </div>
     );
   }
@@ -140,18 +212,19 @@ export default class UserForm extends Component { // todo: rename, make proper "
 const styles = {
   formRow: {
     ...formRow,
-    display: 'flex'
+    display: "flex",
   },
   inlineBlock: {
-    display: 'inline-block',
-    marginRight: 20
+    display: "inline-block",
+    marginRight: 20,
   },
   label: {
-    margin: '0 0 4px'
+    margin: "0 0 4px",
   },
   selectStyle: {
-    display: 'flex',
+    display: "flex",
     width: 75,
-    margin: '0 10px 0 0'
-  }
+    margin: "0 10px 0 0",
+  },
 };
+export default UserForm;

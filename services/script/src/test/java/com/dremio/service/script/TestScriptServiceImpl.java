@@ -16,6 +16,8 @@
 
 package com.dremio.service.script;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -158,10 +160,10 @@ public class TestScriptServiceImpl {
     //----------------------get------------------------------
     // assert get of script raise scriptnot found exception
 
-    Exception exception = Assert.assertThrows(ScriptNotFoundException.class,
-                                              () -> scriptService1.getScriptById(script.getScriptId()));
-    Assert.assertEquals(String.format("Script with id or name : %s not found.",
-                                      script.getScriptId()), exception.getMessage());
+    assertThatThrownBy(() -> scriptService1.getScriptById(script.getScriptId()))
+      .isInstanceOf(ScriptNotFoundException.class)
+      .hasMessage(String.format("Script with id or name : %s not found.",
+                                script.getScriptId()));
     mocked.close();
   }
 
@@ -181,11 +183,10 @@ public class TestScriptServiceImpl {
     mocked.when(RequestContext::current).thenReturn(requestContext);
 
     ScriptProto.Script script = scriptService1.createScript(scriptRequest);
-    Exception exception = Assert.assertThrows(DuplicateScriptNameException.class,
-                                              () -> scriptService1.createScript(scriptRequest));
-    Assert.assertEquals(
-      "Cannot reuse the same script name within a project. Please try another script name.",
-      exception.getMessage());
+    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+      .isInstanceOf(DuplicateScriptNameException.class)
+      .hasMessage(
+        "Cannot reuse the same script name within a project. Please try another script name.");
     mocked.close();
   }
 
@@ -233,12 +234,9 @@ public class TestScriptServiceImpl {
     MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
     mocked.when(RequestContext::current).thenReturn(requestContext1);
 
-    Exception exception = Assert.assertThrows(
-      IllegalArgumentException.class,
-      () -> scriptService1.createScript(scriptRequest)
-    );
-    Assert.assertEquals("Maximum 128 characters allowed in script name.",
-                        exception.getMessage());
+    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Maximum 128 characters allowed in script name.");
     mocked.close();
   }
 
@@ -257,12 +255,9 @@ public class TestScriptServiceImpl {
     MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
     mocked.when(RequestContext::current).thenReturn(requestContext1);
 
-    Exception exception = Assert.assertThrows(
-      IllegalArgumentException.class,
-      () -> scriptService1.createScript(scriptRequest)
-    );
-    Assert.assertEquals("Maximum 10000 characters allowed in script content.",
-                        exception.getMessage());
+    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Maximum 10000 characters allowed in script content.");
     mocked.close();
   }
 
@@ -281,12 +276,9 @@ public class TestScriptServiceImpl {
     MockedStatic<RequestContext> mocked = Mockito.mockStatic(RequestContext.class);
     mocked.when(RequestContext::current).thenReturn(requestContext1);
 
-    Exception exception = Assert.assertThrows(
-      IllegalArgumentException.class,
-      () -> scriptService1.createScript(scriptRequest)
-    );
-    Assert.assertEquals("Maximum 1024 characters allowed in script description.",
-                        exception.getMessage());
+    assertThatThrownBy(() -> scriptService1.createScript(scriptRequest))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Maximum 1024 characters allowed in script description.");
     mocked.close();
   }
 
@@ -314,12 +306,11 @@ public class TestScriptServiceImpl {
     mocked.when(RequestContext::current).thenReturn(requestContext2);
 
     // assert throws scriptNotAccessible
-    Exception exception = Assert.assertThrows(
-      ScriptNotAccessible.class,
-      () -> scriptService2.getScriptById(script.getScriptId())
-    );
-    Assert.assertEquals("You are not authorized to perform this action on Script.",
-                        exception.getMessage());
+    assertThatThrownBy(() -> scriptService2.getScriptById(script.getScriptId()))
+      .isInstanceOf(ScriptNotAccessible.class)
+      .hasMessage(String.format("User : %s not authorized to perform this action on Script : %s.",
+                                USER_ID_2,
+                                script.getScriptId()));
     mocked.close();
   }
 
@@ -346,12 +337,11 @@ public class TestScriptServiceImpl {
     mocked.when(RequestContext::current).thenReturn(requestContext2);
 
     // assert throws scriptNotAccessible
-    Exception exception = Assert.assertThrows(
-      ScriptNotAccessible.class,
-      () -> scriptService2.updateScript(script.getScriptId(), scriptRequest)
-    );
-    Assert.assertEquals("You are not authorized to perform this action on Script.",
-                        exception.getMessage());
+    assertThatThrownBy(() -> scriptService2.updateScript(script.getScriptId(), scriptRequest))
+      .isInstanceOf(ScriptNotAccessible.class)
+      .hasMessage(String.format("User : %s not authorized to perform this action on Script : %s.",
+                                USER_ID_2,
+                                script.getScriptId()));
     mocked.close();
   }
 
@@ -378,12 +368,11 @@ public class TestScriptServiceImpl {
     mocked.when(RequestContext::current).thenReturn(requestContext2);
 
     // assert throws scriptNotAccessible
-    Exception exception = Assert.assertThrows(
-      ScriptNotAccessible.class,
-      () -> scriptService2.deleteScriptById(script.getScriptId())
-    );
-    Assert.assertEquals("You are not authorized to perform this action on Script.",
-                        exception.getMessage());
+    assertThatThrownBy(() -> scriptService2.deleteScriptById(script.getScriptId()))
+      .isInstanceOf(ScriptNotAccessible.class)
+      .hasMessage(String.format("User : %s not authorized to perform this action on Script : %s.",
+                                USER_ID_2,
+                                script.getScriptId()));
     mocked.close();
   }
 
@@ -409,7 +398,8 @@ public class TestScriptServiceImpl {
       scriptService1.createScript(scriptRequest.toBuilder().setName("RandomName").build());
 
     // when script is searched for name "Script"
-    List<ScriptProto.Script> scripts = scriptService1.getScripts(0, 1000, "Script", "", "");
+    List<ScriptProto.Script> scripts =
+      scriptService1.getScripts(0, 1000, "Script", "", "", null);
 
     // assert 2 scripts are found
     Assert.assertEquals(2, scripts.size());
@@ -452,30 +442,27 @@ public class TestScriptServiceImpl {
 
     // when  sorted on name
     List<ScriptProto.Script> scripts =
-      scriptService1.getScripts(0, 1000, "sortScript", "-name", "");
+      scriptService1.getScripts(0, 1000, "sortScript", "-name", "", null);
     Assert.assertEquals("sortScript2", scripts.get(0).getName());
     Assert.assertEquals("sortScript1", scripts.get(1).getName());
 
     // when sorted on createdAt
-    scripts = scriptService1.getScripts(0, 1000, "sortScript", "createdAt", "");
+    scripts = scriptService1.getScripts(0, 1000, "sortScript", "createdAt", "", null);
     Assert.assertEquals("sortScript1", scripts.get(0).getName());
     Assert.assertEquals("sortScript2", scripts.get(1).getName());
     Assert.assertTrue(scripts.get(0).getCreatedAt() <= scripts.get(1).getCreatedAt());
 
     // when sorted on -modifiedAt
-    scripts = scriptService1.getScripts(0, 1000, "sortScript", "-modifiedAt", "");
+    scripts = scriptService1.getScripts(0, 1000, "sortScript", "-modifiedAt", "", null);
     Assert.assertEquals("sortScript1", scripts.get(0).getName());
     Assert.assertEquals("sortScript2", scripts.get(1).getName());
     Assert.assertTrue(scripts.get(0).getCreatedAt() <= scripts.get(1).getCreatedAt());
 
     // when sorted on unsupported key
 
-    Exception exception = Assert.assertThrows(
-      IllegalArgumentException.class,
-      () -> scriptService1.getScripts(0, 1000, "", "xyz", "")
-    );
-
-    Assert.assertEquals("sort on parameter : xyz not supported.", exception.getMessage());
+    assertThatThrownBy(() -> scriptService1.getScripts(0, 1000, "", "xyz", "", null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("sort on parameter : xyz not supported.");
     mocked.close();
   }
 

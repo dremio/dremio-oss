@@ -30,7 +30,7 @@ public interface PriorityQueueCopier extends AutoCloseable, MovingCopier {
   static final long INITIAL_ALLOCATION = 10000000;
   static final long MAX_ALLOCATION = 20000000;
 
-  final static TemplateClassDefinition<PriorityQueueCopier> TEMPLATE_DEFINITION = new TemplateClassDefinition<>(PriorityQueueCopier.class, PriorityQueueCopierTemplate.class);
+  static final TemplateClassDefinition<PriorityQueueCopier> TEMPLATE_DEFINITION = new TemplateClassDefinition<>(PriorityQueueCopier.class, PriorityQueueCopierTemplate.class);
 
   void setup(
       FunctionContext context,

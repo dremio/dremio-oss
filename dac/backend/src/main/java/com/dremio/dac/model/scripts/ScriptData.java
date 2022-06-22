@@ -21,6 +21,7 @@ import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
+import com.dremio.dac.api.User;
 import com.dremio.service.script.proto.ScriptProto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -37,10 +38,10 @@ public class ScriptData {
   @NotEmpty
   private final String name;
   private final Long createdAt;
-  private final String createdBy;
+  private final User createdBy;
   private final String description;
   private final Long modifiedAt;
-  private final String modifiedBy;
+  private final User modifiedBy;
 
   @NotNull
   private final List<@NotEmpty String> context;
@@ -53,10 +54,10 @@ public class ScriptData {
     @JsonProperty("scriptId") String scriptId,
     @JsonProperty("name") String name,
     @JsonProperty("createdAt") Long createdAt,
-    @JsonProperty("createdBy") String createdBy,
+    @JsonProperty("createdBy") User createdBy,
     @JsonProperty("description") String description,
     @JsonProperty("modifiedAt") Long modifiedAt,
-    @JsonProperty("modifiedBy") String modifiedBy,
+    @JsonProperty("modifiedBy") User modifiedBy,
     @JsonProperty("context") List<String> context,
     @JsonProperty("content") String content) {
 
@@ -107,7 +108,7 @@ public class ScriptData {
     return createdAt;
   }
 
-  public String getCreatedBy() {
+  public User getCreatedBy() {
     return createdBy;
   }
 
@@ -115,18 +116,20 @@ public class ScriptData {
     return modifiedAt;
   }
 
-  public String getModifiedBy() {
+  public User getModifiedBy() {
     return modifiedBy;
   }
 
-  public static ScriptData fromScript(ScriptProto.Script script) {
+  public static ScriptData fromScriptWithUserInfo(ScriptProto.Script script,
+                                                  User createdBy,
+                                                  User modifiedBy) {
     return new ScriptData(script.getScriptId(),
                           script.getName(),
                           script.getCreatedAt(),
-                          script.getCreatedBy(),
+                          createdBy,
                           script.getDescription(),
                           script.getModifiedAt(),
-                          script.getModifiedBy(),
+                          modifiedBy,
                           script.getContextList(),
                           script.getContent());
   }

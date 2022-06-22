@@ -33,6 +33,10 @@ message SessionState {
   // designated REST API url components
   optional string path = 5;
   repeated QueryParam query_params = 6;
+  // third party client
+  optional string client_id = 7;
+  repeated string scopes = 8;
+  optional string authorization_code = 9;
 }
 
 message QueryParam {

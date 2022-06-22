@@ -25,17 +25,22 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferManager;
 import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
+import com.dremio.exec.util.ValueListWithBloomFilter;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
+
 
 /**
  * A POJO helper class for the protobuf struct RuntimeFilter
@@ -80,7 +85,9 @@ public class RuntimeFilter implements AutoCloseable {
                                           final String senderInfo,
                                           final String sourceJoinId,
                                           final ExecProtos.FragmentHandle fragmentHandle,
-                                          final OperatorStats stats) {
+                                          final OperatorStats stats,
+                                          final BufferManager manager,
+                                          final OptionManager optionManager) {
     ExecProtos.CompositeColumnFilter partitionColFilterProto = protoFilter.getPartitionColumnFilter();
     CompositeColumnFilter partitionColFilter = null;
     long nextSliceStart = 0L;
@@ -130,10 +137,24 @@ public class RuntimeFilter implements AutoCloseable {
                 "ValueListFilter %s count mismatched. Expected %s, found %s", fieldName,
                 nonPartitionColFilterProto.getValueCount(), valueListFilter.getValueCount());
         valueListFilter.setFieldName(fieldName);
-        final CompositeColumnFilter nonPartitionColFilter = new CompositeColumnFilter.Builder()
-                .setProtoFields(nonPartitionColFilterProto).setValueList(valueListFilter).build();
-        nonPartitionColFilters.add(nonPartitionColFilter);
+
+        final CompositeColumnFilter.Builder nonPartitionColFilterBuilder = new CompositeColumnFilter.Builder()
+          .setProtoFields(nonPartitionColFilterProto).setValueList(valueListFilter);
+
+        boolean rowLevelRuntimeFilteringEnable = optionManager.getOption(ExecConstants.ENABLE_ROW_LEVEL_RUNTIME_FILTERING);
         valueListFilter.buf().getReferenceManager().retain();
+        if(rowLevelRuntimeFilteringEnable) {
+          ArrowBuf buf = manager.getManagedBuffer(valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE);
+          final ValueListWithBloomFilter valueListFilterWithBloomFilter = ValueListFilterBuilder
+            .fromBufferWithBloomFilter(buf, valueListFilter);
+          valueListFilterWithBloomFilter.buf().getReferenceManager().retain();
+
+          nonPartitionColFilterBuilder.setValueList(valueListFilterWithBloomFilter);
+          valueListFilter.buf().getReferenceManager().release();
+        }
+
+        final CompositeColumnFilter nonPartitionColFilter = nonPartitionColFilterBuilder.build();
+        nonPartitionColFilters.add(nonPartitionColFilter);
 
         runTimeFilterDetails
           .setMinorFragmentId(fragmentHandle.getMinorFragmentId())

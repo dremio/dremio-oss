@@ -14,18 +14,20 @@
  * limitations under the License.
  */
 const host = window.location.host;
-const isSecure = window.location.protocol === 'https:';
+const isSecure = window.location.protocol === "https:";
 
 export const API_URL = `//${host}/apiv1`;
 export const API_URL_V2 = `//${host}/apiv2`;
-export const API_V2 = 'apiv2';
+export const API_V2 = "apiv2";
 export const API_URL_V3 = `//${host}/api/v3`;
-export const API_V3 = 'api/v3';
-export const WEB_SOCKET_URL = `ws${isSecure ? 's' : ''}:${API_URL_V2}/socket`;
+export const API_V3 = "api/v3";
+export const WEB_SOCKET_URL = `ws${isSecure ? "s" : ""}:${API_URL_V2}/socket`;
 class Api {
   toString() {
-    console.warn('Default import deprecated, use { API_URL } from \'@app/constants/Api.js\'' +
-      ' notation instead of API_URL from \'@app/constants/Api\'');
+    console.warn(
+      "Default import deprecated, use { API_URL } from '@app/constants/Api.js'" +
+        " notation instead of API_URL from '@app/constants/Api'"
+    );
     return API_URL;
   }
 }

@@ -20,15 +20,19 @@ import java.util.Map;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.google.protobuf.ByteString;
 
 /**
  * Implementations of this interface commit an iceberg transaction
  */
 public interface IcebergOpCommitter {
+  static final String CONCURRENT_DML_OPERATION_ERROR = "Concurrent DML operation has updated the table, please retry.";
+
   /**
    * Commits the Iceberg operation
    * @return new Snapshot that gets created as part of commit operation
@@ -41,6 +45,13 @@ public interface IcebergOpCommitter {
    * @throws UnsupportedOperationException
    */
   void consumeDeleteDataFile(DataFile icebergDeleteDatafile) throws UnsupportedOperationException;
+
+  /**
+   * Stores data file path to delete during commit operation
+   * @param icebergDeleteDatafilePath The path to data file to delete from table
+   * @throws UnsupportedOperationException
+   */
+  void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) throws UnsupportedOperationException;
 
   /**
    * Stores the manifest file instance to include during commit operation
@@ -67,10 +78,21 @@ public interface IcebergOpCommitter {
   Map<Integer, PartitionSpec> getCurrentSpecMap();
 
   /**
+   * Gets the current Schema of the table
+   * @return current schema of the table
+   */
+  Schema getCurrentSchema();
+
+  /**
    * Checks is iceberg table is updated or not
    * @return  true when the committer detectects iceberg table root pointer
    */
   boolean isIcebergTableUpdated();
 
   default void updateReadSignature(ByteString newReadSignature) {}
+
+  /**
+   * Cleanup in case of exceptions during commit
+   */
+  default void cleanup(DremioFileIO dremioFileIO) {}
 }

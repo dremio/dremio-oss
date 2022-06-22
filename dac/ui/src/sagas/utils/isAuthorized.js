@@ -13,20 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put } from 'redux-saga/effects';
+import { put } from "redux-saga/effects";
 
-import { log } from '@app/utils/logger';
-import {
-  checkUser,
-  CHECK_USER_SUCCESS
-} from '@app/actions/account';
+import { log } from "@app/utils/logger";
+import { checkUser, CHECK_USER_SUCCESS } from "@app/actions/account";
 
 export function* isAuthorized() {
-  log('send request to the server to check is a user authorized');
+  log("send request to the server to check is a user authorized");
   const promise = yield put(checkUser());
 
   // wait for response
   const action = yield promise;
-  log('response action', action);
+  log("response action", action);
   return action.type === CHECK_USER_SUCCESS;
 }

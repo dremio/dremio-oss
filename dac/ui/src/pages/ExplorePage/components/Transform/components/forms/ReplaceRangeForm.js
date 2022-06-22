@@ -13,27 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import Immutable from "immutable";
 
-import { getExploreState } from '@app/selectors/explore';
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
-import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import { getDefaultValue } from '@app/constants/DataTypes';
-import Tabs from 'components/Tabs';
-import { isDateType } from '@app/constants/DataTypes';
-import exploreUtils from 'utils/explore/exploreUtils';
-import TransformForm, { formWrapperProps } from '../../../forms/TransformForm';
-import ReplaceFooter from './../ReplaceFooter';
-import TransformRange from './../TransformRange';
+import { getExploreState } from "@app/selectors/explore";
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
+import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import { getDefaultValue } from "@app/constants/DataTypes";
+import Tabs from "components/Tabs";
+import { isDateType } from "@app/constants/DataTypes";
+import exploreUtils from "utils/explore/exploreUtils";
+import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
+import ReplaceFooter from "./../ReplaceFooter";
+import TransformRange from "./../TransformRange";
 
 const SECTIONS = [NewFieldSection, ReplaceFooter, TransformRange];
 
 export class ReplaceRangeForm extends Component {
-
   static propTypes = {
     submit: PropTypes.func,
     onCancel: PropTypes.func,
@@ -41,7 +40,7 @@ export class ReplaceRangeForm extends Component {
     curSubtitle: PropTypes.string,
     cardValues: PropTypes.object,
     submitForm: PropTypes.func,
-    transform: PropTypes.instanceOf(Immutable.Map)
+    transform: PropTypes.instanceOf(Immutable.Map),
   };
 
   constructor(props) {
@@ -58,24 +57,33 @@ export class ReplaceRangeForm extends Component {
 
   componentDidUpdate() {
     const newChartData = this.getDataForChart(this.props.cardValues);
-    if (this.chartData && newChartData && (this.chartData.length !== newChartData.length)) {
+    if (
+      this.chartData &&
+      newChartData &&
+      this.chartData.length !== newChartData.length
+    ) {
       this.chartData = newChartData;
       this.forceUpdate();
     }
   }
 
   getDataForChart(cardValues) {
-    const chartData = cardValues && cardValues.get('values').toJS()
-      .filter(value => value.value !== undefined)
-      .map(value => ({
-        percent: value.percent,
-        x: value.valueRange.lowerLimit,
-        y: value.count,
-        range: value.valueRange && {
-          upperLimit: value.valueRange.upperLimit,
-          lowerLimit: value.valueRange.lowerLimit
-        }
-      })).sort((b, a) => b.x - a.x);
+    const chartData =
+      cardValues &&
+      cardValues
+        .get("values")
+        .toJS()
+        .filter((value) => value.value !== undefined)
+        .map((value) => ({
+          percent: value.percent,
+          x: value.valueRange.lowerLimit,
+          y: value.count,
+          range: value.valueRange && {
+            upperLimit: value.valueRange.upperLimit,
+            lowerLimit: value.valueRange.lowerLimit,
+          },
+        }))
+        .sort((b, a) => b.x - a.x);
 
     return chartData && this.combineBins(chartData);
   }
@@ -87,9 +95,14 @@ export class ReplaceRangeForm extends Component {
 
   getChartWidth() {
     const { transform } = this.props;
-    const offsetWidth = isDateType(transform.get('columnType')) ? 235 : 140;
+    const isDate = isDateType(transform.get("columnType"));
+    const offsetWidth = isDate ? 235 : 140;
+
     // fixed magic number for now. But we should get rid of them. TODO address the issue under DX-12895
-    return exploreUtils.getDocumentWidth() - offsetWidth * 2 - 92;
+    return (
+      exploreUtils.getDocumentWidth() -
+      (offsetWidth / 2 + 280 + 58 + (isDate ? 141 : 0))
+    );
   }
 
   updateChartData(cardValues) {
@@ -114,8 +127,8 @@ export class ReplaceRangeForm extends Component {
           y: chartData[i].y + chartData[i + 1].y,
           range: {
             lowerLimit: chartData[i].range.lowerLimit,
-            upperLimit: chartData[i + 1].range.upperLimit
-          }
+            upperLimit: chartData[i + 1].range.upperLimit,
+          },
         };
       } else {
         merged = chartData[i];
@@ -129,43 +142,54 @@ export class ReplaceRangeForm extends Component {
 
   submit = (values, submitType) => {
     const { transform } = this.props;
-    const transformType = transform.get('transformType');
-    const data = transformType === 'replace'
-      ? {
-        ...fieldsMappers.getCommonValues(values, transform),
-        fieldTransformation: {
-          type: 'ReplaceRange',
-          ...fieldsMappers.getReplaceRange(values, transform.get('columnType'))
-        }
-      }
-      : {
-        ...filterMappers.getCommonFilterValues(values, transform),
-        filter: filterMappers.mapFilterExcludeRange(values, transform.get('columnType'))
-      };
+    const transformType = transform.get("transformType");
+    const data =
+      transformType === "replace"
+        ? {
+            ...fieldsMappers.getCommonValues(values, transform),
+            fieldTransformation: {
+              type: "ReplaceRange",
+              ...fieldsMappers.getReplaceRange(
+                values,
+                transform.get("columnType")
+              ),
+            },
+          }
+        : {
+            ...filterMappers.getCommonFilterValues(values, transform),
+            filter: filterMappers.mapFilterExcludeRange(
+              values,
+              transform.get("columnType")
+            ),
+          };
 
     return this.props.submit(data, submitType);
   };
 
   render() {
     const { fields, submitForm, transform } = this.props;
-    const columnType = transform.get('columnType');
-    const transformType = transform.get('transformType');
+    const columnType = transform.get("columnType");
+    const transformType = transform.get("transformType");
     const chartWidth = this.getChartWidth();
     const showChart = this.chartData && !!this.chartData.length;
 
     return (
-      <TransformForm {...formWrapperProps(this.props)} onFormSubmit={this.submit}>
-        {showChart && <TransformRange
-          columnType={columnType}
-          data={this.chartData}
-          chartWidth={chartWidth}
-          fields={fields}
-          isReplace={transformType === 'replace'}
-        />
-        }
+      <TransformForm
+        {...formWrapperProps(this.props)}
+        onFormSubmit={this.submit}
+      >
+        {showChart && (
+          <TransformRange
+            columnType={columnType}
+            data={this.chartData}
+            chartWidth={chartWidth}
+            fields={fields}
+            isReplace={transformType === "replace"}
+          />
+        )}
         <Tabs activeTab={transformType}>
           <ReplaceFooter
-            tabId='replace'
+            tabId="replace"
             fields={fields}
             submitForm={submitForm}
             transform={transform}
@@ -177,28 +201,38 @@ export class ReplaceRangeForm extends Component {
 }
 
 function mapStateToProps(state, props) {
-  const columnName = props.transform.get('columnName');
-  const transformType = props.transform.get('transformType');
-  const columnType = props.transform.get('columnType');
-  const cardValues = getExploreState(state).recommended.getIn(['transform', transformType || 'replace', 'Range', 'values']);
+  const columnName = props.transform.get("columnName");
+  const transformType = props.transform.get("transformType");
+  const columnType = props.transform.get("columnType");
+  const cardValues = getExploreState(state).recommended.getIn([
+    "transform",
+    transformType || "replace",
+    "Range",
+    "values",
+  ]);
   const defaultValue = getDefaultValue(columnType);
   return {
     cardValues,
     initialValues: {
       newFieldName: columnName,
       dropSourceField: true,
-      upperBound: '',
-      lowerBound: '',
+      upperBound: "",
+      lowerBound: "",
       lowerBoundInclusive: true,
       upperBoundInclusive: false,
       keepNull: false,
       replacementValue: defaultValue,
-      replaceType: 'VALUE',
-      replaceSelectionType: 'VALUE'
-    }
+      replaceType: "VALUE",
+      replaceSelectionType: "VALUE",
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'replaceRange'
-}, SECTIONS, mapStateToProps, null)(ReplaceRangeForm);
+export default connectComplexForm(
+  {
+    form: "replaceRange",
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(ReplaceRangeForm);

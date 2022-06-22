@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static junit.framework.TestCase.assertNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -45,12 +46,15 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.CatalogServiceImpl.SourceModifier;
+import com.dremio.exec.dotfile.View;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.store.AuthorizationContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
@@ -60,12 +64,12 @@ import com.dremio.test.UserExceptionAssert;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"org.apache.commons.*", "org.apache.xerces.*", "org.slf4j.*", "org.xml.*", "javax.xml.*"})
-@PrepareForTest(MetadataObjectsUtils.class)
+@PrepareForTest({MetadataObjectsUtils.class, CatalogImpl.class})
 public class TestCatalogImpl {
 
   private final MetadataRequestOptions options = mock(MetadataRequestOptions.class);
   private final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
-  private final SourceModifier sourceModifier = mock(SourceModifier .class);
+  private final SourceModifier sourceModifier = mock(SourceModifier.class);
   private final OptionManager optionManager = mock(OptionManager.class);
   private final NamespaceService systemNamespaceService = mock(NamespaceService.class);
   private final NamespaceService.Factory namespaceFactory = mock(NamespaceService.Factory.class);
@@ -77,10 +81,12 @@ public class TestCatalogImpl {
   private final DatasetManager datasets = mock(DatasetManager.class);
   private final NamespaceService userNamespaceService = mock(NamespaceService.class);
   private final IdentityResolver identityProvider = mock(IdentityResolver.class);
+  private final NamespaceIdentity namespaceIdentity = mock(NamespaceIdentity.class);
+  private final VersionContextResolverImpl versionContextResolver = mock(VersionContextResolverImpl.class);
+  private final String userName = "gnarly";
 
   @Before
   public void setup() throws Exception {
-    final String userName = "gnarly";
 
     when(options.getSchemaConfig())
       .thenReturn(schemaConfig);
@@ -88,12 +94,19 @@ public class TestCatalogImpl {
       .thenReturn(userName);
 
     AuthorizationContext authorizationContext = new AuthorizationContext(new CatalogUser(userName), false);
-    when (schemaConfig.getAuthContext()).thenReturn(authorizationContext);
-    when(namespaceFactory.get(userName))
+    when(schemaConfig.getAuthContext()).thenReturn(authorizationContext);
+
+    when(identityProvider.toNamespaceIdentity(authorizationContext.getSubject()))
+      .thenReturn(namespaceIdentity);
+
+    when(namespaceFactory.get(namespaceIdentity))
       .thenReturn(userNamespaceService);
+
     whenNew(DatasetManager.class)
-      .withArguments(pluginRetriever, userNamespaceService, optionManager, userName, identityProvider)
+      .withArguments(pluginRetriever, userNamespaceService, optionManager, userName, identityProvider,
+        versionContextResolver)
       .thenReturn(datasets);
+
     whenNew(InformationSchemaCatalogImpl.class)
       .withArguments(userNamespaceService)
       .thenReturn(iscDelegate);
@@ -113,7 +126,8 @@ public class TestCatalogImpl {
       orphanage,
       datasetListingService,
       viewCreatorFactory,
-      identityProvider);
+      identityProvider,
+      null);
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
       .when(systemNamespaceService).getDataset(key);
@@ -150,7 +164,8 @@ public class TestCatalogImpl {
       orphanage,
       datasetListingService,
       viewCreatorFactory,
-      identityProvider);
+      identityProvider,
+      null);
 
     UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
       .hasErrorType(VALIDATION)
@@ -194,7 +209,8 @@ public class TestCatalogImpl {
       orphanage,
       datasetListingService,
       viewCreatorFactory,
-      identityProvider);
+      identityProvider,
+      null);
 
     UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
       .hasErrorType(VALIDATION)
@@ -242,7 +258,8 @@ public class TestCatalogImpl {
       orphanage,
       datasetListingService,
       viewCreatorFactory,
-      identityProvider);
+      identityProvider,
+      null);
 
     assertTrue(catalog.alterDataset(key, attributes));
     verify(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
@@ -260,11 +277,52 @@ public class TestCatalogImpl {
       orphanage,
       datasetListingService,
       viewCreatorFactory,
-      identityProvider);
+      identityProvider,
+      null);
 
     final DremioTable table = mock(DremioTable.class);
     when(table.getDatasetConfig()).thenReturn(DatasetConfig.getDefaultInstance());
 
     assertNull(catalog.getColumnExtendedProperties(table));
+  }
+
+  @Test
+  public void testGetTable_ReturnsUpdatedTable() {
+    final CatalogImpl catalog = new CatalogImpl(options,
+      pluginRetriever,
+      sourceModifier,
+      optionManager,
+      systemNamespaceService,
+      namespaceFactory,
+      orphanage,
+      datasetListingService,
+      viewCreatorFactory,
+      identityProvider,
+      versionContextResolver);
+
+
+    final View outdatedView = mock(View.class);
+    when(outdatedView.isFieldUpdated()).thenReturn(true);
+
+    NamespaceKey viewPath = new NamespaceKey("@" + userName);
+
+    final ViewTable tableToBeUpdated = mock(ViewTable.class);
+    when(tableToBeUpdated.getView()).thenReturn(outdatedView);
+    when(tableToBeUpdated.getPath()).thenReturn(viewPath);
+
+
+    final ViewTable updatedTable = mock(ViewTable.class);
+
+    ViewCreatorFactory.ViewCreator viewCreator = mock(ViewCreatorFactory.ViewCreator.class);
+    when(viewCreatorFactory.get(userName)).thenReturn(viewCreator);
+
+    NamespaceKey key = new NamespaceKey("test");
+
+    when(datasets.getTable(any(), any(), anyBoolean()))
+      .thenReturn(tableToBeUpdated, updatedTable);
+
+    DremioTable actual = catalog.getTable(key);
+
+    assertEquals(updatedTable, actual);
   }
 }

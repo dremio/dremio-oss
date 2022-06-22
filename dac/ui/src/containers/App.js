@@ -13,76 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { Component, Fragment } from 'react';
-import { compose } from 'redux';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { ThemeProvider, createMuiTheme as createTheme } from '@material-ui/core/styles';
-import { replace } from 'react-router-redux';
-import DocumentTitle from 'react-document-title';
-import urlParse from 'url-parse';
+import Immutable from "immutable";
+import { Component, Fragment } from "react";
+import { compose } from "redux";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import {
+  ThemeProvider,
+  createMuiTheme as createTheme,
+} from "@material-ui/core/styles";
+import { replace } from "react-router-redux";
+import DocumentTitle from "react-document-title";
+import urlParse from "url-parse";
 
-import { showAppError } from '@app/actions/prodError';
-import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
-import { ErrorBoundary } from '@app/components/ErrorBoundary';
-import { Suspense } from '@app/components/Lazy';
+import { showAppError } from "@app/actions/prodError";
+import { DnDContextDecorator } from "@app/components/DragComponents/DnDContextDecorator";
+import { ErrorBoundary } from "@app/components/OldErrorBoundary";
+import { Suspense } from "@app/components/Lazy";
 
-import socket from '@inject/utils/socket';
-import sentryUtil from '@app/utils/sentryUtil';
-import { formatMessage } from '@app/utils/locale';
+import socket from "@inject/utils/socket";
+import sentryUtil from "@app/utils/sentryUtil";
+import { formatMessage } from "@app/utils/locale";
 
-import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
-import config from 'dyn-load/utils/config';
-import enableFatalPropTypes from '@app/enableFatalPropTypes';
+import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
+import config from "dyn-load/utils/config";
+import enableFatalPropTypes from "@app/enableFatalPropTypes";
 
-import ModalsContainer from '@app/components/Modals/ModalsContainer';
-import AboutModal from '@app/pages/HomePage/components/modals/AboutModal/AboutModal';
-import AppHOC from '@inject/containers/AppHOC';
-import NotificationContainer from '@app/containers/Notification';
-import ConfirmationContainer from '@app/containers/Confirmation';
-import ProdErrorContainer from '@app/containers/ProdError';
-import DevErrorContainer from '@app/containers/DevError';
-import { LocationProvider } from '@app/containers/dremioLocation';
-import { withHookProvider } from '@app/containers/RouteLeave';
+import ModalsContainer from "@app/components/Modals/ModalsContainer";
+import AboutModal from "@app/pages/HomePage/components/modals/AboutModal/AboutModal";
+import AppHOC from "@inject/containers/AppHOC";
+import NotificationContainer from "@app/containers/Notification";
+import ConfirmationContainer from "@app/containers/Confirmation";
+import ProdErrorContainer from "@app/containers/ProdError";
+import DevErrorContainer from "@app/containers/DevError";
+import { LocationProvider } from "@app/containers/dremioLocation";
+import { withHookProvider } from "@app/containers/RouteLeave";
 
-import { themeStyles } from 'dremio-ui-lib';
-import 'react-datepicker/dist/react-datepicker.css';
+import { themeStyles } from "dremio-ui-lib";
+import "react-datepicker/dist/react-datepicker.css";
 
 DocumentTitle.join = (tokens) => {
-  return [...tokens, formatMessage('App.Dremio')].filter(Boolean).join(' - ');
+  return [...tokens, formatMessage("App.Dremio")].filter(Boolean).join(" - ");
 };
 
-const {
-  overrides: themeOverrides,
-  ...otherStyles
-} = themeStyles;
+const { overrides: themeOverrides, ...otherStyles } = themeStyles;
 
 const theme = createTheme({
   ...otherStyles,
   palette: {
     primary: {
-      main: 'rgb(0, 188, 212)'
-    }
+      main: "rgb(0, 188, 212)",
+    },
   },
   overrides: {
     ...themeOverrides,
     MuiSwitch: {
       switchBase: {
-        height: 'auto'
-      }
-    }
+        height: "auto",
+      },
+    },
   },
   typography: {
     body1: {
-      fontSize: 12
+      fontSize: 12,
     },
-    fontFamily: '\'Inter var\', sans-serif'
-  }
+    fontFamily: "'Inter var', sans-serif",
+  },
 });
 
 export class App extends Component {
-
   static propTypes = {
     location: PropTypes.object,
     params: PropTypes.object,
@@ -90,21 +89,27 @@ export class App extends Component {
     user: PropTypes.object,
     serverStatus: PropTypes.instanceOf(Immutable.Map),
     shouldEnableRSOD: PropTypes.bool,
-    dispatch: PropTypes.func.isRequired
+    dispatch: PropTypes.func.isRequired,
   };
 
   static childContextTypes = {
     location: PropTypes.object,
     routeParams: PropTypes.object,
     username: PropTypes.string,
-    loggedInUser: PropTypes.object
+    loggedInUser: PropTypes.object,
   };
 
   static redirectForServerStatus(props) {
-    const {location} = props;
-    if (props.serverStatus.get('status') !== SERVER_STATUS_OK && location.pathname !== '/status') {
+    const { location } = props;
+    if (
+      props.serverStatus.get("status") !== SERVER_STATUS_OK &&
+      location.pathname !== "/status"
+    ) {
       props.dispatch(
-        replace('/status?redirect=' + encodeURIComponent(props.location.pathname + props.location.search))
+        replace(
+          "/status?redirect=" +
+            encodeURIComponent(props.location.pathname + props.location.search)
+        )
       );
     }
   }
@@ -127,7 +132,7 @@ export class App extends Component {
       location: this.props.location, // todo remove
       routeParams: this.props.params,
       username: this.props.user.userName,
-      loggedInUser: this.props.user
+      loggedInUser: this.props.user,
     };
   }
 
@@ -145,7 +150,7 @@ export class App extends Component {
     // there is no URL for external scripts (at least in Chrome)
     if (!url || urlParse(url).origin !== this._getWindowOrigin()) return;
 
-    console.error('Uncaught Error', error || msg);
+    console.error("Uncaught Error", error || msg);
     this.displayError(error || msg);
   };
 
@@ -158,7 +163,7 @@ export class App extends Component {
     //By default, Raven.js does not capture unhandled promise rejections.
     sentryUtil.logException(error);
 
-    console.error('UnhandledRejection', error);
+    console.error("UnhandledRejection", error);
     if (error.status !== 401) {
       this.displayError(error);
     }
@@ -175,7 +180,7 @@ export class App extends Component {
   _shouldIgnoreExternalStack(stack) {
     const stackOrigin = this._getSourceOriginFromStack(stack);
     if (stackOrigin && stackOrigin !== this._getWindowOrigin()) {
-      console.warn('Ignoring js error from origin: ' + stackOrigin);
+      console.warn("Ignoring js error from origin: " + stackOrigin);
       return true;
     }
     return false;
@@ -191,7 +196,7 @@ export class App extends Component {
     if (!stack) return;
 
     // This works in Chrome, Firefox, IE and Edge.
-    const lines = stack.split('\n');
+    const lines = stack.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const m = lines[i].match(/(https?:\/\/.*?)\//);
       if (m) {
@@ -207,23 +212,18 @@ export class App extends Component {
         <ErrorBoundary>
           <Suspense>
             <LocationProvider location={this.props.location}>
-              <div style={{height: '100%'}}>
-                <ThemeProvider theme={theme}>
-                  {children}
-                </ThemeProvider>
-                <NotificationContainer/>
-                <ConfirmationContainer/>
-                <ModalsContainer modals={{AboutModal}} />
-                <div className='popup-notifications'/>
+              <div style={{ height: "100%" }}>
+                <ThemeProvider theme={theme}>{children}</ThemeProvider>
+                <NotificationContainer />
+                <ConfirmationContainer />
+                <ModalsContainer modals={{ AboutModal }} />
+                <div className="popup-notifications" />
+                <div className="conifrmation-container" />
               </div>
             </LocationProvider>
           </Suspense>
         </ErrorBoundary>
-        {
-          shouldEnableRSOD ?
-            <DevErrorContainer /> :
-            <ProdErrorContainer />
-        }
+        {shouldEnableRSOD ? <DevErrorContainer /> : <ProdErrorContainer />}
       </Fragment>
     );
   }
@@ -231,16 +231,16 @@ export class App extends Component {
 
 App.propTypes = {
   children: PropTypes.node,
-  routeParams: PropTypes.object
+  routeParams: PropTypes.object,
 };
 
 function mapStateToProps(state) {
-  const user = state.account ? state.account.get('user').toJS() : {};
+  const user = state.account ? state.account.get("user").toJS() : {};
 
   return {
     user,
     serverStatus: state.serverStatus,
-    shouldEnableRSOD: config.shouldEnableRSOD
+    shouldEnableRSOD: config.shouldEnableRSOD,
   };
 }
 

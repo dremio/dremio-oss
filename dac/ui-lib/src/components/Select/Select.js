@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import noop from 'lodash.noop';
+import { noop } from "lodash";
 
-import MuiSelect from '@material-ui/core/Select';
-import MenuItem from '@material-ui/core/MenuItem';
-import { ReactComponent as ExpandMoreIcon } from '../../art/ArrowDown.svg';
+import MuiSelect from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
+import { ReactComponent as ExpandMoreIcon } from "../../art/ArrowDown.svg";
 
-import Label from '../Label';
+import Label from "../Label";
 
-import './select.scss';
+import "./select.scss";
 
 const MENU_PROPS = {
   classes: {
-    paper: 'selectRoot__menu'
+    paper: "selectRoot__menu",
   },
   MenuListProps: {
-    disablePadding: true
-  }
+    disablePadding: true,
+  },
 };
 
 const Select = (props) => {
-
   const {
     classes,
     disabled,
@@ -50,52 +49,65 @@ const Select = (props) => {
     ...otherProps
   } = props;
 
-  const rootClass = clsx('selectRoot', { [classes.root]: classes.root });
-  const labelClass = clsx('selectRoot__label', { [classes.label]: classes.label });
-  const containerClass = clsx(
-    'selectRoot__select',
-    { '--disabled': disabled }
-  );
+  const rootClass = clsx("selectRoot", { [classes.root]: classes.root });
+  const labelClass = clsx("selectRoot__label", {
+    [classes.label]: classes.label,
+  });
+  const containerClass = clsx("selectRoot__select", { "--disabled": disabled });
 
   return (
     <div className={rootClass}>
-      { label && <Label value={label} className={labelClass} id={`select-label-${name}`} helpText={helpText}/> }
+      {label && (
+        <Label
+          value={label}
+          className={labelClass}
+          id={`select-label-${name}`}
+          helpText={helpText}
+        />
+      )}
 
       <MuiSelect
         classes={{
-          root: containerClass
+          root: containerClass,
         }}
         MenuProps={MENU_PROPS}
         name={name}
-        value={value || ''}
+        value={value || ""}
         onChange={onChange}
         IconComponent={ExpandMoreIcon}
         displayEmpty
         aria-labelledby={`select-label-${name}`}
-        role='combobox'
+        role="combobox"
         disabled={disabled}
         {...otherProps}
       >
-        {options && options.map(({
-          label: optionLabel,
-          value: optionValue,
-          disabled:optionDisabled = false,
-          classes: itemClasses = {}
-        }, idx) => (
-          <MenuItem
-            key={idx}
-            value={optionValue}
-            classes={{
-              selected: 'selectRoot__option --selected'
-            }}
-            ListItemClasses ={{
-              disabled: itemClasses.disabled
-            }}
-            disabled={optionDisabled}
-          >
-            {optionLabel}
-          </MenuItem>
-        ))}
+        {options &&
+          options.map(
+            (
+              {
+                label: optionLabel,
+                value: optionValue,
+                disabled: optionDisabled = false,
+                classes: itemClasses = {},
+              },
+              idx
+            ) => (
+              <MenuItem
+                key={idx}
+                value={optionValue}
+                classes={{
+                  root: "selectRoot__option",
+                  selected: "--selected",
+                }}
+                ListItemClasses={{
+                  disabled: itemClasses.disabled,
+                }}
+                disabled={optionDisabled}
+              >
+                {optionLabel}
+              </MenuItem>
+            )
+          )}
       </MuiSelect>
     </div>
   );
@@ -104,26 +116,28 @@ const Select = (props) => {
 Select.propTypes = {
   classes: PropTypes.shape({
     root: PropTypes.string,
-    label: PropTypes.string
+    label: PropTypes.string,
   }),
   value: PropTypes.string,
-  options: PropTypes.arrayOf(PropTypes.shape({
-    label: PropTypes.node,
-    value: PropTypes.string
-  })).isRequired,
+  options: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.node,
+      value: PropTypes.string,
+    })
+  ).isRequired,
   onChange: PropTypes.func,
   label: PropTypes.string,
   name: PropTypes.string,
   helpText: PropTypes.string,
-  disabled: PropTypes.bool
+  disabled: PropTypes.bool,
 };
 
 Select.defaultProps = {
   classes: {},
-  value: '',
+  value: "",
   onChange: noop,
   label: null,
-  name: ''
+  name: "",
 };
 
 export default Select;

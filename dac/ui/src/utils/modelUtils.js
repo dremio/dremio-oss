@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 class ModelUtils {
-
   isNewDataset(dataset, mode) {
     if (!dataset) {
       return false;
     }
-    const tableId = dataset.getIn(['fullPath', -1]);
+    const tableId = dataset.getIn(["fullPath", -1]);
     if (!tableId) {
       return false;
     }
-    return tableId === '"UNTITLED"' || mode !== 'edit';
+    return tableId === '"UNTITLED"' || mode !== "edit";
   }
 
   /**
@@ -33,12 +32,13 @@ class ModelUtils {
    * @returns {Boolean}
    */
   isNamedDataset(dataset) {
-    return dataset &&
-      !dataset.get('isNewQuery') &&
-      dataset.get('displayFullPath') &&
-      dataset.getIn(['displayFullPath', 0]) !== 'tmp';
+    return (
+      dataset &&
+      !dataset.get("isNewQuery") &&
+      dataset.get("displayFullPath") &&
+      dataset.getIn(["displayFullPath", 0]) !== "tmp"
+    );
   }
-
 }
 
 const modelUtils = new ModelUtils();

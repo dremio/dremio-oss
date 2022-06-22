@@ -13,251 +13,320 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow, mount } from "enzyme";
+import Immutable from "immutable";
 
-import Message, {RENDER_NO_DETAILS} from './Message';
+import Message, { RENDER_NO_DETAILS } from "./Message";
 
-describe('Message', () => {
-
+describe("Message", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      message: Immutable.Map({message: 'foo'}),
-      messageType: 'warning',
-      messageId: 'id1',
-      moreInfo: 'Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html'
+      message: Immutable.Map({ message: "foo" }),
+      messageType: "warning",
+      messageId: "id1",
+      moreInfo:
+        "Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html",
     };
   });
 
-  it('renders <div .message>', () => {
-    const wrapper = mount(<Message {...commonProps}/>);
-    expect(wrapper.find('.message')).to.have.length(1);
-    expect(wrapper.find('Art')).to.have.length(2);
-    expect(wrapper.find('Art').first().prop('alt')).to.be.equal('Warning');
-    expect(wrapper.find('.message-content').text()).to.equal(commonProps.message.get('message') + '.');
+  it("renders <div .message>", () => {
+    const wrapper = mount(<Message {...commonProps} />);
+    expect(wrapper.find(".message")).to.have.length(1);
+    expect(wrapper.find("Art")).to.have.length(2);
+    expect(wrapper.find("Art").first().prop("alt")).to.be.equal("Warning");
+    expect(wrapper.find(".message-content").text()).to.equal(
+      commonProps.message.get("message") + "."
+    );
   });
 
-  it('should add in hyperlink element for allowed web link found in the message', () => {
+  it("should add in hyperlink element for allowed web link found in the message", () => {
     const firstAllowedUrl = Object.keys(Message.URLS_ALLOWED)[0];
-    const wrapper = mount(<Message {...commonProps} message={`Message with link ${firstAllowedUrl}`}/>);
-    expect(wrapper.find('a')).to.have.length(1);
+    const wrapper = mount(
+      <Message
+        {...commonProps}
+        message={`Message with link ${firstAllowedUrl}`}
+      />
+    );
+    expect(wrapper.find("a")).to.have.length(1);
   });
 
-  it('should note add in hyperlink element for non-allowed web link found in the message', () => {
-    const link = 'https://www.dremio.com/random_url';
-    const wrapper = mount(<Message {...commonProps} message={`Message with link ${link}`}/>);
-    expect(wrapper.find('a')).to.have.length(0);
+  it("should note add in hyperlink element for non-allowed web link found in the message", () => {
+    const link = "https://www.dremio.com/random_url";
+    const wrapper = mount(
+      <Message {...commonProps} message={`Message with link ${link}`} />
+    );
+    expect(wrapper.find("a")).to.have.length(0);
   });
 
-  it('should not add in hyperlink if the message does not contain any web link', () => {
-    const wrapper = mount(<Message {...commonProps} message={'simple message'}/>);
-    expect(wrapper.find('a')).to.have.length(0);
+  it("should not add in hyperlink if the message does not contain any web link", () => {
+    const wrapper = mount(
+      <Message {...commonProps} message={"simple message"} />
+    );
+    expect(wrapper.find("a")).to.have.length(0);
   });
 
-  it('should not render when dismissed', () => {
-    const wrapper = shallow(<Message {...commonProps}/>);
-    wrapper.setState({dismissed: true});
-    expect(wrapper.find('.message')).to.have.length(0);
+  it("should not render when dismissed", () => {
+    const wrapper = shallow(<Message {...commonProps} />);
+    wrapper.setState({ dismissed: true });
+    expect(wrapper.find(".message")).to.have.length(0);
 
-    wrapper.setState({dismissed: false});
-    expect(wrapper.find('.message')).to.have.length(1);
+    wrapper.setState({ dismissed: false });
+    expect(wrapper.find(".message")).to.have.length(1);
   });
 
-  it('hides when dismiss is clicked and shows again when it receives a new message', () => {
-    const wrapper = shallow(<Message {...commonProps}/>);
-    expect(wrapper.find('Art').at(1).prop('onClick')).to.equal(wrapper.instance().onDismiss);
+  it("hides when dismiss is clicked and shows again when it receives a new message", () => {
+    const wrapper = shallow(<Message {...commonProps} />);
+    expect(wrapper.find("Art").at(1).prop("onClick")).to.equal(
+      wrapper.instance().onDismiss
+    );
     wrapper.instance().onDismiss();
-    expect(wrapper.state('dismissed')).to.be.true;
+    expect(wrapper.state("dismissed")).to.be.true;
 
-    wrapper.setProps({message: Immutable.Map({message: 'foo2'}), messageId: 'id2'});
-    expect(wrapper.state('dismissed')).to.be.false;
+    wrapper.setProps({
+      message: Immutable.Map({ message: "foo2" }),
+      messageId: "id2",
+    });
+    expect(wrapper.state("dismissed")).to.be.false;
   });
 
-  it('does not hide when dismiss is clicked and props.onDismiss returns false', () => {
-    const wrapper = shallow(<Message {...commonProps} onDismiss={() => false}/>);
+  it("does not hide when dismiss is clicked and props.onDismiss returns false", () => {
+    const wrapper = shallow(
+      <Message {...commonProps} onDismiss={() => false} />
+    );
     wrapper.instance().onDismiss();
-    expect(wrapper.state('dismissed')).to.be.false;
+    expect(wrapper.state("dismissed")).to.be.false;
   });
 
-  it('throws on unknown messageType', () => {
-    expect(() => shallow(<Message {...commonProps} messageType='foo'/>)).to.throw();
+  it("throws on unknown messageType", () => {
+    expect(() =>
+      shallow(<Message {...commonProps} messageType="foo" />)
+    ).to.throw();
   });
 
-  it('should render close icon by default', () => {
-    expect(shallow(<Message {...commonProps} />).find('Art[alt="Dismiss"]')).to.have.length(1);
+  it("should render close icon by default", () => {
+    expect(
+      shallow(<Message {...commonProps} />).find('Art[alt="Dismiss"]')
+    ).to.have.length(1);
   });
 
-  it('should not render close icon when message is not dissmisable', () => {
-    expect(shallow(<Message isDismissable={false} />).find('Art[alt="Dismiss"]')).to.have.length(0);
+  it("should not render close icon when message is not dissmisable", () => {
+    expect(
+      shallow(<Message isDismissable={false} />).find('Art[alt="Dismiss"]')
+    ).to.have.length(0);
   });
 
-  describe('#componentWillReceiveProps', () => {
-    it('should reset for changed messageId', function() {
-      const instance = shallow(<Message {...commonProps}/>).instance();
-      const spy = sinon.spy(instance, 'setState');
+  describe("#componentWillReceiveProps", () => {
+    it("should reset for changed messageId", function () {
+      const instance = shallow(<Message {...commonProps} />).instance();
+      const spy = sinon.spy(instance, "setState");
 
-      instance.componentWillReceiveProps({messageId: 'id1'});
+      instance.componentWillReceiveProps({ messageId: "id1" });
       expect(spy).to.have.not.been.called;
 
-      instance.componentWillReceiveProps({messageId: 'id2'});
-      expect(spy).to.have.been.calledWith({ dismissed: false, showMore: false });
+      instance.componentWillReceiveProps({ messageId: "id2" });
+      expect(spy).to.have.been.calledWith({
+        dismissed: false,
+        showMore: false,
+      });
     });
   });
 
-  describe('#showMoreToggle', function() {
-    it('should toggle showMore from true to false', function() {
-      const instance = shallow(<Message {...commonProps}/>).instance();
-      instance.setState({showMore: true});
+  describe("#showMoreToggle", function () {
+    it("should toggle showMore from true to false", function () {
+      const instance = shallow(<Message {...commonProps} />).instance();
+      instance.setState({ showMore: true });
       instance.showMoreToggle();
       expect(instance.state.showMore).to.be.false;
     });
   });
 
-  describe('#renderErrorMessageText', function() {
-    it('should return message from string', function() {
-      const instance = shallow(<Message {...commonProps} message='bar'/>).instance();
-      expect(instance.renderErrorMessageText()).to.eql('bar');
+  describe("#renderErrorMessageText", function () {
+    it("should return message from string", function () {
+      const instance = shallow(
+        <Message {...commonProps} message="bar" />
+      ).instance();
+      expect(instance.renderErrorMessageText()).to.eql("bar");
     });
-    it('should return message from Map', function() {
-      const instance = shallow(<Message {...commonProps}/>).instance();
-      expect(instance.renderErrorMessageText()).to.eql('foo.');
+    it("should return message from Map", function () {
+      const instance = shallow(<Message {...commonProps} />).instance();
+      expect(instance.renderErrorMessageText()).to.eql("foo.");
     });
-    it('should return legacy message from Map', function() {
-      const instance = shallow(<Message {...commonProps} message={Immutable.Map({errorMessage: 'foo'})}/>).instance();
-      expect(instance.renderErrorMessageText()).to.eql('foo.');
+    it("should return legacy message from Map", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.Map({ errorMessage: "foo" })}
+        />
+      ).instance();
+      expect(instance.renderErrorMessageText()).to.eql("foo.");
     });
-    it('should return renderMessageForCode over #message', function() {
+    it("should return renderMessageForCode over #message", function () {
       // use PIPELINE_FAILURE as a canary
-      const instance = shallow(<Message
-        {...commonProps}
-        message={Immutable.Map({message: 'foo', code: 'PIPELINE_FAILURE'})}
-      />).instance();
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.Map({ message: "foo", code: "PIPELINE_FAILURE" })}
+        />
+      ).instance();
       expect(instance.renderErrorMessageText()).to.eql(
-        <span>{la('There was an error in the Reflection pipeline.')}</span>
+        <span>{la("There was an error in the Reflection pipeline.")}</span>
       );
     });
   });
 
-  describe('#renderDetails', function() {
-    it('should not render with string', function() {
-      const instance = shallow(<Message {...commonProps} message='foo'/>).instance();
+  describe("#renderDetails", function () {
+    it("should not render with string", function () {
+      const instance = shallow(
+        <Message {...commonProps} message="foo" />
+      ).instance();
       expect(instance.renderDetails()).to.be.undefined;
     });
-    it('should not render without stackTrace, moreInfo, or code details', function() {
-      const instance = shallow(<Message {...commonProps}/>).instance();
+    it("should not render without stackTrace, moreInfo, or code details", function () {
+      const instance = shallow(<Message {...commonProps} />).instance();
       expect(instance.renderDetails()).to.be.undefined;
     });
-    it('should render with stackTrace as array', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.Map({message: 'foo', stackTrace: ['a', 'b']})}
-      />).instance();
-      expect(shallow(instance.renderDetails()).text()).to.eql('a\nb');
+    it("should render with stackTrace as array", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.Map({ message: "foo", stackTrace: ["a", "b"] })}
+        />
+      ).instance();
+      expect(shallow(instance.renderDetails()).text()).to.eql("a\nb");
     });
-    it('should render with stackTrace as string', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.Map({message: 'foo', stackTrace: 'foo'})}
-      />).instance();
-      expect(shallow(instance.renderDetails()).text()).to.eql('foo');
+    it("should render with stackTrace as string", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.Map({ message: "foo", stackTrace: "foo" })}
+        />
+      ).instance();
+      expect(shallow(instance.renderDetails()).text()).to.eql("foo");
     });
-    it('should render with moreInfo', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.Map({message: 'foo', moreInfo:'bar'})}
-      />).instance();
-      expect(shallow(instance.renderDetails()).text()).to.eql('bar');
+    it("should render with moreInfo", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.Map({ message: "foo", moreInfo: "bar" })}
+        />
+      ).instance();
+      expect(shallow(instance.renderDetails()).text()).to.eql("bar");
     });
-    it('should render nothing if code specifies RENDER_NO_DETAILS', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({ // using MATERIALIZATION_FAILURE as a canary
-          code: 'MATERIALIZATION_FAILURE',
-          message: 'foo',
-          materializationFailure: {
-            jobId: 'job',
-            layoutId: 'layout',
-            materializationId: 'materialization'
-          }
-        })}
-      />).instance();
+    it("should render nothing if code specifies RENDER_NO_DETAILS", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            // using MATERIALIZATION_FAILURE as a canary
+            code: "MATERIALIZATION_FAILURE",
+            message: "foo",
+            materializationFailure: {
+              jobId: "job",
+              layoutId: "layout",
+              materializationId: "materialization",
+            },
+          })}
+        />
+      ).instance();
       expect(instance.renderDetails()).to.be.undefined;
     });
 
     // todo: add "should render with code details" once anything does that
   });
 
-  describe('#renderDetailsForCode', function() {
-    it('should not render without a code', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({
-          message: 'foo'
-        })}
-      />).instance();
+  describe("#renderDetailsForCode", function () {
+    it("should not render without a code", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            message: "foo",
+          })}
+        />
+      ).instance();
       expect(instance.renderDetailsForCode()).to.be.undefined;
     });
 
-    it('should return @@RENDER_NO_DETAILS for MATERIALIZATION_FAILURE', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({
-          code: 'MATERIALIZATION_FAILURE',
-          message: 'foo',
-          materializationFailure: {
-            jobId: 'job',
-            layoutId: 'layout',
-            materializationId: 'materialization'
-          }
-        })}
-      />).instance();
+    it("should return @@RENDER_NO_DETAILS for MATERIALIZATION_FAILURE", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            code: "MATERIALIZATION_FAILURE",
+            message: "foo",
+            materializationFailure: {
+              jobId: "job",
+              layoutId: "layout",
+              materializationId: "materialization",
+            },
+          })}
+        />
+      ).instance();
       expect(instance.renderDetailsForCode()).to.eql(RENDER_NO_DETAILS);
     });
   });
 
-  describe('#renderMessageForCode', function() {
-    it('should not render without a code', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({
-          message: 'foo'
-        })}
-      />).instance();
+  describe("#renderMessageForCode", function () {
+    it("should not render without a code", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            message: "foo",
+          })}
+        />
+      ).instance();
       expect(instance.renderMessageForCode()).to.be.undefined;
     });
 
-    it('should render for PIPELINE_FAILURE', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({
-          code: 'PIPELINE_FAILURE',
-          message: 'foo'
-        })}
-      />).instance();
+    it("should render for PIPELINE_FAILURE", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            code: "PIPELINE_FAILURE",
+            message: "foo",
+          })}
+        />
+      ).instance();
       expect(mount(instance.renderMessageForCode()).text()).to.eql(
-        'There was an error in the Reflection pipeline.'
+        "There was an error in the Reflection pipeline."
       );
     });
 
-    it('should render for MATERIALIZATION_FAILURE', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({
-          code: 'MATERIALIZATION_FAILURE',
-          message: 'foo',
-          materializationFailure: {
-            jobId: 'job',
-            layoutId: 'layout',
-            materializationId: 'materialization'
-          }
-        })}
-      />).instance();
+    it("should render for MATERIALIZATION_FAILURE", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            code: "MATERIALIZATION_FAILURE",
+            message: "foo",
+            materializationFailure: {
+              jobId: "job",
+              layoutId: "layout",
+              materializationId: "materialization",
+            },
+          })}
+        />
+      ).instance();
       expect(mount(instance.renderMessageForCode()).text()).to.eql(
-        'There was an error building a Reflection (show job).'
+        "There was an error building a Reflection (show job)."
       );
     });
 
-    it('should render for DROP_FAILURE', function() {
-      const instance = shallow(<Message {...commonProps}
-        message={Immutable.fromJS({
-          code: 'DROP_FAILURE',
-          message: 'foo'
-        })}
-      />).instance();
+    it("should render for DROP_FAILURE", function () {
+      const instance = shallow(
+        <Message
+          {...commonProps}
+          message={Immutable.fromJS({
+            code: "DROP_FAILURE",
+            message: "foo",
+          })}
+        />
+      ).instance();
       expect(mount(instance.renderMessageForCode()).text()).to.eql(
-        'There was an error dropping a Reflection.'
+        "There was an error dropping a Reflection."
       );
     });
   });

@@ -13,37 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '~@app/uiTheme/less/color-schema.less';
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global {
-   .commitBrowser {
-     height: 100%;
-     width: 100%;
+:global {
+  .commitBrowser {
+    height: 100%;
+    width: 100%;
 
-     color: @DARK_900;
+    color: @DARK_900;
 
-     &.disabled {
-       opacity: 0.4;
-       cursor: not-allowed;
-       [role="grid"] {
-         overflow: hidden !important;
-       }
-     }
+    &.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      [role="grid"] {
+        overflow: hidden !important;
+      }
+    }
 
-     &-search {
-       padding-bottom: 8px;
-     }
+    &-search {
+      padding-bottom: 8px;
+    }
 
-     &-content {
-       display: flex;
-       flex-direction: column;
-       height: 100%;
-       line-height: 16.8px;
-     }
+    &-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      line-height: 16.8px;
+    }
 
-     &-listWrapper {
-       flex: 1;
-     }
-   }
- }
- 
+    &-listWrapper {
+      flex: 1;
+    }
+  }
+}

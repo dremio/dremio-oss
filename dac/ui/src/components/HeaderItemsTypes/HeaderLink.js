@@ -13,42 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { Link } from 'react-router';
+import { PureComponent } from "react";
+import { Link } from "react-router";
 
-import Radium from 'radium';
+import PropTypes from "prop-types";
 
-import PropTypes from 'prop-types';
+import { bodyWhite } from "uiTheme/radium/typography";
 
-import { bodyWhite } from 'uiTheme/radium/typography';
-
-import './HeaderLink.less';
+import "./HeaderLink.less";
 
 export default class HeaderLink extends PureComponent {
   static propTypes = {
     children: PropTypes.node,
-    to: PropTypes.string.isRequired
-  }
+    to: PropTypes.string.isRequired,
+  };
 
   static contextTypes = {
     location: PropTypes.object,
     routeParams: PropTypes.object,
-    router: PropTypes.object
-  }
+    router: PropTypes.object,
+  };
 
   render() {
-    const {children, ...props} = this.props;
-    const RadiumLink = Radium(Link);
-
+    const { children, ...props } = this.props;
     return (
-      <div className='HeaderLink' style={styles.item}>
-        <RadiumLink
-          {...props}
-          onClick={this.handleClick}
-          style={styles.link}
-        >
+      <div className="HeaderLink" style={styles.item}>
+        <Link {...props} onClick={this.handleClick} style={styles.link}>
           {children}
-        </RadiumLink>
+        </Link>
       </div>
     );
   }
@@ -56,21 +48,21 @@ export default class HeaderLink extends PureComponent {
 
 const styles = {
   item: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0 8px 0'
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 8px 0",
   },
   link: {
     ...bodyWhite,
-    textDecoration: 'none',
+    textDecoration: "none",
     marginTop: 3,
     paddingBottom: 4,
     height: 24,
-    display: 'block',
-    fonSize: 13
+    display: "block",
+    fonSize: 13,
   },
   activeLink: {
-    borderBottom: '2px solid #3acbac'
-  }
+    borderBottom: "2px solid #3acbac",
+  },
 };

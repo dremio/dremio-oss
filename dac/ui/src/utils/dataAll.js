@@ -15,14 +15,14 @@
  */
 module.exports = {
   dataEN: {
-    datasetModel: require('./dataEN/home/datasetModel.json'),
-    radioButtonsForAddResource: require('./dataEN/home/radioButtonsForAddResource.json'),
-    exploreInfoBlock: require('./dataEN/explore/exploreInfoBlock.json'),
-    btnsHeaderForGrid: require('./dataEN/explore/btnsHeaderForGrid.json'),
-    btnsHeaderForPhysicalDataset: require('./dataEN/explore/btnsHeaderForPhysicalDataset.json'),
-    sectionsForSources: require('./dataEN/home/sectionsForSources.json'),
-    subtypeForTransformTab: require('./dataEN/explore/subtypeForTransformTab.json'),
-    dataForAccelerationFrequency: require('./dataEN/home/dataForAccelerationFrequency.json'),
-    dataTypeForConverter: require('./dataEN/explore/dataTypeForConverter.json')
-  }
+    datasetModel: require("./dataEN/home/datasetModel.json"),
+    radioButtonsForAddResource: require("./dataEN/home/radioButtonsForAddResource.json"),
+    exploreInfoBlock: require("./dataEN/explore/exploreInfoBlock.json"),
+    btnsHeaderForGrid: require("./dataEN/explore/btnsHeaderForGrid.json"),
+    btnsHeaderForPhysicalDataset: require("./dataEN/explore/btnsHeaderForPhysicalDataset.json"),
+    sectionsForSources: require("./dataEN/home/sectionsForSources.json"),
+    subtypeForTransformTab: require("./dataEN/explore/subtypeForTransformTab.json"),
+    dataForAccelerationFrequency: require("./dataEN/home/dataForAccelerationFrequency.json"),
+    dataTypeForConverter: require("./dataEN/explore/dataTypeForConverter.json"),
+  },
 };

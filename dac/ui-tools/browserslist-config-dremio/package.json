@@ -1,0 +1,7 @@
+{
+  "name": "browserslist-config-dremio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A shareable browserslist configuration for Dremio UI projects",
+  "main": "./index.js"
+}

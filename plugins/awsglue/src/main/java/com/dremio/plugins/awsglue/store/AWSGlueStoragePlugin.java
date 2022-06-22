@@ -17,6 +17,7 @@ package com.dremio.plugins.awsglue.store;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,11 +26,19 @@ import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.aws.AwsProperties;
+import org.apache.iceberg.aws.glue.DremioGlueTableOperations;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.util.LockManagers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +59,8 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.exec.catalog.AlterTableOption;
+import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
@@ -57,6 +68,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -70,21 +82,36 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
+import com.dremio.exec.store.dfs.AddColumn;
+import com.dremio.exec.store.dfs.AddPrimaryKey;
+import com.dremio.exec.store.dfs.ChangeColumn;
+import com.dremio.exec.store.dfs.DropColumn;
+import com.dremio.exec.store.dfs.DropPrimaryKey;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
+import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
+import com.dremio.exec.store.iceberg.glue.IcebergGlueModel;
+import com.dremio.exec.store.iceberg.glue.IcebergGlueTableIdentifier;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ScanTableFunction;
 import com.dremio.io.file.FileSystem;
+import com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactoryV2;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
@@ -92,15 +119,20 @@ import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
+
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.glue.GlueClient;
 
 /**
  * This plugin is a wrapper over Hive2 Storage plugin
  * During instantiation it creates a hive 2 plugin and delegates all calls to it
  */
 public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, SupportsReadSignature,
-  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable, SupportsIcebergRootPointer {
+  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable, SupportsIcebergRootPointer, SupportsIcebergMutablePlugin {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
   private static final String AWS_GLUE_HIVE_METASTORE_PLACEHOLDER = "DremioGlueHive";
@@ -118,12 +150,16 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
+
   private StoragePlugin hiveStoragePlugin;
 
   private AWSGluePluginConfig config;
   private SabotContext context;
   private String name;
   private Provider<StoragePluginId> idProvider;
+
+  private GlueClient glueClient;
+  private Configuration glueConfTableOperations;
 
   public AWSGlueStoragePlugin(AWSGluePluginConfig config,
                               SabotContext context,
@@ -166,6 +202,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
 
     finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, mainAWSCredProvider));
     finalProperties.add(new Property("com.dremio.aws_credentials_provider", config.credentialType.toString()));
+    finalProperties.add(new Property("hive.exec.orc.zerocopy", "false"));
 
     if (propertyList != null && !propertyList.isEmpty()) {
       finalProperties.addAll(propertyList);
@@ -179,6 +216,8 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     hiveConf.isCachingEnabledForHDFS = config.isCachingEnabled;
     hiveConf.isCachingEnabledForS3AndAzureStorage = config.isCachingEnabled;
     hiveConf.maxCacheSpacePct = config.maxCacheSpacePct;
+    hiveConf.defaultCtasFormat = config.defaultCtasFormat;
+
 
     // set placeholders for hostname and port
     hiveConf.hostname = AWS_GLUE_HIVE_METASTORE_PLACEHOLDER;
@@ -186,6 +225,9 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
 
     // instantiate hive plugin
     hiveStoragePlugin = hiveConf.newPlugin(context, name, idProvider);
+
+    //glueconf for iceberg table operations
+    this.glueConfTableOperations = getConfForGlue();
   }
 
   /**
@@ -215,6 +257,34 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
       default:
         throw new RuntimeException("Failure creating AWS Glue connection. Invalid credentials type.");
     }
+  }
+
+  private AwsCredentialsProvider getAwsCredentialsProvider() {
+
+    return DremioAWSCredentialsProviderFactoryV2.getAWSCredentialsProvider(glueConfTableOperations);
+
+  }
+
+  private GlueClient getGlueClient() {
+
+    if (glueClient == null) {
+      try {
+        this.glueClient = GlueClient.builder().region(Region.of(config.regionNameSelection.getRegionName())).credentialsProvider(getAwsCredentialsProvider()).build();
+      } catch (IllegalStateException e) {
+        logger.error("Unable to setup glue client - " + e.getMessage());
+        throw UserException.unsupportedError(e).message("Unable to instantiate the glueClient object to talk to Glue. Please check your credentials and region in the configuration").buildSilently();
+      }
+    }
+    return glueClient;
+  }
+
+
+  private Configuration getConfForGlue() {
+
+    Configuration config = getFsConfCopy();
+    config.set(CatalogProperties.WAREHOUSE_LOCATION, config.get(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, ""));
+    config.set(CatalogProperties.CATALOG_IMPL, "org.apache.iceberg.aws.glue.GlueCatalog");
+    return config;
   }
 
   @Override
@@ -253,9 +323,21 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   @Override
-  // TODO : DX-41818
   public TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier) {
-    throw new UnsupportedOperationException("creating iceberg table ops not supported for AWS glue");
+
+    Map<String, String> properties = new HashMap<>();
+    for (Map.Entry<String, String> property : glueConfTableOperations) {
+      properties.put(property.getKey(), property.getValue());
+    }
+
+    IcebergGlueTableIdentifier glueTableIdentifier = (IcebergGlueTableIdentifier) tableIdentifier;
+    DremioFileIO fileIO = new DremioFileIO(fs, glueConfTableOperations, this);
+
+    return new DremioGlueTableOperations(getGlueClient(), LockManagers.from(properties),
+      IcebergGlueModel.GLUE, new AwsProperties(properties), fileIO,
+      TableIdentifier.of(glueTableIdentifier.getNamespace(), glueTableIdentifier.getTableName()));
+
+
   }
 
   @Override
@@ -327,12 +409,57 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig,
                                          IcebergTableProps icebergTableProps, WriterOptions writerOptions,
                                          Map<String, Object> storageOptions, boolean isResultsTable) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table creation via CTAS.");
+    Preconditions.checkState(!isResultsTable, "job results cannot be stored in the GlueStoragePlugin");
+    return ((MutablePlugin) hiveStoragePlugin).createNewTable(tableSchemaPath, schemaConfig, icebergTableProps, writerOptions, storageOptions, isResultsTable);
+  }
+
+  public IcebergModel getIcebergModel(String location, NamespaceKey key, String userName) {
+    FileSystem fs = null;
+    try {
+      fs = createFS(location, SystemUser.SYSTEM_USERNAME, null);
+    } catch (IOException e) {
+      throw UserException.validationError(e).message("Failure creating File System instance for path %s", location).buildSilently();
+    }
+    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
+    String tableName = key.getName();
+    String dbName = key.getPathComponents().get(1);
+    return new IcebergGlueModel(dbName, tableName, fs, userName, null, this);
+  }
+
+  @Override
+  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context, FileSystem fs) {
+    if (fs == null) {
+      try {
+        fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+      } catch (IOException e) {
+        throw UserException.validationError(e).message("Failure creating File System instance for path ", tableProps.getTableLocation()).buildSilently();
+      }
+    }
+    return new IcebergGlueModel(tableProps.getDatabaseName(), tableProps.getTableName(), fs, userName, null, this);
   }
 
   @Override
   public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table creation.");
+
+    String tableLocation;
+    String queryLocation = writerOptions.getTableLocation();
+    if (StringUtils.isNotEmpty(queryLocation)) {
+      tableLocation = com.dremio.common.utils.PathUtils.removeTrailingSlash(queryLocation);
+    } else {
+      String warehouseLocation = com.dremio.common.utils.PathUtils.removeTrailingSlash(glueConfTableOperations.get(CatalogProperties.WAREHOUSE_LOCATION));
+      if (StringUtils.isEmpty(warehouseLocation) || HiveConf.ConfVars.METASTOREWAREHOUSE.getDefaultValue().equals(warehouseLocation)) {
+        logger.error("Advanced Property {} not set. Please set it to have a valid location to create table.", HiveConf.ConfVars.METASTOREWAREHOUSE.varname);
+        throw UserException.unsupportedError().message("Unable to create Table for Glue. Please set the default ware house location").buildSilently();
+      }
+      tableLocation = warehouseLocation
+        + tableSchemaPath.getPathComponents().stream().reduce("", (a, b) -> a + "/" + b);
+    }
+
+    IcebergModel icebergModel = getIcebergModel(tableLocation, tableSchemaPath, schemaConfig.getUserName());
+    String tableName = tableSchemaPath.getName();
+    IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName, icebergModel.getTableIdentifier(tableLocation), batchSchema,
+      writerOptions.getPartitionColumns(), null, writerOptions.getDeserializedPartitionSpec());
+    icebergOpCommitter.commit();
   }
 
   @Override
@@ -342,37 +469,95 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
 
   @Override
   public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support dropping table.");
+    ((MutablePlugin) hiveStoragePlugin).dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
+  }
+
+  @Override
+  public void alterTable(NamespaceKey tableSchemaPath, DatasetConfig datasetConfig, AlterTableOption alterTableOption,
+                          SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
+    icebergModel.alterTable(icebergModel.getTableIdentifier(metadataLocation), alterTableOption);
   }
 
   @Override
   public void truncateTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table truncation.");
+
+    DatasetConfig datasetConfig = null;
+    try {
+      datasetConfig = context.getNamespaceService(schemaConfig.getUserName()).getDataset(tableSchemaPath);
+    } catch (NamespaceException e) {
+      logger.error("Unable to get datasetConfig for the table to truncate");
+      throw UserException.unsupportedError(e).message("Unable to get the table info from Dremio.Failed to truncate the table.Please check the logs").buildSilently();
+    }
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
+    icebergModel.truncateTable(icebergModel.getTableIdentifier(metadataLocation));
   }
 
   @Override
-  public void addColumns(NamespaceKey tableSchemaPath,
+  public void addColumns(NamespaceKey key,
+                         DatasetConfig datasetConfig,
                          SchemaConfig schemaConfig,
                          List<Field> columnsToAdd,
                          TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    AddColumn columnOperations = new AddColumn(key, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, key, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    columnOperations.performOperation(columnsToAdd);
   }
 
   @Override
-  public void dropColumn(NamespaceKey tableSchemaPath,
+  public void dropColumn(NamespaceKey key,
+                         DatasetConfig datasetConfig,
                          SchemaConfig schemaConfig,
                          String columnToDrop,
                          TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    DropColumn columnOperations = new DropColumn(key, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, key, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    columnOperations.performOperation(columnToDrop);
   }
 
   @Override
-  public void changeColumn(NamespaceKey tableSchemaPath,
+  public void changeColumn(NamespaceKey key,
+                           DatasetConfig datasetConfig,
                            SchemaConfig schemaConfig,
                            String columnToChange,
-                           Field field,
+                           Field fieldFromSql,
                            TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    ChangeColumn columnOperations = new ChangeColumn(key, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, key, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    columnOperations.performOperation(columnToChange, fieldFromSql);
+  }
+
+  @Override
+  public void addPrimaryKey(NamespaceKey table,
+                            DatasetConfig datasetConfig,
+                            SchemaConfig schemaConfig,
+                            List<Field> columns) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, table, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    op.performOperation(columns);
+  }
+
+  @Override
+  public void dropPrimaryKey(NamespaceKey table,
+                             DatasetConfig datasetConfig,
+                             SchemaConfig schemaConfig) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, table, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    op.performOperation();
   }
 
   @Override
@@ -387,12 +572,12 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   @Override
-  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view) throws IOException {
+  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view, ViewOptions viewOptions) throws IOException {
     throw new UnsupportedOperationException("AWS Glue plugin doesn't support view creation via CREATE VIEW.");
   }
 
   @Override
-  public void dropView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig) throws IOException {
+  public void dropView(NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig) throws IOException {
     throw new UnsupportedOperationException("AWS Glue plugin doesn't support view drop via DROP VIEW.");
   }
 
@@ -499,5 +684,10 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   @Override
   public boolean isAWSGlue() {
     return true;
+  }
+
+  @Override
+  public String getDefaultCtasFormat() {
+    return ((MutablePlugin) hiveStoragePlugin).getDefaultCtasFormat();
   }
 }

@@ -23,7 +23,7 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
-import org.apache.lucene.search.FieldValueQuery;
+import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
@@ -270,13 +270,13 @@ public class LuceneQueryConverter {
   }
 
   private Query toExistsquery(SearchQuery.Exists exists) {
-    return new FieldValueQuery(exists.getField());
+    return new DocValuesFieldExistsQuery(exists.getField());
   }
 
   private Query toDoesNotExistQuery(SearchQuery.Exists exists) {
     final BooleanQuery.Builder builder = new BooleanQuery.Builder();
     builder.add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
-    builder.add(new FieldValueQuery(exists.getField()), BooleanClause.Occur.MUST_NOT);
+    builder.add(new DocValuesFieldExistsQuery(exists.getField()), BooleanClause.Occur.MUST_NOT);
     return builder.build();
   }
 

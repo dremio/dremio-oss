@@ -15,38 +15,28 @@
  */
 package com.dremio.exec.store.dfs;
 
-import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
-
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.BatchSchemaDiff;
 import com.dremio.exec.util.BatchSchemaDiffer;
 import com.dremio.io.file.Path;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
-import com.dremio.service.users.SystemUser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
-import io.protostuff.ByteString;
-
-public class ColumnOperations {
+public class ColumnOperations extends MetadataOperations {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ColumnOperations.class);
 
   public static String DREMIO_UPDATE_COLUMNS = "dremio.updatedColumns";
@@ -58,47 +48,25 @@ public class ColumnOperations {
     DROP
   }
 
-
-  protected final NamespaceKey table;
-  protected final SabotContext context;
-  protected final SchemaConfig schemaConfig;
-  protected final IcebergModel model;
-  protected final Path path;
-  protected final DatasetConfig datasetConfig;
-  protected StoragePlugin storagePlugin;
-
   protected BatchSchema newDroppedCols = BatchSchema.EMPTY;
   protected BatchSchema newModifiedCols = BatchSchema.EMPTY;
   protected BatchSchema newSchema = BatchSchema.EMPTY;
 
-  public ColumnOperations(NamespaceKey table, SabotContext context, SchemaConfig schemaConfig, IcebergModel model, Path path, StoragePlugin storagePlugin) {
-    this.table = table;
-    this.context = context;
-    this.schemaConfig = schemaConfig;
-    this.model = model;
-    this.path = path;
-    try {
-      this.datasetConfig = context.getNamespaceService(schemaConfig.getUserName()).getDataset(table);
-    } catch (
-      NamespaceException e) {
-      throw UserException.dataReadError().message(String.format("Dataset %s not found", table.toString())).buildSilently();
-    }
-    this.storagePlugin = storagePlugin;
-  }
-
-  protected void checkUserSchemaEnabled() {
-    if(!context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA)) {
-      throw UserException.parseError()
-        .message("Modifications to internal schema's are not allowed. Contact dremio support to enable option user managed schema's ")
-        .buildSilently();
-    }
+  public ColumnOperations(NamespaceKey table, SabotContext context,
+                          DatasetConfig datasetConfig, SchemaConfig schemaConfig,
+                          IcebergModel model, Path path, StoragePlugin storagePlugin) {
+    super(datasetConfig, context, table, schemaConfig, model, path, storagePlugin);
   }
 
   protected void checkPartitionColumnsValidation(List<String> fieldsToAlter) {
     fieldsToAlter = fieldsToAlter.stream().map(String::toLowerCase).collect(Collectors.toList());
     List<String> finalFieldsToAlter = fieldsToAlter;
-    datasetConfig.getReadDefinition().getPartitionColumnsList().stream().forEach(x -> {
-      if(finalFieldsToAlter.contains(x.toLowerCase())) {
+
+    if (datasetConfig.getReadDefinition().getPartitionColumnsList() == null) {
+      return;
+    }
+    datasetConfig.getReadDefinition().getPartitionColumnsList().forEach(x -> {
+      if (finalFieldsToAlter.contains(x.toLowerCase())) {
         throw UserException.parseError()
           .message(String.format("Modifications to partition columns are not allowed. Column %s is a partition column", x))
           .buildSilently();
@@ -106,15 +74,10 @@ public class ColumnOperations {
     });
   }
 
-  protected String getMetadataTableName(SabotContext context, DatasetConfig datasetConfig) {
-    String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
-    return metadataTableName;
-  }
-
   protected UserDefinedSchemaSettings getUserDefinedSettings() {
     UserDefinedSchemaSettings internalSchemaSettings = datasetConfig.getPhysicalDataset().getInternalSchemaSettings();
 
-    if(internalSchemaSettings == null) {
+    if (internalSchemaSettings == null) {
       internalSchemaSettings = new UserDefinedSchemaSettings();
     }
 
@@ -123,22 +86,11 @@ public class ColumnOperations {
 
   protected void saveInKvStore() {
     datasetConfig.setRecordSchema(newSchema.toByteString());
-    datasetConfig.getPhysicalDataset().setInternalSchemaSettings(getUserDefinedSettings().setDroppedColumns(newDroppedCols.toByteString()).setModifiedColumns(newModifiedCols.toByteString()));
-    try {
-      context.getNamespaceService(schemaConfig.getUserName()).addOrUpdateDataset(table, datasetConfig);
-    } catch(NamespaceException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  protected void updateDatasetConfigWithIcebergMetadata(String newRootPointer, long snapshotId, Map<Integer, PartitionSpec> partitionSpecMap) { ;
-    //Snapshot should not change with change in schema but still update it
-    IcebergMetadata icebergMetadata = datasetConfig.getPhysicalDataset().getIcebergMetadata();
-    icebergMetadata.setMetadataFileLocation(newRootPointer);
-    icebergMetadata.setSnapshotId(snapshotId);
-    byte[] specs = IcebergSerDe.serializePartitionSpecMap(partitionSpecMap);
-    icebergMetadata.setPartitionSpecs(ByteString.copyFrom(specs));
-    datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+    datasetConfig.getPhysicalDataset().setInternalSchemaSettings(
+      getUserDefinedSettings()
+        .setDroppedColumns(newDroppedCols.toByteString())
+        .setModifiedColumns(newModifiedCols.toByteString()));
+    save();
   }
 
   protected void computeDroppedAndUpdatedColumns(BatchSchema newSchema) {
@@ -157,6 +109,8 @@ public class ColumnOperations {
     }
 
     BatchSchemaDiffer batchSchemaDiffer = new BatchSchemaDiffer();
+    batchSchemaDiffer.setAllowComplexToPrimitiveConversions(storagePlugin instanceof SupportsTypeCoercionsAndUpPromotions
+      && ((SupportsTypeCoercionsAndUpPromotions) storagePlugin).isComplexToVarcharCoercionSupported());
     BatchSchemaDiff diff = batchSchemaDiffer.diff(oldSchema.getFields(), newSchema.getFields());
 
     newDroppedCols = new BatchSchema(diff.getDroppedFields());
@@ -189,10 +143,5 @@ public class ColumnOperations {
       logger.error(message);
       throw UserException.dataReadError().addContext(message).build(logger);
     }
-  }
-
-  protected void checkAndRepair() {
-    RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(datasetConfig, context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME), context.getNamespaceService(SystemUser.SYSTEM_USERNAME), storagePlugin);
-    repairOperation.checkAndRepairDatasetWithQueryRetry();
   }
 }

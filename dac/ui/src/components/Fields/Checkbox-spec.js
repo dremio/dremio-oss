@@ -13,75 +13,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Checkbox from './Checkbox';
+import Checkbox from "./Checkbox";
 
-describe('Checkbox', () => {
-
+describe("Checkbox", () => {
   let wrapper;
   let instance;
-  const minimalProps = {
-  };
+  const minimalProps = {};
   beforeEach(() => {
-    wrapper = shallow(<Checkbox {...minimalProps}/>);
+    wrapper = shallow(<Checkbox {...minimalProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<Checkbox {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<Checkbox {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render props.label', () => {
-    wrapper.setProps({label: 'someLabel', labelBefore: true});
-    expect(wrapper.dive().text()).to.contain('someLabel');
+  it("should render props.label", () => {
+    wrapper.setProps({ label: "someLabel", labelBefore: true });
+    expect(wrapper.dive().text()).to.contain("someLabel");
   });
 
-  it('should render props.inputType', () => {
-    wrapper.setProps({inputType: 'someInputType'});
-    expect(wrapper.find('input').props().type).to.equal('someInputType');
+  it("should render props.inputType", () => {
+    wrapper.setProps({ inputType: "someInputType" });
+    expect(wrapper.find("input").props().type).to.equal("someInputType");
   });
 
-  it('should render label first only if labelBefore=true', () => {
-    wrapper.setProps({labelBefore: true, label: 'someLabel'});
-    expect(wrapper.dive().children().at(0).text()).to.equal('someLabel');
+  it("should render label first only if labelBefore=true", () => {
+    wrapper.setProps({ labelBefore: true, label: "someLabel" });
+    expect(wrapper.dive().children().at(0).text()).to.equal("someLabel");
 
-    wrapper.setProps({labelBefore: false, label: 'someLabel'});
-    expect(wrapper.dive().children().at(2).text()).to.equal('someLabel');
+    wrapper.setProps({ labelBefore: false, label: "someLabel" });
+    expect(wrapper.dive().children().at(2).text()).to.equal("someLabel");
   });
 
-  it('should render checked when checked is truthy regardless of value', () => {
-    expect(wrapper.find('input').props().checked).to.be.undefined;
-    wrapper.setProps({value: true});
-    expect(wrapper.find('input').props().checked).to.be.undefined;
-    wrapper.setProps({checked:false, value: true});
-    expect(wrapper.find('input').props().checked).to.be.false;
-    wrapper.setProps({checked:true});
-    expect(wrapper.find('input').props().checked).to.be.true;
-    wrapper.setProps({checked:true, value: false});
-    expect(wrapper.find('input').props().checked).to.be.true;
+  it("should render checked when checked is truthy regardless of value", () => {
+    expect(wrapper.find("input").props().checked).to.be.undefined;
+    wrapper.setProps({ value: true });
+    expect(wrapper.find("input").props().checked).to.be.undefined;
+    wrapper.setProps({ checked: false, value: true });
+    expect(wrapper.find("input").props().checked).to.be.false;
+    wrapper.setProps({ checked: true });
+    expect(wrapper.find("input").props().checked).to.be.true;
+    wrapper.setProps({ checked: true, value: false });
+    expect(wrapper.find("input").props().checked).to.be.true;
   });
 
-  describe('#renderDummyCheckbox', () => {
-    it('should render ✔ only if isChecked', () => {
-      expect(shallow(instance.renderDummyCheckbox(false)).html()).to.not.contain('fa-check');
-      expect(shallow(instance.renderDummyCheckbox(true)).html()).to.contain('fa-check');
+  describe("#renderDummyCheckbox", () => {
+    it("should render ✔ only if isChecked", () => {
+      expect(
+        shallow(instance.renderDummyCheckbox(false)).html()
+      ).to.not.contain("Checkbox-selected");
+      expect(shallow(instance.renderDummyCheckbox(true)).html()).to.contain(
+        "Checkbox-selected"
+      );
     });
   });
 
-  describe('render on/off switch', () => {
-    it('should use dummy w/o isOnOffSwitch', () => {
-      sinon.spy(instance, 'renderDummyCheckbox');
-      sinon.spy(instance, 'renderOnOffSwitch');
-      wrapper.setProps({value: true});
+  describe("render on/off switch", () => {
+    it("should use dummy w/o isOnOffSwitch", () => {
+      sinon.spy(instance, "renderDummyCheckbox");
+      sinon.spy(instance, "renderOnOffSwitch");
+      wrapper.setProps({ value: true });
       expect(instance.renderDummyCheckbox).to.be.called;
       expect(instance.renderOnOffSwitch).to.not.be.called;
     });
-    it('should use isOnOffSwitch param', () => {
-      sinon.spy(instance, 'renderDummyCheckbox');
-      sinon.spy(instance, 'renderOnOffSwitch');
-      wrapper.setProps({isOnOffSwitch: true});
+    it("should use isOnOffSwitch param", () => {
+      sinon.spy(instance, "renderDummyCheckbox");
+      sinon.spy(instance, "renderOnOffSwitch");
+      wrapper.setProps({ isOnOffSwitch: true });
       expect(instance.renderDummyCheckbox).to.not.be.called;
       expect(instance.renderOnOffSwitch).to.be.called;
     });

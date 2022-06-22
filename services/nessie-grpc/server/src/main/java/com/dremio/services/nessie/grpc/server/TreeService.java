@@ -27,8 +27,6 @@ import java.util.stream.Collectors;
 import org.projectnessie.api.TreeApi;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.Detached;
-import org.projectnessie.model.ImmutableMerge;
-import org.projectnessie.model.ImmutableTransplant;
 import org.projectnessie.model.Tag;
 
 import com.dremio.services.nessie.grpc.ProtoUtil;
@@ -151,10 +149,7 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
           request.getBranchName(),
           request.getHash(),
           request.getMessage(),
-          ImmutableTransplant.builder()
-            .hashesToTransplant(request.getHashesToTransplantList())
-            .fromRefName(request.getFromRefName())
-            .build());
+          fromProto(request));
         return Empty.getDefaultInstance();
       },
       observer);
@@ -167,10 +162,7 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
         bridge.get().mergeRefIntoBranch(
           request.getToBranch(),
           request.getExpectedHash(),
-          ImmutableMerge.builder()
-            .fromHash(request.getFromHash())
-            .fromRefName(request.getFromRefName())
-            .build());
+          fromProto(request));
         return Empty.getDefaultInstance();
       },
       observer);

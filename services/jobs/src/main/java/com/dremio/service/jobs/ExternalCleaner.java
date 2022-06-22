@@ -41,6 +41,15 @@ public abstract class ExternalCleaner {
   protected abstract void doGo(JobAttempt jobAttempt);
 
   /**
+   * Returns the External Cleaner name.
+   *
+   * @return the name of the cleaner.
+   */
+  protected String getName() {
+    return this.getClass().getSimpleName();
+  }
+
+  /**
    * Delete an external dependency by attempt.
    *
    * @param jobAttempt job attempt associated

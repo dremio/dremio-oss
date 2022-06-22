@@ -1,6 +1,6 @@
-import { ENTITY_TYPES } from '@app/constants/Constants';
-import { manageSourceRule, manageSpaceRule } from '@app/utils/authUtils';
-import {isCME} from 'dyn-load/utils/versionUtils';
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import { manageSourceRule, manageSpaceRule } from "@app/utils/authUtils";
+import { isCME } from "dyn-load/utils/versionUtils";
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -16,34 +16,34 @@ import {isCME} from 'dyn-load/utils/versionUtils';
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getSpaceSettingsButtons() {
       const { location } = this.context;
       const { entity } = this.props;
       const buttons = [];
 
-      if (entity.get('entityType') === ENTITY_TYPES.space) {
+      if (entity.get("entityType") === ENTITY_TYPES.space) {
         let showSettingsButton = true;
-        if (isCME && !isCME() && entity.get('permissions')) {
-          showSettingsButton = entity.getIn(['permissions', 'canEditAccessControlList']);
+        if (isCME && !isCME() && entity.get("permissions")) {
+          showSettingsButton = entity.getIn([
+            "permissions",
+            "canEditAccessControlList",
+          ]);
         }
         if (showSettingsButton) {
           buttons.push({
-            qa: 'settings',
-            iconType: 'Settings',
-            to: {...location, state: {modal: 'SpaceModal', entityId: entity.get('id')}},
-            authRule: manageSpaceRule
+            qa: "settings",
+            iconType: "interface/settings",
+            to: {
+              ...location,
+              state: { modal: "SpaceModal", entityId: entity.get("id") },
+            },
+            authRule: manageSpaceRule,
           });
         }
       }
-
-      buttons.push({
-        qa: 'add-folder',
-        iconType: 'Folder',
-        to: {...location, state: {modal: 'AddFolderModal'}},
-        isAdd: true
-      });
 
       return buttons;
     },
@@ -53,28 +53,31 @@ export default function(input) {
       const { entity } = this.props;
       const buttons = [];
 
-      if (entity.get('entityType') === 'source') {
+      if (entity.get("entityType") === "source") {
         let showSettingsButton = true;
-        if (isCME && !isCME() && entity.get('permissions')) {
-          showSettingsButton = entity.getIn(['permissions', 'canEditAccessControlList']);
+        if (isCME && !isCME() && entity.get("permissions")) {
+          showSettingsButton = entity.getIn([
+            "permissions",
+            "canEditAccessControlList",
+          ]);
         }
         if (showSettingsButton) {
           buttons.push({
-            qa: 'settings',
-            iconType: 'Settings',
+            qa: "settings",
+            iconType: "interface/settings",
             to: {
               ...location,
               state: {
-                modal: 'EditSourceModal',
-                query: { name: entity.get('name'), type: entity.get('type') }
-              }
+                modal: "EditSourceModal",
+                query: { name: entity.get("name"), type: entity.get("type") },
+              },
             },
-            authRule: manageSourceRule
+            authRule: manageSourceRule,
           });
         }
       }
 
       return buttons;
-    }
+    },
   });
 }

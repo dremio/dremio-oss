@@ -97,8 +97,9 @@ public class SessionServiceFlightSessionsManager implements DremioFlightSessions
     try {
       userSessionAndVersion = userSessionService.getSession(sessionId);
     } catch (Exception e) {
-      logger.error("Unable to retrieve user session.", e);
-      throw CallStatus.INTERNAL.toRuntimeException();
+      final String errorDescription = "Unable to retrieve user session.";
+      logger.error(errorDescription, e);
+      throw CallStatus.INTERNAL.withCause(e).withDescription(errorDescription).toRuntimeException();
     }
 
     if (null == userSessionAndVersion) {

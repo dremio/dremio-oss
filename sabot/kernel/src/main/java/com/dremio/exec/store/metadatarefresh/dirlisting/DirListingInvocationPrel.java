@@ -37,6 +37,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Pair;
+import org.apache.iceberg.ManifestContent;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
@@ -169,7 +170,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
     final RelDataType manifestListRowType = getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster());
 
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(), traitSet, icebergScanTableMetadata, manifestListReaderSchema, manifestListReaderColumns,
-      manifestListRowType, null); //TODO: check icebergExpression can be null or not
+      manifestListRowType, null, ManifestContent.DATA); //TODO: check icebergExpression can be null or not
     return manifestListPrel;
   }
 
@@ -191,13 +192,13 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
       SchemaPath.getSimplePath(x.getName())).collect(Collectors.toList());
 
     // Manifest scan phase
-    TableFunctionConfig manifestScanTableFunctionConfig = TableFunctionUtil.getInternalMetadataManifestScanTableFunctionConfig(icebergScanTableMetadata, manifestFileReaderColumns,
+    TableFunctionConfig manifestScanTableFunctionConfig = TableFunctionUtil.getMetadataManifestScanTableFunctionConfig(icebergScanTableMetadata, manifestFileReaderColumns,
       manifestFileReaderSchema, null);
 
     final RelDataType outputRowType = getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, getCluster());
 
     TableFunctionPrel manifestScanTF = new TableFunctionPrel(getCluster(), traitSet, table, manifestSplitsExchange,
-      tableMetadata, ImmutableList.copyOf(manifestFileReaderColumns), manifestScanTableFunctionConfig, outputRowType);
+      tableMetadata, manifestScanTableFunctionConfig, outputRowType);
 
     if (isPartialRefresh) {
       return addFilterForFilteringPerPartition(manifestScanTF);

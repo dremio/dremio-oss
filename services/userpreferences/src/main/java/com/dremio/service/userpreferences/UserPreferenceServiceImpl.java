@@ -16,22 +16,30 @@
 
 package com.dremio.service.userpreferences;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.service.namespace.NamespaceNotFoundException;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto.Preference;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.util.Timestamps;
 
 /**
  * UserPreferenceService implementation
@@ -44,14 +52,18 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
   private static final Long MAX_COUNT_OF_ENTITIES = 25L;
 
   private final UserPreferenceStore userPreferenceStore;
+  private final Provider<NamespaceService> namespaceServiceProvider;
+
   private final UserService userService;
   private final SecurityContext securityContext;
 
   @Inject
   public UserPreferenceServiceImpl(Provider<UserPreferenceStore> userPreferenceStoreProvider,
+                                   Provider<NamespaceService> namespaceServiceProvider,
                                    UserService userService,
                                    SecurityContext securityContext) {
-    userPreferenceStore = userPreferenceStoreProvider.get();
+    this.userPreferenceStore = userPreferenceStoreProvider.get();
+    this.namespaceServiceProvider = namespaceServiceProvider;
     this.userService = userService;
     this.securityContext = securityContext;
   }
@@ -63,6 +75,35 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     if (userPreference.isPresent()) {
       int index = getIndexOfPreferenceType(userPreference.get(), type);
       if (index != -1) {
+        List<UserPreferenceProto.Entity> entities =
+          new ArrayList<>(userPreference.get().getPreferences(index).getEntitiesList());
+
+        // if there are entries in entity_ids, add them to entities
+        for (String entityId : userPreference.get().getPreferences(index).getEntityIdsList()) {
+          entities.add(UserPreferenceProto.Entity.newBuilder()
+                         .setEntityId(entityId)
+                         .setTimestamp(Timestamps.fromMillis(System.currentTimeMillis()))
+                         .build());
+        }
+
+        List<UserPreferenceProto.Entity> validEntities = getValidEntities(entities);
+
+        if (entities.size() != validEntities.size() ||
+            userPreference.get().getPreferences(index).getEntityIdsList().size() > 0) { // validate both are equal
+          // if there are invalid entities, remove invalid entities
+          Preference updatedPreference =
+            Preference.newBuilder()
+              .setType(userPreference.get().getPreferences(index).getType())
+              .clearEntityIds()
+              .addAllEntities(validEntities)
+              .build();
+
+          UserPreferenceProto.UserPreference updatedUserPreference =
+            userPreference.get().toBuilder().setPreferences(index, updatedPreference).build();
+          updatedUserPreference =
+            userPreferenceStore.update(getCurrentUserId().toString(), updatedUserPreference);
+          return updatedUserPreference.getPreferences(index);
+        }
         return userPreference.get().getPreferences(index);
       }
     }
@@ -70,10 +111,23 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     return newPreference(type, null);
   }
 
+  protected List<UserPreferenceProto.Entity> getValidEntities(List<UserPreferenceProto.Entity> entities) {
+    return entities.parallelStream().map(entity -> {
+      try {
+        validateEntityId(UUID.fromString(entity.getEntityId()));
+        return entity;
+      } catch (IllegalArgumentException | IllegalAccessException ignored) {
+        return null;
+      }
+    }).filter(Objects::nonNull).collect(Collectors.toList());
+  }
+
   @Override
   public UserPreferenceProto.Preference addEntityToPreference(UserPreferenceProto.PreferenceType type,
                                                               UUID entityId)
-    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException {
+    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
+
+    validateEntityId(entityId);
     String userId = getCurrentUserId().toString();
     Optional<UserPreferenceProto.UserPreference> existingUserPreference =
       userPreferenceStore.get(userId);
@@ -102,7 +156,12 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     Preference existingPreferenceOfGivenType = existingUserPreference.get().getPreferences(index);
 
 
-    Set<String> entityIds = new LinkedHashSet<>(existingPreferenceOfGivenType.getEntityIdsList());
+    List<UserPreferenceProto.Entity> entities =
+      new ArrayList<>(existingPreferenceOfGivenType.getEntitiesList());
+    Set<String> entityIds = existingPreferenceOfGivenType.getEntitiesList()
+      .stream()
+      .map(UserPreferenceProto.Entity::getEntityId)
+      .collect(Collectors.toCollection(LinkedHashSet::new));
     if (entityIds.contains(entityId.toString())) {
       // throw exception if entity already present in preference
       throw new EntityAlreadyInPreferenceException(
@@ -110,14 +169,21 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
         type.name().toLowerCase(Locale.ROOT));
     }
     // add new entity to list of given preference type
-    entityIds.add(entityId.toString());
+    Instant time = Instant.now();
+    entities.add(UserPreferenceProto.Entity.newBuilder()
+                   .setEntityId(entityId.toString())
+                   .setTimestamp(Timestamps.fromMillis(System.currentTimeMillis()))
+                   .build());
 
-    if (entityIds.size() > MAX_COUNT_OF_ENTITIES) {
+    if (entities.size() > MAX_COUNT_OF_ENTITIES) {
       throw new EntityThresholdReachedException(MAX_COUNT_OF_ENTITIES,
                                                 type.name().toLowerCase(Locale.ROOT));
     }
 
-    Preference updatedPreference = Preference.newBuilder().addAllEntityIds(entityIds).build();
+    Preference updatedPreference = Preference.newBuilder()
+      .setType(existingPreferenceOfGivenType.getType())
+      .addAllEntities(entities)
+      .build();
 
     UserPreferenceProto.UserPreference updatedUserPreference =
       existingUserPreference.get().toBuilder().setPreferences(index, updatedPreference).build();
@@ -125,9 +191,25 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     return userPreferenceStore.update(userId, updatedUserPreference).getPreferences(index);
   }
 
+  protected void validateEntityId(UUID entityId) throws IllegalAccessException {
+    try {
+      NameSpaceContainer container =
+        namespaceServiceProvider.get().getEntityById(entityId.toString());
+      if (container == null) {
+        throw new IllegalArgumentException(String.format(
+          "entityId %s provided is not a valid catalog entity.",
+          entityId));
+      }
+    } catch (NamespaceNotFoundException exception) {
+      throw new IllegalArgumentException(String.format(
+        "entityId %s provided is not a valid catalog entity.",
+        entityId));
+    }
+  }
+
   private UserPreferenceProto.UserPreference newUserPreference(String userId,
                                                                Preference preference) {
-    Preconditions.checkNotNull(userId, "userId must nobe null");
+    Preconditions.checkNotNull(userId, "userId must not be null.");
     UserPreferenceProto.UserPreference userPreference =
       UserPreferenceProto.UserPreference.newBuilder().setUserId(userId).build();
     if (preference != null) {
@@ -146,16 +228,20 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     if (existingUserPreference.isPresent()) {
       int index = getIndexOfPreferenceType(existingUserPreference.get(), type);
       if (index != -1) {
-        Set<String> entityIds =
-          new LinkedHashSet<>(existingUserPreference.get()
-                                .getPreferences(index)
-                                .getEntityIdsList());
-        if (!entityIds.contains(entityId.toString())) {
+
+        List<UserPreferenceProto.Entity> existingEntities =
+          new ArrayList<>(existingUserPreference.get().getPreferences(index).getEntitiesList());
+        UserPreferenceProto.Entity matchingEntity = existingEntities.stream()
+          .filter(entity -> Objects.equals(entity.getEntityId(), entityId.toString()))
+          .findFirst()
+          .orElse(null);
+
+        if (matchingEntity == null) {
           throw new EntityNotFoundInPreferenceException(
             entityId.toString(),
             type.name().toLowerCase(Locale.ROOT));
         }
-        entityIds.remove(entityId.toString());
+        existingEntities.remove(matchingEntity);
         UserPreferenceProto.UserPreference updatedUserPreference =
           existingUserPreference.get()
             .toBuilder()
@@ -163,7 +249,7 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
               index,
               Preference.newBuilder()
                 .setType(type)
-                .addAllEntityIds(entityIds)
+                .addAllEntities(existingEntities)
                 .build())
             .build();
 
@@ -181,7 +267,13 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     Preconditions.checkNotNull(type, "preference type must not be null");
     Preference preference = Preference.newBuilder().setType(type).build();
     if (entityId != null) {
-      preference = preference.toBuilder().addEntityIds(entityId.toString()).build();
+      preference = preference.toBuilder()
+        .addEntities(
+          UserPreferenceProto.Entity.newBuilder()
+            .setEntityId(entityId.toString())
+            .setTimestamp(Timestamps.fromMillis(System.currentTimeMillis()))
+            .build())
+        .build();
     }
     return preference;
   }
@@ -199,7 +291,7 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     return -1;
   }
 
-  private UUID getCurrentUserId() {
+  protected UUID getCurrentUserId() {
     try {
       return UUID.fromString(userService.getUser(securityContext.getUserPrincipal().getName())
                                .getUID()

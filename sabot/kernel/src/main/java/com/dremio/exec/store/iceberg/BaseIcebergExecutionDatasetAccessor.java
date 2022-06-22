@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
 
 import java.util.ArrayList;
@@ -43,12 +44,14 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
@@ -66,19 +69,25 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
   private final Configuration configuration;
   private final TableSnapshotProvider tableSnapshotProvider;
   private final MutablePlugin plugin;
+  private final TableSchemaProvider tableSchemaProvider;
+  private final OptionResolver optionResolver;
 
   protected BaseIcebergExecutionDatasetAccessor(
       EntityPath entityPath,
       Supplier<Table> tableSupplier,
       Configuration configuration,
       TableSnapshotProvider tableSnapshotProvider,
-      MutablePlugin plugin
+      MutablePlugin plugin,
+      TableSchemaProvider tableSchemaProvider,
+      OptionResolver optionResolver
   ) {
     this.entityPath = entityPath;
     this.tableSupplier = tableSupplier;
     this.configuration = configuration;
     this.tableSnapshotProvider = tableSnapshotProvider;
     this.plugin = plugin;
+    this.tableSchemaProvider = tableSchemaProvider;
+    this.optionResolver = optionResolver;
   }
 
   protected String getMetadataLocation() {
@@ -102,27 +111,41 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     final Table table = tableSupplier.get();
     final Snapshot snapshot = tableSnapshotProvider.apply(table);
 
+    logger.debug("Getting Iceberg snapshot {}", snapshot);
+
     long numRecords = snapshot != null ?
         Long.parseLong(snapshot.summary().getOrDefault("total-records", "0")) : 0L;
     long numDataFiles = snapshot != null ?
         Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
+    long numPositionDeletes = snapshot != null ?
+        Long.parseLong(snapshot.summary().getOrDefault("total-position-deletes", "0")) : 0L;
+    long numEqualityDeletes = snapshot != null ?
+        Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0")) : 0L;
     long numDeleteFiles = snapshot != null ?
       Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0")) : 0L;
 
-    // DX-41522, throw exception when DeleteFiles are present.
-    // TODO: remove this throw when we get full support for handling the deletes correctly.
-    if (numDeleteFiles > 0) {
+    if (numDeleteFiles > 0 && !optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
       throw UserException.unsupportedError()
-        .message("Iceberg V2 tables with delete files are not supported")
+        .message("Iceberg V2 tables with delete files are not supported.")
         .buildSilently();
+    }
+
+    if (numEqualityDeletes > 0) {
+      throw UserException.unsupportedError()
+          .message("Iceberg V2 tables with equality deletes are not supported.")
+          .buildSilently();
     }
 
     final FileConfig fileConfig = getFileConfig();
     final DatasetStats datasetStats = DatasetStats.of(numRecords, true, ScanCostFactor.PARQUET.getFactor());
     final DatasetStats manifestStats = DatasetStats.of(numDataFiles, ScanCostFactor.EASY.getFactor());
+    final DatasetStats deleteStats = DatasetStats.of(numPositionDeletes + numEqualityDeletes,
+        ScanCostFactor.PARQUET.getFactor());
+    final DatasetStats deleteManifestStats = DatasetStats.of(numDeleteFiles, ScanCostFactor.EASY.getFactor());
 
     final SchemaConverter schemaConverter = new SchemaConverter(table.name());
-    final BatchSchema batchSchema = schemaConverter.fromIceberg(table.schema());
+    org.apache.iceberg.Schema schema = tableSchemaProvider.apply(table, snapshot);
+    final BatchSchema batchSchema = schemaConverter.fromIceberg(schema);
 
     final List<String> partitionColumns = schemaConverter.getPartitionColumns(table);
 
@@ -147,15 +170,17 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     }
     final BytesOutput extraInfo = icebergDatasetBuilder.build()::writeTo;
 
-    final Map<Integer, PartitionSpec> specsMap = table.specs();
-    final byte[] specs = IcebergSerDe.serializePartitionSpecMap(specsMap);
+    Map<Integer, PartitionSpec> specsMap = table.specs();
+    specsMap = IcebergUtils.getPartitionSpecMapBySchema(specsMap, schema);
+    final byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(specsMap);
+    final String icebergSchema = serializedSchemaAsJson(schema);
     final BytesOutput partitionSpecs = os -> os.write(specs);
 
     final String metadataFileLocation = getMetadataLocation();
     final long snapshotId = snapshot != null ? snapshot.snapshotId() : -1;
 
-    return new DatasetMetadataImpl(fileConfig, datasetStats, manifestStats, batchSchema, partitionColumns, extraInfo,
-        metadataFileLocation, snapshotId, partitionSpecs);
+    return new DatasetMetadataImpl(fileConfig, datasetStats, manifestStats, deleteStats, deleteManifestStats,
+        batchSchema, partitionColumns, extraInfo, metadataFileLocation, snapshotId, partitionSpecs, icebergSchema);
   }
 
   @Override
@@ -183,33 +208,42 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     private final FileConfig fileConfig;
     private final DatasetStats datasetStats;
     private final DatasetStats manifestStats;
+    private final DatasetStats deleteStats;
+    private final DatasetStats deleteManifestStats;
     private final org.apache.arrow.vector.types.pojo.Schema batchSchema;
     private final List<String> partitionColumns;
     private final BytesOutput extraInfo;
     private final String metadataFileLocation;
     private final long snapshotId;
     private final BytesOutput partitionSpecs;
+    private final String icebergSchema;
 
     private DatasetMetadataImpl(
         FileConfig fileConfig,
         DatasetStats datasetStats,
         DatasetStats manifestStats,
+        DatasetStats deleteStats,
+        DatasetStats deleteManifestStats,
         Schema batchSchema,
         List<String> partitionColumns,
         BytesOutput extraInfo,
         String metadataFileLocation,
         long snapshotId,
-        BytesOutput partitionSpecs
+        BytesOutput partitionSpecs,
+        String icebergSchema
     ) {
       this.fileConfig = fileConfig;
       this.datasetStats = datasetStats;
       this.manifestStats = manifestStats;
+      this.deleteStats = deleteStats;
+      this.deleteManifestStats = deleteManifestStats;
       this.batchSchema = batchSchema;
       this.partitionColumns = partitionColumns;
       this.extraInfo = extraInfo;
       this.metadataFileLocation = metadataFileLocation;
       this.snapshotId = snapshotId;
       this.partitionSpecs = partitionSpecs;
+      this.icebergSchema = icebergSchema;
     }
 
     @Override
@@ -225,6 +259,16 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     @Override
     public DatasetStats getManifestStats() {
       return manifestStats;
+    }
+
+    @Override
+    public DatasetStats getDeleteStats() {
+      return deleteStats;
+    }
+
+    @Override
+    public DatasetStats getDeleteManifestStats() {
+      return deleteManifestStats;
     }
 
     @Override
@@ -255,6 +299,11 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     @Override
     public BytesOutput getPartitionSpecs() {
       return partitionSpecs;
+    }
+
+    @Override
+    public String getIcebergSchema() {
+      return icebergSchema;
     }
   }
 }

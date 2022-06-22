@@ -46,9 +46,9 @@ public abstract class SqlVersionSourceRefBase extends SqlVersionBase {
     return refValue;
   }
 
-  public void unparseRef(SqlWriter writer, int leftPrec, int rightPrec) {
+  public void unparseRef(SqlWriter writer, int leftPrec, int rightPrec, String prefix) {
     if (refType != null && refValue != null) {
-      writer.keyword("AT");
+      writer.keyword(prefix);
       writer.keyword(getRefType().toString());
       getRefValue().unparse(writer, leftPrec, rightPrec);
     }

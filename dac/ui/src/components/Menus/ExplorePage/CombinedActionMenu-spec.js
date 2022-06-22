@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {shallow} from 'enzyme';
-import Immutable from 'immutable';
-import {CombinedActionMenu} from './CombinedActionMenu';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { CombinedActionMenu } from "./CombinedActionMenu";
 
-describe('CombinedActionMenu', () => {
+describe("CombinedActionMenu", () => {
   let minimalProps;
   let wrapper;
   let instance;
@@ -26,18 +26,17 @@ describe('CombinedActionMenu', () => {
     minimalProps = {
       dataset: Immutable.fromJS({
         permissions: {
-          canSelect: true
-        }
+          canSelect: true,
+        },
       }),
-      closeMenu: () => {
-      },
-      intl: {formatMessage: () => 'msg'}
+      closeMenu: () => {},
+      intl: { formatMessage: () => "msg" },
     };
-    wrapper = shallow(<CombinedActionMenu {...minimalProps}/>);
+    wrapper = shallow(<CombinedActionMenu {...minimalProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render download selection header w/o jobProgress', () => {
+  it("should render download selection header w/o jobProgress", () => {
     expect(instance.renderDownloadSectionHeader()).to.not.be.undefined;
   });
 });

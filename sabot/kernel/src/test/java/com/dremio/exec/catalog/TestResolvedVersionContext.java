@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +33,7 @@ public class TestResolvedVersionContext {
     ResolvedVersionContext version = ResolvedVersionContext.ofBranch(BRANCH_NAME, REASONABLE_HASH);
 
     assertTrue(version.isBranch());
+    assertFalse(version.isBareCommit());
 
     assertEquals(ResolvedVersionContext.Type.BRANCH, version.getType());
     assertEquals(BRANCH_NAME, version.getRefName());
@@ -43,6 +45,7 @@ public class TestResolvedVersionContext {
     ResolvedVersionContext version = ResolvedVersionContext.ofTag(TAG_NAME, REASONABLE_HASH);
 
     assertFalse(version.isBranch());
+    assertFalse(version.isBareCommit());
 
     assertEquals(ResolvedVersionContext.Type.TAG, version.getType());
     assertEquals(TAG_NAME, version.getRefName());
@@ -54,10 +57,21 @@ public class TestResolvedVersionContext {
     ResolvedVersionContext version = ResolvedVersionContext.ofBareCommit(REASONABLE_HASH);
 
     assertFalse(version.isBranch());
+    assertTrue(version.isBareCommit());
 
     assertEquals(ResolvedVersionContext.Type.BARE_COMMIT, version.getType());
-    assertEquals("BARE", version.getRefName());
+    assertEquals("DETACHED", version.getRefName());
     assertEquals(REASONABLE_HASH, version.getCommitHash());
+  }
+
+  @Test
+  public void nullHash() {
+    assertThatThrownBy(() -> ResolvedVersionContext.ofBranch(BRANCH_NAME, null))
+      .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> ResolvedVersionContext.ofTag(TAG_NAME, null))
+      .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> ResolvedVersionContext.ofBareCommit(null))
+      .isInstanceOf(NullPointerException.class);
   }
 
 }

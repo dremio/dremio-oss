@@ -13,29 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, createRef } from 'react';
-import PropTypes from 'prop-types';
-import { Tooltip } from 'components/Tooltip';
+import { Component, createRef } from "react";
+import PropTypes from "prop-types";
+import { Tooltip } from "components/Tooltip";
 
 export default class ChartTooltip extends Component {
   static propTypes = {
     position: PropTypes.object,
     /** If anchorEl is not provided, then position property is used to display a tooltip */
     anchorEl: PropTypes.object,
-    content: PropTypes.node
-  }
+    content: PropTypes.node,
+  };
 
   ref = createRef();
 
   render() {
     const { content, position, anchorEl } = this.props;
     return (
-      <div style={{ position: 'absolute', ...position }} ref={this.ref}>
+      <div style={{ position: "absolute", ...position }} ref={this.ref}>
         <Tooltip
           target={() => anchorEl || this.ref.current}
-          id='tooltip'
-          type='status'
-          placement='top'
+          id="tooltip"
+          type="status"
+          placement="top"
           tooltipInnerStyle={styles.tooltipInner}
         >
           {content}
@@ -47,6 +47,6 @@ export default class ChartTooltip extends Component {
 
 const styles = {
   tooltipInner: {
-    textAlign: 'center'
-  }
+    textAlign: "center",
+  },
 };

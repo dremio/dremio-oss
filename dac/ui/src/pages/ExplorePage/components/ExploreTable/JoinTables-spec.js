@@ -13,75 +13,85 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { CUSTOM_JOIN, RECOMMENDED_JOIN } from '@app/constants/explorePage/joinTabs';
-import ExploreTableController from './ExploreTableController';
+import {
+  CUSTOM_JOIN,
+  RECOMMENDED_JOIN,
+} from "@app/constants/explorePage/joinTabs";
+import ExploreTableController from "./ExploreTableController";
 
-import { JoinTables } from './JoinTables';
+import { JoinTables } from "./JoinTables";
 
-describe('JoinTables', () => {
-
+describe("JoinTables", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      pageType: 'default',
+      pageType: "default",
       dataset: Immutable.fromJS({
-        datasetVersion: 'someDatasetVersion'
+        datasetVersion: "someDatasetVersion",
       }),
       exploreViewState: Immutable.Map(),
       location: {
         query: {},
-        state: {}
+        state: {},
       },
       sqlSize: 111,
       rightTreeVisible: false,
       accessEntity: sinon.spy(),
-      joinDataset: '',
+      joinDataset: "",
       joinTab: CUSTOM_JOIN,
-      joinTableData: Immutable.fromJS({columns: Immutable.Map()}),
-      joinViewState: Immutable.Map()
+      joinTableData: Immutable.fromJS({ columns: Immutable.Map() }),
+      joinViewState: Immutable.Map(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<JoinTables {...commonProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<JoinTables {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ExploreTableController', () => {
-    const wrapper = shallow(<JoinTables {...commonProps}/>);
+  it("should render ExploreTableController", () => {
+    const wrapper = shallow(<JoinTables {...commonProps} />);
     expect(wrapper.find(ExploreTableController)).to.have.length(1);
   });
 
-  describe('#componentWillReceiveProps', () => {
-    it('should call props.accessEntity only when location.state.joinVersion changes', () => {
-      const props = {...commonProps, joinVersion: 'version1', joinStep: 2};
-      const wrapper = shallow(<JoinTables {...props}/>);
+  describe("#componentWillReceiveProps", () => {
+    it("should call props.accessEntity only when location.state.joinVersion changes", () => {
+      const props = { ...commonProps, joinVersion: "version1", joinStep: 2 };
+      const wrapper = shallow(<JoinTables {...props} />);
       expect(commonProps.accessEntity).to.not.be.called;
 
-      wrapper.setProps({joinVersion: 'version2'});
-      expect(commonProps.accessEntity).to.be.calledWith('tableData', commonProps.dataset.get('datasetVersion'));
+      wrapper.setProps({ joinVersion: "version2" });
+      expect(commonProps.accessEntity).to.be.calledWith(
+        "tableData",
+        commonProps.dataset.get("datasetVersion")
+      );
     });
   });
 
-  describe('#shouldRenderSecondTable', () => {
-    it('should return true for Custom Join and step 1', () => {
-      const props = {...commonProps, joinVersion: 'version1', joinStep: 1};
-      const instance = shallow(<JoinTables {...props}/>).instance();
+  describe("#shouldRenderSecondTable", () => {
+    it("should return true for Custom Join and step 1", () => {
+      const props = { ...commonProps, joinVersion: "version1", joinStep: 1 };
+      const instance = shallow(<JoinTables {...props} />).instance();
       expect(instance.shouldRenderSecondTable()).to.be.equals(true);
     });
 
-    it('should return false for Custom Join and step 2', () => {
-      const props = {...commonProps, joinVersion: 'version1', joinStep: 2};
-      const instance = shallow(<JoinTables {...props}/>).instance();
+    it("should return false for Custom Join and step 2", () => {
+      const props = { ...commonProps, joinVersion: "version1", joinStep: 2 };
+      const instance = shallow(<JoinTables {...props} />).instance();
       expect(instance.shouldRenderSecondTable()).to.be.equals(false);
     });
 
-    it('should return false for Recommended Join', () => {
-      const props = {...commonProps, joinVersion: 'version1', joinStep: 1, joinTab: RECOMMENDED_JOIN};
-      const instance = shallow(<JoinTables {...props}/>).instance();
+    it("should return false for Recommended Join", () => {
+      const props = {
+        ...commonProps,
+        joinVersion: "version1",
+        joinStep: 1,
+        joinTab: RECOMMENDED_JOIN,
+      };
+      const instance = shallow(<JoinTables {...props} />).instance();
       expect(instance.shouldRenderSecondTable()).to.be.equals(false);
     });
   });

@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Fragment } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import React, { Fragment } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import { SelectView } from '@app/components/Fields/SelectView';
+import { SelectView } from "@app/components/Fields/SelectView";
 
-import { triangleTop } from 'uiTheme/radium/overlay';
-import Spinner from '@app/components/Spinner';
-import { Divider } from '@material-ui/core';
-import { Button } from 'dremio-ui-lib';
+import { triangleTop } from "uiTheme/radium/overlay";
+import Spinner from "@app/components/Spinner";
+import { Divider } from "@material-ui/core";
+import { Button } from "dremio-ui-lib";
 
-import './DropdownMenu.less';
-import Art from '../Art';
+import "./DropdownMenu.less";
+import Art from "../Art";
 
 const DropdownMenu = (props) => {
-
   const {
     dataQa,
     className,
@@ -51,58 +50,97 @@ const DropdownMenu = (props) => {
     customImage,
     isDownloading,
     listClass,
-    groupDropdownProps
+    groupDropdownProps,
+    selectClass,
+    closeOnSelect,
   } = props;
 
-  const togglerStyle = isButton ? 'dropdownMenu__togglerButton' : 'dropdownMenu__toggler';
+  const togglerStyle = isButton
+    ? "dropdownMenu__togglerButton"
+    : "dropdownMenu__toggler";
   const stdArrowStyle = isButton ? styles.downButtonArrow : styles.downArrow;
   const menuListStyle = listStyle ? listStyle : styles.popover;
 
   const selectedItemRenderer = () => (
     <>
-      {text && <span className='dropdownMenu__text' style={{ ...textStyle}}>{text}</span>}
+      {text && (
+        <span className="dropdownMenu__text" style={{ ...textStyle }}>
+          {text}
+        </span>
+      )}
 
-      {iconType &&
-        <div className='dropdownMenu__iconWrap'>
-          <Art src='Download.svg' alt='' title='Download' className='dropdownMenu__icon'/>
-        </div>
-      }
-
-      {fontIcon &&
-        <div>
-          <div
-            className={fontIcon}
-            title={iconTooltip}
+      {iconType && (
+        <div className="dropdownMenu__iconWrap">
+          <Art
+            src="Download.svg"
+            alt=""
+            title="Download"
+            className="dropdownMenu__icon"
           />
         </div>
-      }
+      )}
 
-      {customImage &&
+      {fontIcon && (
         <div>
-          {customImage}
+          <div className={fontIcon} title={iconTooltip} />
         </div>
-      }
+      )}
+
+      {customImage && <div>{customImage}</div>}
     </>
   );
 
   return (
-    <div className={classNames('dropdownMenu', isButton ? '--button' : '', isSolidButton ? '--solidButton' : '', disabled ? '--disabled' : '')} style={{...style}}>
-      {groupDropdownProps &&
+    <div
+      className={classNames(
+        "dropdownMenu",
+        isButton ? "--button" : "",
+        isSolidButton ? "--solidButton" : "",
+        disabled ? "--disabled" : ""
+      )}
+      style={{ ...style }}
+    >
+      {groupDropdownProps && (
         <>
-          <Button disableMargin onClick={groupDropdownProps.onClick} className={classNames('dropdownMenu__groupButton', disabled ? '--disabled' : '')}>
+          <Button
+            disableMargin
+            onClick={groupDropdownProps.onClick}
+            className={classNames(
+              "dropdownMenu__groupButton",
+              disabled ? "--disabled" : ""
+            )}
+          >
             {groupDropdownProps.text}
           </Button>
-          <Divider orientation='vertical' className='dropdownMenu__groupDivider' />
+          <Divider
+            orientation="vertical"
+            className="dropdownMenu__groupDivider"
+          />
         </>
-      }
-      { isDownloading ?
+      )}
+      {isDownloading ? (
         <Spinner />
-        :
+      ) : (
         <SelectView
+          className={selectClass}
           content={
-            <div className={classNames('dropdownMenu__content', className, togglerStyle)} key='toggler' title={textTooltip}>
-              {!groupDropdownProps && (customItemRenderer || selectedItemRenderer())}
-              {!hideArrow && <i className='fa fa-angle-down' style={{...stdArrowStyle, ...arrowStyle}}/>}
+            <div
+              className={classNames(
+                "dropdownMenu__content",
+                className,
+                togglerStyle
+              )}
+              key="toggler"
+              title={textTooltip}
+            >
+              {!groupDropdownProps &&
+                (customItemRenderer || selectedItemRenderer())}
+              {!hideArrow && (
+                <i
+                  className="fa fa-angle-down"
+                  style={{ ...stdArrowStyle, ...arrowStyle }}
+                />
+              )}
             </div>
           }
           hideExpandIcon
@@ -111,21 +149,18 @@ const DropdownMenu = (props) => {
           dataQa={dataQa}
           disabled={disabled}
           listClass={listClass}
+          closeOnSelect={closeOnSelect}
         >
-          {
-            ({ closeDD }) => {
-              return (
-                <Fragment>
-                  {!hideTopArrow &&
-                    <div style={styles.triangle}/>
-                  }
-                  {React.cloneElement(menu, { closeMenu: closeDD })}
-                </Fragment>
-              );
-            }
-          }
+          {({ closeDD }) => {
+            return (
+              <Fragment>
+                {!hideTopArrow && <div style={styles.triangle} />}
+                {React.cloneElement(menu, { closeMenu: closeDD })}
+              </Fragment>
+            );
+          }}
         </SelectView>
-      }
+      )}
     </div>
   );
 };
@@ -134,37 +169,37 @@ const styles = {
   icon: {
     Icon: {
       width: 17,
-      height: 17
+      height: 17,
     },
     Container: {
       width: 17,
       height: 17,
-      display: 'block'
-    }
+      display: "block",
+    },
   },
   downArrow: {
-    fontSize: '18px',
-    position: 'relative',
-    top: '1px',
-    marginLeft: '5px'
+    fontSize: "18px",
+    position: "relative",
+    top: "1px",
+    marginLeft: "5px",
   },
   downButtonArrow: {
-    fontSize: 17
+    fontSize: 17,
   },
   popover: {
     marginTop: 7,
-    overflow: 'hidden auto'
+    overflow: "hidden auto",
   },
   triangle: {
     ...triangleTop,
-    right: 11
+    right: 11,
   },
   divider: {
     height: 20,
-    margin: '0 4px',
-    borderLeft: '1px solid #E5E5E5',
-    display: 'block'
-  }
+    margin: "0 4px",
+    borderLeft: "1px solid #E5E5E5",
+    display: "block",
+  },
 };
 
 DropdownMenu.propTypes = {
@@ -190,7 +225,9 @@ DropdownMenu.propTypes = {
   listStyle: PropTypes.object,
   isDownloading: PropTypes.bool,
   listClass: PropTypes.string,
-  groupDropdownProps: PropTypes.object
+  groupDropdownProps: PropTypes.object,
+  closeOnSelect: PropTypes.bool,
+  selectClass: PropTypes.string,
 };
 
 export default DropdownMenu;

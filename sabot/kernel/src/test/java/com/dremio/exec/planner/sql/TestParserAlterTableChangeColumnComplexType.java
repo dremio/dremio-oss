@@ -25,13 +25,23 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParserAlterTableChangeColumnComplexType {
   @Test
-  public void alterTableChangeStruct() throws SqlParseException {
+  public void alterTableChangeRow() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x BIGINT NOT NULL )");
   }
 
   @Test
-  public void alterTableAlterStruct() throws SqlParseException {
+  public void alterTableChangeStruct() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x BIGINT NOT NULL>");
+  }
+
+  @Test
+  public void alterTableAlterRow() throws SqlParseException {
     parse("ALTER TABLE a.b.c ALTER COLUMN point point ROW(x BIGINT NOT NULL )");
+  }
+
+  @Test
+  public void alterTableAlterStruct() throws SqlParseException {
+    parse("ALTER TABLE a.b.c ALTER COLUMN point point STRUCT<x : BIGINT NOT NULL>");
   }
 
   @Test
@@ -45,23 +55,48 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   @Test
-  public void alterTableChangeStructDecimal() throws SqlParseException {
+  public void alterTableChangeRowDecimal() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x DECIMAL(38,10) )");
   }
 
   @Test
-  public void alterTableChangeStructOfList() throws SqlParseException {
+  public void alterTableChangeStructDecimal() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x: DECIMAL(38,10) >");
+  }
+
+  @Test
+  public void alterTableChangeRowOfArray() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x  ARRAY(BIGINT NOT NULL ) )");
   }
 
   @Test
-  public void alterTableChangeStructOfStruct() throws SqlParseException {
+  public void alterTableChangeStructOfArray() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x : ARRAY(BIGINT NOT NULL )>");
+  }
+
+  @Test
+  public void alterTableChangeStructOfList() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x : LIST<BIGINT NOT NULL >>");
+  }
+
+  @Test
+  public void alterTableChangeRowOfRow() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x BIGINT, y ROW(x int, y int ) )");
   }
 
   @Test
-  public void alterTableChangeList() throws SqlParseException {
+  public void alterTableChangeStructOfStruct() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x: BIGINT, y : STRUCT<x :int, y: int>>");
+  }
+
+  @Test
+  public void alterTableChangeArray() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point  ARRAY(BIGINT NULL )");
+  }
+
+  @Test
+  public void alterTableChangeList() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  LIST<BIGINT NULL>");
   }
 
   @Test
@@ -70,18 +105,28 @@ public class TestParserAlterTableChangeColumnComplexType {
   }
 
   @Test
-  public void alterTableChangeListDecimal() throws SqlParseException {
+  public void alterTableChangeArrayDecimal() throws SqlParseException {
     parse("ALTER TABLE a.b.c MODIFY COLUMN point point  ARRAY(DECIMAL(35,2) NULL )");
   }
 
   @Test
-  public void alterTableChangeListOfStruct() throws SqlParseException {
+  public void alterTableChangeListDecimal() throws SqlParseException {
+    parse("ALTER TABLE a.b.c MODIFY COLUMN point point  LIST<DECIMAL(35,2) NULL>");
+  }
+
+  @Test
+  public void alterTableChangeArrayOfRow() throws SqlParseException {
     parse("ALTER TABLE a.b.c CHANGE COLUMN point point  ARRAY(ROW(x int NULL,y int ) )");
   }
 
   @Test
+  public void alterTableChangeListOfStruct() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  LIST<STRUCT<x: int NULL,y : int>>");
+  }
+
+  @Test
   public void alterTableChangeListOfList() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  ARRAY( ARRAY(BIGINT ) )");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  LIST<LIST<BIGINT>>");
   }
 
   @Test

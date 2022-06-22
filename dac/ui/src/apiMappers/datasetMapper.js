@@ -15,9 +15,17 @@
  */
 export const mapDataset = (dataset, key) => ({
   ...dataset,
-  ...( dataset.data ? {data: {
-    ...dataset.data,
-    version: dataset.dataset ? dataset.dataset.datasetVersion : key && key[0] && key[0].value
-  }} : {}),
-  version: dataset.dataset ? dataset.dataset.datasetVersion : key && key[0] && key[0].value
+  ...(dataset.data
+    ? {
+        data: {
+          ...dataset.data,
+          version: dataset.dataset
+            ? dataset.dataset.datasetVersion
+            : key && key[0] && key[0].value,
+        },
+      }
+    : {}),
+  version: dataset.dataset
+    ? dataset.dataset.datasetVersion
+    : key && key[0] && key[0].value,
 });

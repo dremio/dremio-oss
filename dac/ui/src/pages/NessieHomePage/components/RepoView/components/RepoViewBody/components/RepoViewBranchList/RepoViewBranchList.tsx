@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { useContext } from 'react';
-import { useEffect, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { useContext } from "react";
+import { useEffect, useState } from "react";
+import { FormattedMessage } from "react-intl";
 
-import { AutoSizer, List } from 'react-virtualized';
-import { MenuItem } from '@material-ui/core';
-import CommitHash from '@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash';
+import { AutoSizer, List } from "react-virtualized";
+import { MenuItem } from "@material-ui/core";
+import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
 
-import PromiseViewState from '@app/components/PromiseViewState/PromiseViewState';
-import { Reference } from '@app/services/nessie/client';
-import NessieLink from '@app/pages/NessieHomePage/components/NessieLink/NessieLink';
-import { RepoViewContext } from '../../../../RepoView';
-import { convertISOString, renderIcons } from './utils';
+import PromiseViewState from "@app/components/PromiseViewState/PromiseViewState";
+import { Reference } from "@app/services/nessie/client";
+import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
+import { RepoViewContext } from "../../../../RepoView";
+import { convertISOString, renderIcons } from "./utils";
 
-import './RepoViewBranchList.less';
+import "./RepoViewBranchList.less";
 
 type RepoViewBranchTableProps = {
   rows: Reference[];
@@ -41,9 +41,10 @@ function RepoViewBranchList({
   rows,
   openCreateDialog,
   openDeleteDialog,
-  isDefault
+  isDefault,
 }: RepoViewBranchTableProps) {
-  const { allRefsStatus: status, allRefsErr: err } = useContext(RepoViewContext);
+  const { allRefsStatus: status, allRefsErr: err } =
+    useContext(RepoViewContext);
   const [rowHover, setRowHover] = useState<boolean[]>(
     new Array(rows.length).fill(false)
   );
@@ -61,21 +62,21 @@ function RepoViewBranchList({
         style={style}
         onMouseEnter={() => {
           const copyHover = new Array(rowHover.length).fill(false);
-          copyHover[key.split('-')[0]] = true;
+          copyHover[key.split("-")[0]] = true;
           setRowHover(copyHover);
         }}
         onMouseLeave={() => setRowHover(new Array(rowHover.length).fill(false))}
       >
         <MenuItem
           data-testid={`brach-${cur.name}`}
-          className='branch-list-item'
+          className="branch-list-item"
           title={cur.name}
         >
-          <span className='branch-list-item-content'>
+          <span className="branch-list-item-content">
             <NessieLink
               to={`/branches/${cur.name}`}
               title={cur.name}
-              className='branch-list-item-name'
+              className="branch-list-item-name"
             >
               {cur.name}
             </NessieLink>
@@ -84,28 +85,28 @@ function RepoViewBranchList({
               cur.metadata.commitMetaOfHEAD &&
               cur.metadata.commitMetaOfHEAD.author && (
                 <>
-                  <span className='branch-list-item-history'>
+                  <span className="branch-list-item-history">
                     <FormattedMessage
-                      id='RepoView.LastUpdate'
+                      id="RepoView.LastUpdate"
                       values={{
-                        time: convertISOString(cur)
+                        time: convertISOString(cur),
                       }}
                     />
                   </span>
-                  <span className='branch-list-item-author'>
+                  <span className="branch-list-item-author">
                     {cur.metadata.commitMetaOfHEAD.author}
                   </span>
                 </>
-            )}
+              )}
           </span>
           {cur.hash && (
-            <span className='branch-list-item-hash'>
+            <span className="branch-list-item-hash">
               <CommitHash branch={cur.name} hash={cur.hash} />
             </span>
           )}
           {renderIcons(
             cur,
-            rowHover[key.split('-')[0]],
+            rowHover[key.split("-")[0]],
             openCreateDialog,
             openDeleteDialog,
             isDefault
@@ -116,15 +117,15 @@ function RepoViewBranchList({
   };
 
   return (
-    <div className='branch-list'>
-      <div className='branch-list-name'>
+    <div className="branch-list">
+      <div className="branch-list-name">
         {isDefault ? (
-          <FormattedMessage id='RepoView.DefaultBranch' />
+          <FormattedMessage id="RepoView.DefaultBranch" />
         ) : (
-          <FormattedMessage id='RepoView.AllBranches' />
+          <FormattedMessage id="RepoView.AllBranches" />
         )}
       </div>
-      <div className='branch-list-container'>
+      <div className="branch-list-container">
         <PromiseViewState status={status} error={err} />
         <AutoSizer>
           {({ height }) => (

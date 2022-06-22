@@ -32,6 +32,7 @@ import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.flight.FlightRpcUtils;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsProtoUtil;
@@ -48,11 +49,13 @@ public class JobDataWrapper implements JobData {
 
   private final JobsService jobsService;
   private final JobId jobId;
+  private final SessionId sessionId;
   private final String userName;
 
-  public JobDataWrapper(JobsService jobsService, JobId jobId, String userName) {
+  public JobDataWrapper(JobsService jobsService, JobId jobId, SessionId sessionId, String userName) {
       this.jobsService = jobsService;
       this.jobId = jobId;
+      this.sessionId = sessionId;
       this.userName = userName;
   }
 
@@ -65,8 +68,13 @@ public class JobDataWrapper implements JobData {
    */
   @Override
   public JobDataFragment range(BufferAllocator allocator, int offset, int limit) {
-    return getJobData(Preconditions.checkNotNull(jobsService), allocator,
-      Preconditions.checkNotNull(jobId), offset, limit);
+    return getJobData(
+      Preconditions.checkNotNull(jobsService),
+      allocator,
+      Preconditions.checkNotNull(jobId),
+      sessionId,
+      offset,
+      limit);
   }
 
   /**
@@ -74,13 +82,23 @@ public class JobDataWrapper implements JobData {
    */
   @Override
   public JobDataFragment truncate (BufferAllocator allocator, int maxRows) {
-    return getJobData(Preconditions.checkNotNull(jobsService), allocator,
-      Preconditions.checkNotNull(jobId), 0, maxRows);
+    return getJobData(
+      Preconditions.checkNotNull(jobsService),
+      allocator,
+      Preconditions.checkNotNull(jobId),
+      sessionId,
+      0,
+      maxRows);
   }
 
   @Override
   public JobId getJobId() {
     return jobId;
+  }
+
+  @Override
+  public SessionId getSessionId() {
+    return sessionId;
   }
 
   @Override
@@ -97,14 +115,16 @@ public class JobDataWrapper implements JobData {
     }
   }
 
-  public static JobDataFragmentWrapper getJobData(JobsService jobsService, BufferAllocator allocator, JobId jobId, int offset, int limit) {
+  public static JobDataFragmentWrapper getJobData(JobsService jobsService, BufferAllocator allocator,
+                                                  JobId jobId, SessionId sessionId,
+                                                  int offset, int limit) {
     final Ticket ticket = new Ticket(CoordinatorFlightTicket.newBuilder()
       .setJobsFlightTicket(JobsFlightTicket.newBuilder().setJobId(jobId.getId()).setOffset(offset).setLimit(limit).build())
       .build().toByteArray());
     try (final FlightStream stream = jobsService.getJobsClient().getFlightClient()
       .getStream(ticket)) {
       List<RecordBatchHolder> batches = JobDataClientUtils.getData(stream, allocator, limit);
-      return new JobDataFragmentWrapper(offset, ReleasingData.from(new RecordBatches(batches), jobId));
+      return new JobDataFragmentWrapper(offset, ReleasingData.from(new RecordBatches(batches), jobId, sessionId));
     } catch (FlightRuntimeException fre) {
       Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
       throw ue.isPresent() ? ue.get() : fre;

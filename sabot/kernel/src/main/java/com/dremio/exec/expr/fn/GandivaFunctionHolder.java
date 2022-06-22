@@ -135,6 +135,7 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
       default:
         throw new UnsupportedOperationException("unknown decimal function " + this.name);
     }
+
     return derivation.getOutputType(CompleteType.DECIMAL, args);
   }
 }

@@ -14,30 +14,40 @@
  * limitations under the License.
  */
 
-export default function() {
-  return Promise.resolve([
-    {
-      title: 'Admin.Engines',
-      icon: 'Engines.svg',
-      items: [
-        { name: 'Admin.Engines.NodeActivity', url: '/admin/nodeActivity' },
-        { name: 'Admin.Engines.ElasticEngines', url: '/admin/provisioning' },
-        { name: 'Admin.Engines.Support', url: '/admin/support' },
-        { name: 'Admin.Engines.QueueControl', url: '/admin/advanced' }
-      ]
-    },
-    {
-      title: 'Admin.UserManagement',
-      icon: 'UserManagement.svg',
-      items: [
-        { name: 'Admin.UserManagement.Users', url: '/admin/users' }
-      ]
-    }
-  ].filter(Boolean));
+export default function () {
+  return Promise.resolve(
+    [
+      {
+        icon: "Node.svg",
+        title: "Admin.Engines.NodeActivity",
+        url: "/admin/nodeActivity",
+      },
+      {
+        icon: "Engines.svg",
+        title: "Admin.Engines.ElasticEngines",
+        url: "/admin/provisioning",
+      },
+      {
+        icon: "SubNavSupport.svg",
+        title: "Admin.Engines.Support",
+        url: "/admin/support",
+      },
+      {
+        icon: "Engines.svg",
+        title: "Admin.Engines.QueueControl",
+        url: "/admin/advanced",
+      },
+      {
+        icon: "UserManagmentRole.svg",
+        title: "Admin.UserManagement.Users",
+        url: "/admin/users",
+      },
+    ].filter(Boolean)
+  );
 }
 
 export const getTitle = () => {
-  return 'Settings';
+  return "Settings";
 };
 
 export const navigationSection = null;

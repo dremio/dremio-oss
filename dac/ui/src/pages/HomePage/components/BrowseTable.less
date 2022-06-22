@@ -13,36 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '~@app/components/colors.less';
- @import '~@app/uiTheme/less/mixins.less';
- @import "~@app/uiTheme/less/variables.complex.less";
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/components/colors.less";
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/variables.complex.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- // we should show a spliter/border on the left and add a padding for wiki button
- .wiki-collapsed {
-   composes: sidebar-border from '~@app/pages/HomePage/components/Columns.less';
-   padding-left: 10px;
- }
+.search-field {
+  input {
+    &:hover {
+      border-color: var(--dremio--color--neutral--300);
+    }
 
- .slider {
-   position: absolute;
-   top: 0;
-   //use right, as on resize I am going to replace right property with distance from cursor position to right edge of sidebar
-   right: 100%;
-   bottom: 0;
-   width: 11px;
-   transform: translateX(50%);
-   background: @TABLE_BORDER;
-   cursor: col-resize;
-   opacity: 0;
-   z-index: 100;
+    &:focus {
+      border-color: var(--dremio--color--primary--500);
+      background-color: var(--dremio--color--neutral--000);
+    }
+  }
+}
 
-   &:hover {
-     opacity: 1;
-   }
- }
+.search-field-divider {
+  height: 32px;
+  width: 257px !important; // accounts for 240px input width, 16px padding, 1px border
+  margin-right: 8px !important;
+  padding-right: 16px;
+  border-right: 1px solid var(--dremio--color--neutral--150);
+}
 
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+.active-wiki-button {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.slider {
+  position: absolute;
+  top: 0;
+  //use right, as on resize I am going to replace right property with distance from cursor position to right edge of sidebar
+  right: 100%;
+  bottom: 0;
+  width: 11px;
+  transform: translateX(50%);
+  background: @TABLE_BORDER;
+  cursor: col-resize;
+  opacity: 0;
+  z-index: 100;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .list-content {
     min-width: 500px;
@@ -54,9 +76,18 @@
     width: 100%;
   }
 
+  .list-content__title-wrap {
+    display: flex;
+    overflow: hidden;
+  }
+
+  .browse-table__titleExtra {
+    margin-left: 8px;
+  }
+
   .ReactVirtualized__Table {
     border-collapse: collapse;
-    *{
+    * {
       outline: 0;
     }
     .ReactVirtualized__Table__headerRow {
@@ -64,7 +95,7 @@
       text-transform: initial;
       line-height: 20px;
       vertical-align: bottom;
-      border-bottom: 1px solid rgba(0,0,0,.1);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       font-size: 12px;
       font-weight: 500;
     }
@@ -76,37 +107,43 @@
     .ReactVirtualized__Table__row {
       .fontBody();
       height: 30px;
-      .action-wrap .main-settings-btn{
+      .pin {
+        opacity: 0;
+      }
+      .active {
+        opacity: 1;
+      }
+      .action-wrap .main-settings-btn {
         opacity: 0;
         text-decoration: none;
       }
       &.odd {
         background-color: #f9f9f9;
       }
-      .copy-button{
+      .copy-button {
         opacity: 0;
         margin: 0 0 0 5px;
       }
-      &:hover{
-        .action-wrap .main-settings-btn{
+      &:hover {
+        .action-wrap .main-settings-btn {
           opacity: 1;
         }
         background: #f3f3f3;
-        .copy-button{
+        .copy-button {
           opacity: 1;
         }
       }
       .hovered {
         background: #f3f3f3;
-        .copy-button{
+        .copy-button {
           opacity: 1;
         }
       }
-      .action-wrap .main-settings-btn.active{
+      .action-wrap .main-settings-btn.active {
         opacity: 1;
       }
       .ReactVirtualized__Table__rowColumn {
-        &:last-child{
+        &:last-child {
           text-align: left;
         }
       }
@@ -114,7 +151,7 @@
     .action-wrap {
       justify-content: center;
     }
-    td{
+    td {
       border: 0;
       padding: 0;
       vertical-align: middle;
@@ -125,23 +162,24 @@
       .sort-icon() {
         display: inline-flex;
         background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
-        content: '';
+        content: "";
         width: 24px;
         height: 24px;
       }
 
-      .sort-asc, .sort-desc {
+      .sort-asc,
+      .sort-desc {
         position: relative;
         display: inline-flex;
         align-items: center;
       }
-      .sort-asc{
-        &::after{
+      .sort-asc {
+        &::after {
           .sort-icon();
         }
       }
-      .sort-desc{
-        &::after{
+      .sort-desc {
+        &::after {
           .sort-icon();
           transform: rotate(180deg);
         }
@@ -151,14 +189,14 @@
 
   .last-File {
     cursor: pointer;
-    &:hover{
+    &:hover {
       text-decoration: underline;
     }
   }
 
   .--dead-link {
     cursor: default;
-    &:hover{
+    &:hover {
       text-decoration: none !important;
     }
   }
@@ -170,58 +208,25 @@
     flex-direction: column;
   }
 
-  .sharing-row{
+  .sharing-row {
     color: @blue;
   }
 
   .browse-table-viewer-header {
     overflow: hidden;
-    background: #e4f2f7;
-    height: 38px;
+    height: 48px;
     flex-shrink: 0;
+    border-bottom: 1px solid var(--dremio--color--neutral--150);
 
-    .main-settings-holder{
-      position: relative;
-      display: inline-block;
-      margin: 7px 0 8px;
-      .button-white:last-child {
-        margin-right: 0 !important;
-      }
-      .button-white:hover{
-        background: #F9F9F9 !important;
-      }
-      .settings-button{
-        padding: 0;
-        border: 0;
-        background: transparent;
-        &.blue-btn{
-          background: @blue;
-          color: @white;
-          border: 1px solid @blue;
-          &:hover{
-            background: darken(@blue, 5%);
-          }
-        }
-        &.grey-btn{
-          background: @blue;
-          color: @white;
-          border: 1px solid @blue;
-        }
-        &.active{
-          background: #ccc;
-        }
-      }
-    }
-
-    .btn{
-      .fa{
+    .btn {
+      .fa {
         font-size: 15px;
       }
     }
-    .left-border{
+    .left-border {
       position: relative;
       margin-left: 10px !important;
-      &::before{
+      &::before {
         content: "";
         position: absolute;
         left: -10px;
@@ -231,62 +236,66 @@
         background: @border-grey-light;
       }
     }
+
+    .browse-table__externalLink {
+      margin-right: 8px;
+    }
   }
-  .folder-path{
+  .folder-path {
     cursor: pointer;
     color: @grey;
-    .last-folder{
+    .last-folder {
       color: @blue;
     }
   }
-  .database-path{
+  .database-path {
     cursor: pointer;
-    .last-folder{
+    .last-folder {
       color: @blue;
     }
   }
-  .table-path{
+  .table-path {
     cursor: pointer;
   }
-  .help-btn{
+  .help-btn {
     background: @white;
     border: 1px solid darken(@white, 15%);
     border-radius: 4px;
     padding: 1px 5px 2px 5px;
     cursor: pointer;
-    .fa{
+    .fa {
       font-size: 7px;
       line-height: 7px;
       color: #909090;
       margin: 0 2px;
       vertical-align: middle;
     }
-    &:hover{
+    &:hover {
       background: darken(@white, 5%);
     }
   }
-  .queries-row{
+  .queries-row {
     color: @blue;
     cursor: pointer;
   }
 
-  .request-access-holder{
+  .request-access-holder {
     background: @light-blue;
     padding: 10px;
-    button{
+    button {
       width: auto;
       padding: 5px 20px;
     }
-    .fa{
+    .fa {
       font-size: 25px;
     }
-    .request-access-inner{
+    .request-access-inner {
       font-size: 12px;
       display: inline-block;
       overflow: hidden;
       vertical-align: top;
       margin: 0 10px;
-      .title{
+      .title {
         font-size: 13px;
         font-weight: 500;
         margin: 0 0 7px;
@@ -303,8 +312,8 @@
       width: 100%;
       text-align: center;
       font-size: 32px;
-      color: #CBCBCB;
-      background-color: #F8F8F8;
+      color: #cbcbcb;
+      background-color: #f8f8f8;
     }
     .loader-top {
       position: absolute;
@@ -321,9 +330,11 @@
     }
   }
 
-   // avoiding extra right margin on DS list page in Action column
-   .main-info .ReactVirtualized__Table__row .ReactVirtualized__Table__rowColumn.row-buttons,
-   .ReactVirtualized__Table__headerColumn.row-buttons {
-     margin-right: 5px;
-   }
- }
+  // avoiding extra right margin on DS list page in Action column
+  .main-info
+    .ReactVirtualized__Table__row
+    .ReactVirtualized__Table__rowColumn.row-buttons,
+  .ReactVirtualized__Table__headerColumn.row-buttons {
+    margin-right: 5px;
+  }
+}

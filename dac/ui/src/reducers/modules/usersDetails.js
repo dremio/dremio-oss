@@ -13,36 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { combineReducers } from 'redux';
+import { combineReducers } from "redux";
 
-import { USER_GET_START, USER_GET_FAILURE, USER_GET_SUCCESS, EDIT_USER_SUCCESS } from '@app/actions/modals/editUserModal';
-import { isLoading } from '@app/reducers/reducerFactories';
+import {
+  USER_GET_START,
+  USER_GET_FAILURE,
+  USER_GET_SUCCESS,
+  EDIT_USER_SUCCESS,
+} from "@app/actions/modals/editUserModal";
+import { isLoading } from "@app/reducers/reducerFactories";
 
-export const moduleKey = 'EDIT_USER_DETAILS';
+export const moduleKey = "EDIT_USER_DETAILS";
 
 //state/payload has a form of UserInfo java class
 const userDetails = (state = null, { type, payload }) => {
   switch (type) {
-  case USER_GET_START:
-  case USER_GET_FAILURE:
-    return null;
-  case USER_GET_SUCCESS:
-  case EDIT_USER_SUCCESS:
-    return payload;
-  default:
-    return state;
+    case USER_GET_START:
+    case USER_GET_FAILURE:
+      return null;
+    case USER_GET_SUCCESS:
+    case EDIT_USER_SUCCESS:
+      return payload;
+    default:
+      return state;
   }
 };
 
 const userLoadActions = {
   start: USER_GET_START,
   success: USER_GET_SUCCESS,
-  failure: USER_GET_FAILURE
+  failure: USER_GET_FAILURE,
 };
 
 export default combineReducers({
   userDetails,
-  isLoading: isLoading(userLoadActions)
+  isLoading: isLoading(userLoadActions),
 });
 
-export const getUserInfo = state => state.userDetails;
+export const getUserInfo = (state) => state.userDetails;

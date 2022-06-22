@@ -13,50 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import {Link} from 'react-router';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
 
-import jobsUtils from '@app/utils/jobsUtils.js';
+import jobsUtils from "@app/utils/jobsUtils.js";
 
-import Menu from './Menu';
-import MenuItem from './MenuItem';
+import Menu from "./Menu";
+import MenuItem from "./MenuItem";
 
 export class JobStatusMenu extends PureComponent {
   static propTypes = {
     action: PropTypes.func,
     isCancellable: PropTypes.bool,
     closeMenu: PropTypes.func,
-    jobId: PropTypes.string
+    jobId: PropTypes.string,
   };
 
   clickCancel = () => {
     this.props.closeMenu();
-    this.props.action('cancel');
+    this.props.action("cancel");
   };
 
   render() {
-    const {isCancellable, jobId} = this.props;
+    const { isCancellable, jobId } = this.props;
     const isNewJobsPage = jobsUtils.isNewJobsPage();
     return (
       <Menu>
-        <MenuItem key='job-details'>
-          <Link to={{
-            pathname: isNewJobsPage ? `/job/${jobId}` : '/jobs',
-            hash: isNewJobsPage ? null : `#${jobId}`,
-            state: {
-              selectedJobId: jobId,
-              isFromJobListing: false
-            }
-          }}>
-            {la('View Details')}
+        <MenuItem key="job-details">
+          <Link
+            to={{
+              pathname: isNewJobsPage ? `/job/${jobId}` : "/jobs",
+              hash: isNewJobsPage ? null : `#${jobId}`,
+              state: {
+                selectedJobId: jobId,
+                isFromJobListing: false,
+              },
+            }}
+          >
+            {la("View Details")}
           </Link>
         </MenuItem>
-        <MenuItem key='job-cancel' onClick={this.clickCancel} disabled={!isCancellable}>
-          {la('Cancel Job')}
+        <MenuItem
+          key="job-cancel"
+          onClick={this.clickCancel}
+          disabled={!isCancellable}
+        >
+          {la("Cancel Job")}
         </MenuItem>
       </Menu>
     );
   }
-
 }

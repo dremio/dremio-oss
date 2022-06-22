@@ -13,34 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { shallow } from 'enzyme';
+import React from "react";
+import { shallow } from "enzyme";
 
-import FormValidationMessage from './FormValidationMessage';
+import FormValidationMessage from "./FormValidationMessage";
 
 const getShallowWrapper = (children, props = {}) => {
-  return shallow(<FormValidationMessage {...props}>{children}</FormValidationMessage>);
+  return shallow(
+    <FormValidationMessage {...props}>{children}</FormValidationMessage>
+  );
 };
 
-describe('Form Validation Message', () => {
-  const wrapper = getShallowWrapper('Message');
+describe("Form Validation Message", () => {
+  const wrapper = getShallowWrapper("Message");
 
-  it('renders required components', () => {
-    expect(wrapper.find('div.validationError').exists()).toBe(true);
-    expect(wrapper.find('div').length).toEqual(2);
+  it("renders required components", () => {
+    expect(wrapper.find("div.validationError").exists()).toBe(true);
+    expect(wrapper.find("div").length).toEqual(2);
   });
 
-  it('handles single message', () => {
-    expect(wrapper.find('div.validationError').exists()).toBe(true);
-    expect(wrapper.find('div').length).toEqual(2);
-    expect(wrapper.find('div').at(1).text()).toEqual('Message');
+  it("handles single message", () => {
+    expect(wrapper.find("div.validationError").exists()).toBe(true);
+    expect(wrapper.find("div").length).toEqual(2);
+    expect(wrapper.find("div").at(1).text()).toEqual("Message");
   });
 
-  it('handles multiple messages', () => {
-    const multipleMesssageWrapper = getShallowWrapper(['Message 1', 'Message 2']);
-    expect(multipleMesssageWrapper.find('div.validationError').exists()).toBe(true);
-    expect(multipleMesssageWrapper.find('div').length).toEqual(3);
-    expect(multipleMesssageWrapper.find('div').at(1).text()).toEqual('Message 1');
-    expect(multipleMesssageWrapper.find('div').at(2).text()).toEqual('Message 2');
+  it("handles multiple messages", () => {
+    const multipleMesssageWrapper = getShallowWrapper([
+      "Message 1",
+      "Message 2",
+    ]);
+    expect(multipleMesssageWrapper.find("div.validationError").exists()).toBe(
+      true
+    );
+    expect(multipleMesssageWrapper.find("div").length).toEqual(3);
+    expect(multipleMesssageWrapper.find("div").at(1).text()).toEqual(
+      "Message 1"
+    );
+    expect(multipleMesssageWrapper.find("div").at(2).text()).toEqual(
+      "Message 2"
+    );
   });
 });

@@ -13,27 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import { connect } from 'react-redux';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
 
-import { MAP, TEXT, LIST } from '@app/constants/DataTypes';
+import { MAP, TEXT, LIST } from "@app/constants/DataTypes";
 
-import exploreUtils from 'utils/explore/exploreUtils';
-import FontIcon from 'components/Icon/FontIcon';
-import { h5 } from 'uiTheme/radium/typography';
-import { GREY, BLACK } from 'uiTheme/radium/colors';
+import exploreUtils from "utils/explore/exploreUtils";
+import FontIcon from "components/Icon/FontIcon";
+import { h5 } from "uiTheme/radium/typography";
+import { GREY, BLACK } from "uiTheme/radium/colors";
 
-export const EXTRACT_TAB = 'extract';
-export const SPLIT_TAB = 'split';
-export const REPLACE_TAB = 'replace';
-export const KEEP_ONLY_TAB = 'keeponly';
-export const EXCLUDE_TAB = 'exclude';
+export const EXTRACT_TAB = "extract";
+export const SPLIT_TAB = "split";
+export const REPLACE_TAB = "replace";
+export const KEEP_ONLY_TAB = "keeponly";
+export const EXCLUDE_TAB = "exclude";
 
-@Radium
 export class TransformHeader extends PureComponent {
   static propTypes = {
     closeIconHandler: PropTypes.func.isRequired,
@@ -44,7 +42,7 @@ export class TransformHeader extends PureComponent {
 
     // connected
     location: PropTypes.object,
-    transform: PropTypes.instanceOf(Immutable.Map)
+    transform: PropTypes.instanceOf(Immutable.Map),
   };
 
   constructor(props) {
@@ -52,77 +50,78 @@ export class TransformHeader extends PureComponent {
 
     this.tabs = [
       {
-        name: 'Replace',
-        id: REPLACE_TAB
+        name: "Replace",
+        id: REPLACE_TAB,
       },
       {
-        name: 'Extract',
-        id: EXTRACT_TAB
+        name: "Extract",
+        id: EXTRACT_TAB,
       },
       {
-        name: 'Split',
-        id: SPLIT_TAB
+        name: "Split",
+        id: SPLIT_TAB,
       },
       {
-        name: 'Keep Only',
-        id: KEEP_ONLY_TAB
+        name: "Keep Only",
+        id: KEEP_ONLY_TAB,
       },
       {
-        name: 'Exclude',
-        id: EXCLUDE_TAB
-      }
+        name: "Exclude",
+        id: EXCLUDE_TAB,
+      },
     ];
   }
 
   getCloseIcon() {
     const handler = this.props.closeIconHandler;
-    const icon = this.props.closeIcon
-      ? <FontIcon type={'XBig'} theme={styles.iconTheme} onClick={handler}/>
-      : null;
+    const icon = this.props.closeIcon ? (
+      <FontIcon type={"XBig"} theme={styles.iconTheme} onClick={handler} />
+    ) : null;
     return icon;
   }
 
   getSeparator() {
-    return this.props.separator ? this.props.separator : ': ';
+    return this.props.separator ? this.props.separator : ": ";
   }
 
   isActiveTab(id) {
-    return id === this.props.transform.get('transformType');
+    return id === this.props.transform.get("transformType");
   }
 
   isTabEnabled(id) {
-    const columnType = this.props.transform.get('columnType');
+    const columnType = this.props.transform.get("columnType");
 
     if (columnType === LIST || columnType === MAP) {
       return id === EXTRACT_TAB;
     }
 
-    return columnType !== TEXT
-      ? id !== EXTRACT_TAB && id !== SPLIT_TAB
-      : true;
+    return columnType !== TEXT ? id !== EXTRACT_TAB && id !== SPLIT_TAB : true;
   }
 
   renderTabs() {
     const { location, transform } = this.props;
 
-    return this.tabs.map(tab => {
+    return this.tabs.map((tab) => {
       const isActive = this.isActiveTab(tab.id);
       const isEnabled = this.isTabEnabled(tab.id);
-      const isHovered = isEnabled && Radium.getState(this.state, tab.id, ':hover');
 
-      const lineThatShowThatActive = (isHovered || this.isActiveTab(tab.id))
-        ? <div style={styles.activeTab}/>
-        : null;
+      const lineThatShowThatActive = this.isActiveTab(tab.id) ? (
+        <div style={styles.activeTab} />
+      ) : null;
 
       const linkStyle = {
         ...styles.tab,
-        color: isEnabled ? BLACK : GREY
+        color: isEnabled ? BLACK : GREY,
       };
 
       if (!isEnabled) {
         return (
           <h5>
-            <span className='transform-tab' style={[linkStyle, { cursor: 'default' }]} key={tab.id}>
+            <span
+              className="transform-tab"
+              style={{ ...linkStyle, cursor: "default" }}
+              key={tab.id}
+            >
               {tab.name}
             </span>
           </h5>
@@ -130,14 +129,18 @@ export class TransformHeader extends PureComponent {
       }
 
       return (
-        <h5>
-          <Link className={'transform-tab' + (isActive ? ' active-transform-tab' : '')}
+        <h5 key={tab.id}>
+          <Link
+            className={
+              "transform-tab" + (isActive ? " active-transform-tab" : "")
+            }
             style={linkStyle}
             key={tab.id}
             to={{
               ...location,
-              state: transform.set('transformType', tab.id).toJS()
-            }}>
+              state: transform.set("transformType", tab.id).toJS(),
+            }}
+          >
             {tab.name}
             {lineThatShowThatActive}
           </Link>
@@ -149,9 +152,10 @@ export class TransformHeader extends PureComponent {
   render() {
     return (
       <div>
-        <div className='raw-wizard-header' style={[styles.base]}>
-          <div style={[styles.content]}>
-            {this.props.text}{this.getSeparator()}
+        <div className="raw-wizard-header" style={styles.base}>
+          <div style={styles.content}>
+            {this.props.text}
+            {this.getSeparator()}
             {this.renderTabs()}
           </div>
           {this.getCloseIcon()}
@@ -161,57 +165,56 @@ export class TransformHeader extends PureComponent {
   }
 }
 
-
 function mapStateToProps(state) {
   const location = state.routing.locationBeforeTransitions;
   return {
     location,
-    transform: exploreUtils.getTransformState(location)
+    transform: exploreUtils.getTransformState(location),
   };
 }
 
 export default connect(mapStateToProps)(TransformHeader);
 
 const styles = {
-  'base': {
-    display: 'flex',
+  base: {
+    display: "flex",
     height: 38,
-    justifyContent: 'space-between'
+    justifyContent: "space-between",
   },
   tab: {
-    display: 'flex',
+    display: "flex",
     height: 37,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0 10px',
-    color: '#000000',
-    cursor: 'pointer'
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 10px",
+    color: "#000000",
+    cursor: "pointer",
   },
   activeTab: {
-    backgroundColor: '#77818F',
-    position: 'absolute',
+    backgroundColor: "#77818F",
+    position: "absolute",
     bottom: -1,
-    width: 'calc(100% - 10px)',
+    width: "calc(100% - 10px)",
     height: 3,
-    left: 5
+    left: 5,
   },
-  'content': {
-    'display': 'flex',
-    'marginLeft': 0,
-    'alignItems': 'center',
-    'fontSize': 15,
-    'fontWeight': 600
+  content: {
+    display: "flex",
+    marginLeft: 0,
+    alignItems: "center",
+    fontSize: 15,
+    fontWeight: 600,
   },
-  'iconTheme': {
-    'Icon': {
-      float: 'right',
-      margin: '5px 5px 0 0',
-      position: 'relative',
+  iconTheme: {
+    Icon: {
+      float: "right",
+      margin: "5px 5px 0 0",
+      position: "relative",
       width: 24,
       height: 24,
-      'fontSize': 18,
-      'cursor': 'pointer'
-    }
-  }
+      fontSize: 18,
+      cursor: "pointer",
+    },
+  },
 };

@@ -49,6 +49,7 @@ public class LocalExecutionConfig implements OptionProvider {
   private final String engineName;
   private final String sessionId;
   private final Map<String, VersionContext> sourceVersionMapping;
+  private final StoreQueryResultsPolicy storeQueryResultsPolicy;
 
   LocalExecutionConfig(final boolean enableLeafLimits,
                        final boolean enableOutputLimits,
@@ -62,7 +63,8 @@ public class LocalExecutionConfig implements OptionProvider {
                        final SubstitutionSettings substitutionSettings,
                        final String engineName,
                        final String sessionId,
-                       final Map<String, VersionContext> sourceVersionMapping) {
+                       final Map<String, VersionContext> sourceVersionMapping,
+                       final StoreQueryResultsPolicy storeQueryResultsPolicy) {
     this.enableLeafLimits = enableLeafLimits;
     this.enableOutputLimits = enableOutputLimits;
     this.failIfNonEmptySent = failIfNonEmptySent;
@@ -76,6 +78,7 @@ public class LocalExecutionConfig implements OptionProvider {
     this.engineName = engineName;
     this.sessionId = sessionId;
     this.sourceVersionMapping = new HashMap<>(sourceVersionMapping);
+    this.storeQueryResultsPolicy = storeQueryResultsPolicy;
   }
 
   public String getUsername() {
@@ -122,9 +125,8 @@ public class LocalExecutionConfig implements OptionProvider {
       manager.setOption(createBoolean(QUERY, PlannerSettings.ENABLE_OUTPUT_LIMITS.getOptionName(), true));
     }
 
-    // always store results
     manager.setOption(createString(QUERY, PlannerSettings.STORE_QUERY_RESULTS.getOptionName(),
-        StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID.name()));
+        storeQueryResultsPolicy.name()));
     manager.setOption(createString(QUERY,
         PlannerSettings.QUERY_RESULTS_STORE_TABLE.getOptionName(), queryResultsStorePath));
 
@@ -153,6 +155,7 @@ public class LocalExecutionConfig implements OptionProvider {
     private SubstitutionSettings substitutionSettings;
     private String engineName;
     private String sessionId;
+    private StoreQueryResultsPolicy storeQueryResultsPolicy = StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID;
 
     private Builder() {
     }
@@ -299,6 +302,16 @@ public class LocalExecutionConfig implements OptionProvider {
       return this;
     }
 
+    /**
+     * set StoreQueryResultsPolicy
+     * @param policy
+     * @return
+     */
+    public Builder setStoreQueryResultsPolicy(StoreQueryResultsPolicy policy) {
+      this.storeQueryResultsPolicy = policy;
+      return this;
+    }
+
     public LocalExecutionConfig build() {
       return new LocalExecutionConfig(
         enableLeafLimits,
@@ -313,7 +326,8 @@ public class LocalExecutionConfig implements OptionProvider {
         substitutionSettings,
         engineName,
         sessionId,
-        sourceVersionMapping
+        sourceVersionMapping,
+        storeQueryResultsPolicy
         );
     }
   }

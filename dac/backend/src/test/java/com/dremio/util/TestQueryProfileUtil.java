@@ -30,6 +30,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
 
+@SuppressWarnings("checkstyle:VisibilityModifier")
 public class TestQueryProfileUtil extends BaseTestServer {
 
   UserBitShared.QueryProfile testProfile;

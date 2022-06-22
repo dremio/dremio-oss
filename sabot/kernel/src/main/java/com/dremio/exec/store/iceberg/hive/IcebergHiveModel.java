@@ -51,7 +51,7 @@ public class IcebergHiveModel extends IcebergBaseModel {
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
     TableOperations tableOperations = plugin.createIcebergTableOperations(fs, queryUserName, tableIdentifier);
     return new IcebergHiveCommand(configuration,
-      ((IcebergHiveTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations);
+      ((IcebergHiveTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations, (MutablePlugin) plugin);
   }
 
   @Override

@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -60,7 +61,7 @@ import io.netty.util.internal.PlatformDependent;
 public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializable {
 
   private VectorAccessible va;
-  private BufferAllocator allocator;
+  private Function<Integer, ArrowBuf> bufferAllocFunc;
   private final OperatorStats operatorStats;
 
   private boolean writeDirect;
@@ -74,8 +75,12 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
   }
 
   public VectorAccessibleFlatBufSerializable(VectorAccessible va, BufferAllocator allocator, OperatorStats operatorStats) {
+    this(va, allocator == null ? null : allocator::buffer, operatorStats);
+  }
+
+  public VectorAccessibleFlatBufSerializable(VectorAccessible va, Function<Integer, ArrowBuf> bufferAllocFunc, OperatorStats operatorStats) {
     this.va = va;
-    this.allocator = allocator;
+    this.bufferAllocFunc = bufferAllocFunc;
     this.operatorStats = operatorStats;
   }
 
@@ -106,7 +111,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
       RecordBatch recordBatch = RecordBatch.getRootAsRecordBatch(ByteBuffer.wrap(header));
 
       // read body
-      try(ArrowBuf body = allocator.buffer(bodyLen)) {
+      try(ArrowBuf body = bufferAllocFunc.apply(bodyLen)) {
         read(body, bodyLen, input);
 
         ArrowRecordBatchLoader.load(recordBatch, va, body);

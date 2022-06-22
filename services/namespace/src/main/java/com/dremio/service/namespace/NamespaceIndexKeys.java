@@ -28,6 +28,9 @@ public interface NamespaceIndexKeys {
   IndexKey SPACE_ID = IndexKey.newBuilder("id", "SPACE_ID", String.class)
     .setSortedValueType(SearchFieldSorting.FieldType.STRING)
     .build();
+  IndexKey UDF_ID = IndexKey.newBuilder("id", "UDF_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
   IndexKey HOME_ID = IndexKey.newBuilder("id", "HOME_ID", String.class)
     .setSortedValueType(SearchFieldSorting.FieldType.STRING)
     .build();

@@ -39,7 +39,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.DateString;
-import org.apache.commons.net.ntp.TimeStamp;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TestRule;

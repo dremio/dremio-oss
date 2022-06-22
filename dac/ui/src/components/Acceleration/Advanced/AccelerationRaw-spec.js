@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Immutable from 'immutable';
-import AccelerationRaw from './AccelerationRaw';
+import Immutable from "immutable";
+import AccelerationRaw from "./AccelerationRaw";
 
-describe('AccelerationRaw', () => {
+describe("AccelerationRaw", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -26,41 +26,46 @@ describe('AccelerationRaw', () => {
   beforeEach(() => {
     minimalProps = {
       dataset: Immutable.fromJS({
-        id: '1',
-        path: ['path', 'name']
+        id: "1",
+        path: ["path", "name"],
       }),
-      reflections: Immutable.fromJS({canAlter: true}),
+      reflections: Immutable.fromJS({ canAlter: true }),
       fields: {
-        rawReflections: [{name:{value:'col1'}}, {name:{value:'col2'}}]
-      }
+        rawReflections: [
+          { name: { value: "col1" } },
+          { name: { value: "col2" } },
+        ],
+      },
     };
     minimalProps.fields.rawReflections.addField = sinon.spy();
     minimalProps.fields.rawReflections.removeField = sinon.spy();
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<AccelerationRaw {...commonProps}/>);
+    wrapper = shallow(<AccelerationRaw {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrap = shallow(<AccelerationRaw {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrap = shallow(<AccelerationRaw {...minimalProps} />);
     expect(wrap).to.have.length(1);
   });
 
-  it.skip('should add new layout', () => {
+  it.skip("should add new layout", () => {
     const defaultLayout = {
       enabled: true,
       distributionFields: [],
       partitionFields: [],
       sortFields: [],
-      partitionDistributionStrategy: 'CONSOLIDATED',
+      partitionDistributionStrategy: "CONSOLIDATED",
       shouldDelete: false,
       displayFields: [],
-      name: 'New Reflection',
-      type: 'RAW'
+      name: "New Reflection",
+      type: "RAW",
     };
     instance.addNewLayout();
-    expect(commonProps.fields.rawReflections.addField).to.have.been.calledWithMatch(defaultLayout);
+    expect(
+      commonProps.fields.rawReflections.addField
+    ).to.have.been.calledWithMatch(defaultLayout);
   });
 });

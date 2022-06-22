@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
-import fileFormat from './fileFormat';
+import fileFormat from "./fileFormat";
 
-const file = new Schema('file', {
-  idAttribute: 'id'
+const file = new Schema("file", {
+  idAttribute: "id",
 });
 
 file.define({
-  fileFormat
+  fileFormat,
 });
-
 
 export default file;

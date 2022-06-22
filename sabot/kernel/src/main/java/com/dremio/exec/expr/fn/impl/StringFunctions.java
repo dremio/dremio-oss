@@ -1720,4 +1720,238 @@ public class StringFunctions{
       out.end = outBytea.length;
     }
   }
+
+  /**
+   * Returns the string resulting from concatenating the strings passed in as parameters in order with a custom separator.
+   */
+  @FunctionTemplate(name = "concat_ws", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class ConcatWs2 implements SimpleFunction {
+    @Param
+    NullableVarCharHolder separator;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Output
+    NullableVarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.start = out.end = 0;
+      out.isSet = 0;
+
+      if(separator.isSet == 0){
+        out.buffer = buffer.reallocIfNeeded(0);
+      }else{
+        int outputLength = 0;
+        int numValidInput = 0;
+        if(word1.isSet == 1){
+          outputLength += (word1.end - word1.start);
+          numValidInput++;
+        }
+        if(word2.isSet == 1){
+          outputLength += (word2.end - word2.start);
+          numValidInput++;
+        }
+        outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
+
+        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
+        out.isSet = 1;
+      }
+    }
+  }
+
+  /**
+   * Returns the string resulting from concatenating the strings passed in as parameters in order with a custom separator.
+   */
+  @FunctionTemplate(name = "concat_ws", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class ConcatWs3 implements SimpleFunction {
+    @Param
+    NullableVarCharHolder separator;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Param
+    NullableVarCharHolder word3;
+    @Output
+    NullableVarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.start = out.end = 0;
+      out.isSet = 0;
+
+      if(separator.isSet == 0){
+        out.buffer = buffer.reallocIfNeeded(0);
+      }else{
+        int outputLength = 0;
+        int numValidInput = 0;
+        if(word1.isSet == 1){
+          outputLength += (word1.end - word1.start);
+          numValidInput++;
+        }
+        if(word2.isSet == 1){
+          outputLength += (word2.end - word2.start);
+          numValidInput++;
+        }
+        if(word3.isSet == 1){
+          outputLength += (word3.end - word3.start);
+          numValidInput++;
+        }
+        outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
+
+        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word3, separator);
+        out.isSet = 1;
+      }
+    }
+  }
+
+  /**
+   * Returns the string resulting from concatenating the strings passed in as parameters in order with a custom separator.
+   */
+  @FunctionTemplate(name = "concat_ws", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class ConcatWs4 implements SimpleFunction {
+    @Param
+    NullableVarCharHolder separator;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Param
+    NullableVarCharHolder word3;
+    @Param
+    NullableVarCharHolder word4;
+    @Output
+    NullableVarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.start = out.end = 0;
+      out.isSet = 0;
+
+      if(separator.isSet == 0){
+        out.buffer = buffer.reallocIfNeeded(0);
+      }else{
+        int outputLength = 0;
+        int numValidInput = 0;
+        if(word1.isSet == 1){
+          outputLength += (word1.end - word1.start);
+          numValidInput++;
+        }
+        if(word2.isSet == 1){
+          outputLength += (word2.end - word2.start);
+          numValidInput++;
+        }
+        if(word3.isSet == 1){
+          outputLength += (word3.end - word3.start);
+          numValidInput++;
+        }
+        if(word4.isSet == 1){
+          outputLength += (word4.end - word4.start);
+          numValidInput++;
+        }
+        outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
+
+        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word3, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word4, separator);
+        out.isSet = 1;
+      }
+    }
+  }
+
+  /**
+   * Returns the string resulting from concatenating the strings passed in as parameters in order with a custom separator.
+   */
+  @FunctionTemplate(name = "concat_ws", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class ConcatWs5 implements SimpleFunction {
+    @Param
+    NullableVarCharHolder separator;
+    @Param
+    NullableVarCharHolder word1;
+    @Param
+    NullableVarCharHolder word2;
+    @Param
+    NullableVarCharHolder word3;
+    @Param
+    NullableVarCharHolder word4;
+    @Param
+    NullableVarCharHolder word5;
+    @Output
+    NullableVarCharHolder out;
+    @Inject
+    ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.start = out.end = 0;
+      out.isSet = 0;
+
+      if(separator.isSet == 0){
+        out.buffer = buffer.reallocIfNeeded(0);
+      }else{
+        int outputLength = 0;
+        int numValidInput = 0;
+        if(word1.isSet == 1){
+          outputLength += (word1.end - word1.start);
+          numValidInput++;
+        }
+        if(word2.isSet == 1){
+          outputLength += (word2.end - word2.start);
+          numValidInput++;
+        }
+        if(word3.isSet == 1){
+          outputLength += (word3.end - word3.start);
+          numValidInput++;
+        }
+        if(word4.isSet == 1){
+          outputLength += (word4.end - word4.start);
+          numValidInput++;
+        }
+        if(word5.isSet == 1){
+          outputLength += (word5.end - word5.start);
+          numValidInput++;
+        }
+        outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
+
+        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word3, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word4, separator);
+        com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word5, separator);
+        out.isSet = 1;
+      }
+    }
+  }
 }

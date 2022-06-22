@@ -131,6 +131,8 @@ public class KVStoreReportService implements Service {
             case REFLECTION_ENTRIES:
               getReflectionEntriesReport(zip, exceptionsCollector);
               break;
+            default:
+              break;
           }
         }
         getSourceConfig(zip, exceptionsCollector);

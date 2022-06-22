@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import FontIcon from 'components/Icon/FontIcon';
-import EllipsedText from '@app/components/EllipsedText';
-import { injectIntl } from 'react-intl';
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import FontIcon from "components/Icon/FontIcon";
+import EllipsedText from "@app/components/EllipsedText";
+import { injectIntl } from "react-intl";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
 
 class AccelerationGridSubCell extends Component {
   static propTypes = {
@@ -29,35 +29,62 @@ class AccelerationGridSubCell extends Component {
     subValueAltText: PropTypes.string,
     onValueClick: PropTypes.func,
     hasPermission: PropTypes.bool,
-    intl: PropTypes.any
+    intl: PropTypes.any,
   };
 
   render() {
-    const {isChecked, isLastCell, onClick, subValue, subValueAltText, onValueClick, hasPermission, intl: { formatMessage }} = this.props;
-    const iconType = isChecked ? 'OKSolid' : 'MinusSimple';
-    const disabledIconType = isChecked ? 'OKSolidGrey' : 'MinusSimple';
-    const cellStyle = isLastCell ? 'AccelerationGridSubCell__lastSubCell' : 'AccelerationGridSubCell__subCell';
-    const altText = subValueAltText ? `${subValueAltText}` : '';
+    const {
+      isChecked,
+      isLastCell,
+      onClick,
+      subValue,
+      subValueAltText,
+      onValueClick,
+      hasPermission,
+      intl: { formatMessage },
+    } = this.props;
+    const iconType = isChecked ? "OKSolid" : "MinusSimple";
+    const disabledIconType = isChecked ? "OKSolidGrey" : "MinusSimple";
+    const cellStyle = isLastCell
+      ? "AccelerationGridSubCell__lastSubCell"
+      : "AccelerationGridSubCell__subCell";
+    const altText = subValueAltText ? `${subValueAltText}` : "";
     // if the cell is not checked, only show minus icon
     // otherwise show check round icon
     //   and if subValue is given, show it
     //   and if onValueClick is defined, show caret and handle click on subvalue with caret
     return (
-      <div className={`${cellStyle} ${hasPermission ? '' : '--disabled hover-help'}`} onClick={hasPermission ? onClick : null}>
+      <div
+        className={`${cellStyle} ${
+          hasPermission ? "" : "--disabled hover-help"
+        }`}
+        onClick={hasPermission ? onClick : null}
+      >
         <EllipsedText
-          className={'AccelerationGridSubCell__subVal'}
-          children={<FontIcon type={hasPermission ? iconType : disabledIconType}
-            theme={hasPermission ? theme.iconTheme : theme.disabledTheme}/>}
-          title={hasPermission ? null : formatMessage({ id: 'Read.Only'})}
-        />
-        {isChecked && subValue &&
-          <div title={altText} onClick={onValueClick} className={`${onValueClick ? 'AccelerationGridSubCell__subValClickable' : 'AccelerationGridSubCell__subVal'}`}>
+          className={"AccelerationGridSubCell__subVal"}
+          title={hasPermission ? null : formatMessage({ id: "Read.Only" })}
+        >
+          <FontIcon
+            type={hasPermission ? iconType : disabledIconType}
+            theme={hasPermission ? theme.iconTheme : theme.disabledTheme}
+          />
+        </EllipsedText>
+        {isChecked && subValue && (
+          <div
+            title={altText}
+            onClick={onValueClick}
+            className={`${
+              onValueClick
+                ? "AccelerationGridSubCell__subValClickable"
+                : "AccelerationGridSubCell__subVal"
+            }`}
+          >
             {subValue}
-            {onValueClick &&
-            <FontIcon type='fa-caret-down' theme={theme.caretTheme}/>
-            }
+            {onValueClick && (
+              <FontIcon type="fa-caret-down" theme={theme.caretTheme} />
+            )}
           </div>
-        }
+        )}
       </div>
     );
   }
@@ -68,18 +95,18 @@ export default injectIntl(AccelerationGridSubCell);
 const theme = {
   iconTheme: {
     Container: {
-      cursor: 'pointer',
-      height: 24
-    }
+      cursor: "pointer",
+      height: 24,
+    },
   },
   caretTheme: {
     Container: {
-      cursor: 'pointer'
-    }
+      cursor: "pointer",
+    },
   },
   disabledTheme: {
     Container: {
-      cursor: 'default'
-    }
-  }
+      cursor: "default",
+    },
+  },
 };

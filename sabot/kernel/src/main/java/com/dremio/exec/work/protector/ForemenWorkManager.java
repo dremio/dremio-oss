@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +83,7 @@ import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -98,6 +101,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.opentracing.Tracer;
@@ -136,6 +140,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final Provider<MaestroForwarder> forwarder;
   private final ForemenTool foremenTool;
   private final QueryCancelTool queryCancelTool;
+  private final BufferAllocator jobResultsAllocator;
 
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
   private CloseableExecutorService pool;
@@ -156,7 +161,8 @@ public class ForemenWorkManager implements Service, SafeExit {
           final Provider<JobTelemetryClient> jobTelemetryClient,
           final Provider<MaestroForwarder> forwarder,
           final Tracer tracer,
-          final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector) {
+          final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
+          final BufferAllocator jobResultsAllocator) {
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.commandPool = commandPool;
@@ -170,6 +176,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.foremenTool = new ForemenToolImpl();
     this.queryCancelTool = new QueryCancelToolImpl();
     this.profileSender = new CloseableSchedulerThreadPool("profile-sender", 1);
+    this.jobResultsAllocator = jobResultsAllocator;
   }
 
   public ExecToCoordResultsHandler getExecToCoordResultsHandler() {
@@ -239,7 +246,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(pool, profileSender);
+    AutoCloseables.close(pool, profileSender, jobResultsAllocator);
   }
 
   @VisibleForTesting
@@ -405,32 +412,85 @@ public class ForemenWorkManager implements Service, SafeExit {
   }
 
   private class ExecToCoordResultsHandlerImpl implements ExecToCoordResultsHandler {
+
+    /*
+     * For improving performance, avoid providing both "data" and "request" as non-null.
+     * i.e have one of data or request as null.
+     * If both are non-null
+     * then
+     *  a. If query is running locally, then data is used
+     *  b. else forwarding is done and request is used
+     */
     @Override
     public void dataArrived(QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender) throws RpcException {
+      Preconditions.checkNotNull(header, "header parameter cannot be null");
+
+      String queryId = QueryIdHelper.getQueryId(header.getQueryId());
       ExternalId id = ExternalIdHelper.toExternal(header.getQueryId());
+      logger.debug("ForemanWorkManager.dataArrived.request called for QueryId:{}", queryId);
+
       ManagedForeman managed = externalIdToForeman.get(id);
       if (managed != null) {
-        logger.debug("User Data arrived for QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
-        managed.foreman.dataFromScreenArrived(header, data, sender);
+        logger.debug("User Data arrived for QueryId: {}.", queryId);
+        // data is only needed when "managed" is not null
+        if (data == null && request != null) {
+          // Allocate buffer of data.size()
+          try (ArrowBuf buf = jobResultsAllocator.buffer(request.getData().size())) {
+            data = getData(request, buf);
+            managed.foreman.dataFromScreenArrived(header, sender, data);
+          }
+        } else {
+          managed.foreman.dataFromScreenArrived(header, sender, data);
+        }
 
       } else if (request != null) {
         forwarder.get().dataArrived(request, sender);
 
       } else {
-        logger.warn("User data arrived post query termination, dropping. Data was from QueryId: {}.",
-          QueryIdHelper.getQueryId(header.getQueryId()));
+        logger.warn("User data arrived post query termination, dropping. Data was from QueryId: {}.", queryId);
         //  Return a Failure in this case, the query is already terminated and it will be cancelled
         // on the Executor, either response will unblock the caller.
         sender.sendFailure(new UserRpcException(dbContext.get().getEndpoint(),
           "Query Already Terminated", new Throwable("Query Already Terminated")));
       }
     }
+
+    @Override
+    public void dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
+      Preconditions.checkNotNull(request, "jobResultsRequestWrapper parameter cannot be null");
+
+      QueryData header = request.getHeader();
+
+      String queryId = QueryIdHelper.getQueryId(header.getQueryId());
+      logger.debug("ForemanWorkManager.dataArrived.RequestWrapper called for QueryId: {}", queryId);
+
+      ExternalId id = ExternalIdHelper.toExternal(header.getQueryId());
+      ManagedForeman managed = externalIdToForeman.get(id);
+
+      if (managed != null) {
+        logger.debug("RequestWrapper - User Data arrived for QueryId: {}.", queryId);
+        managed.foreman.dataFromScreenArrived(header, sender, request.getByteBuffers());
+      } else {
+        logger.debug("RequestWrapper - forward user data for QueryId: {}.", queryId);
+        forwarder.get().dataArrived(request, sender);
+      }
+    }
   }
+
+  // copy data from request.getData() which is in heap to
+  // byteBuf which is in direct memory, for further processing.
+  protected ByteBuf getData(JobResultsRequest request, ArrowBuf buf) {
+    // Get ByteBuf wrapper on top of ArrowBuf buf
+    ByteBuf byteBuf = NettyArrowBuf.unwrapBuffer(buf);
+    // Actually read request.data into byteBuf.
+    byteBuf.writeBytes(request.getData().toByteArray());
+    return byteBuf;
+}
 
   /**
    * Waits until it is safe to exit. Blocks until all currently running fragments have completed.
    *
-   * <p>This is intended to be used by {@link com.dremio.exec.server.SabotNode#close()}.</p>
+   * <p>This is intended to be used by com.dremio.exec.server.SabotNode#close(). </p>
    */
   public void waitToExit() {
     synchronized(this) {

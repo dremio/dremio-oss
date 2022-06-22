@@ -16,32 +16,32 @@
 @import "~@app/uiTheme/less/mixins.less";
 
 :global {
-    .currentRefInfo {
-        max-width: 250px;
-        user-select: none;
-        .flex-center;
+  .currentRefInfo {
+    max-width: 250px;
+    user-select: none;
+    .flex-center;
 
-        .font-icon {
-            display: flex !important;
-        }
-
-        &-sourceName {
-            margin-right: 6px;
-            flex: 1;
-        }
-
-        &-refWrapper {
-            // flex: 1;
-            .flex-center;
-            min-width: 0;
-            max-width: 100px;
-            .branchPickerTag {
-                max-width: 100%;
-            }
-        }
-
-        &-more {
-            margin-left: 4px;
-        }
+    .font-icon {
+      display: flex !important;
     }
+
+    &-sourceName {
+      margin-right: 6px;
+      flex: 1;
+    }
+
+    &-refWrapper {
+      // flex: 1;
+      .flex-center;
+      min-width: 0;
+      max-width: 100px;
+      .branchPickerTag {
+        max-width: 100%;
+      }
+    }
+
+    &-more {
+      margin-left: 4px;
+    }
+  }
 }

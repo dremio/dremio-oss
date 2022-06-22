@@ -73,6 +73,13 @@ public class ExecutorServiceProductClient implements ExecutorServiceClient {
   }
 
   @Override
+  public void propagatePluginChange(CoordExecRPC.SourceWrapper sourceWrapper,
+                                     StreamObserver<Empty> responseObserver)  {
+    EndpointListener listener = getEndpointListener(sourceWrapper, responseObserver);
+    tunnelCreator.getTunnel(endpoint).propagatePluginChange(listener, sourceWrapper);
+  }
+
+  @Override
   public void getNodeStats(Empty empty, StreamObserver<CoordExecRPC.NodeStatResp> responseObserver) {
     RpcOutcomeListener outcomeListener = new RpcOutcomeListener<CoordExecRPC.NodeStatResp>() {
       @Override

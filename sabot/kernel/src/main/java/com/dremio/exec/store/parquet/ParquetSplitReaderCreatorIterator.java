@@ -61,6 +61,8 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
+import com.dremio.exec.store.iceberg.deletes.ParquetPositionalDeleteFileReaderFactory;
+import com.dremio.exec.store.iceberg.deletes.PositionalDeleteFilterFactory;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -78,6 +80,7 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -107,12 +110,13 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private final InputStreamProviderFactory factory;
   private final FragmentExecutionContext fragmentExecutionContext;
   private final List<List<String>> tablePath;
-  private final List<ParquetFilterCondition> conditions;
+  private final ParquetFilters filters;
   private final List<SchemaPath> columns;
   private final BatchSchema fullSchema;
   private final boolean arrowCachingEnabled;
   private final boolean isConvertedIcebergDataset;
   private final FileConfig formatSettings;
+  private final PositionalDeleteFilterFactory positionalDeleteFilterFactory;
   private UserDefinedSchemaSettings userDefinedSchemaSettings;
   private List<SplitAndPartitionInfo> inputSplits;
   private boolean ignoreSchemaLearning = false;
@@ -151,7 +155,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.config = config;
     this.inputSplits = config.getSplits();
     this.tablePath = config.getTablePath();
-    this.conditions = config.getConditions();
+    this.filters = new ParquetFilters(config.getConditions());
     this.columns = config.getColumns();
     this.fullSchema = config.getFullSchema();
     this.arrowCachingEnabled = config.isArrowCachingEnabled();
@@ -204,6 +208,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
     this.produceFromBufferedSplits = true;  // in non-v2 case there is no prefetching across batches, so set it to true
+    this.positionalDeleteFilterFactory = null;
     processSplits();
     if (prefetchReader) {
       initSplits(null, numSplitsToPrefetch);
@@ -216,7 +221,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.inputSplits = null;
     this.tablePath = config.getFunctionContext().getTablePath();
     ScanFilter scanFilter = config.getFunctionContext().getScanFilter();
-    this.conditions = scanFilter != null ? ((ParquetScanFilter) scanFilter).getConditions() : null;
+    this.filters = new ParquetFilters(scanFilter != null ? ((ParquetScanFilter) scanFilter).getConditions() : null);
     this.columns = config.getFunctionContext().getColumns();
     this.fullSchema = config.getFunctionContext().getFullSchema();
     this.arrowCachingEnabled = config.getFunctionContext().isArrowCachingEnabled() || context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING);
@@ -276,6 +281,12 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
     this.produceFromBufferedSplits = produceFromBufferedSplits; // initially set to false, after no more to consume from upstream this is set to true
+    this.positionalDeleteFilterFactory = DatasetHelper.isIcebergFile(config.getFunctionContext().getFormatSettings()) ?
+        new PositionalDeleteFilterFactory(context,
+            new ParquetPositionalDeleteFileReaderFactory(factory, readerFactory, fs,
+                Iterables.getFirst(tablePath, null))) :
+        null;
+
     processSplits();
     if (prefetchReader) {
       initSplits(null, numSplitsToPrefetch);
@@ -402,7 +413,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private void filterRowGroupSplits() {
     if (fromRowGroupBasedSplit) {
       while (shouldBeFiltered(currentSplitInfo)) {
-        rowGroupSplitIterator.next();
+        ParquetProtobuf.ParquetDatasetSplitScanXAttr splitScanXAttr = rowGroupSplitIterator.next();
+        decrementRowGroupCount(splitScanXAttr.getOriginalPath());
         if (!splitAndPartitionInfoIterator.hasNext()) {
           Preconditions.checkArgument(!rowGroupSplitIterator.hasNext());
           currentSplitInfo = null;
@@ -477,6 +489,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       int numCreators = 0;
       while (curr != null) { // filter the already constructed splitReaderCreators
         if (shouldBeFiltered(curr.getSplit())) {
+          decrementRowGroupCount(curr.getSplitXAttr().getOriginalPath());
           try {
             curr.close();
           } catch (Exception e) {
@@ -502,11 +515,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   }
 
   private SplitReaderCreator createSplitReaderCreator() {
-    SplitReaderCreator creator = new ParquetSplitReaderCreator(autoCorrectCorruptDates, context, enableDetailedTracing, factory,
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitScanXAttr = rowGroupSplitIterator.next();
+    String dataFilePath = splitScanXAttr.getOriginalPath().isEmpty() ? splitScanXAttr.getPath() :
+        splitScanXAttr.getOriginalPath();
+    ParquetFilters filtersForCurrentRowGroup = positionalDeleteFilterFactory != null ?
+        filters.withPositionalDeleteFilter(positionalDeleteFilterFactory.create(dataFilePath)) : filters;
+
+    SplitReaderCreator creator = new ParquetSplitReaderCreator(autoCorrectCorruptDates, context, enableDetailedTracing,
             fs, globalDictionaries, globalDictionaryEncodedColumns, numSplitsToPrefetch, prefetchReader, readInt96AsTimeStamp,
             readerConfig, readerFactory, realFields, supportsColocatedReads, trimRowGroups, vectorize,
-            currentSplitInfo, tablePath, conditions, columns, fullSchema, arrowCachingEnabled, formatSettings, icebergSchemaFields,
-            pathToRowGroupsMap, this, rowGroupSplitIterator.next(), this.isIgnoreSchemaLearning(),
+            currentSplitInfo, tablePath, filtersForCurrentRowGroup, columns, fullSchema, formatSettings, icebergSchemaFields,
+            pathToRowGroupsMap, this, splitScanXAttr, this.isIgnoreSchemaLearning(),
       isConvertedIcebergDataset, userDefinedSchemaSettings);
 
     if (!fromRowGroupBasedSplit && isFirstRowGroup) {
@@ -538,8 +557,10 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       }
     }
   }
+
   private void expandBlockSplit(ParquetBlockBasedSplit blockSplit) throws IOException {
     if (shouldBeFiltered(blockSplit.getSplitAndPartitionInfo())) {
+      decrementRowGroupCount(blockSplit.getPath());
       return;
     }
 
@@ -591,6 +612,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     populateRowGroupNums.accept(footer);
     context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
 
+    // Notify the Iceberg filters factory of any additional row groups so that it can manage the lifetime of associated
+    // PositionalDeleteFilters.  Each row group adds a reference count on a filter, which is decremented when the row
+    // group reader is closed.  In the case where this split expanded to no row groups, we need to decrement the
+    // reference count by 1.
+    if (positionalDeleteFilterFactory != null) {
+      int delta = rowGroupNums.size() - 1;
+      if (delta != 0) {
+        positionalDeleteFilterFactory.adjustRowGroupCount(blockSplit.getPath(), delta);
+      }
+    }
+
     List<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitAttrs = new LinkedList<>();
     for (int rowGroupNum : rowGroupNums) {
       rowGroupSplitAttrs.add(ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
@@ -600,6 +632,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
               .setLength(blockSplit.getLength()) // max row group size possible
               .setFileLength(fileLength)
               .setLastModificationTime(fileLastModificationTime)
+              .setOriginalPath(blockSplit.getPath())
               .build());
     }
     rowGroupSplitIterator = new RemovingIterator<>(rowGroupSplitAttrs.iterator());
@@ -663,8 +696,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             realFields, icebergSchemaFields, isConvertedIcebergDataset, context);
 
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
-    boolean readColumnIndices = (context.getOptions().getOption(READ_COLUMN_INDEXES) &&
-            ((conditions != null) && (conditions.size() >= 1)));
+    boolean readColumnIndices = context.getOptions().getOption(READ_COLUMN_INDEXES) &&
+      filters.hasPushdownFilters();
     return factory.create(
             fs,
             context,
@@ -710,6 +743,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
         throw new RuntimeException("Could not deserialize Parquet dataset info", pe);
       }
     }
+  }
+
+  private void decrementRowGroupCount(String path) {
+    if (positionalDeleteFilterFactory != null) {
+      positionalDeleteFilterFactory.adjustRowGroupCount(path, -1);
+    }
+  }
+
+  public void setDataFileInfoForBatch(Map<String, PositionalDeleteFilterFactory.DataFileInfo> dataFileInfo) {
+    Preconditions.checkNotNull(positionalDeleteFilterFactory);
+    positionalDeleteFilterFactory.setDataFileInfoForBatch(dataFileInfo);
   }
 
   public boolean isIgnoreSchemaLearning() {

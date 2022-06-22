@@ -13,44 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moment from 'moment';
+import moment from "@app/utils/dayjs";
 
-const INVALID_DATE_MSG = 'Invalid date';
+const INVALID_DATE_MSG = "Invalid date";
 
 class TimeUtils {
-
   covertHoursFrom12To24(hours, part) {
-    return part.toLowerCase() === 'pm'
-      ? +hours + 12
-      : hours;
+    return part.toLowerCase() === "pm" ? +hours + 12 : hours;
   }
   zeroesPadding(value, length) {
     let sValue = String(value);
     if (sValue.length < length) {
       const zeroes = new Array(length - sValue.length + 1);
-      sValue = zeroes.join('0') + sValue;
+      sValue = zeroes.join("0") + sValue;
     }
     return sValue;
   }
 
-  durationWithZero(duration, isNumberFormat = false) { // todo: loc
+  durationWithZero(duration, isNumberFormat = false) {
+    // todo: loc
     const seconds = this.zeroesPadding(duration.seconds(), 2);
     const minutes = this.zeroesPadding(duration.minutes(), 2);
     const hours = this.zeroesPadding(Math.floor(duration.asHours()), 2);
-    if (Math.floor(duration.asHours()) <= 0 && duration.minutes() <= 0 && duration.seconds() < 1) {
-      return '<1s';
+    if (
+      Math.floor(duration.asHours()) <= 0 &&
+      duration.minutes() <= 0 &&
+      duration.seconds() < 1
+    ) {
+      return "<1s";
     } else if (isNumberFormat) {
       return `${hours}:${minutes}:${seconds}`;
     }
     // todo: loc
-    return `${hours}h:${minutes}m:${seconds}s`.replace(/^(00[a-z]:)+/, '').replace(/^0+/, '');
+    return `${hours}h:${minutes}m:${seconds}s`
+      .replace(/^(00[a-z]:)+/, "")
+      .replace(/^0+/, "");
   }
 
   getTimeRange(step, max, pad) {
     const arr = [];
     for (let start = 0; start <= max; start += step) {
       const label = start.toString();
-      arr.push({label: label.length === 1 && pad ? '0' + label : label, option: start});
+      arr.push({
+        label: label.length === 1 && pad ? "0" + label : label,
+        option: start,
+      });
     }
     return arr;
   }
@@ -58,42 +65,44 @@ class TimeUtils {
   getDayOfWeek() {
     const arr = [];
     for (let i = 1; i <= 7; i++) {
-      const day = moment().isoWeekday(i).format('dddd');
-      arr.push({label: day, option: day.toUpperCase()});
+      const day = moment().isoWeekday(i).format("dddd");
+      arr.push({ label: day, option: day.toUpperCase() });
     }
     return arr;
   }
 
   fromNow(timestamp) {
     if (!timestamp) {
-      return 'unknown';
+      return "unknown";
     }
     return moment(timestamp).fromNow();
   }
 
-  formatDateToMonthDayYearTimeStamp(time, invalidDateString = INVALID_DATE_MSG) {
+  formatDateToMonthDayYearTimeStamp(
+    time,
+    invalidDateString = INVALID_DATE_MSG
+  ) {
     const t = moment(time);
-    return t.isValid() ? t.format('MMM DD, YYYY h:mm:ss A') : invalidDateString;
+    return t.isValid() ? t.format("MMM DD, YYYY h:mm:ss A") : invalidDateString;
   }
 
-  formatTime(time, invalidDateString = la(INVALID_DATE_MSG), locale = window.navigator.language, format = 'x') {
-    moment.locale(locale);
-    const t = moment(time, format);
-    return t.isValid() ? t.format('L HH:mm:ss') : invalidDateString;
+  formatTime(
+    time,
+    invalidDateString = la(INVALID_DATE_MSG),
+    locale = window.navigator.language,
+    format = "x"
+  ) {
+    if (time === "") return invalidDateString;
+    const t = moment(time, format, locale);
+    return t.isValid() ? t.format("L HH:mm:ss") : invalidDateString;
   }
 
-  formatTimeWithTZ(time, invalidDateString = la(INVALID_DATE_MSG), locale = window.navigator.language) {
-    moment.locale(locale);
-    const t = moment(time, 'x');
-    return t.isValid() ? t.format('L HH:mm:ss Z') : invalidDateString;
-  }
-
-  formatTimeDiff(timeDiffMs, format = 'H:mm:ss') {
+  formatTimeDiff(timeDiffMs, format = "H:mm:ss") {
     return moment.utc(timeDiffMs).format(format);
   }
 
   isMoreThanYearsFromNow(time, years) {
-    const last = moment().add(years, 'y');
+    const last = moment().add(years, "y");
     return moment(time).isAfter(last);
   }
 
@@ -109,32 +118,42 @@ class TimeUtils {
 
   toNow(timestamp) {
     if (!timestamp) {
-      return 'unknown';
+      return "unknown";
     }
     return moment(timestamp).toNow(true);
   }
 
-  durationWithMS(duration, isNumberFormat = false) { // todo: loc
+  durationWithMS(duration, isNumberFormat = false) {
+    // todo: loc
     const seconds = this.zeroesPadding(duration.seconds(), 2);
     const minutes = this.zeroesPadding(duration.minutes(), 2);
     const hours = this.zeroesPadding(Math.floor(duration.asHours()), 2);
-    if (Math.floor(duration.asHours()) <= 0 && duration.minutes() <= 0 && duration.seconds() < 1) {
-      return '<1s';
-    } else if (Math.floor(duration.asHours()) <= 0 && duration.minutes() < 1 && duration.seconds() >= 1) {
-      return moment.utc(duration.as('milliseconds')).format('ss.SS[s]', {
-        minValue: 1
-      });
+    if (
+      Math.floor(duration.asHours()) <= 0 &&
+      duration.minutes() <= 0 &&
+      duration.seconds() < 1
+    ) {
+      return "<1s";
+    } else if (
+      Math.floor(duration.asHours()) <= 0 &&
+      duration.minutes() < 1 &&
+      duration.seconds() >= 1
+    ) {
+      return `${duration.seconds() < 10 ? "0" : ""}${duration
+        .as("seconds")
+        .toFixed(2)}s`;
     } else if (isNumberFormat) {
       return `${hours}:${minutes}:${seconds}`;
     }
     // todo: loc
-    return hours > 0 ? moment.utc(duration.as('milliseconds')).format('HH[h]:mm[m]:ss[s]') :
-      moment.utc(duration.as('milliseconds')).format('mm[m]:ss[s]');
+    return hours > 0
+      ? moment.utc(duration.as("milliseconds")).format("HH[h]:mm[m]:ss[s]")
+      : moment.utc(duration.as("milliseconds")).format("mm[m]:ss[s]");
   }
 
   nanoSecondsUpToHours = (nanos) => {
     if (nanos === undefined || Number.isNaN(nanos)) {
-      return '--';
+      return "--";
     }
     if (nanos > 1000 && nanos <= 1000000) {
       const micros = nanos / 1000;
@@ -157,14 +176,14 @@ class TimeUtils {
       return `${hours.toFixed(2)}hr`;
     }
     return `${nanos}ns`;
-  }
+  };
 }
 
 TimeUtils.prototype.INVALID_DATE_MSG = INVALID_DATE_MSG;
 
 TimeUtils.prototype.formats = {
-  UNIX_TIMESTAMP: 'x',
-  ISO: moment.ISO_8601
+  UNIX_TIMESTAMP: "x",
+  ISO: "YYYY-MM-DDTHH:mm:ss.000", // https://qdmana.com/2021/09/20210915202523283s.html
 };
 
 const timeUtils = new TimeUtils();

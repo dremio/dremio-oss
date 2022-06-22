@@ -48,6 +48,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.vector.complex.fn.FieldSelection;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -89,7 +90,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
 
   public static final String MIXED_TYPES_ERROR = "Mixed types are not supported as returned values over JDBC, ODBC and Flight connections.";
 
-  public final static class UnknownSchema {
+  public static final class UnknownSchema {
     public final String NO_DATA;
     private UnknownSchema() {
       this.NO_DATA = null;
@@ -471,7 +472,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return typesA.equals(typesB);
   }
 
-  private final static Function<Field, CompleteType> TO_TYPES = new Function<Field, CompleteType>() {
+  private static final Function<Field, CompleteType> TO_TYPES = new Function<Field, CompleteType>() {
     @Override
     public CompleteType apply(Field input) {
       return CompleteType.fromField(input);
@@ -682,9 +683,9 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return false;
   }
 
-  public BatchSchema handleUnions() {
+  public BatchSchema handleUnions(SupportsTypeCoercionsAndUpPromotions coercionRulesSet) {
     if (hasUnions()) {
-      return mergeWithUpPromotion(this);
+      return mergeWithUpPromotion(this, coercionRulesSet);
     }
     return this;
   }
@@ -708,10 +709,11 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return new BatchSchema(SelectionVectorMode.NONE, mergeFieldLists(original, newlyObserved));
   }
 
-  public BatchSchema mergeWithUpPromotion(BatchSchema fileSchema){
+  public BatchSchema mergeWithUpPromotion(BatchSchema fileSchema, SupportsTypeCoercionsAndUpPromotions coercionRulesSet) {
     List<Field> fileFields = ImmutableList.copyOf(fileSchema);
-    return new BatchSchema(SelectionVectorMode.NONE, mergeWithUpPromotion(fileFields));
+    return new BatchSchema(SelectionVectorMode.NONE, mergeWithUpPromotion(fileFields, coercionRulesSet));
   }
+
   //newFields.mergeWithRetainOld(oldFields)
   //Should add only those fields to newFields which are not in the newFields
   public BatchSchema mergeWithRetainOld(BatchSchema toMerge){
@@ -773,8 +775,8 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return new BatchSchema(addedFields);
   }
 
-  private List<Field> mergeWithUpPromotion(List<Field> fileFields) {
-      return CompleteType.mergeFieldListsWithUpPromotionOrCoercion(ImmutableList.copyOf(this), fileFields);
+  private List<Field> mergeWithUpPromotion(List<Field> fileFields, SupportsTypeCoercionsAndUpPromotions coercionRulesSet) {
+    return CompleteType.mergeFieldListsWithUpPromotionOrCoercion(ImmutableList.copyOf(this), fileFields, coercionRulesSet);
   }
 
   private static List<Field> mergeFieldLists(List<Field> original, List<Field> newlyObserved) {
@@ -819,18 +821,19 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   public BatchSchema applyUserDefinedSchemaAfterSchemaLearning(BatchSchema newSchema,
-                                                               List<Field> droppedColumns,
-                                                               List<Field> updatedColumns,
-                                                               boolean isSchemaLearningDisabledByUser,
-                                                               boolean isUserDefinedSchemaEnabled,
-                                                               String filePath,
-                                                               List<String> tableSchemaPath) {
+                                                                                      List<Field> droppedColumns,
+                                                                                      List<Field> updatedColumns,
+                                                                                      boolean isSchemaLearningDisabledByUser,
+                                                                                      boolean isUserDefinedSchemaEnabled,
+                                                                                      String filePath,
+                                                                                      List<String> tableSchemaPath,
+                                                                                      SupportsTypeCoercionsAndUpPromotions coercionRulesSet) {
     if (isUserDefinedSchemaEnabled && isSchemaLearningDisabledByUser) {
       return this;
     }
     BatchSchema finalSchema;
     try {
-      finalSchema = this.mergeWithUpPromotion(newSchema);
+      finalSchema = this.mergeWithUpPromotion(newSchema, coercionRulesSet);
       for (Field field : droppedColumns) {
         finalSchema = finalSchema.dropField(field);
       }
@@ -960,7 +963,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   public BatchSchema changeType(Field newType, boolean isRecursive) {
-    LinkedHashMap<String,Field> originalFieldMap = new LinkedHashMap<>();
+    Map<String,Field> originalFieldMap = new LinkedHashMap<>();
     for (Field field : getFields()) {
       originalFieldMap.put(field.getName().toLowerCase(), field);
     }
@@ -975,7 +978,11 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   private void changeTypeOfField(Map<String,Field> originalFieldMap, Field newField) {
-    if(!newField.getType().isComplex()) {
+    if(!newField.getType().isComplex() ||
+      (newField.getType().isComplex() &&
+        originalFieldMap.get(newField.getName()) != null &&
+        !originalFieldMap.get(newField.getName()).getType().isComplex())
+    ) {
       originalFieldMap.replace(newField.getName().toLowerCase(), newField);
       return;
     }

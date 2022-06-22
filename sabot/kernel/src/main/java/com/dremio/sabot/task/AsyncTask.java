@@ -20,6 +20,11 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
 
 public interface AsyncTask extends Runnable {
 
+  /**
+   * Invoked after a run of the task
+   */
+  default void postRunUpdate() {
+  }
   void refreshState();
   Task.State getState();
   SharedResourceType getFirstBlockedResource();

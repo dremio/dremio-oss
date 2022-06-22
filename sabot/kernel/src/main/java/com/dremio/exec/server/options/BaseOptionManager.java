@@ -50,7 +50,7 @@ public abstract class BaseOptionManager implements OptionManager {
    * @param type option type
    * @return true iff the type is supported
    */
-  abstract protected boolean supportsOptionType(OptionValue.OptionType type);
+  protected abstract boolean supportsOptionType(OptionValue.OptionType type);
 
   @Override
   public boolean getOption(BooleanValidator validator) {

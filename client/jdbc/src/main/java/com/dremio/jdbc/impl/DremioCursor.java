@@ -185,11 +185,11 @@ class DremioCursor implements Cursor {
 
     @Override
     public void submissionFailed(UserException ex) {
-      logger.debug( "Received query failure:", instanceId, ex );
+      logger.debug( "[#{}] Received query failure:", instanceId, ex );
       this.executionFailureException = ex;
       completed = true;
       close();
-      logger.info( "[#{}] Query failed: ", instanceId, ex );
+      logger.info( "[#{}] Query failed:", instanceId, ex );
     }
 
     @Override
@@ -248,7 +248,7 @@ class DremioCursor implements Cursor {
     QueryDataBatch getNext() throws UserException, TimeoutException, InterruptedException {
       while (true) {
         if (executionFailureException != null) {
-          logger.debug( "[#{}] Dequeued query failure exception: {}.",
+          logger.debug( "[#{}] Dequeued query failure exception:",
                         instanceId, executionFailureException );
           throw executionFailureException;
         }

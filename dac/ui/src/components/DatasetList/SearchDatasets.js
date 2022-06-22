@@ -13,25 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import Immutable  from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { SearchField } from 'components/Fields';
-import { loadSearchData } from 'actions/search.js';
-import { getSearchResult } from 'selectors/resources';
+import { SearchField } from "components/Fields";
+import { loadSearchData } from "actions/search.js";
+import { getSearchResult } from "selectors/resources";
 
-import DatasetList from './DatasetList';
+import DatasetList from "./DatasetList";
 
 const DELAY_SEARCH = 500;
 
 // TODO combine with DatasetsSearch?
 
-@Radium
 class SearchDatasets extends PureComponent {
-
   static propTypes = {
     searchData: PropTypes.instanceOf(Immutable.List).isRequired,
     loadSearchData: PropTypes.func.isRequired,
@@ -39,35 +36,35 @@ class SearchDatasets extends PureComponent {
     dragType: PropTypes.string,
     showAddIcon: PropTypes.bool,
     addFullPathToSqlEditor: PropTypes.func,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   state = {
-    filter: ''
-  }
+    filter: "",
+  };
 
   componentWillMount() {
-    this.props.loadSearchData('');
+    this.props.loadSearchData("");
   }
 
   handleFilter = (value) => {
     this.setState({
-      filter: value
+      filter: value,
     });
 
     clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout( () => {
+    this.searchTimer = setTimeout(() => {
       this.props.loadSearchData(value);
     }, DELAY_SEARCH);
-  }
+  };
 
   renderSearchField() {
     return (
       <SearchField
         value={this.state.filter}
         onChange={this.handleFilter}
-        placeholder={la('Search datasets…')}
-        style={{flexShrink: 0}}
+        placeholder={la("Search datasets…")}
+        style={{ flexShrink: 0 }}
       />
     );
   }
@@ -75,8 +72,11 @@ class SearchDatasets extends PureComponent {
   render() {
     const value = this.state.filter;
     const { dragType, searchData, changeSelectedNode } = this.props;
-    return  (
-      <div className='resource-tree' style={[styles.base, this.props.style]}>
+    return (
+      <div
+        className="resource-tree"
+        style={{ ...styles.base, ...(this.props.style || {}) }}
+      >
         {this.renderSearchField()}
         <DatasetList
           dragType={dragType}
@@ -96,21 +96,21 @@ class SearchDatasets extends PureComponent {
 
 const styles = {
   base: {
-    display: 'flex',
-    flexDirection: 'column',
-    border: '1px solid #E0E0E0',
-    overflowY: 'auto' // this overflow is needed for FF. "flex: 1" doesn't correct work with overflow in FF
+    display: "flex",
+    flexDirection: "column",
+    border: "1px solid #E0E0E0",
+    overflowY: "auto", // this overflow is needed for FF. "flex: 1" doesn't correct work with overflow in FF
   },
   datasetList: {
-    overflowY: 'auto'
+    overflowY: "auto",
   },
   location: {
-    margin: '7px 0 0'
-  }
+    margin: "7px 0 0",
+  },
 };
 
 const mapStateToProps = (state) => ({
-  searchData: getSearchResult(state) || Immutable.List()
+  searchData: getSearchResult(state) || Immutable.List(),
 });
 
 export default connect(mapStateToProps, { loadSearchData })(SearchDatasets);

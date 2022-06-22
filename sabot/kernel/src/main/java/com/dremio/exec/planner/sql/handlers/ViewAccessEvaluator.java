@@ -31,6 +31,7 @@ import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.users.UserNotFoundException;
@@ -77,12 +78,13 @@ public class ViewAccessEvaluator implements Runnable {
         }
       });
       if (!topExpansionPaths.isEmpty()) {
+        SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(config.getConverter()).build();
         final List<DremioTable> tables = new ArrayList<>();
         for (List<String> path : topExpansionPaths) {
-          DremioTable table = config.getConverter().getCatalogReader().getTable(path).getTable();
+          DremioTable table = sqlValidatorAndToRelContext.getDremioCatalogReader().getTable(path).getTable();
           tables.add(table);
         }
-        validateViewAccess(tables, config.getConverter().getCatalogReader().withCheckValidity(false), config.getContext().getQueryUserName());
+        validateViewAccess(tables, sqlValidatorAndToRelContext.getDremioCatalogReader().withCheckValidity(false), config.getContext().getQueryUserName());
       }
     } catch (Exception e) {
       exception = e;

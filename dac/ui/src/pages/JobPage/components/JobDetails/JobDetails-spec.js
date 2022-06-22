@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import JobDetails from './JobDetails';
+import JobDetails from "./JobDetails";
 
-describe('JobDetails', () => {
-
+describe("JobDetails", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -27,28 +26,26 @@ describe('JobDetails', () => {
       cancelJob: sinon.spy(),
       downloadFile: sinon.spy(),
       askGnarly: sinon.spy(),
-      viewState: Immutable.Map()
+      viewState: Immutable.Map(),
     };
     commonProps = {
       ...minimalProps,
-      jobId: '123',
-      jobDetails: Immutable.fromJS({state: 'COMPLETED', attemptDetails: []}),
+      jobId: "123",
+      jobDetails: Immutable.fromJS({ state: "COMPLETED", attemptDetails: [] }),
       viewStateWrapper: Immutable.Map(),
       location: {},
-      updateViewState: sinon.stub()
+      updateViewState: sinon.stub(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<JobDetails {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<JobDetails {...minimalProps} />);
     expect(wrapper).to.have.length(1);
-    wrapper.instance().componentWillUnmount();
   });
 
-  it('should render TabsNavigation and TabsContent', () => {
-    const wrapper = shallow(<JobDetails {...commonProps}/>);
-    expect(wrapper.find('TabsNavigation')).to.have.length(1);
-    expect(wrapper.find('TabsContent')).to.have.length(1);
-    wrapper.instance().componentWillUnmount();
+  it("should render TabsNavigation and TabsContent", () => {
+    const wrapper = shallow(<JobDetails {...commonProps} />);
+    expect(wrapper.find("TabsNavigation")).to.have.length(1);
+    expect(wrapper.find("TabsContent")).to.have.length(1);
   });
 });

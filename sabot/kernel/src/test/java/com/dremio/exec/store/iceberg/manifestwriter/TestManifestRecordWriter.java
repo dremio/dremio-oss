@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -72,10 +73,10 @@ import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -169,12 +170,13 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
       ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
       ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Integer> operationType = ArgumentCaptor.forClass(Integer.class);
 
       manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
       manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       verify(outputEntryListener, times(0)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 60; i++) {
@@ -184,9 +186,9 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
       verify(outputEntryListener, times(2)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
 
-      ManifestFile manifestFile2 = getManifestFile(icebergMetadataCaptor.getValue());
+      ManifestFile manifestFile2 = getManifestFile(icebergMetadataCaptor.getValue(), operationType.getValue());
       assertTrue(manifestFile2.addedFilesCount() > 0);
 
       File metadataFolder = new File(tempFolderLoc, "metadata");
@@ -236,7 +238,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       verify(outputEntryListener, times(0)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 60; i++) {
@@ -277,6 +279,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
       ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
       ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Integer> operationType = ArgumentCaptor.forClass(Integer.class);
 
       manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
       manifestFileRecordWriter.writeBatch(0, 2);
@@ -284,9 +287,9 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
       verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
 
-      ManifestFile manifestFile = getManifestFile(icebergMetadataCaptor.getValue());
+      ManifestFile manifestFile = getManifestFile(icebergMetadataCaptor.getValue(), operationType.getValue());
 
       File metadataFolder = new File(tempFolderLoc, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
@@ -341,7 +344,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
       verify(outputEntryListener, times(2)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
 
       File metadataFolder = new File(tempFolderLoc, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
@@ -368,7 +371,6 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)).thenReturn(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getNumVal());
     when(operatorContext.getOptions()).thenReturn(options);
     IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, false);
-    IcebergFormatConfig icebergFormatConfig = new IcebergFormatConfig();
 
     ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, manifestWriterPOP) {
       @Override
@@ -407,17 +409,22 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
   private VectorContainer getIncomingVector(BufferAllocator allocator, PartitionSpec spec) throws IOException {
     VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
     icebergMeta.allocateNew(2);
+    operationType.allocateNew(2);
     DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", spec, "id_bucket=1");
     DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", spec, "id_bucket=2");
-    icebergMeta.set(0, getIcebergMetadata(dataFile1));
-    icebergMeta.set(1, getIcebergMetadata(dataFile2));
+    icebergMeta.set(0, getAddDataFileIcebergMetadata(dataFile1));
+    operationType.set(0, OperationType.ADD_DATAFILE.value);
+    icebergMeta.set(1, getAddDataFileIcebergMetadata(dataFile2));
+    operationType.set(1, OperationType.ADD_DATAFILE.value);
 
     VarBinaryVector metadataVec = new VarBinaryVector(RecordWriter.METADATA_COLUMN, allocator);
     metadataVec.allocateNew(2);
 
     VectorContainer container = new VectorContainer();
     container.add(icebergMeta);
+    container.add(operationType);
     container.add(metadataVec);
     container.setRecordCount(2);
     container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
@@ -426,21 +433,27 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
   private VectorContainer getIncomingVectorWithDeleteDataFile(BufferAllocator allocator, PartitionSpec spec) throws IOException {
     VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
-    icebergMeta.allocateNew(2);
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
+    icebergMeta.allocateNew(3);
+    operationType.allocateNew(3);
     DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", spec, "id_bucket=1");
     DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", spec, "id_bucket=2");
     DataFile dataFile3 = getDatafile("/path/to/datafile-3-pre.parquet", spec, "id_bucket=3");
-    icebergMeta.set(0, getIcebergMetadata(dataFile1));
+    icebergMeta.set(0, getAddDataFileIcebergMetadata(dataFile1));
+    operationType.set(0, OperationType.ADD_DATAFILE.value);
     icebergMeta.set(1, getDeleteDataFileIcebergMetadata(dataFile2));
-    icebergMeta.set(2, getIcebergMetadata(dataFile3));
+    operationType.set(1, OperationType.DELETE_DATAFILE.value);
+    icebergMeta.set(2, getAddDataFileIcebergMetadata(dataFile3));
+    operationType.set(2, OperationType.ADD_DATAFILE.value);
 
     VarBinaryVector metadataVec = new VarBinaryVector(RecordWriter.METADATA_COLUMN, allocator);
-    metadataVec.allocateNew(2);
+    metadataVec.allocateNew(3);
 
     VectorContainer container = new VectorContainer();
     container.add(icebergMeta);
+    container.add(operationType);
     container.add(metadataVec);
-    container.setRecordCount(2);
+    container.setRecordCount(3);
     container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
     return container;
   }
@@ -457,42 +470,39 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     return dataFile.build();
   }
 
-  private byte[] getIcebergMetadata(DataFile dataFile) throws IOException {
+  private byte[] getAddDataFileIcebergMetadata(DataFile dataFile) throws IOException {
     byte[] dataFileBytes = IcebergSerDe.serializeDataFile(dataFile);
-    IcebergMetadataInformation icebergMetadataInformation = new IcebergMetadataInformation(
-      dataFileBytes,
-      IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE
-    );
+    IcebergMetadataInformation icebergMetadataInformation = new IcebergMetadataInformation(dataFileBytes);
     return IcebergSerDe.serializeToByteArray(icebergMetadataInformation);
   }
 
   private byte[] getDeleteDataFileIcebergMetadata(DataFile dataFile) throws IOException {
     byte[] dataFileBytes = IcebergSerDe.serializeDataFile(dataFile);
-    IcebergMetadataInformation icebergMetadataInformation = new IcebergMetadataInformation(
-      dataFileBytes,
-      IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE
-    );
+    IcebergMetadataInformation icebergMetadataInformation = new IcebergMetadataInformation(dataFileBytes);
     return IcebergSerDe.serializeToByteArray(icebergMetadataInformation);
   }
 
   private void refillIncomingVector(VectorContainer vectorContainer, int records, PartitionSpec spec, int batchId) throws IOException {
     vectorContainer.setRecordCount(records);
     VarBinaryVector icebergMeta = vectorContainer.addOrGet(RecordWriter.ICEBERG_METADATA);
+    IntVector operationType = vectorContainer.addOrGet(RecordWriter.OPERATION_TYPE);
     icebergMeta.allocateNew(records);
+    operationType.allocateNew(records);
     for (int i = 0; i < records; i++) {
       int partition = i % 16;
       DataFile dataFile = getDatafile("/path/to/datafile-" + i + "-"+ batchId+".parquet", spec, "id_bucket=" + partition);
-      icebergMeta.setSafe(i, getIcebergMetadata(dataFile));
+      icebergMeta.setSafe(i, getAddDataFileIcebergMetadata(dataFile));
+      operationType.setSafe(i, OperationType.ADD_DATAFILE.value);
     }
     VarBinaryVector metadata = vectorContainer.addOrGet(RecordWriter.METADATA);
     metadata.allocateNew(records);
   }
 
-  ManifestFile getManifestFile(byte[] manifestFileBytes) throws IOException, ClassNotFoundException {
+  private ManifestFile getManifestFile(byte[] manifestFileBytes, Integer operationTypeValue) throws IOException, ClassNotFoundException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(manifestFileBytes);
          ObjectInput in = new ObjectInputStream(bis)) {
       IcebergMetadataInformation icebergMetadataInformation = (IcebergMetadataInformation) in.readObject();
-      if(icebergMetadataInformation.getIcebergMetadataFileType() == IcebergMetadataInformation.IcebergMetadataFileType.MANIFEST_FILE) {
+      if(OperationType.valueOf(operationTypeValue) == OperationType.ADD_MANIFESTFILE) {
         return IcebergSerDe.deserializeManifestFile(icebergMetadataInformation.getIcebergMetadataFileByte());
       } else {
         throw new IOException("Wrong Type");
@@ -508,10 +518,10 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       tempFolderLoc = TestUtilities.createTempDir();
       ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc);
 
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
         try {
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
-          assertEquals(IcebergMetadataInformation.IcebergMetadataFileType.MANIFEST_FILE, icebergMetadata.getIcebergMetadataFileType());
+          assertEquals(OperationType.ADD_MANIFESTFILE, OperationType.valueOf(operationTypeValue));
           ManifestFile manifestFile = IcebergSerDe.deserializeManifestFile(icebergMetadata.getIcebergMetadataFileByte());
           assertTrue(manifestFile.hasAddedFiles());
           assertEquals(Integer.valueOf(2), manifestFile.addedFilesCount());
@@ -553,11 +563,11 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc);
       AtomicInteger matchedIdx = new AtomicInteger(0);
       List<String> expectedDataFiles = Arrays.asList("/path/to/datafile-1-pre.parquet", "/path/to/datafile-2-pre.parquet");
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
         try {
           assertNull(schemaBytes);
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
-          assertEquals(IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE, icebergMetadata.getIcebergMetadataFileType());
+          assertEquals(OperationType.DELETE_DATAFILE, OperationType.valueOf(operationTypeValue));
           DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadata.getIcebergMetadataFileByte());
           assertEquals(expectedDataFiles.get(matchedIdx.getAndIncrement()), dataFile.path().toString());
         } catch (Exception e) {
@@ -592,15 +602,16 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       AtomicInteger deleteDataFileMatchIdx = new AtomicInteger(0);
       List<String> expectedDeleteDataFiles = Arrays.asList("/path/to/datafile-1-pre.parquet", "/path/to/datafile-2-pre.parquet");
       AtomicBoolean foundManifest = new AtomicBoolean(false);
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
         try {
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
-          switch (icebergMetadata.getIcebergMetadataFileType()) {
+          OperationType operationType = OperationType.valueOf(operationTypeValue);
+          switch (operationType) {
             case DELETE_DATAFILE:
               DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadata.getIcebergMetadataFileByte());
               assertEquals(expectedDeleteDataFiles.get(deleteDataFileMatchIdx.getAndIncrement()), dataFile.path().toString());
               break;
-            case MANIFEST_FILE:
+            case ADD_MANIFESTFILE:
               ManifestFile manifestFile = IcebergSerDe.deserializeManifestFile(icebergMetadata.getIcebergMetadataFileByte());
               assertTrue(manifestFile.hasAddedFiles());
               assertEquals(0, manifestFile.partitions().size());
@@ -615,7 +626,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               foundManifest.set(true);
               break;
             default:
-              fail("Unexpected type " + icebergMetadata.getIcebergMetadataFileType());
+              fail("Unexpected type " + operationType);
           }
         } catch (Exception e) {
           fail(e.getMessage());
@@ -650,15 +661,16 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       AtomicInteger deleteDataFileMatchIdx = new AtomicInteger(0);
       List<String> expectedDeleteDataFiles = Arrays.asList("/path/to/datafile-1-pre.parquet", "/path/to/datafile-2-pre.parquet");
       AtomicBoolean foundManifest = new AtomicBoolean(false);
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
         try {
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
-          switch (icebergMetadata.getIcebergMetadataFileType()) {
+          OperationType operationType = OperationType.valueOf(operationTypeValue);
+          switch (operationType) {
             case DELETE_DATAFILE:
               DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadata.getIcebergMetadataFileByte());
               assertEquals(expectedDeleteDataFiles.get(deleteDataFileMatchIdx.getAndIncrement()), dataFile.path().toString());
               break;
-            case MANIFEST_FILE:
+            case ADD_MANIFESTFILE:
               ManifestFile manifestFile = IcebergSerDe.deserializeManifestFile(icebergMetadata.getIcebergMetadataFileByte());
               assertTrue(manifestFile.hasAddedFiles());
               assertEquals(2, manifestFile.partitions().size());
@@ -674,7 +686,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
               foundManifest.set(true);
               break;
             default:
-              fail("Unexpected type " + icebergMetadata.getIcebergMetadataFileType());
+              fail("Unexpected type " + operationType);
           }
         } catch (Exception e) {
           fail(e.getMessage());
@@ -709,27 +721,34 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
   private VectorContainer incomingUnpartitionedMixedDataFiles(BufferAllocator allocator) throws IOException {
     VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
     VarBinaryVector schema = new VarBinaryVector(RecordWriter.FILE_SCHEMA_COLUMN, allocator);
 
     icebergMeta.allocateNew(4);
+    operationType.allocateNew(4);
     schema.allocateNew(4);
 
     DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", PartitionSpec.unpartitioned(), null);
     DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", PartitionSpec.unpartitioned(), null);
     icebergMeta.set(0, getDeleteDataFileIcebergMetadata(dataFile1));
+    operationType.set(0, OperationType.DELETE_DATAFILE.value);
     icebergMeta.set(1, getDeleteDataFileIcebergMetadata(dataFile2));
+    operationType.set(1, OperationType.DELETE_DATAFILE.value);
 
     BatchSchema schemaVal = getBatchSchema(2);
     PartitionSpec spec = IcebergUtils.getIcebergPartitionSpec(schemaVal, Collections.EMPTY_LIST, null);
     DataFile dataFile3 = getDatafile("/path/to/datafile-3-pre.parquet", spec, null);
     DataFile dataFile4 = getDatafile("/path/to/datafile-4-pre.parquet", spec, null);
-    icebergMeta.set(2, getIcebergMetadata(dataFile3));
-    icebergMeta.set(3, getIcebergMetadata(dataFile4));
+    icebergMeta.set(2, getAddDataFileIcebergMetadata(dataFile3));
+    operationType.set(2, OperationType.ADD_DATAFILE.value);
+    icebergMeta.set(3, getAddDataFileIcebergMetadata(dataFile4));
+    operationType.set(3, OperationType.ADD_DATAFILE.value);
     schema.set(3, schemaVal.serialize());
 
     // Intentionally skipping schema set for other indexes in the batch.
     VectorContainer container = new VectorContainer();
     container.add(icebergMeta);
+    container.add(operationType);
     container.add(schema);
     container.setRecordCount(4);
     container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
@@ -738,15 +757,19 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
   private VectorContainer incomingPartitionedMixedDataFiles(BufferAllocator allocator) throws IOException {
     VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
     VarBinaryVector schema = new VarBinaryVector(RecordWriter.FILE_SCHEMA_COLUMN, allocator);
 
     icebergMeta.allocateNew(4);
+    operationType.allocateNew(4);
     schema.allocateNew(4);
 
     DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", PartitionSpec.unpartitioned(), null);
     DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", PartitionSpec.unpartitioned(), null);
     icebergMeta.set(0, getDeleteDataFileIcebergMetadata(dataFile1));
+    operationType.set(0, OperationType.DELETE_DATAFILE.value);
     icebergMeta.set(1, getDeleteDataFileIcebergMetadata(dataFile2));
+    operationType.set(1, OperationType.DELETE_DATAFILE.value);
 
     BatchSchema schemaWithoutPartitions = getBatchSchema(2);
     List<Field> withPartitionFields = new ArrayList<>(schemaWithoutPartitions.getFields());
@@ -758,13 +781,16 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
     PartitionSpec spec4 = IcebergUtils.getIcebergPartitionSpec(schemaVal, Arrays.asList("dir0", "dir1"), null);
     DataFile dataFile4 = getDatafile("/path/to/datafile-4-pre.parquet", spec4, "dir0=1/dir1=2");
-    icebergMeta.set(2, getIcebergMetadata(dataFile3));
-    icebergMeta.set(3, getIcebergMetadata(dataFile4));
+    icebergMeta.set(2, getAddDataFileIcebergMetadata(dataFile3));
+    operationType.set(2, OperationType.ADD_DATAFILE.value);
+    icebergMeta.set(3, getAddDataFileIcebergMetadata(dataFile4));
+    operationType.set(3, OperationType.ADD_DATAFILE.value);
     schema.set(3, schemaVal.serialize());
 
     // Intentionally skipping schema set for other indexes in the batch.
     VectorContainer container = new VectorContainer();
     container.add(icebergMeta);
+    container.add(operationType);
     container.add(schema);
     container.setRecordCount(4);
     container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
@@ -774,19 +800,24 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
   private VectorContainer incomingUnpartitionedDeletedDataFiles(BufferAllocator allocator) throws IOException {
     VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
     VarBinaryVector schema = new VarBinaryVector(RecordWriter.FILE_SCHEMA_COLUMN, allocator);
 
     icebergMeta.allocateNew(2);
+    operationType.allocateNew(2);
     schema.allocateNew(2);
 
     DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", PartitionSpec.unpartitioned(), null);
     DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", PartitionSpec.unpartitioned(), null);
     icebergMeta.set(0, getDeleteDataFileIcebergMetadata(dataFile1));
+    operationType.set(0, OperationType.DELETE_DATAFILE.value);
     icebergMeta.set(1, getDeleteDataFileIcebergMetadata(dataFile2));
+    operationType.set(1, OperationType.DELETE_DATAFILE.value);
 
     // Intentionally skipping schema set for other indexes in the batch.
     VectorContainer container = new VectorContainer();
     container.add(icebergMeta);
+    container.add(operationType);
     container.add(schema);
     container.setRecordCount(2);
     container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
@@ -795,9 +826,11 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
   private VectorContainer incomingUnpartitionedAddedDataFiles(BufferAllocator allocator) throws IOException {
     VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
     VarBinaryVector schema = new VarBinaryVector(RecordWriter.FILE_SCHEMA_COLUMN, allocator);
 
     icebergMeta.allocateNew(2);
+    operationType.allocateNew(2);
     schema.allocateNew(2);
 
     BatchSchema schemaVal = getBatchSchema(2);
@@ -805,13 +838,16 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
     DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", spec, null);
     DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", spec, null);
-    icebergMeta.set(0, getIcebergMetadata(dataFile1));
-    icebergMeta.set(1, getIcebergMetadata(dataFile2));
+    icebergMeta.set(0, getAddDataFileIcebergMetadata(dataFile1));
+    operationType.set(0, OperationType.ADD_DATAFILE.value);
+    icebergMeta.set(1, getAddDataFileIcebergMetadata(dataFile2));
+    operationType.set(1, OperationType.ADD_DATAFILE.value);
     schema.set(0, schemaVal.toByteArray());
     // Intentionally skipping schema set for other indexes in the batch.
 
     VectorContainer container = new VectorContainer();
     container.add(icebergMeta);
+    container.add(operationType);
     container.add(schema);
     container.setRecordCount(2);
     container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
@@ -826,7 +862,6 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)).thenReturn(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getNumVal());
     when(operatorContext.getOptions()).thenReturn(options);
     IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, true);
-    IcebergFormatConfig icebergFormatConfig = new IcebergFormatConfig();
 
     ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, manifestWriterPOP);
     manifestFileRecordWriter = spy(manifestFileRecordWriter);

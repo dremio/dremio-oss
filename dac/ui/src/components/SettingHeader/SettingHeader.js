@@ -13,42 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { FormattedMessage } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { FormattedMessage } from "react-intl";
 
-import Art from 'components/Art';
+import Art from "components/Art";
 
-import './settingHeader.less';
+import "./settingHeader.less";
 
 class SettingHeader extends PureComponent {
-
   static propTypes = {
     title: PropTypes.string,
     children: PropTypes.node,
     endChildren: PropTypes.node,
-    icon: PropTypes.string
+    icon: PropTypes.string,
   };
 
-
   render() {
-    const {
-      title,
-      endChildren,
-      icon,
-      children
-    } = this.props;
+    const { title, endChildren, icon, children } = this.props;
 
     return (
-      <div className='settingHeader__root'>
-        <div className='settingHeader__title'>
-          {icon && <Art src={icon} alt='>' className='settingHeader__icon margin-right'/>}
+      <div className="settingHeader__root">
+        <div className="settingHeader__title">
+          {icon && (
+            <Art
+              src={icon}
+              alt=">"
+              className="settingHeader__icon margin-right"
+            />
+          )}
           {title && <FormattedMessage id={title} defaultMessage={title} />}
           {children}
         </div>
-        <div className='settingHeader__endChildren'>
-          {endChildren}
-        </div>
+        <div className="settingHeader__endChildren">{endChildren}</div>
       </div>
     );
   }

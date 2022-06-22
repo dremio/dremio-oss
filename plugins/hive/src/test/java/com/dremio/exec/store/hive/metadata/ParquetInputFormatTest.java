@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import junit.framework.TestCase;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.InputSplit;
@@ -31,6 +30,8 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.google.common.io.Resources;
+
+import junit.framework.TestCase;
 
 /**
  * Basic tests for ParquetInputFormat.getSplits

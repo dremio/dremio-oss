@@ -13,37 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import ReflectionCreated from './ReflectionsCreated';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import ReflectionCreated from "./ReflectionsCreated";
 
 const reflections = Immutable.fromJS([
   {
-    reflectionName: 'Raw Reflection',
-    reflectionCreated: '1626236060790',
-    reflectionPath: 'transaction_analysis.base_views.scrubbed_transactions'
+    reflectionName: "Raw Reflection",
+    reflectionCreated: "1626236060790",
+    reflectionPath: "transaction_analysis.base_views.scrubbed_transactions",
   },
   {
-    reflectionName: 'Reflection.TransactionsRaw',
-    reflectionCreated: '1626237060360',
-    reflectionPath: 'transaction_analysis.base_views.scrubbed_transactions'
-  }
+    reflectionName: "Reflection.TransactionsRaw",
+    reflectionCreated: "1626237060360",
+    reflectionPath: "transaction_analysis.base_views.scrubbed_transactions",
+  },
 ]);
 
-
-describe('reflectionCreated', () => {
+describe("reflectionCreated", () => {
   const minimalProps = {
     reflections: new Immutable.List(),
-    location: {}
+    location: {},
   };
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<ReflectionCreated {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('renders child correctly', () => {
+  it("renders child correctly", () => {
     minimalProps.reflections = reflections;
     const wrapper = shallow(<ReflectionCreated {...minimalProps} />);
-    expect(wrapper.find('[data-qa="reflectionsTestCase"]').length).equal(reflections.size);
+    expect(wrapper.find('[data-qa="reflectionsTestCase"]').length).equal(
+      reflections.size
+    );
   });
 });

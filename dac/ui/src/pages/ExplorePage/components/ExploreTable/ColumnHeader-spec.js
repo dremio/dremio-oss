@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Cell } from 'fixed-data-table-2';
+import { shallow } from "enzyme";
+import { Cell } from "fixed-data-table-2";
 
-import ColumnHeader from './ColumnHeader';
+import { ColumnHeader } from "./ColumnHeader";
 
-describe('ColumnHeader', () => {
-
+describe("ColumnHeader", () => {
   let minimalProps;
   let commonProps;
   let preconfirmPromise;
@@ -27,47 +26,47 @@ describe('ColumnHeader', () => {
     preconfirmPromise = Promise.resolve();
     minimalProps = {
       column: {
-        name: 'someName',
-        type: 'TEXT'
+        name: "someName",
+        type: "TEXT",
       },
-      dragType: 'groupBy',
+      dragType: "groupBy",
       updateColumnName: sinon.spy(),
       makeTransform: sinon.spy(),
-      preconfirmTransform: sinon.stub().returns(preconfirmPromise)
+      preconfirmTransform: sinon.stub().returns(preconfirmPromise),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ColumnHeader {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ColumnHeader {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render Cell', () => {
-    const wrapper = shallow(<ColumnHeader {...commonProps}/>);
+  it("should render Cell", () => {
+    const wrapper = shallow(<ColumnHeader {...commonProps} />);
     expect(wrapper.find(Cell)).to.have.length(1);
   });
 
-  describe('#handleFocus', () => {
+  describe("#handleFocus", () => {
     let instance;
     beforeEach(() => {
-      instance = shallow(<ColumnHeader {...commonProps}/>).instance();
+      instance = shallow(<ColumnHeader {...commonProps} />).instance();
       instance.input = {
         focus: sinon.spy(),
-        blur: sinon.spy()
+        blur: sinon.spy(),
       };
     });
 
-    it('should do nothing when forceFocus is set', () => {
+    it("should do nothing when forceFocus is set", () => {
       instance.forceFocus = true;
       instance.handleFocus();
       expect(instance.input.focus).to.not.be.called;
       expect(instance.input.blur).to.not.be.called;
     });
 
-    it('should blur input, and call preconfirmTransform', (done) => {
+    it("should blur input, and call preconfirmTransform", () => {
       const clock = sinon.useFakeTimers();
       instance.handleFocus();
       clock.tick(1);
@@ -76,9 +75,9 @@ describe('ColumnHeader', () => {
       expect(commonProps.preconfirmTransform).to.be.called;
       clock.restore();
 
-      preconfirmPromise.then(() => {
+      return preconfirmPromise.then(() => {
         expect(instance.input.focus).to.be.called;
-        done();
+        return null;
       });
     });
   });

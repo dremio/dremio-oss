@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Art from '@app/components/Art';
+import Art from "@app/components/Art";
 
 export default function AutoStatus(props) {
   const { value, style, offIcon } = props;
   // off icon is shown as '-' in the list and as "x" in the engine status summary bar
   // the x icon is passed in as an optional param
-  const iconSrc = value ? 'SimpleCheckMark.svg' : offIcon || 'SimpleMinus.svg';
-  const size = (offIcon || value) ? 24 : 9; //SimpleMinus.svg has no padding
-  const pad = (offIcon || value) ? 0 : 7;
-  const altText = value ? la('On') : la('Off');
+  const iconSrc = value ? "SimpleCheckMark.svg" : offIcon || "SimpleMinus.svg";
+  const size = offIcon || value ? 24 : 9; //SimpleMinus.svg has no padding
+  const pad = offIcon || value ? 0 : 7;
+  const altText = value ? la("On") : la("Off");
   return (
     <Art
       src={iconSrc}
-      style={{height: size, width: size, marginLeft: pad, ...style}}
+      style={{ height: size, width: size, marginLeft: pad, ...style }}
       alt={altText}
       title
     />
@@ -38,5 +38,5 @@ export default function AutoStatus(props) {
 AutoStatus.propTypes = {
   value: PropTypes.bool,
   style: PropTypes.object,
-  offIcon: PropTypes.string
+  offIcon: PropTypes.string,
 };

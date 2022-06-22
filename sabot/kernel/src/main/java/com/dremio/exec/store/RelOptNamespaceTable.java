@@ -103,7 +103,7 @@ public final class RelOptNamespaceTable implements RelOptTable {
 
   @Override
   public boolean isKey(ImmutableBitSet columns) {
-    return false;
+    return table.getStatistic().isKey(columns);
   }
 
   @Override

@@ -16,31 +16,33 @@
 
 export const getAlwaysPresentFunctionalConfig = () => [
   {
-    label: la('Enable this source to be used with other sources even though Disable Cross Source is configured'),
-    propertyName: 'allowCrossSourceSelection',
-    type: 'boolean'
+    label: la(
+      "Enable this source to be used with other sources even though Disable Cross Source is configured"
+    ),
+    propertyName: "allowCrossSourceSelection",
+    type: "boolean",
   },
   {
-    label: la('Disable check for expired metadata while querying'),
-    propertyName: 'disableMetadataValidityCheck',
-    type: 'boolean'
-  }
+    label: la("Disable check for expired metadata while querying"),
+    propertyName: "disableMetadataValidityCheck",
+    type: "boolean",
+  },
 ];
 
 export const crossSourceSelectionUiConfig = {
-  propName: 'allowCrossSourceSelection',
+  propName: "allowCrossSourceSelection",
   visibilityControl: {
-    config: 'crossSourceDisabled',
-    showCondition: true
-  }
+    config: "crossSourceDisabled",
+    showCondition: true,
+  },
 };
 
 export const inlineMetadataRefreshConfig = {
-  propName: 'disableMetadataValidityCheck',
+  propName: "disableMetadataValidityCheck",
   visibilityControl: {
-    config: 'showMetadataValidityCheckbox',
-    showCondition: true
-  }
+    config: "showMetadataValidityCheckbox",
+    showCondition: true,
+  },
 };
 
 export const LOOSE_ELEMENT_IGNORE_LIST = [];
@@ -57,17 +59,17 @@ const addAlwaysPresent = ({ elements }, { form }) => {
   form.tabs[1].sections = form.tabs[1].sections || [];
 
   const {
-    sections: [firstSection = {}]
+    sections: [firstSection = {}],
   } = form.tabs[1];
 
   if (form && form.tabs[1]) {
     form.tabs[1].sections[0] = {
-      ...(firstSection),
+      ...firstSection,
       elements: [
         ...(firstSection.elements || []),
         crossSourceSelectionUiConfig,
-        inlineMetadataRefreshConfig
-      ]
+        inlineMetadataRefreshConfig,
+      ],
     };
   }
 };

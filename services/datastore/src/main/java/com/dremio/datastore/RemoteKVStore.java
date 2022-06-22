@@ -160,7 +160,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     final String tag;
     final PutRequestDocumentWriter putRequestDocumentWriter = new PutRequestDocumentWriter();
     if (helper.hasDocumentConverter()) {
-      helper.getDocumentConverter().convert(putRequestDocumentWriter, key, value);
+      helper.getDocumentConverter().doConvert(putRequestDocumentWriter, key, value);
     }
 
     try (TimerContext timer = time(Stats.PUT)) {

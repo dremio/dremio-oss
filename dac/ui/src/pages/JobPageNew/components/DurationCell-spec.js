@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount } from 'enzyme';
-import { Tooltip } from '@app/components/Tooltip';
-import DurationCell from './DurationCell';
+import { mount } from "enzyme";
+import { Tooltip } from "@app/components/Tooltip";
+import DurationCell from "./DurationCell";
 
-describe('DurationCell', () => {
+describe("DurationCell", () => {
   let commonProps;
   const context = { loggedInUser: {} };
   beforeEach(() => {
     commonProps = {
-      duration: '00:00:05'
+      duration: "00:00:05",
     };
   });
 
-  it('should render with props without exploding', () => {
+  it("should render with props without exploding", () => {
     const wrapper = mount(<DurationCell {...commonProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should show tooltip on mouse hover', () => {
+  it("should show tooltip on mouse hover", () => {
     const wrapper = mount(<DurationCell {...commonProps} />, { context });
-    wrapper.simulate('mouseover');
+    wrapper.simulate("mouseover");
     const component = wrapper.find(Tooltip);
     expect(component.exists()).to.eql(true);
   });

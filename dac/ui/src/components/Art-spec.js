@@ -13,36 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Art from './Art';
+import Art from "./Art";
 
-describe('Art-spec', () => {
+describe("Art-spec", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      src: '_TestBitmap.png',
-      alt: 'some text'
+      src: "_TestBitmap.png",
+      alt: "some text",
     };
     commonProps = {
       ...minimalProps,
-      title: 'tooltip'
+      title: "tooltip",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Art {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
+  it("should render with common props without exploding", () => {
     const wrapper = shallow(<Art {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with <SVG> as needed', () => {
-    const wrapper = shallow(<Art {...commonProps} src='NarwhalLogo.svg' />);
-    expect(wrapper.find('SVG')).to.have.length(1);
+  it("should render with <SVG> as needed", () => {
+    const wrapper = shallow(<Art {...commonProps} src="NarwhalLogo.svg" />);
+    expect(wrapper.find("SVG")).to.have.length(1);
   });
 });

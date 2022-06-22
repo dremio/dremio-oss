@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { useState } from "react";
+import { FormattedMessage } from "react-intl";
 
 import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText
-} from '@material-ui/core';
+  DialogContentText,
+} from "@material-ui/core";
 
 import {
   Merge,
   MergeRefIntoBranchRequest,
-  Reference
-} from '@app/services/nessie/client';
-import { CustomDialogTitle } from '../NewBranchDialog/utils';
-import { useNessieContext } from '../../utils/context';
+  Reference,
+} from "@app/services/nessie/client";
+import { CustomDialogTitle } from "../NewBranchDialog/utils";
+import { useNessieContext } from "../../utils/context";
 
-import './MergeBranchDialog.less';
+import "./MergeBranchDialog.less";
 
 type MergeBranchDialogProps = {
   open: boolean;
@@ -48,7 +48,7 @@ function MergeBranchDialog({
   mergeFrom,
   mergeTo,
   closeDialog,
-  setSuccessMessage
+  setSuccessMessage,
 }: MergeBranchDialogProps): JSX.Element {
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
@@ -63,13 +63,13 @@ function MergeBranchDialog({
         expectedHash: mergeTo.hash,
         merge: {
           fromRefName: mergeFrom.name,
-          fromHash: mergeFrom.hash as string
-        } as Merge
+          fromHash: mergeFrom.hash as string,
+        } as Merge,
       } as MergeRefIntoBranchRequest);
 
       if (setSuccessMessage) {
         setSuccessMessage(
-          <FormattedMessage id='BranchHistory.Dialog.MergeBranch.Success' />
+          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Success" />
         );
       }
 
@@ -77,17 +77,17 @@ function MergeBranchDialog({
       closeDialog();
       setIsSending(false);
     } catch (error: any) {
-      if (error.statusText === 'Conflict') {
+      if (error.status === 409) {
         setErrorText(
-          <FormattedMessage id='BranchHistory.Dialog.MergeBranch.Error.Conflict' />
+          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Error.Conflict" />
         );
-      } else if (error.statusText === 'Bad Request') {
+      } else if (error.status === 400) {
         setErrorText(
-          <FormattedMessage id='BranchHistory.Dialog.MergeBranch.Error.NoHashes' />
+          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Error.NoHashes" />
         );
       } else {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.DeleteBranch.Error' />
+          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
         );
       }
 
@@ -97,41 +97,41 @@ function MergeBranchDialog({
 
   return (
     <div>
-      <Dialog open={open} onClose={closeDialog} className='merge-branch-dialog'>
+      <Dialog open={open} onClose={closeDialog} className="merge-branch-dialog">
         <CustomDialogTitle
           onClose={closeDialog}
-          className='merge-branch-dialog-header'
+          className="merge-branch-dialog-header"
         >
-          <span className='merge-branch-dialog-header-title'>
+          <span className="merge-branch-dialog-header-title">
             <FormattedMessage
-              id='BranchHistory.Dialog.MergeBranch.MergeBranch'
+              id="BranchHistory.Dialog.MergeBranch.MergeBranch"
               values={{
                 srcBranch: mergeFrom.name,
-                dstBranch: mergeTo.name
+                dstBranch: mergeTo.name,
               }}
             />
           </span>
         </CustomDialogTitle>
-        <DialogContent className='merge-branch-dialog-body'>
+        <DialogContent className="merge-branch-dialog-body">
           <DialogContentText>
-            <FormattedMessage id='BranchHistory.Dialog.MergeBranch.ContentText' />
+            <FormattedMessage id="BranchHistory.Dialog.MergeBranch.ContentText" />
           </DialogContentText>
-          <div className='merge-branch-dialog-body-error'>{errorText}</div>
+          <div className="merge-branch-dialog-body-error">{errorText}</div>
         </DialogContent>
-        <DialogActions className='merge-branch-dialog-actions'>
+        <DialogActions className="merge-branch-dialog-actions">
           <Button
             onClick={closeDialog}
             disabled={isSending}
-            className='cancel-button'
+            className="cancel-button"
           >
-            <FormattedMessage id='Common.Cancel' />
+            <FormattedMessage id="Common.Cancel" />
           </Button>
           <Button
             onClick={onMerge}
             disabled={isSending}
-            className='merge-button'
+            className="merge-button"
           >
-            <FormattedMessage id='BranchHistory.Header.Merge' />
+            <FormattedMessage id="BranchHistory.Header.Merge" />
           </Button>
         </DialogActions>
       </Dialog>

@@ -15,14 +15,14 @@
  */
 // common style for all pages
 export const page = {
-  minHeight: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%'
+  minHeight: "100%",
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
 };
 
 export const pageContent = {
   flexGrow: 1,
-  height: '100%',
-  overflow: 'auto'
+  height: "100%",
+  overflow: "auto",
 };

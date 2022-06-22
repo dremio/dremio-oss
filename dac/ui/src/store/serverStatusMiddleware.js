@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { serverUnavailable } from 'actions/serverStatus';
-
+import { serverUnavailable } from "actions/serverStatus";
 
 function serverStatusMiddleware() {
-  return () => next => action => {
-
-
+  return () => (next) => (action) => {
     if (action.error) {
       if (action.payload && action.payload.status === 503) {
         next(action);
-        return next(serverUnavailable('503'));
+        return next(serverUnavailable("503"));
       }
     }
     return next(action);

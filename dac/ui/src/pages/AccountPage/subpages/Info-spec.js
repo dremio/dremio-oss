@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { minimalFormProps } from 'testUtil';
-import EditUserForm from '@app/pages/AdminPage/components/forms/EditUserForm';
-import { Info } from './Info';
+import { shallow } from "enzyme";
+import { minimalFormProps } from "testUtil";
+import EditUserForm from "@app/pages/AdminPage/components/forms/EditUserForm";
+import { Info } from "./Info";
 
-describe('Info', () => {
-
+describe("Info", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -29,29 +28,29 @@ describe('Info', () => {
       handleSubmit: sinon.stub().returns(() => {}),
       cancel: sinon.spy(),
       fields: {},
-      updateFormDirtyState: () => {}
+      updateFormDirtyState: () => {},
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Info {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
+  it("should render with common props without exploding", () => {
     const wrapper = shallow(<Info {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render FormInfo with common props', () => {
+  it("should render FormInfo with common props", () => {
     const wrapper = shallow(<Info {...commonProps} />);
     expect(wrapper.find(EditUserForm)).to.have.length(1);
   });
 
-  it('should render UserForm with common props', () => {
+  it("should render UserForm with common props", () => {
     const wrapper = shallow(<Info {...commonProps} />);
     expect(wrapper.find(EditUserForm)).to.have.length(1);
   });

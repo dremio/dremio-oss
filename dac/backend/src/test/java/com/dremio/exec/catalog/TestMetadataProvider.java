@@ -238,7 +238,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(30, tables.size());
+    assertEquals(31, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -265,6 +265,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "timezone_abbrevs", iterator.next());
     verifyTable("sys", "timezone_names", iterator.next());
+    verifyTable("sys", "user_defined_functions", iterator.next());
     verifyTable("sys", "version", iterator.next());
     verifyTable("sys.cache", "datasets", iterator.next());
     verifyTable("sys.cache", "mount_points", iterator.next());
@@ -294,7 +295,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(29, tables.size());
+    assertEquals(30, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -321,6 +322,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "timezone_abbrevs", iterator.next());
     verifyTable("sys", "timezone_names", iterator.next());
+    verifyTable("sys", "user_defined_functions", iterator.next());
     verifyTable("sys", "version", iterator.next());
     verifyTable("sys.cache", "datasets", iterator.next());
     verifyTable("sys.cache", "mount_points", iterator.next());
@@ -337,7 +339,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(18, tables.size());
+    assertEquals(19, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -354,6 +356,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "roles", iterator.next());
     verifyTable("sys", "timezone_abbrevs", iterator.next());
     verifyTable("sys", "timezone_names", iterator.next());
+    verifyTable("sys", "user_defined_functions", iterator.next());
     verifyTable("sys", "version", iterator.next());
     verifyTable("sys.cache", "mount_points", iterator.next());
     verifyTable("sys.cache", "objects", iterator.next());
@@ -386,7 +389,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(277, columns1.size());
+    assertEquals(286, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
@@ -468,6 +471,22 @@ public class TestMetadataProvider extends BaseTestQuery {
     Iterator<ColumnMetadata> iterator = columns.iterator();
     verifyColumn("sys", "nodes", "user_port", iterator.next());
     verifyColumn("sys", "nodes", "fabric_port", iterator.next());
+  }
+
+  @Test
+  public void refreshCompletionTimeAndDuration() throws Exception {
+
+    GetColumnsResp resp = client.getColumns(null, null, null,
+      LikeFilter.newBuilder().setPattern("%last_refresh\\_%").setEscape("\\").build()).get();
+
+    assertEquals(RequestStatus.OK, resp.getStatus());
+    List<ColumnMetadata> columns = resp.getColumnsList();
+    assertEquals(3, columns.size());
+
+    Iterator<ColumnMetadata> iterator = columns.iterator();
+    verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
+    verifyColumn("sys", "materializations", "last_refresh_finished", iterator.next());
+    verifyColumn("sys", "materializations", "last_refresh_duration_millis", iterator.next());
   }
 
   /** Helper method to verify schema contents */

@@ -60,6 +60,7 @@ import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.UniqueUserStats;
 import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -138,13 +139,20 @@ public class HybridJobsService implements JobsService {
   }
 
   @Override
-  public JobId submitJob(SubmitJobRequest jobRequest, JobStatusListener statusListener) {
+  public JobSubmission submitJob(SubmitJobRequest jobRequest, JobStatusListener statusListener) {
     final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(statusListener);
     getAsyncStub().submitJob(jobRequest, adapter);
-    JobId jobId = adapter.getJobId();
-    //Set the current JobID in span to enable searching of traces by JobId.
-    Span.current().setAttribute("jobId", jobId.getId());
-    return jobId;
+    JobSubmission jobSubmission = adapter.getJobSubmission();
+    enableTraces(jobSubmission);
+    return jobSubmission;
+  }
+
+  private void enableTraces(JobSubmission jobSubmission) {
+    // Set the current JobID in span to enable searching of traces by JobId.
+    Span.current().setAttribute("jobId", jobSubmission.getJobId().getId());
+    if (jobSubmission.getSessionId() != null) {
+      Span.current().setAttribute("sessionId", jobSubmission.getSessionId().getId());
+    }
   }
 
   @Override
@@ -319,6 +327,8 @@ public class HybridJobsService implements JobsService {
     switch (sre.getStatus().getCode()) {
     case NOT_FOUND:
       throw new JobNotFoundException(jobId, sre);
+    case FAILED_PRECONDITION:
+      throw new JobCancelException(String.format("Job %s may have completed and cannot be canceled.",jobId));
     case PERMISSION_DENIED:
       throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job [%s]", username, jobId));
@@ -338,6 +348,8 @@ public class HybridJobsService implements JobsService {
         throw new ReflectionJobValidationException(jobId, reflectionId);
       case NOT_FOUND:
         throw new JobNotFoundException(jobId, sre);
+      case FAILED_PRECONDITION:
+        throw new JobCancelException(sre.getMessage());
       case PERMISSION_DENIED:
         throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job for reflection [%s]", username, reflectionId));

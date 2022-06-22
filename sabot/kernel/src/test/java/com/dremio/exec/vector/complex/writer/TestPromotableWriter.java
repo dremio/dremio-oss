@@ -20,6 +20,7 @@ import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.junit.Test;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.store.TestOutputMutator;
 import com.dremio.exec.util.BatchPrinter;
@@ -28,47 +29,48 @@ public class TestPromotableWriter extends ExecTest {
 
   @Test
   public void list() throws Exception {
-    TestOutputMutator output = new TestOutputMutator(allocator);
-    ComplexWriter rootWriter = new VectorContainerWriter(output);
-    try(StructWriter writer = rootWriter.rootAsStruct()){
+    try (AutoCloseables.RollbackCloseable closer = new AutoCloseables.RollbackCloseable()) {
+      TestOutputMutator output = new TestOutputMutator(allocator);
+      closer.add(output);
+      ComplexWriter rootWriter = new VectorContainerWriter(output);
+      try (StructWriter writer = rootWriter.rootAsStruct()) {
 
+        StructWriter w = writer.struct("struct");
+        rootWriter.setPosition(0);
+        {
+          w.start();
+          w.bigInt("a").writeBigInt(1);
+          w.end();
+        }
+        rootWriter.setPosition(1);
+        {
+          w.start();
+          w.float4("a").writeFloat4(2.0f);
+          w.end();
+        }
+        rootWriter.setPosition(2);
+        {
+          w.start();
+          w.list("a").startList();
+          w.list("a").endList();
+          w.end();
+        }
+        rootWriter.setPosition(3);
+        {
+          w.start();
+          writer.struct("struct").list("a").startList();
+          writer.struct("struct").list("a").bigInt()
+              .writeBigInt(3);
+          writer.struct("struct").list("a").float4().writeFloat4(4);
+          writer.struct("struct").list("a").endList();
+          w.end();
+        }
 
-      StructWriter w = writer.struct("struct");
-      rootWriter.setPosition(0);
-      {
-        w.start();
-        w.bigInt("a").writeBigInt(1);
-        w.end();
-      }
-      rootWriter.setPosition(1);
-      {
-        w.start();
-        w.float4("a").writeFloat4(2.0f);
-        w.end();
-      }
-      rootWriter.setPosition(2);
-      {
-        w.start();
-        w.list("a").startList();
-        w.list("a").endList();
-        w.end();
-      }
-      rootWriter.setPosition(3);
-      {
-        w.start();
-        writer.struct("struct").list("a").startList();
-        writer.struct("struct").list("a").bigInt()
-        .writeBigInt(3);
-        writer.struct("struct").list("a").float4().writeFloat4(4);
-        writer.struct("struct").list("a").endList();
-        w.end();
-      }
+        rootWriter.setValueCount(4);
 
-      rootWriter.setValueCount(4);
-
-      output.finalizeContainer(4);
-      BatchPrinter.printBatch(output.getContainer());
+        output.finalizeContainer(4);
+        BatchPrinter.printBatch(output.getContainer(), true, false);
+      }
     }
   }
-
 }

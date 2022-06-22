@@ -58,6 +58,7 @@ public class OutgoingBatch extends VectorContainer {
   private final int batchIdx;
   private final int nextBatchIdx;
   private final int maxRecords;
+  private boolean firstTimeAllocDone;
 
   /** tracks how many rows will be copied in current pass */
   private int preCopyIdx;
@@ -106,6 +107,16 @@ public class OutgoingBatch extends VectorContainer {
 
   FieldVector getFieldVector(int fieldId) {
     return (FieldVector) wrappers.get(fieldId).getValueVector();
+  }
+
+  @Override
+  public void allocateNew() {
+    firstTimeAllocDone = true;
+    super.allocateNew();
+  }
+
+  boolean isFirstTimeAllocDone() {
+    return firstTimeAllocDone;
   }
 
   boolean isFull() {

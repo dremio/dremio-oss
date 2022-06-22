@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
 function getId(jobDetails) {
   return jobDetails.jobId.id;
 }
 
-const jobDetails = new Schema('jobDetails', {
-  idAttribute: getId
+const jobDetails = new Schema("jobDetails", {
+  idAttribute: getId,
 });
 
 export default jobDetails;

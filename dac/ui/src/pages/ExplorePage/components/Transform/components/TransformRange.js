@@ -13,24 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import d3 from 'd3';
-import moment from 'moment';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import d3 from "d3";
+import moment from "@app/utils/dayjs";
 
-import Checkbox from 'components/Fields/Checkbox';
-import { isDateType, dateTypeToFormat, convertToUnix } from '@app/constants/DataTypes';
-import { isEmptyValue } from 'utils/validation';
+import Checkbox from "components/Fields/Checkbox";
+import {
+  isDateType,
+  dateTypeToFormat,
+  convertToUnix,
+} from "@app/constants/DataTypes";
+import { isEmptyValue } from "utils/validation";
 
-import TransformRangeBound from './TransformRangeBound';
-import TransformRangeGraph from './TransformRangeGraph';
-import './TransformRange.less';
+import TransformRangeBound from "./TransformRangeBound";
+import TransformRangeGraph from "./TransformRangeGraph";
+import "./TransformRange.less";
 
-@Radium
-export default class TransformRange extends Component {
+class TransformRange extends Component {
   static getFields() {
-    return ['upperBound', 'lowerBound', 'keepNull', 'lowerBoundInclusive', 'upperBoundInclusive'];
+    return [
+      "upperBound",
+      "lowerBound",
+      "keepNull",
+      "lowerBoundInclusive",
+      "upperBoundInclusive",
+    ];
   }
 
   static propTypes = {
@@ -38,11 +46,11 @@ export default class TransformRange extends Component {
     data: PropTypes.array,
     columnType: PropTypes.string,
     chartWidth: PropTypes.number,
-    isReplace: PropTypes.bool
+    isReplace: PropTypes.bool,
   };
 
   static getAnchorBound(bound, domain) {
-    const diffs = domain.map(item => {
+    const diffs = domain.map((item) => {
       return bound - item;
     });
 
@@ -54,7 +62,7 @@ export default class TransformRange extends Component {
   }
 
   static getChartOffsetForBound({ bound, width, data }) {
-    if (bound === '' || bound === null || !data || data.length === 0) {
+    if (bound === "" || bound === null || !data || data.length === 0) {
       return null;
     }
 
@@ -82,7 +90,8 @@ export default class TransformRange extends Component {
     const range = [0, width];
     // copied from C3 for to exactly match positioning of sliders
     // https://github.com/c3js/c3/blob/master/src/scale.js
-    const _scale = d3.scale.linear()
+    const _scale = d3.scale
+      .linear()
       .domain([0, length - 1])
       .range(range);
     const scale = (d, raw) => {
@@ -125,21 +134,28 @@ export default class TransformRange extends Component {
 
   transformValue(value) {
     const { columnType } = this.props;
-    return isDateType(columnType) ? moment.utc(value).format(dateTypeToFormat[columnType]) : value;
+    return isDateType(columnType)
+      ? moment.utc(value).format(dateTypeToFormat[columnType])
+      : value;
   }
 
   updateValue(field, offset) {
-    const scale = TransformRange.getXScale(this.props.chartWidth, this.domain.length);
+    const scale = TransformRange.getXScale(
+      this.props.chartWidth,
+      this.domain.length
+    );
     const maxDiff = (scale(1) - scale(0)) / 2;
     const newValue = this.domain.find((v, i) => {
-      return (Math.abs(scale(i) - offset) <= maxDiff);
+      return Math.abs(scale(i) - offset) <= maxDiff;
     });
 
     field.onChange(this.transformValue(newValue));
   }
 
   validateBound = (isRight) => (newValue) => {
-    const { fields: { lowerBound, upperBound } } = this.props;
+    const {
+      fields: { lowerBound, upperBound },
+    } = this.props;
     const { value: lowerValue } = lowerBound;
     const { value: upperValue } = upperBound;
 
@@ -152,26 +168,36 @@ export default class TransformRange extends Component {
     }
 
     return isEmptyValue(upperValue) || Number(newValue) < Number(upperValue);
-  }
+  };
 
   renderKeepNullCheckbox() {
-    const { fields: { keepNull }, isReplace} = this.props;
+    const {
+      fields: { keepNull },
+      isReplace,
+    } = this.props;
     if (!isReplace) {
-      return  (<div style={[styles.footer]}>
-        <Checkbox
-          {...keepNull}
-          label={<span>{la('Keep null values')}</span>}
-          labelStyle={styles.labelChecked }
-          dummyInputStyle={styles.dummyStyle}
-          style={styles.checkbox}
-        />
-      </div>);
+      return (
+        <div style={styles.footer} className="keep-null-wrapper">
+          <Checkbox
+            {...keepNull}
+            label={<span>{la("Keep null values")}</span>}
+            labelStyle={styles.labelChecked}
+            dummyInputStyle={styles.dummyStyle}
+            style={styles.checkbox}
+          />
+        </div>
+      );
     }
     return;
   }
 
   render() {
-    const { columnType, fields: { lowerBound, upperBound }, data, chartWidth } = this.props;
+    const {
+      columnType,
+      fields: { lowerBound, upperBound },
+      data,
+      chartWidth,
+    } = this.props;
 
     if (!data) {
       return null;
@@ -179,44 +205,49 @@ export default class TransformRange extends Component {
 
     const boundOptions = {
       width: chartWidth,
-      data: this.domain
+      data: this.domain,
     };
-    const lowerValue = isDateType(columnType) ? convertToUnix(lowerBound.value, columnType) : lowerBound.value;
-    const upperValue = isDateType(columnType) ? convertToUnix(upperBound.value, columnType) : upperBound.value;
-    const leftRangeOffset =
-      TransformRange.getChartOffsetForBound({
-        ...boundOptions,
-        bound: lowerValue
-      });
+    const lowerValue = isDateType(columnType)
+      ? convertToUnix(lowerBound.value, columnType)
+      : lowerBound.value;
+    const upperValue = isDateType(columnType)
+      ? convertToUnix(upperBound.value, columnType)
+      : upperBound.value;
+    const leftRangeOffset = TransformRange.getChartOffsetForBound({
+      ...boundOptions,
+      bound: lowerValue,
+    });
 
-    const rightRangeOffset =
-      TransformRange.getChartOffsetForBound({
-        ...boundOptions,
-        bound: upperValue
-      });
-    const widthForColumns = isDateType(columnType)
-      ? { minWidth: 235 }
-      : {};
+    const rightRangeOffset = TransformRange.getChartOffsetForBound({
+      ...boundOptions,
+      bound: upperValue,
+    });
+    const widthForColumns = isDateType(columnType) ? { minWidth: 235 } : {};
 
     return (
-      <div className='transform-range' style={[styles.base]}>
-        <div style={[styles.content]}>
-          <div style={[styles.header]}>
-            <div style={[styles.bound, styles.pad, widthForColumns]}>{la('Lower limit')}</div>
-            <div style={[styles.distr, styles.pad]}>
-              {la('Distribution of Values')}
+      <div className="transform-range" style={styles.base}>
+        <div style={styles.content}>
+          <div style={styles.header}>
+            <div style={{ ...styles.bound, ...styles.pad, ...widthForColumns }}>
+              {la("Lower limit")}
             </div>
-            <div style={[styles.bound, styles.pad, widthForColumns]}>{la('Upper limit')}</div>
+            <div style={{ ...styles.distr, ...styles.pad }}>
+              {la("Distribution of Values")}
+            </div>
+            <div style={{ ...styles.bound, ...styles.pad, ...widthForColumns }}>
+              {la("Upper limit")}
+            </div>
           </div>
-          <div style={[styles.body]} data-qa='graph-body'>
+          <div style={styles.body} data-qa="graph-body" className="graph-body">
             <TransformRangeBound
+              className="lower-limit-bound"
               defaultValue={`${this.getValue(0)}`}
               columnType={columnType}
-              noneLabel={la('None (-∞)')}
-              fieldName='lower'
+              noneLabel={la("None (-∞)")}
+              fieldName="lower"
               field={lowerBound}
               validate={this.validateBound(false)}
-              style={[styles.bound, styles.white, widthForColumns]}
+              style={{ ...styles.bound, ...styles.white, ...widthForColumns }}
             />
             <TransformRangeGraph
               style={styles.graph}
@@ -230,13 +261,14 @@ export default class TransformRange extends Component {
               updateValue={this.updateValue.bind(this)}
             />
             <TransformRangeBound
+              className="upper-limit-bound"
               defaultValue={`${this.getValue(this.domain.length - 1)}`}
               columnType={columnType}
-              noneLabel={la('None (∞)')}
-              fieldName='upper'
+              noneLabel={la("None (∞)")}
+              fieldName="upper"
               field={upperBound}
               validate={this.validateBound(true)}
-              style={[styles.bound, styles.white, widthForColumns]}
+              style={{ ...styles.bound, ...styles.white, ...widthForColumns }}
             />
           </div>
           {this.renderKeepNullCheckbox()}
@@ -248,77 +280,78 @@ export default class TransformRange extends Component {
 
 const styles = {
   base: {
-    position: 'relative',
-    width: 'calc(100% - 30px)',
+    position: "relative",
+    width: "calc(100% - 30px)",
     height: 170,
-    margin: '0 10px'
+    margin: "0 10px",
   },
   pad: {
-    paddingLeft: 10
+    paddingLeft: 10,
   },
   dummyStyle: {
-    marginTop: 3
+    marginTop: 3,
   },
   labelChecked: {
-    display: 'flex',
-    alignItems: 'center'
+    display: "flex",
+    alignItems: "center",
   },
   checkbox: {
     marginTop: -1,
-    marginLeft: 5
+    marginLeft: 5,
   },
   footer: {
     height: 30,
-    borderLeft: '1px solid rgba(0,0,0,0.10)',
-    borderRight: '1px solid rgba(0,0,0,0.10)',
-    borderBottom: '1px solid rgba(0,0,0,0.10)',
-    borderTop: '1px solid rgba(0,0,0,0.10)',
+    borderLeft: "1px solid rgba(0,0,0,0.10)",
+    borderRight: "1px solid rgba(0,0,0,0.10)",
+    borderBottom: "1px solid rgba(0,0,0,0.10)",
+    borderTop: "1px solid rgba(0,0,0,0.10)",
     marginBottom: 10,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    backgroundColor: '#fff'
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    backgroundColor: "#fff",
   },
   graph: {
-    position: 'relative',
-    width: 'calc(100% + 80px)',
-    borderTop: '1px solid #5ED7B9',
-    borderBottom: '1px solid #5ED7B9',
-    borderLeft: '1px solid #5ED7B9',
-    borderRight: '1px solid #5ED7B9'
+    position: "relative",
+    width: "calc(100% + 80px)",
+    borderTop: "1px solid #5ED7B9",
+    borderBottom: "1px solid #5ED7B9",
+    borderLeft: "1px solid #5ED7B9",
+    borderRight: "1px solid #5ED7B9",
   },
   body: {
-    position: 'relative',
-    display: 'flex',
+    position: "relative",
+    display: "flex",
     height: 110,
-    justifyContent: 'space-between'
+    justifyContent: "space-between",
   },
   header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    background: '#F3F3F3',
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    background: "#F3F3F3",
     height: 30,
-    borderBottom: '1px solid rgba(0,0,0,0.10)'
+    borderBottom: "1px solid rgba(0,0,0,0.10)",
   },
   distr: {
-    width: '100%'
+    width: "100%",
   },
   white: {
     height: 110,
-    backgroundColor: '#fff',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start'
+    backgroundColor: "#fff",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
   },
   bound: {
     height: 30,
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     width: 140,
     minWidth: 140,
-    borderLeft: '1px solid rgba(0,0,0,0.10)',
-    borderRight: '1px solid rgba(0,0,0,0.10)'
-  }
+    borderLeft: "1px solid rgba(0,0,0,0.10)",
+    borderRight: "1px solid rgba(0,0,0,0.10)",
+  },
 };
+export default TransformRange;

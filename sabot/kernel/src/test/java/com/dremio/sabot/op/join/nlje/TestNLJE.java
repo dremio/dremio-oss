@@ -20,17 +20,12 @@ import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Assume;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.FunctionCall;
@@ -48,19 +43,7 @@ import io.airlift.tpch.TpchGenerator;
 /**
  * Test the enhanced Nested Loop Join
  */
-@RunWith(Parameterized.class)
 public class TestNLJE extends BaseTestJoin {
-
-  @Parameters(name = "useVectorInput = {0}")
-  public static Collection<Object[]> data() {
-      return Arrays.asList(new Object[][] {{true}, {false}});
-  }
-
-  private final boolean useVectorRangeInput;
-
-  public TestNLJE(boolean useVectorRangeInput) {
-    this.useVectorRangeInput = useVectorRangeInput;
-  }
 
   @Test
   public void nljSmallBatch() throws Exception {
@@ -151,14 +134,6 @@ public class TestNLJE extends BaseTestJoin {
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
         100, expected);
-  }
-
-  private final FunctionCall getVectorOp() {
-    if(useVectorRangeInput) {
-      return new FunctionCall("all", Collections.emptyList());
-    } else {
-      return null;
-    }
   }
 
   @Test

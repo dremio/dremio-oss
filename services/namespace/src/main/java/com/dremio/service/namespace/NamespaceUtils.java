@@ -16,6 +16,7 @@
 package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FOLDER;
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FUNCTION;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.HOME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
@@ -39,7 +40,7 @@ import com.google.common.base.Preconditions;
 public final class NamespaceUtils {
 
   public static boolean isListable(final NameSpaceContainer.Type t) {
-    return (t == HOME || t == SPACE || t == FOLDER || t == SOURCE);
+    return (t == HOME || t == SPACE || t == FOLDER || t == SOURCE || t == FUNCTION);
   }
 
   public static boolean isPhysicalDataset(DatasetType datasetType) {
@@ -73,6 +74,9 @@ public final class NamespaceUtils {
     case DATASET:
       entityId = container.getDataset().getId();
       break;
+    case FUNCTION:
+      entityId = container.getFunction().getId();
+      break;
     default:
       throw new RuntimeException("Invalid container type");
     }
@@ -100,6 +104,9 @@ public final class NamespaceUtils {
     case DATASET:
       container.getDataset().setId(new EntityId(id));
       return;
+    case FUNCTION:
+      container.getFunction().setId(new EntityId(id));
+      return;
     default:
       throw new RuntimeException("Invalid container type");
     }
@@ -121,6 +128,8 @@ public final class NamespaceUtils {
         return container.getFolder().getTag();
       case DATASET:
         return container.getDataset().getTag();
+    case FUNCTION:
+        return container.getFunction().getTag();
       default:
         throw new RuntimeException("Invalid container type");
     }
@@ -186,14 +195,18 @@ public final class NamespaceUtils {
   }
 
   /**
-   * Get the given list if not null, or else, create a new array list.
+   * Get the attribute list if not null, otherwise creates new list and sets it
+   * on the nameSpaceContainer.
    *
-   * @param list list
-   * @param <T>  entity type
+   * @param nameSpaceContainer nameSpaceContainer
    * @return given list if not null, or else, a new array list
    */
-  public static <T> List<T> getOrCreateList(List<T> list) {
-    return list == null ? new ArrayList<>() : list;
+  public static List<com.dremio.common.Any> getOrCreateList(
+      NameSpaceContainer nameSpaceContainer) {
+    if (null == nameSpaceContainer.getAttributesList()) {
+      nameSpaceContainer.setAttributesList(new ArrayList<>());
+    }
+    return nameSpaceContainer.getAttributesList();
   }
 
   /**
@@ -218,5 +231,23 @@ public final class NamespaceUtils {
       || "ESYSFLIGHT".equals(rootEntity.getSource().getType())
       || ("INTERNAL".equals(rootEntity.getSource().getType()) && "$scratch".equals(rootEntity.getSource().getName()))
       || rootFullPathList.get(0).startsWith("__");
+  }
+
+  public static boolean isACLRestrictedInternalSource(NameSpaceContainer rootEntity) {
+    if (rootEntity.getType() != NameSpaceContainer.Type.SOURCE) {
+      return false;
+    }
+    final List<String> rootFullPathList = rootEntity.getFullPathList();
+    return "INFORMATION_SCHEMA".equals(rootEntity.getSource().getType())
+      || ("INTERNAL".equals(rootEntity.getSource().getType()) && "$scratch".equals(rootEntity.getSource().getName()))
+      || rootFullPathList.get(0).startsWith("__");
+  }
+
+  public static boolean isSystemTable(NameSpaceContainer rootEntity) {
+    if (rootEntity.getType() != NameSpaceContainer.Type.SOURCE) {
+      return false;
+    }
+    return "ESYS".equals(rootEntity.getSource().getType())
+      || "ESYSFLIGHT".equals(rootEntity.getSource().getType());
   }
 }

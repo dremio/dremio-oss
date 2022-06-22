@@ -43,7 +43,7 @@ public class SchemaUpPromotionRules {
    * @param tableType {@link CompleteType} of the table
    * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
    */
-  public static Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
+  public Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
     if (tableType.equals(NULL)) {
       return Optional.of(fileType);
     }
@@ -65,7 +65,7 @@ public class SchemaUpPromotionRules {
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType fileType, CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType fileType, CompleteType tableType) {
     if (tableType.equals(INT) || tableType.equals(BIGINT) || tableType.equals(FLOAT)) {
       Decimal decimal = Decimal.createDecimal(fileType.getPrecision(), fileType.getScale(), null);
       return Optional.of(new CompleteType(decimal));
@@ -81,7 +81,7 @@ public class SchemaUpPromotionRules {
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForVarcharFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForVarcharFileType(CompleteType tableType) {
     if (tableType.equals(BIT) || tableType.equals(INT) || tableType.equals(BIGINT) ||
       tableType.equals(FLOAT) || tableType.equals(DOUBLE) || tableType.isValidDecimal() ||
       tableType.isTemporal()) {
@@ -90,39 +90,39 @@ public class SchemaUpPromotionRules {
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForDoubleFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForDoubleFileType(CompleteType tableType) {
     if (tableType.equals(INT) || tableType.equals(BIGINT) || tableType.equals(FLOAT) || tableType.isValidDecimal()) {
       return Optional.of(DOUBLE);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForFloatFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForFloatFileType(CompleteType tableType) {
     if (tableType.equals(INT) || tableType.equals(BIGINT)) {
       return Optional.of(DOUBLE);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForBigIntFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForBigIntFileType(CompleteType tableType) {
     if (tableType.equals(INT)) {
       return Optional.of(BIGINT);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> handlePrecisionOverflow(CompleteType fileType, CompleteType tableType) {
+  private Optional<CompleteType> handlePrecisionOverflow(CompleteType fileType, CompleteType tableType) {
     // On precision overflow, use the max possible precision, and reduce the scale accordingly
     int outputPrecision = MAX_DECIMAL_PRECISION;
     int outputScale = outputPrecision - computeIntegral(fileType, tableType);
     return Optional.of(new CompleteType(Decimal.createDecimal(outputPrecision, outputScale, null)));
   }
 
-  private static int computeIntegral(CompleteType fileType, CompleteType tableType) {
+  private int computeIntegral(CompleteType fileType, CompleteType tableType) {
     return Math.max(fileType.getPrecision() - fileType.getScale(), tableType.getPrecision() - tableType.getScale());
   }
 
-  private static int computeFractional(CompleteType fileType, CompleteType tableType) {
+  private int computeFractional(CompleteType fileType, CompleteType tableType) {
     return Math.max(fileType.getScale(), tableType.getScale());
   }
 }

@@ -13,28 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable  from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import { formDefault } from 'uiTheme/radium/typography';
-import { SECONDARY_BORDER } from 'uiTheme/radium/colors';
+import { formDefault } from "uiTheme/radium/typography";
+import { SECONDARY_BORDER } from "uiTheme/radium/colors";
 
-@Radium
-export default class TabControl extends PureComponent {
+class TabControl extends PureComponent {
   static propTypes = {
     tabs: PropTypes.instanceOf(Immutable.Map),
     onTabChange: PropTypes.func,
     tabBaseStyle: PropTypes.object,
     tabSelectedStyle: PropTypes.object,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   constructor(props) {
     super(props);
     this.state = {
-      selectedTab: this.props.tabs.keySeq().first()
+      selectedTab: this.props.tabs.keySeq().first(),
     };
   }
 
@@ -48,16 +47,22 @@ export default class TabControl extends PureComponent {
   }
 
   renderTabs() {
-    const tabsView = this.props.tabs.keySeq().map( (tab) => {
+    const tabsView = this.props.tabs.keySeq().map((tab) => {
       const selected = tab === this.state.selectedTab;
       return (
         <div
           key={tab}
-          className='tab-item'
-          onClick={ () => this.changeSelectedTab(tab) }
-          style={[styles.tabBase, this.props.tabBaseStyle && this.props.tabBaseStyle,
+          className="tab-item"
+          onClick={() => this.changeSelectedTab(tab)}
+          style={[
+            styles.tabBase,
+            this.props.tabBaseStyle && this.props.tabBaseStyle,
             selected && styles.tabSelected,
-            (selected && this.props.tabSelectedStyle) && this.props.tabSelectedStyle]}>
+            selected &&
+              this.props.tabSelectedStyle &&
+              this.props.tabSelectedStyle,
+          ]}
+        >
           {tab}
         </div>
       );
@@ -77,31 +82,33 @@ export default class TabControl extends PureComponent {
 
 const styles = {
   tabRoot: {
-    display: 'flex',
-    flexDirection: 'column'
+    display: "flex",
+    flexDirection: "column",
+    paddingLeft: 16,
   },
   tabsWrap: {
     flexShrink: 0,
     paddingBottom: 12,
-    paddingTop: 12
+    paddingTop: 12,
   },
   tabBase: {
-    display: 'inline-block',
-    color: 'black',
-    padding: '5px 10px',
-    cursor: 'pointer',
-    textAlign: 'center',
+    display: "inline-block",
+    color: "black",
+    padding: "5px 10px",
+    cursor: "pointer",
+    textAlign: "center",
     borderRadius: 2,
     ...formDefault,
-    ':hover': {
-      textDecoration: 'underline'
-    }
+    ":hover": {
+      textDecoration: "underline",
+    },
   },
   tabSelected: {
     backgroundColor: SECONDARY_BORDER,
-    cursor: 'default',
-    ':hover': {
-      textDecoration: 'none'
-    }
-  }
+    cursor: "default",
+    ":hover": {
+      textDecoration: "none",
+    },
+  },
 };
+export default Radium(TabControl);

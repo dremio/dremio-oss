@@ -71,6 +71,9 @@ import com.google.protobuf.ByteString;
 
 public class TestParquetSplitReaderCreatorIterator {
 
+  private static final String relativePath = "/tmp/path/";
+  private static final String fileScheme = "file://";
+
   private void testSplitReaderCreatorIteratorWithNoPrefetch(int mode) throws Exception {
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
@@ -305,7 +308,13 @@ public class TestParquetSplitReaderCreatorIterator {
     assertFalse(creatorIterator.hasNext());
   }
 
-  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(boolean prefetch, long numPrefetch, int numSplits, InputStreamProvider inputStreamProvider, MutableParquetMetadata footer, int mode) throws Exception {
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(boolean prefetch, long numPrefetch, int numSplits,
+                                                                     InputStreamProvider inputStreamProvider, MutableParquetMetadata footer, int mode) throws Exception {
+    return createSplitReaderCreator(prefetch, numPrefetch, numSplits, inputStreamProvider, footer, mode, false);
+
+  }
+  private ParquetSplitReaderCreatorIterator createSplitReaderCreator(boolean prefetch, long numPrefetch, int numSplits,
+                                                                     InputStreamProvider inputStreamProvider, MutableParquetMetadata footer, int mode, boolean fromRowGroupBasedSplit) throws Exception {
     FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
     OperatorContext context = mock(OperatorContext.class);
     ParquetSubScan config = mock(ParquetSubScan.class);
@@ -379,12 +388,13 @@ public class TestParquetSplitReaderCreatorIterator {
     } else if (mode == 3) {
       // only one split contains row group
       IntStream.range(0, numSplits).forEach(i -> splits.add(createBlockBasedSplit(i * 10, 10, 0)));
+    } else if (mode == 4) {
+      splits.add(createSplitScan(0, 10, 0));
     }
-
 
     when(config.getSplits()).thenReturn(splits);
 
-    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, config, false);
+    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, config, fromRowGroupBasedSplit);
   }
 
   private ParquetSplitReaderCreatorIterator createSplitReaderCreatorIteratorForTableFunction(long numPrefetch) throws Exception {
@@ -463,4 +473,41 @@ public class TestParquetSplitReaderCreatorIterator {
     return new SplitAndPartitionInfo(partitionInfo, datasetSplitInfo);
   }
 
+  @Test
+  public void testOriginalPath() throws Exception {
+
+    InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
+    MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
+    ParquetSplitReaderCreatorIterator creatorIterator = createSplitReaderCreator(false, 1, 10, inputStreamProvider, footer, 4, true);
+
+    assertTrue(creatorIterator.hasNext());
+    SplitReaderCreator creator = creatorIterator.next();
+    assertTrue(creator.getSplitXAttr().getPath().equals(relativePath + 0));
+    assertTrue(creator.getSplitXAttr().getOriginalPath().equals(fileScheme + relativePath + 0));
+  }
+
+  private SplitAndPartitionInfo createSplitScan(int start, int length, int p) {
+    String path = relativePath + p;
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr = ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
+      .setStart(start)
+      .setLength(length)
+      .setPath(path)
+      .setFileLength(100)
+      .setLastModificationTime(0)
+      .setOriginalPath(fileScheme + path)
+      .build();
+
+    ByteString serializedSplitXAttr = splitXAttr.toByteString();
+
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder()
+      .setId("0")
+      .build();
+
+    PartitionProtobuf.NormalizedDatasetSplitInfo datasetSplitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo.newBuilder()
+      .setPartitionId("0")
+      .setExtendedProperty(serializedSplitXAttr)
+      .build();
+
+    return new SplitAndPartitionInfo(partitionInfo, datasetSplitInfo);
+  }
 }

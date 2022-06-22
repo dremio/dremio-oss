@@ -46,8 +46,6 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 
 /**
  * The Rpc Bus deals with incoming and outgoing communication and is used on both the server and the client side of a
@@ -381,7 +379,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
           DremioPBError failure = DremioPBError.parseFrom(msg.pBody);
           connection.recordRemoteFailure(msg.coordinationId, failure);
           if (RpcConstants.EXTRA_DEBUGGING) {
-            logger.debug("Updated rpc future with coordinationId {} with failure ", msg.coordinationId, failure);
+            logger.debug("Updated rpc future with coordinationId {} with failure {}", msg.coordinationId, failure);
           }
           break;
 

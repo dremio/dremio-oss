@@ -44,7 +44,7 @@ public class TestMutableVarcharVector extends DremioTest {
   @Rule
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void setupBeforeTest() {

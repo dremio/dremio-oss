@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { FieldWithError, TextField } from '@app/components/Fields';
-import { connectComplexForm } from '@app/components/Forms/connectComplexForm.js';
-import { FormBody, ModalForm, modalFormProps } from '@app/components/Forms';
-import { changeWorkersSize } from '@app/actions/resources/provisioning';
-import { applyValidators, isNumber, isRequired } from '@app/utils/validation';
+import { FieldWithError, TextField } from "@app/components/Fields";
+import { connectComplexForm } from "@app/components/Forms/connectComplexForm.js";
+import { FormBody, ModalForm, modalFormProps } from "@app/components/Forms";
+import { changeWorkersSize } from "@app/actions/resources/provisioning";
+import { applyValidators, isNumber, isRequired } from "@app/utils/validation";
 
-import ResourceSummary from './../ResourceSummary';
+import ResourceSummary from "./../ResourceSummary";
 
-const VIEW_ID = 'AdjustWorkersForm';
-const FIELDS = ['containerCount'];
+const VIEW_ID = "AdjustWorkersForm";
+const FIELDS = ["containerCount"];
 
 function validate(values) {
   return {
     ...applyValidators(values, [
-      isRequired('containerCount', la('Executors count')),
-      isNumber('containerCount', la('Executors count'))
-    ])
+      isRequired("containerCount", la("Executors count")),
+      isNumber("containerCount", la("Executors count")),
+    ]),
   };
 }
 
@@ -45,36 +45,44 @@ export class AdjustWorkersForm extends Component {
     entity: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     values: PropTypes.object,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
   static defaultProps = {
-    entity: Immutable.Map()
+    entity: Immutable.Map(),
   };
 
-
   submit = (values) => {
-    this.props.changeWorkersSize(values, this.props.entity.get('id'), VIEW_ID).then(() => {
-      this.props.onCancel(); //hide form
-    });
+    return this.props
+      .changeWorkersSize(values, this.props.entity.get("id"), VIEW_ID)
+      .then(() => {
+        this.props.onCancel(); //hide form
+        return null;
+      });
   };
 
   render() {
-    const {fields, handleSubmit, style, entity} = this.props;
+    const { fields, handleSubmit, style, entity } = this.props;
     return (
       <ModalForm
         {...modalFormProps(this.props)}
         onSubmit={handleSubmit(this.submit)}
-        confirmText={la('Adjust')}
+        confirmText={la("Adjust")}
       >
         <FormBody style={style}>
-          <ResourceSummary entity={entity}/>
+          <ResourceSummary entity={entity} />
           <FieldWithError
             style={styles.formRow}
-            label={la('Executors')}
+            label={la("Executors")}
             labelStyle={styles.formLabel}
             {...fields.containerCount}
           >
-            <TextField {...fields.containerCount} type='number' style={{ width: 80 }} step={1} min={0} />
+            <TextField
+              {...fields.containerCount}
+              type="number"
+              style={{ width: 80 }}
+              step={1}
+              min={0}
+            />
           </FieldWithError>
         </FormBody>
       </ModalForm>
@@ -84,34 +92,38 @@ export class AdjustWorkersForm extends Component {
 
 function mapStateToProps(state, ownProps) {
   const initialValues = {
-    containerCount: ownProps.entity.getIn(['dynamicConfig', 'containerCount']) || 0
+    containerCount:
+      ownProps.entity.getIn(["dynamicConfig", "containerCount"]) || 0,
   };
   return {
-    initialValues
+    initialValues,
   };
 }
 
-export default connectComplexForm({
-  form: 'automaticAcceleration',
-  validate,
-  fields: FIELDS,
-  initialValues: {}
-}, [], mapStateToProps, {
-  changeWorkersSize
-})(AdjustWorkersForm);
-
+export default connectComplexForm(
+  {
+    form: "automaticAcceleration",
+    validate,
+    fields: FIELDS,
+    initialValues: {},
+  },
+  [],
+  mapStateToProps,
+  {
+    changeWorkersSize,
+  }
+)(AdjustWorkersForm);
 
 const styles = {
   formRow: {
-    display: 'flex',
-    width: '100%'
+    display: "flex",
+    width: "100%",
   },
   formLabel: {
-    display: 'block',
-    margin: '6px 50px 0 0',
+    display: "block",
+    margin: "6px 50px 0 0",
     fontWeight: 500,
     fontSize: 12,
-    color: '#333333'
-  }
+    color: "#333333",
+  },
 };
-

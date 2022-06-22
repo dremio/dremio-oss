@@ -13,24 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import timeUtils from 'utils/timeUtils';
-import { TextField, Select } from 'components/Fields';
-import { selectDay, selectWeek, input } from '@app/uiTheme/less/Acceleration/Frequency.less';
-import Tabs from '../Tabs';
+import timeUtils from "utils/timeUtils";
+import { TextField, Select } from "components/Fields";
+import {
+  selectDay,
+  selectWeek,
+  input,
+} from "@app/uiTheme/less/Acceleration/Frequency.less";
+import Tabs from "../Tabs";
 
-@Radium
-export default class Frequency extends PureComponent {
+class Frequency extends PureComponent {
   static getFields() {
-    return ['format', 'month', 'dayOfWeek', 'hour', 'minutes', 'week', 'period'];
+    return [
+      "format",
+      "month",
+      "dayOfWeek",
+      "hour",
+      "minutes",
+      "week",
+      "period",
+    ];
   }
 
   static propTypes = {
     curOption: PropTypes.string,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   constructor(props) {
@@ -39,14 +50,14 @@ export default class Frequency extends PureComponent {
     this.hours = timeUtils.getTimeRange(1, 12);
     this.days = timeUtils.getDayOfWeek();
     this.weeks = [
-      {label: 'first', option: 1},
-      {label: 'second', option: 2},
-      {label: 'third', option: 3},
-      {label: 'fourth', option: 4}
+      { label: "first", option: 1 },
+      { label: "second", option: 2 },
+      { label: "third", option: 3 },
+      { label: "fourth", option: 4 },
     ];
     this.items = {
-      format: [{label: 'am'}, {label: 'pm'}],
-      month: [{label: 'the second'}, {label: 'exact day'}]
+      format: [{ label: "am" }, { label: "pm" }],
+      month: [{ label: "the second" }, { label: "exact day" }],
     };
   }
 
@@ -54,42 +65,65 @@ export default class Frequency extends PureComponent {
     const { period } = this.props.fields;
     return (
       <span>
-        <span>{la('Every')}</span>
-        <TextField default={period.value || period.initialValue} type='number' {...period} className={input}/>
+        <span>{la("Every")}</span>
+        <TextField
+          default={period.value || period.initialValue}
+          type="number"
+          {...period}
+          className={input}
+        />
       </span>
     );
   }
 
   renderDaily() {
-    const {hour, minutes, format} = this.props.fields;
+    const { hour, minutes, format } = this.props.fields;
     return (
       <span>
-        <Select value={hour.value || hour.initialValue} items={this.hours} {...hour} className={selectDay}/> :
-        <Select value={minutes.value || minutes.initialValue} items={this.mins} {...minutes} className={selectDay}/>
-        <Select value={format.value || format.initialValue} items={this.items.format}{...format} className={selectDay}/>
+        <Select
+          value={hour.value || hour.initialValue}
+          items={this.hours}
+          {...hour}
+          className={selectDay}
+        />{" "}
+        :
+        <Select
+          value={minutes.value || minutes.initialValue}
+          items={this.mins}
+          {...minutes}
+          className={selectDay}
+        />
+        <Select
+          value={format.value || format.initialValue}
+          items={this.items.format}
+          {...format}
+          className={selectDay}
+        />
       </span>
     );
   }
 
   renderDayOfWeekSelect() {
-    const {dayOfWeek} = this.props.fields;
+    const { dayOfWeek } = this.props.fields;
     return (
       <Select
         className={selectWeek}
         value={dayOfWeek.value || dayOfWeek.initialValue}
         items={this.days}
-        {...dayOfWeek}/>
+        {...dayOfWeek}
+      />
     );
   }
 
   renderWeekSelect() {
-    const {week} = this.props.fields;
+    const { week } = this.props.fields;
     return (
       <Select
         className={selectWeek}
         value={week.value || week.initialValue}
         items={this.weeks}
-        {...week}/>
+        {...week}
+      />
     );
   }
 
@@ -98,21 +132,18 @@ export default class Frequency extends PureComponent {
     return (
       <div>
         <Tabs activeTab={curOption}>
-          <div tabId='NONE'>
-          </div>
-          <div tabId='HOURLY'>
-            {this.renderPeriod()} hour(s)
-          </div>
-          <div tabId='DAILY'>
+          <div tabId="NONE"></div>
+          <div tabId="HOURLY">{this.renderPeriod()} hour(s)</div>
+          <div tabId="DAILY">
             {this.renderPeriod()} day(s) at
             {this.renderDaily()}
           </div>
-          <div tabId='WEEKLY'>
+          <div tabId="WEEKLY">
             {this.renderPeriod()} week(s) on
             {this.renderDayOfWeekSelect()} at
             {this.renderDaily()}
           </div>
-          <div tabId='MONTHLY'>
+          <div tabId="MONTHLY">
             {this.renderPeriod()} month(s) on the
             {this.renderWeekSelect()}
             {this.renderDayOfWeekSelect()} at
@@ -123,3 +154,4 @@ export default class Frequency extends PureComponent {
     );
   }
 }
+export default Radium(Frequency);

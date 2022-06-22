@@ -20,9 +20,13 @@ import static org.apache.calcite.plan.RelOptUtil.conjunctions;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.RelOptUtil.InputFinder;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
@@ -45,9 +49,11 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.ImmutableBitSet.Builder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
@@ -66,7 +72,6 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
   public static final RelMetadataProvider SOURCE =
     ReflectiveRelMetadataProvider.reflectiveSource(
       BuiltInMethod.DISTINCT_ROW_COUNT.method, INSTANCE);
-
 
   private final StatisticsService statisticsService;
   private boolean isNoOp;
@@ -112,7 +117,10 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
   // 1.  proportional to the number of records in the table
   // 2.  inversely proportional to the number of grouping keys (group by A should be fewer rows than group by A, B, C)
   // 3.  proportional the filter/predicate selectivity
-  private Double getDistinctRowCountFromEstimateRowCount(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+  static Double getDistinctRowCountFromEstimateRowCount(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+    if (isKey(rel, groupKey)) {
+      return rel.estimateRowCount(mq) * RelMdUtil.guessSelectivity(predicate);
+    }
     return rel.estimateRowCount(mq) * (1.0D - Math.pow(0.9D, (double)groupKey.cardinality())) * RelMdUtil.guessSelectivity(predicate);
   }
 
@@ -140,7 +148,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     return super.getDistinctRowCount(rel, mq, groupKey, predicate);
   }
 
-  private Double getDistinctRowCountFromTableMetadata(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+  static Double getDistinctRowCountFromTableMetadata(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate, StatisticsService statisticsService) {
     TableMetadata tableMetadata = null;
     if (rel instanceof TableFunctionPrel) {
       tableMetadata = ((TableFunctionPrel) rel).getTableMetadata();
@@ -209,7 +217,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
 
   public Double getDistinctRowCount(TableFunctionPrel rel,RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
-      return getDistinctRowCountFromTableMetadata(rel, mq, groupKey, predicate);
+      return getDistinctRowCountFromTableMetadata(rel, mq, groupKey, predicate, statisticsService);
     }
     return super.getDistinctRowCount(rel, mq, groupKey, predicate);
   }
@@ -223,16 +231,41 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
         relFilter = ((ScanPrelBase) rel).getFilter().getExactRexFilter();
       }
       RexNode unionPreds =  RelMdUtil.unionPreds(rel.getCluster().getRexBuilder(), predicate,relFilter);
-      return getDistinctRowCountFromTableMetadata(rel, mq, groupKey, unionPreds);
+      return Optional.ofNullable(getDistinctRowCountFromTableMetadata(rel, mq, groupKey, unionPreds, statisticsService))
+        .orElse(getDistinctRowCountFromEstimateRowCount(rel, mq, groupKey, unionPreds));
     }
     return getDistinctRowCountFromEstimateRowCount(rel, mq, groupKey, predicate);
+  }
+
+  public static boolean isKey(RelNode rel, ImmutableBitSet groupKey) {
+    if (!(rel instanceof ScanRelBase)) {
+      return false;
+    }
+    ScanRelBase scan = (ScanRelBase) rel;
+    if (scan.getTable() == null || scan.getTable().getQualifiedName() == null) {
+      return false;
+    }
+    Set<String> groupColumns = rel.getRowType().getFieldList().stream()
+      .filter(f -> groupKey.get(f.getIndex()))
+      .map(f -> f.getName().toLowerCase(Locale.ROOT))
+      .collect(Collectors.toSet());
+    ImmutableBitSet.Builder b = ImmutableBitSet.builder();
+    scan.getTable().getRowType().getFieldList().forEach(f -> {
+      if (groupColumns.contains(f.getName().toLowerCase(Locale.ROOT))) {
+        b.set(f.getIndex());
+      }
+    });
+    ImmutableBitSet tableKey = b.build();
+    boolean isKey = rel.getTable().isKey(tableKey);
+    logger.debug("{}:{} {}", PathUtils.constructFullPath(rel.getTable().getQualifiedName()), tableKey, isKey ? "is key" : "is not key");
+    return isKey;
   }
 
   private Double getDistinctRowCountInternal(Join joinRel, RelMetadataQuery mq,
                                              ImmutableBitSet groupKey, RexNode predicate) {    // Assume NDV is unaffected by the join when groupKey comes from one side of the join
     // Alleviates NDV over-estimates
-    ImmutableBitSet.Builder leftMask = ImmutableBitSet.builder();
-    ImmutableBitSet.Builder rightMask = ImmutableBitSet.builder();
+    Builder leftMask = ImmutableBitSet.builder();
+    Builder rightMask = ImmutableBitSet.builder();
     JoinRelType joinType = joinRel.getJoinType();
     RelNode left = joinRel.getLeft();
     RelNode right = joinRel.getRight();
@@ -245,7 +278,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
       List<RexNode> leftFilters = new ArrayList<>();
       List<RexNode> rightFilters = new ArrayList<>();
       List<RexNode> joinFilters = new ArrayList();
-      List<RexNode> predList = RelOptUtil.conjunctions(predicate);
+      List<RexNode> predList = conjunctions(predicate);
       RelOptUtil.classifyFilters(joinRel, predList, joinType, joinType == JoinRelType.INNER,
         !joinType.generatesNullsOnLeft(), !joinType.generatesNullsOnRight(), joinFilters,
         leftFilters, rightFilters);
@@ -266,7 +299,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     Set<ImmutableBitSet> joinFiltersSet = new HashSet<>();
     // Note: projected fields do not affect this as the join conditions are based on the join's inputs and not projected fields
     for (RexNode filter : conjunctions(joinRel.getCondition())) {
-      final RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(filter);
+      final InputFinder inputFinder = InputFinder.analyze(filter);
       ImmutableBitSet bitsSet = inputFinder.build();
       joinFiltersSet.add(bitsSet);
     }
@@ -338,7 +371,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     }
   }
 
-  private double getPredSelectivityContainingInputRef(RexNode predicate, int inputRef,
+  private static double getPredSelectivityContainingInputRef(RexNode predicate, int inputRef,
                                                       RelMetadataQuery mq, RelNode rel) {
     if (predicate instanceof RexCall) {
       double sel = 0.0;
@@ -398,8 +431,8 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
         return 1D;
       }
     }
-    ImmutableBitSet.Builder baseCols = ImmutableBitSet.builder();
-    ImmutableBitSet.Builder projCols = ImmutableBitSet.builder();
+    Builder baseCols = ImmutableBitSet.builder();
+    Builder projCols = ImmutableBitSet.builder();
     List<RexNode> projExprs = rel.getProjects();
     RelMdUtil.splitCols(projExprs, groupKey, baseCols, projCols);
 
@@ -461,7 +494,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     // for each filter, if the filter only references the child inputs,
     // then it can be pushed
     conjunctions(predicate).forEach(filter -> {
-      ImmutableBitSet filterRefs = RelOptUtil.InputFinder.bits(filter);
+      ImmutableBitSet filterRefs = InputFinder.bits(filter);
       for (int i = filterRefs.nextSetBit(0); i >= 0; i = filterRefs.nextSetBit(i + 1)) {
         if ((rel.getProjects().get(i) instanceof RexFieldAccess)) {
           notPushable.add(filter);

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- @import "~@app/uiTheme/less/variables.complex.less";
- @import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.complex.less";
+@import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
 
 .section {
-  composes: clear-fix from '~@app/uiTheme/less/layout.less';
-  composes: row-of-inputs-spacing from '~@app/uiTheme/less/forms.less';
+  composes: clear-fix from "~@app/uiTheme/less/layout.less";
+  composes: row-of-inputs-spacing from "~@app/uiTheme/less/forms.less";
   display: flex;
   align-items: center;
   border-bottom: @collaboration-border;
@@ -27,33 +27,30 @@
 }
 
 .title {
-  composes: h2 from '~@app/uiTheme/css/typography.css';
+  composes: h2 from "~@app/uiTheme/css/typography.css";
   color: #666666; // taken from design sketch file
   flex: 1;
 }
 
 .button-container {
-  composes: row-of-inputs-spacing from '~@app/uiTheme/less/forms.less';
+  composes: row-of-inputs-spacing from "~@app/uiTheme/less/forms.less";
   display: flex;
   align-items: baseline;
 }
 
 .custom-button {
-  @color: rgba(0, 0, 0, 0.04);
-  border-radius: 2px;
-  box-shadow: 0 1px rgba(0, 0, 0, 0.05);
-
+  @color: @FIGMA_TEXT_LESS_IMPORTANT;
+  border-radius: 4px;
+  border: 1px solid @FIGMA_NEUTRAL_200;
   height: 28px;
   width: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: none;
   outline: none;
-  background: @color;
-
+  background: @WHITE;
   &:hover {
-    background: fade(@color, 10%);;
+    background: @FIGMA_NEUTRAL_100;
   }
 }

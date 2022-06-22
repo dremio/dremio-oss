@@ -58,6 +58,7 @@ import com.dremio.exec.store.sys.accesscontrol.AccessControlListingManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -130,6 +131,7 @@ public class SabotContext implements AutoCloseable {
   private final Provider<NessieApiV1> nessieClientProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
+  private final Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider;
   private final Provider<SimpleJobRunner> jobsRunnerProvider;
   private final Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub;
   private final Provider<GlobalKeysService> globalCredentailsServiceProvider;
@@ -175,6 +177,7 @@ public class SabotContext implements AutoCloseable {
       Provider<StatisticsService> statisticsService,
       Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
       Provider<StatisticsListManager> statisticsListManagerProvider,
+      Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider,
       Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
       Provider<SimpleJobRunner> jobsRunnerProvider,
       Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
@@ -236,6 +239,7 @@ public class SabotContext implements AutoCloseable {
     this.nessieClientProvider = nessieClientProvider;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
+    this.userDefinedFunctionListManagerProvider = userDefinedFunctionListManagerProvider;
     this.relMetadataQuerySupplier = relMetadataQuerySupplier;
     this.jobsRunnerProvider = jobsRunnerProvider;
     this.datasetCatalogStub = datasetCatalogStub;
@@ -301,6 +305,7 @@ public class SabotContext implements AutoCloseable {
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
+    Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider,
     Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
     Provider<SimpleJobRunner> jobsRunnerProvider,
     Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
@@ -356,6 +361,7 @@ public class SabotContext implements AutoCloseable {
     this.statisticsService = statisticsService;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
+    this.userDefinedFunctionListManagerProvider = userDefinedFunctionListManagerProvider;
     this.relMetadataQuerySupplier = relMetadataQuerySupplier;
     this.jobsRunnerProvider = jobsRunnerProvider;
     this.datasetCatalogStub = datasetCatalogStub;
@@ -393,6 +399,10 @@ public class SabotContext implements AutoCloseable {
 
   public Provider<StatisticsListManager> getStatisticsListManagerProvider() {
     return statisticsListManagerProvider;
+  }
+
+  public Provider<UserDefinedFunctionListManager> getUserDefinedFunctionListManagerProvider() {
+    return userDefinedFunctionListManagerProvider;
   }
 
   public Provider<CatalogService> getCatalogServiceProvider() {

@@ -21,14 +21,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
@@ -36,6 +40,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.VectorUtil;
@@ -46,7 +51,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
  * Discovers the schema from the incoming data vectors instead of config. The manifest files are kept in memory, and
  * the icebergCommitterOp is lazily initialized only at the commit time.
  */
-public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper {
+public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper implements SupportsTypeCoercionsAndUpPromotions {
     private VarBinaryVector schemaVector;
     private BatchSchema currentSchema;
     private List<DataFile> deletedDataFiles = new ArrayList<>();
@@ -65,8 +70,10 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         TypedFieldId schemaFieldId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA_COLUMN));
         schemaVector = incoming.getValueAccessorById(VarBinaryVector.class, schemaFieldId.getFieldIds()).getValueVector();
 
-        TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
-        icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, id.getFieldIds()).getValueVector();
+        TypedFieldId metadataFileId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
+        icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, metadataFileId.getFieldIds()).getValueVector();
+        TypedFieldId operationTypeId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE_COLUMN));
+        operationTypeVector = incoming.getValueAccessorById(IntVector.class, operationTypeId.getFieldIds()).getValueVector();
         partitionDataVector = (ListVector) VectorUtil.getVectorFromSchemaPath(incoming, RecordWriter.PARTITION_DATA_COLUMN);
     }
 
@@ -80,7 +87,12 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         byte[] schemaBytes = schemaVector.get(recordIdx);
         BatchSchema schemaAtThisRow = BatchSchema.deserialize(schemaBytes);
         if (!currentSchema.equals(schemaAtThisRow)) {
-            currentSchema = currentSchema.mergeWithUpPromotion(schemaAtThisRow);
+          try {
+            currentSchema = currentSchema.mergeWithUpPromotion(schemaAtThisRow, this);
+          } catch (NoSupportedUpPromotionOrCoercionException e) {
+            e.addDatasetPath(config.getDatasetPath().getPathComponents());
+            throw UserException.unsupportedError().message(e.getMessage()).build();
+          }
             if (currentSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
               throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
             }
@@ -119,7 +131,8 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
     private void initializeIcebergOpCommitter() throws Exception {
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
-        IcebergModel icebergModel = config.getPlugin().getIcebergModel(context);
+        IcebergModel icebergModel = ((SupportsIcebergMutablePlugin)config.getPlugin()).
+          getIcebergModel(config.getIcebergTableProps(), config.getProps().getUserName(), context, null);
         IcebergTableProps icebergTableProps = config.getIcebergTableProps();
 
         switch (icebergTableProps.getIcebergOpType()) {
@@ -128,7 +141,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
                         icebergTableProps.getTableName(),
                         icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                         currentSchema,
-                        partitionColumns, context.getStats());
+                        partitionColumns, context.getStats(), null);
                 break;
             case INSERT:
                 icebergOpCommitter = icebergModel.getInsertTableCommitter(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()), context.getStats());
@@ -138,13 +151,14 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
               icebergOpCommitter = icebergModel.getFullMetadataRefreshCommitter(
                 icebergTableProps.getTableName(),
                 config.getDatasetPath().getPathComponents(),
-                icebergTableProps.getTableLocation(),
+                icebergTableProps.getDataTableLocation(),
                 icebergTableProps.getUuid(),
                 icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                 currentSchema,
                 partitionColumns,
                 config.getDatasetConfig().orElseThrow(() -> new IllegalStateException("DatasetConfig not found")),
-                context.getStats()
+                context.getStats(),
+                null
               );
               break;
             case INCREMENTAL_METADATA_REFRESH:
@@ -153,7 +167,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
                   context,
                   icebergTableProps.getTableName(),
                   config.getDatasetPath().getPathComponents(),
-                  icebergTableProps.getTableLocation(),
+                  icebergTableProps.getDataTableLocation(),
                   icebergTableProps.getUuid(),
                   icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                   icebergTableProps.getFullSchema(),

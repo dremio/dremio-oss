@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
-const historyItem = new Schema('historyItem', {
-  idAttribute: 'datasetVersion'
+const historyItem = new Schema("historyItem", {
+  idAttribute: "datasetVersion",
 });
 
 export default historyItem;

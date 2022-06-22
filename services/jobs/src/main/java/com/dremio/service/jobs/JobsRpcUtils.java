@@ -24,6 +24,7 @@ import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
 
+import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -36,26 +37,31 @@ public final class JobsRpcUtils {
 
   static <V> void handleException(StreamObserver<V> responseObserver, Throwable t) {
     Preconditions.checkNotNull(t, "exception");
+    responseObserver.onError(convertToGrpcException(t));
+  }
+
+  static Throwable convertToGrpcException(Throwable t) {
+    Preconditions.checkNotNull(t, "exception");
 
     if (t instanceof UserException) {
-      responseObserver.onError(GrpcExceptionUtil.toStatusRuntimeException((UserException) t));
+      return GrpcExceptionUtil.toStatusRuntimeException((UserException) t);
     } else if (t instanceof JobNotFoundException) {
-      responseObserver.onError(io.grpc.Status.NOT_FOUND.asException());
+      return io.grpc.Status.NOT_FOUND.asException();
+    } else if (t instanceof JobCancelException) {
+      return Status.FAILED_PRECONDITION.withDescription(t.getMessage()).asRuntimeException();
     } else if (t instanceof ReflectionJobValidationException) {
-      responseObserver.onError(io.grpc.Status.INVALID_ARGUMENT.asException());
+      return io.grpc.Status.INVALID_ARGUMENT.asException();
     } else if (t instanceof AccessControlException) {
-      responseObserver.onError(io.grpc.Status.PERMISSION_DENIED.asRuntimeException());
+      return io.grpc.Status.PERMISSION_DENIED.asRuntimeException();
     } else if (t instanceof StatusException) {
-      responseObserver.onError(t);
+      return t;
     } else if (t instanceof StatusRuntimeException) {
-      responseObserver.onError(t);
+      return t;
     } else if (t instanceof RuntimeException) {
-      responseObserver.onError(io.grpc.Status.UNKNOWN.withDescription(t.getMessage())
-          .asRuntimeException());
+      return io.grpc.Status.UNKNOWN.withDescription(t.getMessage()).asRuntimeException();
     } else {
       logger.warn("Unhandled exception", t);
-      responseObserver.onError(io.grpc.Status.UNKNOWN.withDescription(t.getMessage())
-          .asException());
+      return io.grpc.Status.UNKNOWN.withDescription(t.getMessage()).asException();
     }
   }
 

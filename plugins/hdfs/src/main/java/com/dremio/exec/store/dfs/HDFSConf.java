@@ -23,6 +23,7 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -97,6 +98,11 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
 
+  @Tag(15)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -120,6 +126,11 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  @Override
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
   }
 
   @Override

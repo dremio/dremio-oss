@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-const AppHOC = Comp => Comp;
+const AppHOC = (Comp) => Comp;
 
 export default AppHOC;

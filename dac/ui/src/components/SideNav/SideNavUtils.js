@@ -14,33 +14,47 @@
  * limitations under the License.
  */
 
-import { UNSAVED_DATASET_PATH } from '@app/constants/explorePage/paths';
+import { UNSAVED_DATASET_PATH } from "@app/constants/explorePage/paths";
 
-export const isActive = ({name, dataset = false, loc, admin = false, jobs = false, sql = false, isDDPOnly = false}) => {
-  const active = '--active';
+export const isActive = ({
+  name,
+  dataset = false,
+  loc,
+  admin = false,
+  jobs = false,
+  sql = false,
+  isDDPOnly = false,
+}) => {
+  const active = "--active";
   if (loc === name) {
     return active;
   }
 
   if (
     isDDPOnly &&
-    (loc.startsWith('/commit') ||
-      loc.startsWith('/namespace') ||
-      loc.startsWith('/branches') ||
-      loc.startsWith('/table'))
+    (loc.startsWith("/commit") ||
+      loc.startsWith("/namespace") ||
+      loc.startsWith("/branches") ||
+      loc.startsWith("/table"))
   ) {
     return active;
   }
 
-  if (jobs && (loc.startsWith('/jobs') || loc.startsWith('/job'))) {
+  if (jobs && (loc.startsWith("/jobs") || loc.startsWith("/job"))) {
     return active;
   }
 
-  if (dataset && (loc.startsWith('/space') || loc.startsWith('/home') || loc.startsWith('/source') || loc === name)) {
+  if (
+    dataset &&
+    (loc.startsWith("/space") ||
+      loc.startsWith("/home") ||
+      loc.startsWith("/source") ||
+      loc === name)
+  ) {
     return active;
   }
 
-  if (admin && (loc.startsWith('/admin') || loc.startsWith('/setting'))) {
+  if (admin && (loc.startsWith("/admin") || loc.startsWith("/setting"))) {
     return active;
   }
 
@@ -48,5 +62,5 @@ export const isActive = ({name, dataset = false, loc, admin = false, jobs = fals
     return active;
   }
 
-  return '';
+  return "";
 };

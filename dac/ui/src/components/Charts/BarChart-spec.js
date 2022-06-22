@@ -13,52 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import BarChart from './BarChart';
+import BarChart from "./BarChart";
 
-describe('BarChart', () => {
-
+describe("BarChart", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {
-    };
+    minimalProps = {};
     commonProps = {
-      data: [{
-        x: 2,
-        y: 1,
-        range: { lowerLimit: 1, upperLimit: 3 }
-      }]
+      data: [
+        {
+          x: 2,
+          y: 1,
+          range: { lowerLimit: 1, upperLimit: 3 },
+        },
+      ],
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<BarChart {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<BarChart {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render tooltip if openTooltip is true', () => {
+  it("should render tooltip if openTooltip is true", () => {
     const wrapper = shallow(<BarChart {...commonProps} />);
     wrapper.setState({ hoverBarTooltipInfo: { position: {}, index: 0 } });
-    expect(wrapper.find('ChartTooltip')).to.have.length(1);
+    expect(wrapper.find("ChartTooltip")).to.have.length(1);
   });
 
-  describe('formatNumber', () => {
-    it('should round number to 5 chars after comma for FLOAT', () => {
+  describe("formatNumber", () => {
+    it("should round number to 5 chars after comma for FLOAT", () => {
       const props = {
         ...commonProps,
-        type: 'FLOAT'
+        type: "FLOAT",
       };
       const number = 3.12312322;
       const wrapper = shallow(<BarChart {...props} />);
       const instance = wrapper.instance();
-      expect(instance.formatNumber(number)).to.eql('3.12312');
+      expect(instance.formatNumber(number)).to.eql("3.12312");
     });
   });
 
-  describe('getTickValues', () => {
-    it('should return evenly spaced indexes based on length', () => {
+  describe("getTickValues", () => {
+    it("should return evenly spaced indexes based on length", () => {
       const length = 10;
       const wrapper = shallow(<BarChart {...commonProps} />);
       const instance = wrapper.instance();
@@ -68,7 +68,7 @@ describe('BarChart', () => {
       const secondDiff = tickValues[2] - tickValues[1];
       expect(firstDiff === secondDiff).to.eql(true);
     });
-    it('should return tick values with length less than max tick count if length is less than max tick count', () => {
+    it("should return tick values with length less than max tick count if length is less than max tick count", () => {
       const length = 7;
       const wrapper = shallow(<BarChart {...commonProps} />);
       const instance = wrapper.instance();

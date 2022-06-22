@@ -13,35 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import typography from './typography';
+import typography from "./typography";
 
 export const title = {
-  margin: '0 0 5px 10px'
+  margin: "0 0 5px 10px",
 };
 
 export const cardTitle = {
   ...typography.h5,
-  margin: '0 0 10px 0'
+  margin: "0 0 10px 0",
 };
-
 
 export const contextCard = {
   padding: 10,
-  ':hover': {
-    backgroundColor: '#fff'
-  }
+  ":hover": {
+    backgroundColor: "#fff",
+  },
 };
 
 export const contextAttrs = {
-  marginBottom: 10
+  marginBottom: 10,
 };
 
 export const attrLabel = {
   ...typography.keyLabel,
-  display: 'inline-block',
-  width: 100
+  display: "inline-block",
+  width: 100,
 };
 
 export const attrValue = {
-  ...typography.valueLabel
+  ...typography.valueLabel,
 };

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.metadatarefresh.committer;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,15 +228,16 @@ public class DatasetCatalogRequestBuilder {
             .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
   }
 
-  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned, Map<Integer, PartitionSpec> partitionSpecMap, MutablePlugin plugin) {
+  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned, Map<Integer, PartitionSpec> partitionSpecMap, MutablePlugin plugin, Schema schema) {
     Preconditions.checkState(request != null, "Unexpected state");
     Preconditions.checkState(request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
-    byte[] specs = IcebergSerDe.serializePartitionSpecMap(partitionSpecMap);
+    byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap);
     DatasetCommonProtobuf.IcebergMetadata.Builder metadataBuilder = DatasetCommonProtobuf.IcebergMetadata.newBuilder()
             .setMetadataFileLocation(rootPointer)
             .setTableUuid(tableUuid)
             .setSnapshotId(snapshotId)
-            .setPartitionSpecs(ByteString.copyFrom(specs));
+            .setPartitionSpecsJsonMap(ByteString.copyFrom(specs))
+            .setJsonSchema(serializedSchemaAsJson(schema));
     if (isPartitioned) {
       String partitionStatsFile = IcebergUtils.getPartitionStatsFile(rootPointer, snapshotId, conf, plugin);
       if (partitionStatsFile != null) {

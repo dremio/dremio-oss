@@ -755,22 +755,14 @@ public class DremioTestWrapper {
     if (actual instanceof Double && expected instanceof Double) {
       double actualValue = ((Double) actual).doubleValue();
       double expectedValue = ((Double) expected).doubleValue();
-      if (actual.equals(expected)
-        || (actualValue == 0 ? Math.abs(actualValue - expectedValue) < 0.0000001 : Math.abs((actualValue - expectedValue)/actualValue) < 0.0000001)) {
-        return true;
-      } else {
-        return false;
-      }
+      return actual.equals(expected)
+        || (actualValue == 0 ? Math.abs(actualValue - expectedValue) < 0.0000001 : Math.abs((actualValue - expectedValue)/actualValue) < 0.0000001);
     }
     if (actual instanceof Float && expected instanceof Float) {
       float actualValue = ((Float) actual).floatValue();
       float expectedValue = ((Float) expected).floatValue();
-      if (actual.equals(expected)
-        || (actualValue == 0 ? Math.abs(actualValue - expectedValue) < 0.0000001 : Math.abs((double)(actualValue - expectedValue)/actualValue) < 0.0000001)) {
-        return true;
-      } else {
-        return false;
-      }
+      return actual.equals(expected)
+        || (actualValue == 0 ? Math.abs(actualValue - expectedValue) < 0.0000001 : Math.abs((double)(actualValue - expectedValue)/actualValue) < 0.0000001);
     }
     if (actual instanceof Period && expected instanceof Period) {
       // joda Period should be compared after normalized

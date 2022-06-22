@@ -13,35 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable, { List } from 'immutable';
-import { Column, Table, Cell } from 'fixed-data-table-2';
-import classNames from 'classnames';
-import { AutoSizer } from 'react-virtualized';
-import ImmutablePropTypes from 'react-immutable-proptypes';
-import { tableViewer as tableViewerCls, tableViewerContainer } from './TableViewer.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable, { List } from "immutable";
+import { Column, Table, Cell } from "fixed-data-table-2";
+import classNames from "classnames";
+import { AutoSizer } from "react-virtualized";
+import ImmutablePropTypes from "react-immutable-proptypes";
+import {
+  tableViewer as tableViewerCls,
+  tableViewerContainer,
+} from "./TableViewer.less";
 
 export const cellAlignment = {
-  left: 'left',
-  center: 'center',
-  right: 'right'
+  left: "left",
+  center: "center",
+  right: "right",
 };
 
 const cellType = PropTypes.node;
 
 export default class TableViewer extends Component {
-
   static propTypes = {
     tableData: PropTypes.oneOfType([
-      ImmutablePropTypes.listOf(PropTypes.shape({
-        data: PropTypes.oneOfType([PropTypes.objectOf(cellType), PropTypes.arrayOf(cellType)]).isRequired,
-        rowClassName: PropTypes.string
-      })),
-      PropTypes.arrayOf(PropTypes.shape({
-        data: PropTypes.oneOfType([PropTypes.objectOf(cellType), PropTypes.arrayOf(cellType)]).isRequired,
-        rowClassName: PropTypes.string
-      }))
+      ImmutablePropTypes.listOf(
+        PropTypes.shape({
+          data: PropTypes.oneOfType([
+            PropTypes.objectOf(cellType),
+            PropTypes.arrayOf(cellType),
+          ]).isRequired,
+          rowClassName: PropTypes.string,
+        })
+      ),
+      PropTypes.arrayOf(
+        PropTypes.shape({
+          data: PropTypes.oneOfType([
+            PropTypes.objectOf(cellType),
+            PropTypes.arrayOf(cellType),
+          ]).isRequired,
+          rowClassName: PropTypes.string,
+        })
+      ),
     ]),
     className: PropTypes.string,
     rowHeight: PropTypes.number,
@@ -52,84 +64,88 @@ export default class TableViewer extends Component {
         renderer: PropTypes.func,
         align: PropTypes.oneOf(Object.values(cellAlignment)),
         flexGrow: PropTypes.number,
-        width: PropTypes.number
+        width: PropTypes.number,
       })
-    ).isRequired
+    ).isRequired,
     // other props passed to fixed-data-table-2 Table
   };
 
   static defaultProps = {
     tableData: Immutable.List(),
-    rowHeight: 30
+    rowHeight: 30,
   };
 
   getColumn = (column, columnIndex) => {
     return this.getColumnByConfig(column, columnIndex);
   };
 
-  getColumnByConfig = ( /* columnConfig */ {
-    key,
-    label,
-    renderer,
-    align = cellAlignment.left,
-    flexGrow = 0,
-    width = 20,
-    fixed = false
-  }, columnIndex) => {
-    return (<Column
-      key={key === undefined ? columnIndex : key}
-      flexGrow={flexGrow}
-      width={width}
-      columnKey={key}
-      align={align}
-      style={{borderRight: '#ccc', background: 'inherit'}}
-      header={renderer ? renderer(label) : <Cell>{label}</Cell>}
-      cell={this.renderCell(label)}
-      fixed={fixed}
-    />);
+  getColumnByConfig = (
+    /* columnConfig */ {
+      key,
+      label,
+      renderer,
+      align = cellAlignment.left,
+      flexGrow = 0,
+      width = 20,
+      fixed = false,
+    },
+    columnIndex
+  ) => {
+    return (
+      <Column
+        key={key === undefined ? columnIndex : key}
+        flexGrow={flexGrow}
+        width={width}
+        columnKey={key}
+        align={align}
+        style={{ borderRight: "#ccc", background: "inherit" }}
+        header={renderer ? renderer(label) : <Cell>{label}</Cell>}
+        cell={this.renderCell(label)}
+        fixed={fixed}
+      />
+    );
   };
 
   getRowClassName = (rowIndex) => {
-    const {
-      tableData
-    } = this.props;
+    const { tableData } = this.props;
     if (List.isList(tableData)) {
       return tableData.get(rowIndex).rowClassName;
     }
     return tableData[rowIndex].rowClassName;
   };
 
-  renderCell = label => (/* cellProps */ {
-    rowIndex,
-    columnKey,
-    ...cellProps  // eslint-disable-line @typescript-eslint/no-unused-vars
-  }) => {
-    const {
-      tableData
-    } = this.props;
-    const currentTableData = List.isList(tableData) ? tableData.get(rowIndex) : tableData[rowIndex];
-    return (<Cell>
-      <span data-qa={label}>
-        {currentTableData.data[columnKey]}
-      </span>
-    </Cell>);
-  };
+  renderCell =
+    (label) =>
+    (
+      /* cellProps */ {
+        rowIndex,
+        columnKey,
+        ...cellProps // eslint-disable-line @typescript-eslint/no-unused-vars
+      }
+    ) => {
+      const { tableData } = this.props;
+      const currentTableData = List.isList(tableData)
+        ? tableData.get(rowIndex)
+        : tableData[rowIndex];
+      return (
+        <Cell>
+          <span data-qa={label}>{currentTableData.data[columnKey]}</span>
+        </Cell>
+      );
+    };
 
   render() {
     return (
       <div className={tableViewerContainer}>
         <AutoSizer>
           {({ height, width }) => {
-            const {
-              rowHeight,
-              tableData,
-              className,
-              columns,
-              ...tableProps
-            } = this.props;
+            const { rowHeight, tableData, className, columns, ...tableProps } =
+              this.props;
 
             const tableColumns = columns.map(this.getColumn);
-            const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
+            const tableSize = List.isList(tableData)
+              ? tableData.size
+              : tableData.length;
 
             return (
               <Table
@@ -140,7 +156,8 @@ export default class TableViewer extends Component {
                 rowsCount={tableSize}
                 className={classNames([tableViewerCls, className])}
                 rowClassNameGetter={this.getRowClassName}
-                {...tableProps}>
+                {...tableProps}
+              >
                 {tableColumns}
               </Table>
             );

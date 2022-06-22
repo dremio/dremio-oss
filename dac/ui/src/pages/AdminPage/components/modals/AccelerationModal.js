@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Modal from 'components/Modals/Modal';
-import AccelerationController from 'components/Acceleration/AccelerationController';
-import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
-import './Modal.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Modal from "components/Modals/Modal";
+import AccelerationController from "components/Acceleration/AccelerationController";
+import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
+import "./Modal.less";
 
 export class AccelerationModal extends Component {
   static propTypes = {
@@ -27,24 +27,20 @@ export class AccelerationModal extends Component {
     hide: PropTypes.func,
     location: PropTypes.object,
     // connected from FormUnsavedWarningHOC
-    updateFormDirtyState: PropTypes.func
+    updateFormDirtyState: PropTypes.func,
   };
 
   render() {
-    const {
-      canSubmit,
-      isOpen,
-      hide,
-      location
-    } = this.props;
+    const { canSubmit, isOpen, hide, location } = this.props;
     const { datasetId } = location.state || {};
 
     return (
       <Modal
-        size='large'
-        title={la('Acceleration')}
+        size="large"
+        title={la("Acceleration")}
         isOpen={isOpen}
-        hide={hide}>
+        hide={hide}
+      >
         <AccelerationController
           updateFormDirtyState={this.props.updateFormDirtyState}
           onCancel={hide}

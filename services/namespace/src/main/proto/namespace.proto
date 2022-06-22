@@ -23,6 +23,7 @@ import "any.proto";
 import "dataset.proto";
 import "source.proto";
 import "space.proto";
+import "function.proto";
 
 message NameSpaceContainer {
   enum Type {
@@ -31,6 +32,7 @@ message NameSpaceContainer {
     HOME = 3;
     FOLDER = 4;
     DATASET = 5;
+    FUNCTION = 6;
   }
 
   repeated string fullPath = 1; // In case we lose map, we can recover entire namespace using fullPath.
@@ -41,6 +43,7 @@ message NameSpaceContainer {
   optional com.dremio.service.namespace.space.proto.FolderConfig folder = 5;
   optional com.dremio.service.namespace.dataset.proto.DatasetConfig dataset = 6;
   optional com.dremio.service.namespace.space.proto.HomeConfig home = 7;
+  optional com.dremio.service.namespace.function.proto.FunctionConfig function = 10;
 
   repeated common.Any attributes = 8;
 

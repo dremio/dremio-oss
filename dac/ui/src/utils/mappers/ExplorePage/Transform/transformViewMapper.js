@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import datasetUtils from 'utils/resourcePathUtils/dataset';
-import { isEmptyValue } from 'utils/validation';
+import datasetUtils from "utils/resourcePathUtils/dataset";
+import { isEmptyValue } from "utils/validation";
 
 // todo: loc
 
@@ -22,12 +22,12 @@ class TransformViewMapper {
   mapTransformRules(data, type) {
     const hash = {
       extract: () => this.transformExportMapper(data),
-      'extract_map': () => this.transformExtractMapMapper(data),
-      'extract_list': () => this.transformExtractListMapper(data),
+      extract_map: () => this.transformExtractMapMapper(data),
+      extract_list: () => this.transformExtractListMapper(data),
       replace: () => this.transformReplaceMapper(data),
-      keeponly: () => this.transformReplaceMapper(data, 'keeponly'),
-      exclude: () => this.transformReplaceMapper(data, 'exclude'),
-      split: () => this.transformSplitMapper(data)
+      keeponly: () => this.transformReplaceMapper(data, "keeponly"),
+      exclude: () => this.transformReplaceMapper(data, "exclude"),
+      split: () => this.transformSplitMapper(data),
     };
     if (hash[type]) {
       return hash[type]();
@@ -36,68 +36,85 @@ class TransformViewMapper {
 
   transformExportMapper(data) {
     const directionHash = {
-      FROM_THE_START: 'Start',
-      FROM_THE_END: 'End'
+      FROM_THE_START: "Start",
+      FROM_THE_END: "End",
     };
-    return data.cards.map(item => {
+    return data.cards.map((item) => {
       return {
         type: item.rule.type,
         description: item.description,
         matchedCount: item.matchedCount,
         unmatchedCount: item.unmatchedCount,
-        examplesList: (item.examplesList || []).map(example => {
+        examplesList: (item.examplesList || []).map((example) => {
           return {
             description: item.description,
             text: example.text,
-            positionList: example.positionList
+            positionList: example.positionList,
           };
         }),
         position: {
           startIndex: {
-            value: item.rule.position && !isEmptyValue(item.rule.position.startIndex.value)
-              ? item.rule.position.startIndex.value : '',
-            direction: directionHash[item.rule.position && item.rule.position.startIndex.direction] || ''
+            value:
+              item.rule.position &&
+              !isEmptyValue(item.rule.position.startIndex.value)
+                ? item.rule.position.startIndex.value
+                : "",
+            direction:
+              directionHash[
+                item.rule.position && item.rule.position.startIndex.direction
+              ] || "",
           },
           endIndex: {
-            value: item.rule.position && !isEmptyValue(item.rule.position.endIndex.value)
-              ? item.rule.position.endIndex.value : '',
-            direction: directionHash[item.rule.position && item.rule.position.endIndex.direction] || ''
-          }
+            value:
+              item.rule.position &&
+              !isEmptyValue(item.rule.position.endIndex.value)
+                ? item.rule.position.endIndex.value
+                : "",
+            direction:
+              directionHash[
+                item.rule.position && item.rule.position.endIndex.direction
+              ] || "",
+          },
         },
         pattern: {
           pattern: item.rule.pattern && item.rule.pattern.pattern,
-          value: item.rule.pattern && this.getValueForPattern(item.rule.pattern.index, item.rule.pattern.indexType)
-        }
+          value:
+            item.rule.pattern &&
+            this.getValueForPattern(
+              item.rule.pattern.index,
+              item.rule.pattern.indexType
+            ),
+        },
       };
     });
   }
 
   // used in transformExportMapper
   getValueForPattern(index, indexType) {
-    if (indexType === 'CAPTURE_GROUP') {
+    if (indexType === "CAPTURE_GROUP") {
       return {
-        label: 'Capture Group…',
-        value: 'CAPTURE_GROUP',
-        index
+        label: "Capture Group…",
+        value: "CAPTURE_GROUP",
+        index,
       };
-    } else if (index === 0 && indexType === 'INDEX') {
+    } else if (index === 0 && indexType === "INDEX") {
       return {
-        label: 'First',
-        value: 'FIRST',
-        index
+        label: "First",
+        value: "FIRST",
+        index,
       };
-    } else if (index === 0 && indexType === 'INDEX_BACKWARDS') {
+    } else if (index === 0 && indexType === "INDEX_BACKWARDS") {
       return {
-        label: 'Last',
-        value: 'LAST',
-        index
+        label: "Last",
+        value: "LAST",
+        index,
       };
     }
 
     return {
-      label: 'Index…',
-      value: 'INDEX',
-      index
+      label: "Index…",
+      value: "INDEX",
+      index,
     };
   }
 
@@ -108,111 +125,129 @@ class TransformViewMapper {
         description: item.description,
         matchedCount: item.matchedCount,
         unmatchedCount: item.unmatchedCount,
-        examplesList: (item.examplesList || []).map(example => {
+        examplesList: (item.examplesList || []).map((example) => {
           return {
             description: item.description,
             text: example.text,
-            positionList: example.positionList
+            positionList: example.positionList,
           };
         }),
-        type: 'map'
+        type: "map",
       };
     });
   }
 
   transformExtractListMapper(data) {
     const directionHash = {
-      FROM_THE_START: 'Start',
-      FROM_THE_END: 'End'
+      FROM_THE_START: "Start",
+      FROM_THE_END: "End",
     };
-    return data.cards.map(item => {
+    return data.cards.map((item) => {
       return {
         type: item.rule.type,
         description: item.description,
         matchedCount: item.matchedCount,
         unmatchedCount: item.unmatchedCount,
-        examplesList: (item.examplesList || []).map(example => {
+        examplesList: (item.examplesList || []).map((example) => {
           return {
             description: item.description,
             text: example.text,
-            positionList: example.positionList
+            positionList: example.positionList,
           };
         }),
         multiple: {
           startIndex: {
-            value: item.rule.selection && !isEmptyValue(item.rule.selection.start.value)
-              ? item.rule.selection.start.value : '',
-            direction: directionHash[item.rule.selection && item.rule.selection.start.direction] || ''
+            value:
+              item.rule.selection &&
+              !isEmptyValue(item.rule.selection.start.value)
+                ? item.rule.selection.start.value
+                : "",
+            direction:
+              directionHash[
+                item.rule.selection && item.rule.selection.start.direction
+              ] || "",
           },
           endIndex: {
-            value: item.rule.selection && !isEmptyValue(item.rule.selection.end.value)
-              ? item.rule.selection.end.value : '',
-            direction: directionHash[item.rule.selection && item.rule.selection.end.direction] || ''
-          }
+            value:
+              item.rule.selection &&
+              !isEmptyValue(item.rule.selection.end.value)
+                ? item.rule.selection.end.value
+                : "",
+            direction:
+              directionHash[
+                item.rule.selection && item.rule.selection.end.direction
+              ] || "",
+          },
         },
         single: {
           startIndex: {
             value: item.rule.index,
-            direction: 'Start'
-          }
-        }
+            direction: "Start",
+          },
+        },
       };
     });
   }
 
   transformReplaceMapper(data, type) {
-    const cards = data.cards.map(item => {
+    const cards = data.cards.map((item) => {
       return {
-        type: type || 'replace',
+        type: type || "replace",
         description: item.description,
         matchedCount: item.matchedCount,
         unmatchedCount: item.unmatchedCount,
-        examplesList: (item.examplesList || []).map(example => {
+        examplesList: (item.examplesList || []).map((example) => {
           return {
             text: example.text,
-            positionList: example.positionList
+            positionList: example.positionList,
           };
         }),
         replace: {
           ignoreCase: item.rule.ignoreCase,
           selectionPattern: item.rule.selectionPattern,
-          selectionType: item.rule.selectionType
-        }
+          selectionType: item.rule.selectionType,
+        },
       };
     });
-    const values = data.values && data.values.availableValues && data.values.availableValues.map( item => {
-      return item;
-    }) || [];
-    const unmatchedCount = data.values && data.values.availableValues && data.values.unmatchedValues;
-    const matchedCount = data.values && data.values.availableValues && data.values.matchedValues;
+    const values =
+      (data.values &&
+        data.values.availableValues &&
+        data.values.availableValues.map((item) => {
+          return item;
+        })) ||
+      [];
+    const unmatchedCount =
+      data.values && data.values.availableValues && data.values.unmatchedValues;
+    const matchedCount =
+      data.values && data.values.availableValues && data.values.matchedValues;
     return { cards, values: { values, unmatchedCount, matchedCount } };
   }
 
   transformSplitMapper(data) {
-    return data.cards.map(item => {
+    return data.cards.map((item) => {
       return {
-        type: 'split',
+        type: "split",
         matchedCount: item.matchedCount,
         unmatchedCount: item.unmatchedCount,
         description: item.description,
         rule: {
           pattern: item.rule.pattern,
           matchType: item.rule.matchType,
-          ignoreCase: item.rule.ignoreCase
+          ignoreCase: item.rule.ignoreCase,
         },
-        examplesList: (item.examplesList || []).map(example => {
+        examplesList: (item.examplesList || []).map((example) => {
           return {
             description: item.description,
             text: example.text,
-            positionList: example.positionList
+            positionList: example.positionList,
           };
-        })
+        }),
       };
     });
   }
 
   mapRecJoin(payload) {
-    return (payload.recommendations || []).map(data => {
+    return (payload.recommendations || []).map((data) => {
       const dpath = datasetUtils.toFullPath(data.dataset.resourcePath);
       return {
         joinType: data.joinType,
@@ -221,8 +256,8 @@ class TransformViewMapper {
           dpath,
           datasetName: data.dataset.datasetName,
           resourcePath: data.dataset.resourcePath,
-          version: data.dataset.datasetConfig.version
-        }
+          version: data.dataset.datasetConfig.version,
+        },
       };
     });
   }

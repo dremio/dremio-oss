@@ -33,6 +33,7 @@ import java.util.function.BiConsumer;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,12 +88,13 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
   @Test
   public void testWithNoSplits() throws Exception {
     DataFile df1 = getDatafile("/path/to/data-1.parquet", blockSize - 1024);
+    ManifestEntryWrapper<DataFile> me1 = new ManifestEntryWrapper<>(df1, 0);
     int splitGenerated, totalSplitGenerated = 0;
-    splitGenerated = dataFileProcessor.processDatafile(df1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated = dataFileProcessor.processManifestEntry(me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 1);
     assertEquals(totalSplitGenerated, 1);
-    dataFileProcessor.closeDatafile();
+    dataFileProcessor.closeManifestEntry();
 
     SplitAndPartitionInfo splitAndPartitionInfo = extractSplit(splitVector, 0);
     ParquetProtobuf.ParquetBlockBasedSplitXAttr xAttr = ParquetProtobuf.ParquetBlockBasedSplitXAttr
@@ -103,31 +105,34 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
   @Test
   public void testWithFileSizeMoreThanSplitSize() throws Exception {
     DataFile df1 = getDatafile("/path/to/data-1.parquet", blockSize * 2 + 1024);
+    ManifestEntryWrapper<DataFile> me1 = new ManifestEntryWrapper<>(df1, 0);
     int splitGenerated, totalSplitGenerated = 0;
-    splitGenerated = dataFileProcessor.processDatafile(df1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated = dataFileProcessor.processManifestEntry(me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 3);
 
-    splitGenerated = dataFileProcessor.processDatafile(df1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated = dataFileProcessor.processManifestEntry(me1, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 0);
-    dataFileProcessor.closeDatafile();
+    dataFileProcessor.closeManifestEntry();
 
     DataFile df2 = getDatafile("/path/to/data-2.parquet", blockSize * 1 + 1024);
-    splitGenerated = dataFileProcessor.processDatafile(df2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    ManifestEntryWrapper<DataFile> me2 = new ManifestEntryWrapper<>(df2, 0);
+    splitGenerated = dataFileProcessor.processManifestEntry(me2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 2);
 
-    splitGenerated = dataFileProcessor.processDatafile(df2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    splitGenerated = dataFileProcessor.processManifestEntry(me2, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 0);
-    dataFileProcessor.closeDatafile();
+    dataFileProcessor.closeManifestEntry();
 
     DataFile df3 = getDatafile("/path/to/data-3.parquet", blockSize * 1 + 1024);
-    splitGenerated = dataFileProcessor.processDatafile(df3, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
+    ManifestEntryWrapper<DataFile> me3 = new ManifestEntryWrapper<>(df3, 0);
+    splitGenerated = dataFileProcessor.processManifestEntry(me3, startIndex + totalSplitGenerated, maxOutputCount - totalSplitGenerated);
     totalSplitGenerated += splitGenerated;
     assertEquals(splitGenerated, 0);
-    dataFileProcessor.closeDatafile();
+    dataFileProcessor.closeManifestEntry();
 
     //Test whether split no. 3 at index 2 is from data-1.parquet and its size is 1024
     // because sizeOf(Data-1.parquet)/blocksize = 1024

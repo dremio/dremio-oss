@@ -16,69 +16,138 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import static com.dremio.exec.planner.sql.handlers.direct.ShowHandlerUtil.*;
+import static java.util.Objects.requireNonNull;
+
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedPlugin;
+import com.dremio.exec.planner.sql.handlers.VersionedHandlerUtils;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
-import com.dremio.service.catalog.Table;
+import com.dremio.exec.store.ReferenceConflictException;
+import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 
+/**
+ * Handler for show tables.
+ *
+ * SHOW TABLES
+ * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * [ ( FROM | IN ) source ]
+ * [ LIKE 'pattern' ]
+ */
 public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.ShowTableResult> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ShowTablesHandler.class);
 
   private final Catalog catalog;
+  private final OptionResolver optionResolver;
+  private final UserSession userSession;
 
-  public ShowTablesHandler(Catalog catalog){
+  public ShowTablesHandler(Catalog catalog, OptionResolver optionResolver, UserSession userSession){
     this.catalog = catalog;
+    this.optionResolver = optionResolver;
+    this.userSession = userSession;
   }
 
   @Override
   public List<ShowTableResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    final SqlShowTables node = SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class);
-    final NamespaceKey path = node.getDb() != null ? new NamespaceKey(node.getDb().names) : catalog.getDefaultSchema();
+    SqlShowTables sqlShowTables = SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class);
 
-    if(path == null) {
-      // If the default schema is a root schema, throw an error to select a default schema
-      throw UserException.validationError()
-        .message("No default schema selected. Select a schema using 'USE schema' command")
-        .build(logger);
+    final NamespaceKey sourcePath = VersionedHandlerUtils.resolveSourceNameAsNamespaceKey(
+      sqlShowTables.getSourceName(),
+      userSession.getDefaultSchemaPath());
+
+    validate(sourcePath, catalog);
+
+    if(CatalogUtil.requestedPluginSupportsVersionedTables(sourcePath, catalog)) {
+      return showVersionedTables(sqlNode, sourcePath);
+    } else {
+      return showTables(sqlNode, sourcePath);
     }
+  }
 
-    if(!catalog.containerExists(path)) {
-      throw UserException.validationError()
-        .message("Invalid schema %s.", path)
-        .build(logger);
-    }
 
-    final Pattern likePattern = SqlNodeUtil.getPattern(node.getLikePattern());
+  private List<ShowTableResult> showTables(SqlNode sqlNode, NamespaceKey sourcePath) throws ForemanSetupException {
+    final SqlShowTables sqlShowTables = SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class);
+
+    validateNonVersionedSql(sqlShowTables, sourcePath);
+
+    final Pattern likePattern = SqlNodeUtil.getPattern(sqlShowTables.getLikePattern());
     final Matcher m = likePattern.matcher("");
 
-    return FluentIterable.from(catalog.listDatasets(path))
-        .filter(new Predicate<Table>() {
+    return StreamSupport.stream(catalog.listDatasets(sourcePath).spliterator(), false)
+      .filter(table -> m.reset(table.getTableName()).matches())
+      .map(table -> new ShowTableResult(
+        table.getSchemaName(),
+        table.getTableName()))
+      .collect(Collectors. toList());
+  }
 
-      @Override
-      public boolean apply(Table input) {
-        m.reset(input.getTableName());
-        return m.matches();
-      }}).transform(new Function<Table, ShowTableResult>(){
+  private List<ShowTableResult> showVersionedTables(SqlNode sqlNode, NamespaceKey sourcePath) throws ForemanSetupException {
+    checkVersionedFeatureEnabled(optionResolver,"SHOW TABLES syntax is not supported.");
 
-      @Override
-      public ShowTableResult apply(Table input) {
-        return new ShowTableResult(input.getSchemaName(), input.getTableName());
-      }}).toList();
+    final SqlShowTables showTable = requireNonNull(SqlNodeUtil.unwrap(sqlNode, SqlShowTables.class));
+
+    final String sourceName = sourcePath.getRoot();
+    final VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(showTable.getRefType(), showTable.getRefValue());
+    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
+    final VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+
+    final Pattern likePattern = SqlNodeUtil.getPattern(showTable.getLikePattern());
+    final Matcher m = likePattern.matcher("");
+    final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName, catalog);
+    final List<String> path = sourcePath.getPathWithoutRoot();
+    try
+    {
+      return versionedPlugin.listTablesIncludeNested(
+          path,
+          sourceVersion)
+        .filter(table -> m.reset(table.getName()).matches())
+        .map(entry ->
+          new ShowTableResult(
+            concatSourceNameAndNamespace(sourceName, entry.getNamespace()),
+            entry.getName()))
+        .collect(Collectors.toList());
+    } catch (ReferenceConflictException e) {
+      throw UserException.validationError(e)
+        .message("%s has conflict on source %s.", sourceVersion, sourceName)
+        .buildSilently();
+    } catch (ReferenceNotFoundException e) {
+        throw UserException.validationError(e)
+          .message("%s not found on source %s.", sourceVersion, sourceName)
+          .buildSilently();
+    }
   }
 
   @Override
   public Class<ShowTableResult> getResultType() {
     return ShowTableResult.class;
+  }
+
+  private void validateNonVersionedSql(SqlShowTables sqlShowTables, NamespaceKey sourcePath)
+  {
+    if(sqlShowTables.getRefValue() != null || sqlShowTables.getRefType() != null)
+    {
+      throw UserException.unsupportedError()
+        .message("Source %s does not support references.", sourcePath.getRoot())
+        .build(logger);
+    }
   }
 
   public static class ShowTableResult {
@@ -91,6 +160,29 @@ public class ShowTablesHandler implements SqlDirectHandler<ShowTablesHandler.Sho
       TABLE_NAME = tABLE_NAME;
     }
 
-  }
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ShowTableResult that = (ShowTableResult) o;
+      return Objects.equals(TABLE_SCHEMA, that.TABLE_SCHEMA) && Objects.equals(TABLE_NAME, that.TABLE_NAME);
+    }
 
+    @Override
+    public int hashCode() {
+      return Objects.hash(TABLE_SCHEMA, TABLE_NAME);
+    }
+
+    @Override
+    public String toString() {
+      return "ShowTableResult{" +
+        "TABLE_SCHEMA='" + TABLE_SCHEMA + '\'' +
+        ", TABLE_NAME='" + TABLE_NAME + '\'' +
+        '}';
+    }
+  }
 }

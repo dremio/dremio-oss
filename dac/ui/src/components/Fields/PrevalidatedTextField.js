@@ -13,39 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Keys from '@app/constants/Keys.json';
-import TextField from './TextField';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Keys from "@app/constants/Keys.json";
+import TextField from "./TextField";
 
 export default class PrevalidatedTextField extends Component {
   static propTypes = {
     onChange: PropTypes.func,
     validate: PropTypes.func,
-    value: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number
-    ])
-  }
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  };
 
   constructor(props) {
     super(props);
 
     this.state = {
-      internalValue: props.value
+      internalValue: props.value,
     };
   }
 
   componentWillReceiveProps(nextProps) {
-    if (this.state.internalValue === '' || this.props.value !== nextProps.value) {
+    if (
+      this.state.internalValue === "" ||
+      this.props.value !== nextProps.value
+    ) {
       this.setState({ internalValue: nextProps.value });
     }
   }
 
   handleTextFieldChange = (e) => {
-    const { value } = e.target;
+    const value = Number.isInteger(e) ? e : e.target.value;
     this.setState({ internalValue: value }, this.handleUpdateTextField);
-  }
+  };
 
   handleUpdateTextField = () => {
     const { validate, onChange, value } = this.props;
@@ -54,18 +54,18 @@ export default class PrevalidatedTextField extends Component {
     } else {
       this.setState({ internalValue: value });
     }
-  }
+  };
 
   handleTextFieldBlur = () => {
     this.handleUpdateTextField();
-  }
+  };
 
   handleTextFieldKeyDown = (e) => {
     if (e.keyCode === Keys.ENTER) {
       e.stopPropagation();
       this.handleUpdateTextField();
     }
-  }
+  };
 
   render() {
     return (

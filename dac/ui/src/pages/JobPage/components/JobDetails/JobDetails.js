@@ -13,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import ViewStateWrapper from 'components/ViewStateWrapper';
+import ViewStateWrapper from "components/ViewStateWrapper";
 
-import { flexElementAuto } from '@app/uiTheme/less/layout.less';
+import { flexElementAuto } from "@app/uiTheme/less/layout.less";
 
-import HeaderDetails from './HeaderDetails';
-import TabsNavigation from './TabsNavigation';
-import TabsContent from './TabsContent';
-import './JobDetails.less';
+import HeaderDetails from "./HeaderDetails";
+import TabsNavigation from "./TabsNavigation";
+import TabsContent from "./TabsContent";
+import "./JobDetails.less";
 
-@Radium
-export default class JobDetails extends PureComponent {
+class JobDetails extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     jobId: PropTypes.string,
@@ -42,28 +40,39 @@ export default class JobDetails extends PureComponent {
     downloadJobProfile: PropTypes.func,
 
     //connected
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    viewState: PropTypes.instanceOf(Immutable.Map),
   };
 
   defaultProps = {
-    jobDetails: Immutable.Map()
-  }
+    jobDetails: Immutable.Map(),
+  };
 
   state = {
-    activeTab: 'overview'
-  }
+    activeTab: "overview",
+  };
 
-  changeTab = (id) => this.setState({ activeTab: id})
+  changeTab = (id) => this.setState({ activeTab: id });
 
   render() {
     const { jobId, jobDetails, viewState } = this.props;
     const haveDetails = !!(jobId && jobDetails && !jobDetails.isEmpty());
 
     return (
-      <section className='job-details' style={styles.base}>
-        <ViewStateWrapper viewState={viewState} hideChildrenWhenInProgress={false} hideChildrenWhenFailed={false} hideSpinner={haveDetails}>
-          { haveDetails &&
-            <div style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
+      <section className="job-details" style={styles.base}>
+        <ViewStateWrapper
+          viewState={viewState}
+          hideChildrenWhenInProgress={false}
+          hideChildrenWhenFailed={false}
+          hideSpinner={haveDetails}
+        >
+          {haveDetails && (
+            <div
+              style={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <HeaderDetails
                 cancelJob={this.props.cancelJob}
                 jobId={jobId}
@@ -75,7 +84,7 @@ export default class JobDetails extends PureComponent {
                 changeTab={this.changeTab}
                 activeTab={this.state.activeTab}
                 style={styles.header}
-                attemptDetails={jobDetails.get('attemptDetails')}
+                attemptDetails={jobDetails.get("attemptDetails")}
                 showJobProfile={this.props.showJobProfile}
                 location={this.props.location}
               />
@@ -89,7 +98,7 @@ export default class JobDetails extends PureComponent {
                 downloadJobProfile={this.props.downloadJobProfile}
               />
             </div>
-          }
+          )}
         </ViewStateWrapper>
       </section>
     );
@@ -98,15 +107,16 @@ export default class JobDetails extends PureComponent {
 
 const styles = {
   base: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    margin: '0 0 0 10px',
-    overflowY: 'auto',
-    flex: '1 1',
-    background: '#fff'
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    margin: "0 0 0 10px",
+    overflowY: "auto",
+    flex: "1 1",
+    background: "#fff",
   },
   header: {
-    flexShrink: 0
-  }
+    flexShrink: 0,
+  },
 };
+export default JobDetails;

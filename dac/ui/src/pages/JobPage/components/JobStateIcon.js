@@ -13,58 +13,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 
-import Art from 'components/Art';
+import Art from "components/Art";
 
 @injectIntl
 export default class JobStateIcon extends PureComponent {
   static propTypes = {
     state: PropTypes.string.isRequired,
     intl: PropTypes.object.isRequired,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   render() {
     const state = this.props.state;
 
-    let src = 'Ellipsis';
-    let className = '';
+    let src = "Ellipsis";
+    let className = "";
 
-    if (icons[state]) {
-      if (typeof icons[state] === 'string') {
-        src = icons[state];
+    if (JobStatusIcons[state]) {
+      if (typeof JobStatusIcons[state] === "string") {
+        src = JobStatusIcons[state];
       } else {
-        src = icons[state].src;
-        className = icons[state].className;
+        src = JobStatusIcons[state].src;
+        className = JobStatusIcons[state].className;
       }
     }
 
-    return <Art
-      src={`${src}.svg`}
-      alt={this.props.intl.formatMessage({id: 'Job.State.' + state})}
-      title
-      style={{height: 24, ...this.props.style}}
-      className={className}
-    />;
+    return (
+      <Art
+        src={`${src}.svg`}
+        alt={this.props.intl.formatMessage({ id: "Job.State." + state })}
+        title
+        style={{ height: 24, ...this.props.style }}
+        className={className}
+      />
+    );
   }
 }
 
-const icons = {
-  'NOT_SUBMITTED': 'Ellipsis',
-  'STARTING': 'Starting',
-  'RUNNING': { src: 'Loader', className: 'spinner' },
-  'COMPLETED': 'OKSolid',
-  'CANCELED': 'Canceled',
-  'FAILED': 'ErrorSolid',
-  'CANCELLATION_REQUESTED': 'CanceledGray',
-  'ENQUEUED': 'Ellipsis',
-  'PLANNING': 'Planning',
-  'PENDING': 'PendingDiamond',
-  'METADATA_RETRIEVAL': 'Planning',
-  'QUEUED': 'Queued',
-  'ENGINE_START': 'EngineStart',
-  'EXECUTION_PLANNING': 'Starting'
+export const JobStatusIcons = {
+  NOT_SUBMITTED: "Ellipsis",
+  STARTING: "Starting",
+  RUNNING: { src: "Loader", className: "spinner" },
+  COMPLETED: "OKSolid",
+  CANCELED: "Canceled",
+  FAILED: "ErrorSolid",
+  CANCELLATION_REQUESTED: "CanceledGray",
+  ENQUEUED: "Ellipsis",
+  PLANNING: "Planning",
+  PENDING: "PendingDiamond",
+  METADATA_RETRIEVAL: "Planning",
+  QUEUED: "Queued",
+  ENGINE_START: "EngineStart",
+  EXECUTION_PLANNING: "Starting",
 };

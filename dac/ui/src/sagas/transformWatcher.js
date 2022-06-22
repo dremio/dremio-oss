@@ -13,47 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { take, race, call, put } from 'redux-saga/effects';
-import invariant from 'invariant';
-import { delay } from 'redux-saga';
-import { startDatasetMetadataLoad, completeDatasetMetadataLoad } from '@app/actions/explore/view';
-import { explorePageChanged } from '@app/sagas/runDataset';
-import { navigateToNextDataset } from '@app/actions/explore/dataset/common';
-import { startExplorePageListener, failedExploreJobProgress, stopExplorePageListener } from '@app/actions/explore/dataset/data';
-
-import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirmation';
-
-import RealTimeTimer from 'components/RealTimeTimer';
-// import { showPrepareResultsDialog } from '@inject/sagas/queryConfig';
-import { RESET_NEW_QUERY } from 'actions/explore/view';
-import { cancelTransform } from 'actions/explore/dataset/transform';
-import timeUtils from 'utils/timeUtils';
+import { take, race, call, put } from "redux-saga/effects";
+import invariant from "invariant";
+import { delay } from "redux-saga";
+import {
+  startDatasetMetadataLoad,
+  completeDatasetMetadataLoad,
+} from "@app/actions/explore/view";
+import { explorePageChanged } from "@app/sagas/runDataset";
+import { navigateToNextDataset } from "@app/actions/explore/dataset/common";
+import {
+  startExplorePageListener,
+  failedExploreJobProgress,
+  stopExplorePageListener,
+} from "@app/actions/explore/dataset/data";
 
 import {
-  getApiActionEntity
-} from './utils';
+  showConfirmationDialog,
+  hideConfirmationDialog,
+} from "actions/confirmation";
+
+import RealTimeTimer from "components/RealTimeTimer";
+// import { showPrepareResultsDialog } from '@inject/sagas/queryConfig';
+import { RESET_NEW_QUERY } from "actions/explore/view";
+import { cancelTransform } from "actions/explore/dataset/transform";
+import timeUtils from "utils/timeUtils";
+
+import { getApiActionEntity } from "./utils";
 
 export const MAX_TIME_PER_OPERATION = 10000;
 
 export class TransformCanceledError {
   constructor(entity) {
-    this.message = 'transform canceled.';
-    this.name = 'TransformCanceledError';
+    this.message = "SQL operation(s) canceled.";
+    this.name = "TransformCanceledError";
     this.entity = entity;
   }
 }
 
 export class TransformCanceledByLocationChangeError {
   constructor(entity) {
-    this.message = 'transform canceled by location change.';
-    this.name = 'TransformCanceledByLocationChangeError';
+    this.message = "SQL operation(s) canceled by location change.";
+    this.name = "TransformCanceledByLocationChangeError";
     this.entity = entity;
   }
 }
 
 export class TransformFailedError {
   constructor(response) {
-    this.name = 'TransformFailedError';
+    this.name = "TransformFailedError";
     this.response = response;
   }
 }
@@ -62,11 +70,7 @@ export class TransformFailedError {
 export function* transformThenNavigate(action, viewId, navigateOptions) {
   try {
     yield put(startDatasetMetadataLoad());
-    const response = yield call(
-      performWatchedTransform,
-      action,
-      viewId
-    );
+    const response = yield call(performWatchedTransform, action, viewId);
     if (response && !response.error) {
       yield put(stopExplorePageListener());
       yield put(navigateToNextDataset(response, navigateOptions));
@@ -82,16 +86,16 @@ export function* transformThenNavigate(action, viewId, navigateOptions) {
 
 //export for tests
 export function* performWatchedTransform(apiAction, viewId) {
-  invariant(viewId, 'viewId param is required for performWatchedTransform');
+  invariant(viewId, "viewId param is required for performWatchedTransform");
   const apiPromise = yield put(apiAction);
   // "apiPromise instanceof Promise" always return "false" in IE/Edge. So check for thenable
-  invariant(apiPromise && apiPromise.then, 'action must return a Promise');
+  invariant(apiPromise && apiPromise.then, "action must return a Promise");
 
   const raceResults = yield race({
     tableTransform: apiPromise,
     cancel: call(cancelTransformWithModal, viewId),
     resetNewQuery: take(RESET_NEW_QUERY),
-    locationChange: call(explorePageChanged)
+    locationChange: call(explorePageChanged),
   });
 
   if (!raceResults.cancel) {
@@ -105,7 +109,9 @@ export function* performWatchedTransform(apiAction, viewId) {
   }
 
   if (raceResults.locationChange) {
-    throw new TransformCanceledByLocationChangeError(getApiActionEntity(apiAction));
+    throw new TransformCanceledByLocationChangeError(
+      getApiActionEntity(apiAction)
+    );
   }
   return raceResults.tableTransform;
 }
@@ -117,19 +123,20 @@ export function* cancelTransformWithModal(viewId) {
   let action;
   const confirmPromise = new Promise((resolve) => {
     action = showConfirmationDialog({
-      title: la('Job Executing…'),
+      title: la("Job Executing…"),
       showOnlyConfirm: true,
-      confirmText: la('Cancel'),
+      confirmText: la("Cancel"),
       text: [
-        <span>
-          {la('Elapsed time')}: <RealTimeTimer
+        <span key="elapsed-time">
+          {la("Elapsed time")}:{" "}
+          <RealTimeTimer
             startTime={Date.now() - MAX_TIME_PER_OPERATION}
             formatter={(diff) => timeUtils.formatTimeDiff(diff)}
           />
-        </span>
+        </span>,
       ],
       confirm: resolve,
-      style: {top: '25%'}
+      style: { top: "25%" },
     });
   });
 

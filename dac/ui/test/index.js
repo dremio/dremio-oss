@@ -15,25 +15,64 @@
  */
 /*eslint no-sync: 0*/
 
+//https://github.com/sinonjs/fake-timers/issues/394#issuecomment-1021665619
+global.Performance =
+  global.Performance ||
+  class Perf {
+    clearMarks() {
+      return global.performance.clearMarks();
+    }
+    clearMeasures() {
+      return global.performance.clearMeasures();
+    }
+    clearResourceTimings() {
+      return global.performance.clearResourceTimings();
+    }
+    getEntries() {
+      return global.performance.getEntries();
+    }
+    getEntriesByName() {
+      return global.performance.getEntriesByName();
+    }
+    getEntriesByType() {
+      return global.performance.getEntriesByType();
+    }
+    mark() {
+      return global.performance.mark();
+    }
+    measure() {
+      return global.performance.measure();
+    }
+    now() {
+      return global.performance.now();
+    }
+    setResourceTimingBufferSize() {
+      return global.performance.setResourceTimingBufferSize();
+    }
+    toJSON() {
+      return global.performance.toJSON();
+    }
+  };
+
 // note: mocha watch doesn't seem to work outside of the cwd, so we have to play a few games (see package.json)
 
-const path = require('path');
-const dynLoader = require('../dynLoader');
-const { InjectionResolver } = require('../scripts/injectionResolver');
+const path = require("path");
+const dynLoader = require("../dynLoader");
+const { InjectionResolver } = require("../scripts/injectionResolver");
 
 // make sure babel works, even for dynamically loaded files
 // alt: could probably move .babelrc, node_modules to dremio root
-require('@babel/register')({
-  configFile: path.join(__dirname, '..', '.babelrc.js'),
-  extensions: ['.js', '.jsx', '.ts', '.tsx']
+require("@babel/register")({
+  configFile: path.join(__dirname, "..", ".babelrc.js"),
+  extensions: [".js", ".jsx", ".ts", ".tsx"],
 });
 
-require('app-module-path').addPath(__dirname);
-require('app-module-path').addPath(path.resolve(__dirname, '..', 'src'));
+require("app-module-path").addPath(__dirname);
+require("app-module-path").addPath(path.resolve(__dirname, "..", "src"));
 
 dynLoader.applyNodeResolver();
 
-require('./testHelper');
+require("./testHelper");
 
 const injectionResolver = new InjectionResolver();
 injectionResolver.applyNodeResolver();

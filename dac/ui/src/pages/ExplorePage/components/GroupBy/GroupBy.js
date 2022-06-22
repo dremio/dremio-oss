@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
-import DefaultWizardFooter from 'components/Wizards/components/DefaultWizardFooter';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import {
+  connectComplexForm,
+  InnerComplexForm,
+} from "components/Forms/connectComplexForm";
+import DefaultWizardFooter from "components/Wizards/components/DefaultWizardFooter";
 
-import AggregateForm from 'components/Aggregate/AggregateForm';
+import AggregateForm from "components/Aggregate/AggregateForm";
 
 const SECTIONS = [AggregateForm];
 
-@Radium
 export class GroupBy extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -35,26 +36,17 @@ export class GroupBy extends PureComponent {
     columns: PropTypes.instanceOf(Immutable.List),
     location: PropTypes.object,
     error: PropTypes.object,
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
   };
 
   render() {
     const { canSelect, submit } = this.props;
     return (
-      <div
-        className='group-by'
-      >
-        <InnerComplexForm
-          {...this.props}
-          onSubmit={submit}
-        >
-          <AggregateForm
-            {...this.props}
-            type='groupBy'
-            canAlter={canSelect}
-          />
+      <div className="group-by">
+        <InnerComplexForm {...this.props} onSubmit={submit}>
+          <AggregateForm {...this.props} type="groupBy" canAlter={canSelect} />
           <DefaultWizardFooter
-            style={{marginTop: 10}}
+            style={{ marginTop: 10 }}
             {...this.props}
             onFormSubmit={submit}
           />
@@ -64,22 +56,27 @@ export class GroupBy extends PureComponent {
   }
 }
 
-const mapStateToProps = (state, ownProps) => {
+const mapStateToProps = (ownProps) => {
   const { location } = ownProps;
 
-  if (location.state.columnName) {
+  if (location && location.state.columnName) {
     const column = {
       column: location.state.columnName,
-      type: location.state.columnType
+      type: location.state.columnType,
     };
     return {
       initialValues: {
-        columnsDimensions: [column]
-      }
+        columnsDimensions: [column],
+      },
     };
   }
 };
 
-export default connectComplexForm({
-  form: 'groupBy'
-}, SECTIONS, mapStateToProps, null)(GroupBy);
+export default connectComplexForm(
+  {
+    form: "groupBy",
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(GroupBy);

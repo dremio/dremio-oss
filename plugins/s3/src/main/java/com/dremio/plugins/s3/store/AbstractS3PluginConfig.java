@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -119,6 +120,11 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @DisplayMetadata(label = "Enable file status check")
   public boolean enableFileStatusCheck = true;
 
+  @Tag(20)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -147,6 +153,11 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  @Override
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
   }
 
   @Override

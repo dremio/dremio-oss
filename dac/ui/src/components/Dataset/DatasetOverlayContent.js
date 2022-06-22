@@ -13,33 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect }   from 'react-redux';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import { Link } from 'react-router';
-import PropTypes from 'prop-types';
-import { loadSummaryDataset } from 'actions/resources/dataset';
-import { getViewState } from 'selectors/resources';
-import { getSummaryDataset } from 'selectors/datasets';
-import { stopPropagation } from '@app/utils/reactEventUtils';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import { Link } from "react-router";
+import PropTypes from "prop-types";
+import { loadSummaryDataset } from "actions/resources/dataset";
+import { getViewState } from "selectors/resources";
+import { getSummaryDataset } from "selectors/datasets";
+import { stopPropagation } from "@app/utils/reactEventUtils";
 
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import ColumnMenuItem from 'components/DragComponents/ColumnMenuItem';
-import FontIcon from 'components/Icon/FontIcon';
-import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
+import ViewStateWrapper from "components/ViewStateWrapper";
+import ColumnMenuItem from "components/DragComponents/ColumnMenuItem";
+import FontIcon from "components/Icon/FontIcon";
+import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 
-import DatasetOverlayContentMixin from 'dyn-load/components/Dataset/DatasetOverlayContentMixin';
+import DatasetOverlayContentMixin from "dyn-load/components/Dataset/DatasetOverlayContentMixin";
 
-import { formDescription } from 'uiTheme/radium/typography';
-import { CELL_EXPANSION_HEADER, WHITE } from 'uiTheme/radium/colors';
-import { FLEX_COL_START, FLEX_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/flexStyle';
+import { formDescription } from "uiTheme/radium/typography";
+import { CELL_EXPANSION_HEADER, WHITE } from "uiTheme/radium/colors";
+import {
+  FLEX_COL_START,
+  FLEX_NOWRAP_ROW_BETWEEN_CENTER,
+} from "uiTheme/radium/flexStyle";
 
-import './DatasetOverlayContent.less';
+import "./DatasetOverlayContent.less";
 
-const VIEW_ID = 'SummaryDataset';
+const VIEW_ID = "SummaryDataset";
 
-@Radium
 @DatasetOverlayContentMixin
 export class DatasetOverlayContent extends PureComponent {
   static propTypes = {
@@ -58,26 +59,28 @@ export class DatasetOverlayContent extends PureComponent {
     iconStyles: PropTypes.object,
     onRef: PropTypes.func,
     shouldAllowAdd: PropTypes.bool,
-    addtoEditor: PropTypes.func
+    addtoEditor: PropTypes.func,
+    isStarredLimitReached: PropTypes.bool,
   };
 
   static defaultProps = {
     iconStyles: {},
-    dragType: ''
+    dragType: "",
   };
 
   static contextTypes = {
     username: PropTypes.string,
-    location: PropTypes.object
+    location: PropTypes.object,
   };
 
-  componentWillMount() {
-    this.props.loadSummaryDataset(this.props.fullPath.join('/'), VIEW_ID);
+  componentDidMount() {
+    this.props.loadSummaryDataset(this.props.fullPath.join("/"), VIEW_ID);
   }
 
   renderHeader() {
-    const { summaryDataset, showFullPath, typeIcon } = this.props;
-    const name = summaryDataset.getIn(['fullPath', -1]);
+    const { summaryDataset, showFullPath, typeIcon, isStarredLimitReached } =
+      this.props;
+    const name = summaryDataset.getIn(["fullPath", -1]);
     return (
       <div style={styles.header}>
         <div style={styles.breadCrumbs}>
@@ -85,25 +88,30 @@ export class DatasetOverlayContent extends PureComponent {
             shouldShowOverlay={false}
             name={name}
             showFullPath={showFullPath}
-            fullPath={summaryDataset.get('fullPath')}
+            fullPath={summaryDataset.get("fullPath")}
             typeIcon={typeIcon}
+            isStarredLimitReached={isStarredLimitReached}
           />
         </div>
-        <div style={{display: 'flex', marginRight: 5}}>
-          { /* disabled pending DX-6596 Edit link from DatasetOverlay is broken */ }
+        <div style={{ display: "flex", marginRight: 5 }}>
+          {/* disabled pending DX-6596 Edit link from DatasetOverlay is broken */}
           {false && this.renderPencil(summaryDataset)}
-          <Link to={summaryDataset.getIn(['links', 'query'])} onClick={(e) => e.stopPropagation()}><FontIcon tooltip={la('Query')} type='Query'/></Link>
+          <Link
+            to={summaryDataset.getIn(["links", "query"])}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <FontIcon tooltip={la("Query")} type="Query" />
+          </Link>
         </div>
       </div>
     );
-
   }
 
   renderColumn() {
     const { summaryDataset, shouldAllowAdd, addtoEditor } = this.props;
-    return summaryDataset.get('fields') && summaryDataset.get('fields').size ?
+    return summaryDataset.get("fields") && summaryDataset.get("fields").size ? (
       <div>
-        { summaryDataset.get('fields').map( (item, i) => {
+        {summaryDataset.get("fields").map((item, i) => {
           return (
             <ColumnMenuItem
               key={i}
@@ -115,39 +123,44 @@ export class DatasetOverlayContent extends PureComponent {
               fullPath={this.props.fullPath}
               preventDrag={!this.props.dragType}
               nativeDragData={{
-                type: 'columnName',
+                type: "columnName",
                 data: {
-                  name: item.get('name')
-                }
+                  name: item.get("name"),
+                },
               }}
               shouldAllowAdd={shouldAllowAdd}
-              addtoEditor={addtoEditor} />
+              addtoEditor={addtoEditor}
+            />
           );
         })}
       </div>
-      : null;
+    ) : null;
   }
 
   render() {
-    const { summaryDataset, onMouseEnter, onMouseLeave, placement, viewState, onClose, onRef } = this.props;
-    const position = placement === 'right' ? placement : '';
+    const {
+      summaryDataset,
+      onMouseEnter,
+      onMouseLeave,
+      placement,
+      viewState,
+      onClose,
+      onRef,
+    } = this.props;
+    const position = placement === "right" ? placement : "";
 
     return (
       <div
-        data-qa='dataset-detail-popup'
+        data-qa="dataset-detail-popup"
         ref={onRef}
-        style={[styles.base]}
+        style={styles.base}
         className={`dataset-label-overlay ${position}`}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onClick={stopPropagation}
       >
         <ViewStateWrapper viewState={viewState} onDismissError={onClose}>
-          { summaryDataset.size > 0 &&
-            <div>
-              {this.renderColumn()}
-            </div>
-          }
+          {summaryDataset.size > 0 && <div>{this.renderColumn()}</div>}
         </ViewStateWrapper>
       </div>
     );
@@ -155,60 +168,62 @@ export class DatasetOverlayContent extends PureComponent {
 }
 
 function mapStateToProps(state, props) {
-  const fullPath = props.fullPath.join(',');
+  const fullPath = props.fullPath.join(",");
   return {
     summaryDataset: getSummaryDataset(state, fullPath),
-    viewState: getViewState(state, VIEW_ID)
+    viewState: getViewState(state, VIEW_ID),
   };
 }
 
-export default connect(mapStateToProps, { loadSummaryDataset })(DatasetOverlayContent);
+export default connect(mapStateToProps, { loadSummaryDataset })(
+  DatasetOverlayContent
+);
 
 const styles = {
   base: {
-    display: 'flex',
-    flexDirection: 'column'
+    display: "flex",
+    flexDirection: "column",
   },
   header: {
     padding: 5,
     height: 45,
     width: 210,
-    borderRight: '1px solid #E9E9E9',
-    borderTop: '1px solid #E9E9E9',
-    borderLeft: '1px solid #E9E9E9',
-    borderRadius: '2px 2px 0 0',
+    borderRight: "1px solid #E9E9E9",
+    borderTop: "1px solid #E9E9E9",
+    borderLeft: "1px solid #E9E9E9",
+    borderRadius: "2px 2px 0 0",
     backgroundColor: CELL_EXPANSION_HEADER,
-    ...FLEX_NOWRAP_ROW_BETWEEN_CENTER
+    ...FLEX_NOWRAP_ROW_BETWEEN_CENTER,
   },
   attributesWrap: {
-    padding: '5px 10px',
+    padding: "5px 10px",
     backgroundColor: WHITE,
     width: 210,
     minWidth: 200,
     maxWidth: 550,
     maxHeight: 400,
-    overflowY: 'auto',
-    borderRadius: '0 0 2px 2px',
-    borderRight: '1px solid #E9E9E9',
-    borderBottom: '1px solid #E9E9E9',
-    borderLeft: '1px solid #E9E9E9',
-    boxShadow: '0 0 5px 0 rgba(0, 0, 0, 0.05)',
-    ...FLEX_COL_START
+    overflowY: "auto",
+    borderRadius: "0 0 2px 2px",
+    borderRight: "1px solid #E9E9E9",
+    borderBottom: "1px solid #E9E9E9",
+    borderLeft: "1px solid #E9E9E9",
+    boxShadow: "0 0 5px 0 rgba(0, 0, 0, 0.05)",
+    ...FLEX_COL_START,
   },
   attribute: {
     flexShrink: 0,
-    display: 'flex',
-    marginBottom: 4
+    display: "flex",
+    marginBottom: 4,
   },
   attributeLabel: {
     ...formDescription,
-    width: 90
+    width: 90,
   },
   breadCrumbs: {
-    overflow: 'auto',
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center'
-  }
+    overflow: "auto",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
 };

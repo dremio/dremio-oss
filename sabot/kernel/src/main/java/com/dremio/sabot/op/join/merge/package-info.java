@@ -58,4 +58,3 @@
  *
  */
 package com.dremio.sabot.op.join.merge;
-

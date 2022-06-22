@@ -157,4 +157,3 @@ public abstract class AbstractVector implements AutoCloseable {
     return dataBuffer.memoryAddress();
   }
 }
-

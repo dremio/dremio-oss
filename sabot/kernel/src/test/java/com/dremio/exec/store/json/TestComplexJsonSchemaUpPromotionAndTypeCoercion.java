@@ -24,6 +24,7 @@ import static com.dremio.ArrowDsUtil.wrapStructInList;
 import static com.dremio.ArrowDsUtil.wrapStructInStruct;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.Assert.assertTrue;
 
 import java.net.URL;
 import java.nio.file.Path;
@@ -82,17 +83,18 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
       .baselineColumns("col2")
       .baselineValues(doubleList(1.1, 2.2))
       .go();
-    java.nio.file.Files.delete(jsonDir.resolve("empty_list.json"));
     Path nonEmptyListFilePath = Paths.get("json/schema_changes/no_mixed_types/complex/array_double_bigint/array_bigint_double.json");
     URL resource = Resources.getResource(nonEmptyListFilePath.toString());
     java.nio.file.Files.write(jsonDir.resolve("array_bigint_double.json"), Resources.toByteArray(resource));
     final String sql = "alter table dfs.\"" + jsonDir + "\" refresh metadata";
     runSQL(sql);
+    triggerOptionalSchemaLearning(jsonDir);
     testBuilder()
       .sqlQuery("SELECT * from dfs.\"" + jsonDir + "\"")
       .unOrdered()
       .baselineColumns("col1", "col2")
       .baselineValues(longList(1L, 2L), doubleList(1.1, 2.2))
+      .baselineValues(longList(), doubleList(1.1, 2.2))
       .go();
   }
 
@@ -211,6 +213,16 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
       .havingCause()
       .isInstanceOf(UserRemoteException.class)
       .withMessageContaining("New schema found");
+  }
+
+  void triggerOptionalSchemaLearning(Path jsonDir) {
+    String query = "SELECT * from dfs.\"" + jsonDir + "\"";
+    try {
+      testRunAndReturn(UserBitShared.QueryType.SQL, query);
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof UserRemoteException);
+      assertTrue(e.getCause().getMessage().contains("New schema found"));
+    }
   }
 
   private void verifyCountStar(Path jsonDir, long result) throws Exception {

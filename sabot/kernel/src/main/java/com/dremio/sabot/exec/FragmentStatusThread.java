@@ -35,7 +35,7 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStatusThread.class);
 
-  private final static int STATUS_PERIOD_SECONDS = 5;
+  private static final int STATUS_PERIOD_SECONDS = 5;
 
   private final Iterable<FragmentExecutor> executors;
   private final QueriesClerk clerk;

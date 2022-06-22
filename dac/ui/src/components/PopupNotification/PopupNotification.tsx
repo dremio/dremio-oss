@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useState } from "react";
 // @ts-ignore
-import ReactDOM from 'react-dom';
+import ReactDOM from "react-dom";
+import { IconButton, Snackbar } from "@material-ui/core";
 // @ts-ignore
-import { IconButton, Snackbar } from '@material-ui/core';
-import FontIcon from '../Icon/FontIcon';
-import Art from '../Art';
-import { POPUP_ICON_TYPES } from './popupNotificationUtils';
+import { Tooltip } from "dremio-ui-lib";
+import FontIcon from "../Icon/FontIcon";
+import { POPUP_ICON_TYPES } from "./popupNotificationUtils";
 
-import './PopupNotification.less';
+import "./PopupNotification.less";
 
 const unmountPopup = () => {
   const container = document.querySelector(".popup-notifications");
@@ -34,12 +34,12 @@ const unmountPopup = () => {
 
 type PopupNotificationProps = {
   message: string;
-  type?: 'success' | 'error' | 'warning' | 'default';
+  type?: "success" | "error" | "warning" | "default";
   autoClose?: number;
-}
+};
 
 export const PopupNotification = (props: PopupNotificationProps) => {
-  const { autoClose, message, type = 'default' } = props;
+  const { autoClose, message, type = "default" } = props;
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
   const handleClose = () => {
@@ -50,41 +50,44 @@ export const PopupNotification = (props: PopupNotificationProps) => {
   return (
     <Snackbar
       className={`popupNotification --${type}`}
-      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      anchorOrigin={{ vertical: "top", horizontal: "center" }}
       open={isOpen}
       autoHideDuration={autoClose}
       onClose={handleClose}
       message={
         <>
-          <Art
-            src={`${POPUP_ICON_TYPES[type]}.svg`}
-            alt={POPUP_ICON_TYPES[type]}
-            className='type-icon'
-            title={POPUP_ICON_TYPES[type]}
-          />
+          <Tooltip title={type}>
+            <dremio-icon
+              name={POPUP_ICON_TYPES[type]}
+              alt={type}
+              class="type-icon"
+            />
+          </Tooltip>
           {message}
         </>
       }
       action={
         <IconButton
-          size='small'
-          className='popupNotification__close'
-          aria-label='close'
-          color='inherit'
+          size="small"
+          className="popupNotification__close"
+          aria-label="close"
+          color="inherit"
           onClick={handleClose}
         >
-          <FontIcon type='XBig' />
+          <FontIcon type="XBig" />
         </IconButton>
       }
     />
   );
 };
 
-export default function openPopupNotification(renderProps: PopupNotificationProps): void {
+export default function openPopupNotification(
+  renderProps: PopupNotificationProps
+): void {
   const autoClose = renderProps.autoClose ? renderProps.autoClose : 2000;
   const popup = <PopupNotification {...renderProps} autoClose={autoClose} />;
 
-  ReactDOM.render(popup, document.querySelector('.popup-notifications'));
+  ReactDOM.render(popup, document.querySelector(".popup-notifications"));
 
   const timeout = setTimeout(() => unmountPopup(), renderProps.autoClose);
 

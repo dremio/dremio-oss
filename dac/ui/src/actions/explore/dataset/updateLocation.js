@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-export const updateBody = () => {
-};
+export const updateBody = () => {};
 
-export const updateParams = () => {
-};
+export const updateParams = () => {};
 
-export const updateTransformData = () => {
-};
+export const updateTransformData = () => {};

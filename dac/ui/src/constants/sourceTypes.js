@@ -15,53 +15,57 @@
  */
 
 // Note: These IDs need to match values in source.proto
-export const REDSHIFT = 'REDSHIFT';
-export const S3 = 'S3';
-export const ELASTIC = 'ELASTIC';
-export const HBASE = 'HBASE';
-export const HDFS = 'HDFS';
-export const HIVE = 'HIVE';
-export const HIVE3 = 'HIVE3';
-export const MAPRFS = 'MAPRFS';
-export const SQLSERVER = 'MSSQL';
-export const MONGODB = 'MONGO';
-export const MYSQL = 'MYSQL';
-export const NAS = 'NAS';
-export const ORACLE = 'ORACLE';
-export const POSTGRESQL = 'POSTGRES';
-export const ADL = 'ADL';
-export const AWSGLUE = 'AWSGLUE';
-export const GCS = 'GCS';
-export const AMAZONELASTIC = 'AMAZONELASTIC';
-export const AZURE_STORAGE = 'AZURE_STORAGE';
+export const REDSHIFT = "REDSHIFT";
+export const S3 = "S3";
+export const ELASTIC = "ELASTIC";
+export const HBASE = "HBASE";
+export const HDFS = "HDFS";
+export const HIVE = "HIVE";
+export const HIVE3 = "HIVE3";
+export const MAPRFS = "MAPRFS";
+export const SQLSERVER = "MSSQL";
+export const MONGODB = "MONGO";
+export const MYSQL = "MYSQL";
+export const NAS = "NAS";
+export const ORACLE = "ORACLE";
+export const POSTGRESQL = "POSTGRES";
+export const ADL = "ADL";
+export const AWSGLUE = "AWSGLUE";
+export const GCS = "GCS";
+export const AMAZONELASTIC = "AMAZONELASTIC";
+export const AZURE_STORAGE = "AZURE_STORAGE";
+export const SYNAPSE = "SYNAPSE";
+export const ADX = "ADX";
 
 // These are not implemented in the backend yet.
-export const CASSANDRA = 'CASSANDRA';
-export const SALESFORCE = 'SALESFORCE';
-export const NETEZZA = 'NETEZZA';
-export const TERADATA = 'TERADATA';
+export const CASSANDRA = "CASSANDRA";
+export const SALESFORCE = "SALESFORCE";
+export const NETEZZA = "NETEZZA";
+export const TERADATA = "TERADATA";
 
-export const DATAPLANE = 'DATAPLANE';
+export const NESSIE = "NESSIE";
 
 export const sourceProperties = [
   // todo: loc
-  {label: 'Amazon Redshift', sourceType: REDSHIFT, beta: true},
-  {label: 'Amazon S3', sourceType: S3, beta: true},
-  {label: 'Elasticsearch', sourceType: ELASTIC},
-  {label: 'HBase', sourceType: HBASE, beta: true},
-  {label: 'HDFS', sourceType: HDFS},
-  {label: 'Hive 2.x', sourceType: HIVE},
-  {label: 'Hive 3.x', sourceType: HIVE3},
-  {label: 'MapR-FS', sourceType: MAPRFS},
-  {label: 'Microsoft SQL Server', sourceType: SQLSERVER},
-  {label: 'MongoDB', sourceType: MONGODB, beta: true},
-  {label: 'MySQL', sourceType: MYSQL},
-  {label: 'NAS', sourceType: NAS},
-  {label: 'Oracle', sourceType: ORACLE},
-  {label: 'PostgreSQL', sourceType: POSTGRESQL},
-  {label: 'Azure Data Lake Store', sourceType: ADL, beta: true},
-  {label: 'AWS Glue Catalog', sourceType: AWSGLUE, beta: true},
-  {label: 'Google Cloud Storage', sourceType: GCS, beta: true}
+  { label: "Amazon Redshift", sourceType: REDSHIFT, beta: true },
+  { label: "Amazon S3", sourceType: S3, beta: true },
+  { label: "Elasticsearch", sourceType: ELASTIC },
+  { label: "HBase", sourceType: HBASE, beta: true },
+  { label: "HDFS", sourceType: HDFS },
+  { label: "Hive 2.x", sourceType: HIVE },
+  { label: "Hive 3.x", sourceType: HIVE3 },
+  { label: "MapR-FS", sourceType: MAPRFS },
+  { label: "Microsoft SQL Server", sourceType: SQLSERVER },
+  { label: "MongoDB", sourceType: MONGODB, beta: true },
+  { label: "MySQL", sourceType: MYSQL },
+  { label: "NAS", sourceType: NAS },
+  { label: "Oracle", sourceType: ORACLE },
+  { label: "PostgreSQL", sourceType: POSTGRESQL },
+  { label: "Azure Data Lake Store", sourceType: ADL, beta: true },
+  { label: "AWS Glue Catalog", sourceType: AWSGLUE, beta: true },
+  { label: "Google Cloud Storage", sourceType: GCS, beta: true },
+  { label: "Microsoft Azure Synapse Analytics", sourceType: SYNAPSE},
+  { label: "Microsoft Azure Data Explorer", sourceType: ADX},
 ];
 
 export const externalSourceType = {
@@ -72,7 +76,9 @@ export const externalSourceType = {
   [MYSQL]: true,
   [SQLSERVER]: true,
   [ORACLE]: true,
-  [POSTGRESQL]: true
+  [POSTGRESQL]: true,
+  [SYNAPSE]: true,
+  [ADX]: true,
 };
 
 export const dataLakeSourceType = {
@@ -85,11 +91,22 @@ export const dataLakeSourceType = {
   [HIVE]: true,
   [HIVE3]: true,
   [AWSGLUE]: true,
-  [GCS]: true
+  [GCS]: true,
 };
 
 export const isExternalSourceType = (sourceType) => {
-  return !dataLakeSourceType[sourceType];
+  const isAvailableSource = sourceProperties.find(
+    ({ sourceType: type }) => type === sourceType
+  );
+  return (
+    !dataLakeSourceType[sourceType] &&
+    !dataPlaneSources[sourceType] &&
+    isAvailableSource
+  );
+};
+
+export const isDataLakeSourceType = (sourceType) => {
+  return dataLakeSourceType[sourceType];
 };
 
 export const isDatalakeTableSourceType = (sourceType) => {
@@ -99,11 +116,11 @@ export const isDatalakeTableSourceType = (sourceType) => {
 export const dataLakeTableType = {
   [HIVE]: true,
   [HIVE3]: true,
-  [AWSGLUE]: true
+  [AWSGLUE]: true,
 };
 
 const dataPlaneSources = {
-  [DATAPLANE]: true
+  [NESSIE]: true,
 };
 
 export const isDataPlaneSourceType = (sourceType) => {
@@ -112,4 +129,4 @@ export const isDataPlaneSourceType = (sourceType) => {
 
 export const SHARING_TAB_JSON_TEMPLATE = {};
 
-export const USE_LEGACY_DIALECT_PROPERTY_NAME = 'useLegacyDialect';
+export const USE_LEGACY_DIALECT_PROPERTY_NAME = "useLegacyDialect";

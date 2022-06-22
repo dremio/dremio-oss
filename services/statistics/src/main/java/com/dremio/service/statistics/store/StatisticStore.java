@@ -16,6 +16,7 @@
 package com.dremio.service.statistics.store;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -42,7 +43,7 @@ import com.google.common.cache.Weigher;
 public class StatisticStore {
   private static final String TABLE_NAME = "statistic_store";
   private final Supplier<LegacyKVStore<StatisticId, StatisticMessage>> store;
-  private final Cache<StatisticId, Statistic> cache;
+  private final Cache<StatisticId, Optional<Statistic>> cache;
 
   public StatisticStore(final Provider<LegacyKVStoreProvider> provider, long max, long timeout) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
@@ -54,7 +55,7 @@ public class StatisticStore {
     });
     this.cache = CacheBuilder.newBuilder()
       .maximumWeight(max)
-      .weigher((Weigher<StatisticId, Statistic>) (key, val) -> 1)
+      .weigher((Weigher<StatisticId, Optional<Statistic>>) (key, val) -> 1)
       .softValues()
       .expireAfterAccess(timeout, TimeUnit.MINUTES)
       .build();
@@ -62,23 +63,24 @@ public class StatisticStore {
 
   public void save(StatisticId id, Statistic statistic) {
     statistic.setCreatedAt(System.currentTimeMillis());
-    cache.put(id, statistic);
+    cache.put(id, Optional.of(statistic));
     store.get().delete(id);
     store.get().put(id, statistic.getStatisticMessage());
   }
 
   public Statistic get(StatisticId statisticId) {
-    Statistic stat = cache.getIfPresent(statisticId);
+    Optional<Statistic> stat = cache.getIfPresent(statisticId);
     if (stat != null) {
-      return stat;
+      return stat.orElse(null);
     }
 
     StatisticMessage statisticMessage = store.get().get(statisticId);
     if (statisticMessage == null) {
+      cache.put(statisticId, Optional.empty());
       return null;
     }
     Statistic statistic = new Statistic(statisticMessage);
-    cache.put(statisticId, statistic);
+    cache.put(statisticId, Optional.of(statistic));
     return statistic;
   }
 

@@ -15,11 +15,11 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.types.Types;
+import com.google.common.collect.Iterators;
 
 public class ConvertExpression extends LogicalExpressionBase implements Iterable<LogicalExpression>{
 
@@ -37,7 +37,6 @@ public class ConvertExpression extends LogicalExpressionBase implements Iterable
    * @param encodingType
    * @param convertFunction
    * @param input
-   * @param pos
    */
   public ConvertExpression(String convertFunction, String encodingType, LogicalExpression input) {
     this.input = input;
@@ -53,7 +52,7 @@ public class ConvertExpression extends LogicalExpressionBase implements Iterable
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    return Collections.singleton(input).iterator();
+    return Iterators.singletonIterator(input);
   }
 
   @Override

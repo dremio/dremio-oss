@@ -34,26 +34,88 @@
   }
 -->
 /**
- * Parses statement
- *   SHOW TABLES [{FROM | IN} db_name] [LIKE 'pattern']
+ *   SHOW TABLES
+ *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ *   [ ( FROM | IN ) source ]
+ *   [ LIKE 'pattern' ]
  */
 SqlNode SqlShowTables() :
 {
     SqlParserPos pos;
-    SqlIdentifier db = null;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
+    SqlIdentifier source = null;
     SqlNode likePattern = null;
 }
 {
     <SHOW> { pos = getPos(); }
     <TABLES>
     [
-        (<FROM> | <IN>) { db = CompoundIdentifier(); }
+        <AT>
+        (
+            <REF> { refType = ReferenceType.REFERENCE; }
+            |
+            <REFERENCE> { refType = ReferenceType.REFERENCE; }
+            |
+            <BRANCH> { refType = ReferenceType.BRANCH; }
+            |
+            <TAG> { refType = ReferenceType.TAG; }
+            |
+            <COMMIT> { refType = ReferenceType.COMMIT; }
+        )
+        { refValue = SimpleIdentifier(); }
+    ]
+    [
+        (<FROM> | <IN>) { source = CompoundIdentifier(); }
     ]
     [
         <LIKE> { likePattern = StringLiteral(); }
     ]
     {
-        return new SqlShowTables(pos, db, likePattern);
+        return new SqlShowTables(pos, refType, refValue, source, likePattern);
+    }
+}
+
+/**
+ *   SHOW VIEWS
+ *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ *   [ ( FROM | IN ) source ]
+ *   [ LIKE 'pattern' ]
+ */
+SqlNode SqlShowViews() :
+{
+    SqlParserPos pos;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
+    SqlIdentifier source = null;
+    SqlNode likePattern = null;
+}
+{
+    <SHOW> { pos = getPos(); }
+    <VIEWS>
+    [
+        <AT>
+        (
+            <REF> { refType = ReferenceType.REFERENCE; }
+            |
+            <REFERENCE> { refType = ReferenceType.REFERENCE; }
+            |
+            <BRANCH> { refType = ReferenceType.BRANCH; }
+            |
+            <TAG> { refType = ReferenceType.TAG; }
+            |
+            <COMMIT> { refType = ReferenceType.COMMIT; }
+        )
+        { refValue = SimpleIdentifier(); }
+    ]
+    [
+        (<FROM> | <IN>) { source = CompoundIdentifier(); }
+    ]
+    [
+        <LIKE> { likePattern = StringLiteral(); }
+    ]
+    {
+        return new SqlShowViews(pos, refType, refValue, source, likePattern);
     }
 }
 
@@ -148,6 +210,20 @@ SqlNodeList ParseOptionalFieldList(String relType) :
         return SqlNodeList.EMPTY;
     }
 }
+SqlNodeList ParseOptionalFieldListWithMasking(String relType) :
+{
+    SqlNodeList fieldList;
+}
+{
+    fieldList = ParseRequiredFieldListWithMasking(relType)
+    {
+        return fieldList;
+    }
+    |
+    {
+        return SqlNodeList.EMPTY;
+    }
+}
 
 /** Parses a required field list and makes sure no field is a "*". */
 SqlNodeList ParseRequiredFieldList(String relType) :
@@ -167,30 +243,197 @@ SqlNodeList ParseRequiredFieldList(String relType) :
         return fieldList;
     }
 }
+SqlNodeList ParseRequiredFieldListWithMasking(String relType) :
+{
+    final Span s;
+    final List<SqlNode> fieldList = new ArrayList<SqlNode>();
+}
+{
+    <LPAREN> { s = span(); }
+    ColumnNamesWithMasking(fieldList)
+    (
+        <COMMA> ColumnNamesWithMasking(fieldList)
+    )*
+    <RPAREN> {
+        for(SqlNode node : fieldList)
+        {
+            if (((SqlColumnPolicyPair)node).getName().isStar())
+                throw new ParseException(String.format("%s's field list has a '*', which is invalid.", relType));
+        }
+        return new SqlNodeList(fieldList, s.end(this));
+    }
+}
+
+void ColumnNamesWithMasking(List<SqlNode> list) :
+{
+    final SqlIdentifier id;
+    SqlPolicy policy = null;
+    final Span s = span();
+}
+{
+    id = SimpleIdentifier()
+    (
+      <MASKING> <POLICY>  policy = Policy()
+      {
+          list.add(new SqlColumnPolicyPair(s.add(id).end(this), id, policy));
+      }
+      |
+      {
+          list.add(new SqlColumnPolicyPair(s.add(id).end(this), id, null));
+      }
+    )
+}
 
 /**
  * Parses a create view or replace existing view statement.
  *   CREATE [OR REPLACE] VIEW view_name [ (field1, field2 ...) ] AS select_statement
  */
-SqlNode SqlCreateOrReplaceView() :
+SqlNode SqlCreateOrReplace() :
 {
     SqlParserPos pos;
-    boolean replaceView = false;
+    boolean replace = false;
     SqlIdentifier viewName;
     SqlNode query;
-    SqlNodeList fieldList;
+    SqlNodeList fieldList = SqlNodeList.EMPTY;
+    SqlIdentifier name;
+    SqlNode expression;
+    SqlDataTypeSpec returnType;
+    boolean ifNotExists = false;
+    SqlPolicy policy = null;
+    boolean nullable;
 }
 {
     <CREATE> { pos = getPos(); }
-    [ <OR> <REPLACE> { replaceView = true; } ]
-    (<VIEW>|<VDS>)
-    viewName = CompoundIdentifier()
-    fieldList = ParseOptionalFieldList("View")
-    <AS>
-    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    [ <OR> <REPLACE> { replace = true; } ]
+    (
+      <FUNCTION>
+        [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+        name = CompoundIdentifier()
+        fieldList = ParseFunctionFieldList()
+      <RETURNS>
+        returnType = DataType()
+        nullable = NullableOptDefaultTrue()
+      <RETURN> {
+        expression = OrderedQueryOrExpr(ExprContext.ACCEPT_ALL);
+        return new SqlCreateFunction(pos, SqlLiteral.createBoolean(replace, SqlParserPos.ZERO), name, fieldList, new SqlComplexDataTypeSpec(returnType.withNullable(nullable)), expression, SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO));
+      }
+      |
+      (<VIEW>|<VDS>)
+      viewName = CompoundIdentifier()
+      fieldList = ParseOptionalFieldListWithMasking("View")
+      [
+          <ROW><ACCESS><POLICY>
+          {
+              policy = Policy();
+          }
+      ]
+      <AS>
+      query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      {
+          return new SqlCreateView(pos, viewName, fieldList, query, replace, policy);
+      }
+    )
+}
+
+/**
+*  DROP UDF
+*/
+SqlNode SqlDropFunction() :
+{
+  SqlParserPos pos;
+  SqlLiteral ifExists = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+  SqlIdentifier name;
+}
+{
+  <DROP> { pos = getPos(); }
+  <FUNCTION>
+  [ <IF> <EXISTS> { ifExists = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
+  {
+    name = CompoundIdentifier();
+    return new SqlDropFunction(pos, ifExists, name);
+  }
+}
+
+/**
+*  DESCRIBE UDF
+*/
+SqlNode SqlDescribeFunction() :
+{
+  SqlParserPos pos;
+  SqlIdentifier function;
+}
+{
+  (<DESCRIBE> | <DESC>) { pos = getPos(); }
+  <FUNCTION>
+  {
+    function = CompoundIdentifier();
+    return new SqlDescribeFunction(pos, function);
+  }
+}
+
+/**
+ *   SHOW FUNCTIONS
+ *   [ LIKE 'pattern' ]
+ */
+SqlNode SqlShowFunctions() :
+{
+    SqlParserPos pos;
+    SqlNode likePattern = null;
+}
+{
+    <SHOW> { pos = getPos(); }
+    <FUNCTIONS>
+    [
+        <LIKE> { likePattern = StringLiteral(); }
+    ]
     {
-        return new SqlCreateView(pos, viewName, fieldList, query, replaceView);
+        return new SqlShowFunctions(pos, likePattern);
     }
+}
+
+SqlNodeList ParseFunctionFieldList() :
+{
+  SqlNodeList fieldList = new SqlNodeList(getPos());
+}
+{
+  <LPAREN>
+    FieldFunctionTypeCommaList(fieldList.getList())
+  <RPAREN>
+  {
+    return fieldList;
+  }
+}
+
+SqlNodeList FunctionKeyValuePair() :
+{
+  SqlNodeList pair = new SqlNodeList(getPos());
+  SqlIdentifier name;
+  SqlDataTypeSpec type;
+  boolean nullable;
+}
+{
+  name = SimpleIdentifier() { pair.add(name); }
+  type = DataType()
+  nullable = NullableOptDefaultTrue()
+    {
+      pair.add(new SqlComplexDataTypeSpec(type.withNullable(nullable)));
+      return pair;
+    }
+}
+
+void FieldFunctionTypeCommaList(List<SqlNode> list) :
+{
+  SqlNodeList pair;
+}
+{
+  (
+    pair = FunctionKeyValuePair() { list.add(pair); }
+    (
+      <COMMA> pair = FunctionKeyValuePair() {
+        list.add(pair);
+      }
+    )*
+  )?
 }
 
 /**
@@ -211,6 +454,22 @@ SqlNode SqlDropView() :
     }
 }
 
+SqlNodeList TableElementListWithMasking() :
+{
+    final Span s;
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+}
+{
+    <LPAREN> { s = span(); }
+    TableElementWithMasking(list)
+    (
+        <COMMA> TableElementWithMasking(list)
+    )*
+    <RPAREN> {
+        return new SqlNodeList(list, s.end(this));
+    }
+}
+
 SqlNodeList TableElementList() :
 {
     final Span s;
@@ -225,6 +484,65 @@ SqlNodeList TableElementList() :
     <RPAREN> {
         return new SqlNodeList(list, s.end(this));
     }
+}
+
+void TableElementWithMasking(List<SqlNode> list) :
+{
+    final SqlIdentifier id;
+    final SqlDataTypeSpec type;
+    final boolean nullable;
+    final SqlNode e;
+    final SqlNode constraint;
+    SqlIdentifier name = null;
+    final SqlNodeList columnList;
+    final Span s = Span.of();
+    SqlPolicy policy = null;
+}
+{
+    LOOKAHEAD(2) id = SimpleIdentifier()
+    (
+        type = DataType()
+        nullable = NullableOptDefaultTrue()
+        (
+          <MASKING> <POLICY>  policy = Policy()
+          {
+              list.add(
+                      new SqlColumnDeclaration(s.add(id).end(this), new SqlColumnPolicyPair(id.getParserPosition(), id, policy),
+                      new SqlComplexDataTypeSpec(type.withNullable(nullable)), null));
+          }
+          |
+          {
+              list.add(
+                      new SqlColumnDeclaration(s.add(id).end(this), new SqlColumnPolicyPair(id.getParserPosition(), id, null),
+                      new SqlComplexDataTypeSpec(type.withNullable(nullable)), null));
+          }
+        )
+        |
+        (
+          <MASKING> <POLICY>  policy = Policy()
+          {
+            list.add(new SqlColumnPolicyPair(id.getParserPosition(), id, policy));
+          }
+          |
+          {
+            list.add(new SqlColumnPolicyPair(id.getParserPosition(), id, null));
+          }
+        )
+    )
+    |
+    (
+      id = SimpleIdentifier()
+      (
+          <MASKING> <POLICY>  policy = Policy()
+          {
+            list.add(new SqlColumnPolicyPair(id.getParserPosition(), id, policy));
+          }
+          |
+          {
+            list.add(new SqlColumnPolicyPair(id.getParserPosition(), id, null));
+          }
+      )
+    )
 }
 
 void TableElement(List<SqlNode> list) :
@@ -245,7 +563,7 @@ void TableElement(List<SqlNode> list) :
         nullable = NullableOptDefaultTrue()
         {
             list.add(
-                    new SqlColumnDeclaration(s.add(id).end(this), id,
+                    new SqlColumnDeclaration(s.add(id).end(this), new SqlColumnPolicyPair(id.getParserPosition(), id, null),
                     new SqlComplexDataTypeSpec(type.withNullable(nullable)), null));
         }
         |
@@ -256,6 +574,82 @@ void TableElement(List<SqlNode> list) :
         list.add(id);
     }
 }
+
+/**
+ * Parses a partition transform:
+ *
+ *   partition_transform:
+ *       <column_name>
+ *     | <transform_name> ( [ <literal_arg>, ... ] <column_name> )
+ */
+SqlPartitionTransform ParsePartitionTransform() :
+{
+    SqlIdentifier id;
+    SqlIdentifier columnName;
+    List<SqlLiteral> argList = Lists.newArrayList();
+    SqlNode arg;
+    Span s;
+    Token token;
+}
+{
+    (
+        id = SimpleIdentifier() { s = span(); }
+        [
+            <LPAREN>
+            (
+                arg = Literal() {
+                    argList.add((SqlLiteral) arg);
+                }
+                <COMMA>
+            )*
+            columnName = SimpleIdentifier()
+            <RPAREN> {
+                return new SqlPartitionTransform(columnName, id, argList, s.end(this));
+            }
+        ]
+        {
+            return new SqlPartitionTransform(id, id.getParserPosition());
+        }
+    |
+        (token = <YEAR> | token = <MONTH> | token = <HOUR> | token = <DAY> | token = <TRUNCATE> | token = <IDENTITY>) {
+            s = span();
+            id = new SqlIdentifier(token.toString(), getPos());
+        }
+        <LPAREN>
+        (
+            arg = Literal() {
+                argList.add((SqlLiteral) arg);
+            }
+            <COMMA>
+        )*
+        columnName = SimpleIdentifier()
+        <RPAREN> {
+            return new SqlPartitionTransform(columnName, id, argList, s.end(this));
+        }
+    )
+}
+
+/** Parses a partition transform list */
+SqlNodeList ParsePartitionTransformList() :
+{
+    SqlNodeList transformList = new SqlNodeList(getPos());
+    SqlPartitionTransform transform;
+}
+{
+    <LPAREN>
+    transform = ParsePartitionTransform() {
+        transformList.add(transform);
+    }
+    (
+        <COMMA> transform = ParsePartitionTransform() {
+            transformList.add(transform);
+        }
+    )*
+    <RPAREN> {
+        return transformList;
+    }
+}
+
 
 /**
  * Parses a CTAS statement.
@@ -277,15 +671,17 @@ SqlNode SqlCreateTable() :
     SqlNodeList formatOptions;
     SqlNode location = null;
     PartitionDistributionStrategy partitionDistributionStrategy;
-    SqlNodeList partitionFieldList;
+    SqlNodeList partitionTransformList;
     SqlNodeList distributeFieldList;
     SqlNodeList sortFieldList;
     SqlLiteral singleWriter;
     SqlNode query;
+    boolean ifNotExists = false;
+    SqlPolicy policy = null;
 }
 {
     {
-        partitionFieldList = SqlNodeList.EMPTY;
+        partitionTransformList = SqlNodeList.EMPTY;
         distributeFieldList = SqlNodeList.EMPTY;
         sortFieldList =  SqlNodeList.EMPTY;
         formatOptions = SqlNodeList.EMPTY;
@@ -293,11 +689,13 @@ SqlNode SqlCreateTable() :
         singleWriter = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
         fieldList = SqlNodeList.EMPTY;
+        policy = null;
     }
     <CREATE> { pos = getPos(); }
     <TABLE>
+    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
     tblName = CompoundIdentifier()
-    [ fieldList = TableElementList() ]
+    [ fieldList = TableElementListWithMasking() ]
     (
         (
             <STRIPED> {
@@ -313,7 +711,7 @@ SqlNode SqlCreateTable() :
             }
         )?
         <PARTITION> <BY>
-        partitionFieldList = ParseRequiredFieldList("Partition")
+        partitionTransformList = ParsePartitionTransformList()
     )?
     (   <DISTRIBUTE> <BY>
         distributeFieldList = ParseRequiredFieldList("Distribution")
@@ -343,20 +741,28 @@ SqlNode SqlCreateTable() :
             singleWriter = SqlLiteral.createBoolean(true, getPos());
         }
     ]
+    [
+        <ROW><ACCESS><POLICY>
+        {
+            policy = Policy();
+        }
+    ]
         (
             (
                 <AS>
                 query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
                 {
-                    return new SqlCreateTable(pos, tblName, fieldList, partitionDistributionStrategy, partitionFieldList,
-                    formatOptions, location, singleWriter, sortFieldList, distributeFieldList, query);
+                    return new SqlCreateTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
+                        partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
+                        distributeFieldList, policy, query);
                 }
             )
             |
             (
                 {
-                    return new SqlCreateEmptyTable(pos, tblName, fieldList, partitionDistributionStrategy,
-                    partitionFieldList, formatOptions, location, singleWriter, sortFieldList, distributeFieldList);
+                    return new SqlCreateEmptyTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
+                        partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
+                        distributeFieldList, policy);
                 }
             )
         )
@@ -385,6 +791,183 @@ SqlNode SqlInsertTable() :
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
       return new SqlInsertTable(pos, tblName, query, fieldList);
+    }
+}
+
+/**
+* Parses a delete from table
+* DELETE FROM targetTable [ WHERE condition ];
+*/
+SqlNode SqlDeleteFromTable() :
+{
+  SqlParserPos pos;
+  SqlIdentifier targetTable;
+  SqlIdentifier alias = null;
+  SqlNode condition;
+}
+{
+  <DELETE> { pos = getPos(); }
+  <FROM>
+    targetTable = CompoundIdentifier()
+    [ [ <AS> ] alias = SimpleIdentifier() ]
+    condition = WhereOpt()
+    {
+      return new SqlDeleteFromTable(pos, targetTable, condition, alias);
+    }
+}
+
+/**
+* Parses a update table statement
+* UPDATE targetTable
+* SET <id> = <exp> [, <id> = <exp> ... ]
+* [ WHERE condition ];
+*/
+SqlNode SqlUpdateTable() :
+{
+  SqlIdentifier targetTable;
+  SqlIdentifier alias = null;
+  SqlNodeList targetColumnList;
+  SqlNodeList sourceExpressionList;
+  SqlNode condition;
+  SqlIdentifier id;
+  SqlNode exp;
+  final Span s;
+}
+{
+  <UPDATE> { s = span(); }
+  targetTable = CompoundIdentifier() {
+      targetColumnList = new SqlNodeList(s.pos());
+      sourceExpressionList = new SqlNodeList(s.pos());
+  }
+  [ [ <AS> ] alias = SimpleIdentifier() ]
+  <SET> id = SimpleIdentifier() {
+      targetColumnList.add(id);
+  }
+  <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+      sourceExpressionList.add(exp);
+  }
+  (
+      <COMMA>
+      id = SimpleIdentifier()
+      {
+          targetColumnList.add(id);
+      }
+      <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY)
+      {
+          sourceExpressionList.add(exp);
+      }
+  )*
+  condition = WhereOpt()
+  {
+      return new SqlUpdateTable(s.addAll(targetColumnList)
+          .addAll(sourceExpressionList).addIf(condition).pos(), targetTable,
+          targetColumnList, sourceExpressionList, condition, alias);
+  }
+}
+
+/**
+ * Parses a MERGE statement.
+ */
+SqlNode SqlMergeIntoTable() :
+{
+    SqlIdentifier table;
+    SqlIdentifier alias = null;
+    SqlNode sourceTableRef;
+    SqlNode condition;
+    SqlUpdate updateCall = null;
+    SqlInsert insertCall = null;
+    final Span s;
+}
+{
+    <MERGE> { s = span(); } <INTO> table = CompoundIdentifier()
+    [ [ <AS> ] alias = SimpleIdentifier() ]
+    <USING> sourceTableRef = TableRef()
+    <ON> condition = Expression(ExprContext.ACCEPT_SUB_QUERY)
+    (
+        LOOKAHEAD(2)
+        updateCall = DremioWhenMatchedClause(table, alias)
+        [ insertCall = DremioWhenNotMatchedClause(table) ]
+    |
+        insertCall = DremioWhenNotMatchedClause(table)
+    )
+    {
+        return new SqlMergeIntoTable(s.addIf(updateCall).addIf(insertCall).pos(), table,
+            condition, sourceTableRef, updateCall, insertCall, alias);
+    }
+}
+
+/**
+ * Dremio version of WhenMatchedClause.
+ * It returns Dremio's SqlUpdateTable, which contains extended system columns (i.e., filePath and rowIndex)
+ */
+SqlUpdate DremioWhenMatchedClause(SqlNode table, SqlIdentifier alias) :
+{
+    SqlIdentifier id;
+    final Span s;
+    final SqlNodeList updateColumnList = new SqlNodeList(SqlParserPos.ZERO);
+    SqlNode exp;
+    final SqlNodeList updateExprList = new SqlNodeList(SqlParserPos.ZERO);
+}
+{
+    <WHEN> { s = span(); } <MATCHED> <THEN>
+    <UPDATE> <SET> id = SimpleIdentifier() {
+        updateColumnList.add(id);
+    }
+    <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+        updateExprList.add(exp);
+    }
+    (
+        <COMMA>
+        id = SimpleIdentifier() {
+            updateColumnList.add(id);
+        }
+        <EQ> exp = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+            updateExprList.add(exp);
+        }
+    )*
+    {
+        return new SqlUpdateTable(s.addAll(updateExprList).pos(), table,
+            updateColumnList, updateExprList, null, alias);
+    }
+}
+
+/**
+ * Dremio version of DremioWhenNotMatchedClause.
+ * It returns Dremio's SqlInsertTable, which contains extended system columns (i.e., filePath and rowIndex)
+ */
+SqlInsert DremioWhenNotMatchedClause(SqlIdentifier table) :
+{
+    final Span insertSpan, valuesSpan;
+    final List<SqlLiteral> keywords = Lists.newArrayList();
+    final SqlNodeList keywordList;
+    SqlNodeList insertColumnList = null;
+    SqlNode rowConstructor;
+    SqlNode insertValues;
+}
+{
+    <WHEN> <NOT> <MATCHED> <THEN> <INSERT> {
+        insertSpan = span();
+    }
+    SqlInsertKeywords(keywords) {
+        keywordList = new SqlNodeList(keywords, insertSpan.end(this));
+    }
+    [
+        LOOKAHEAD(2)
+        insertColumnList = ParenthesizedSimpleIdentifierList()
+    ]
+    [ <LPAREN> ]
+    <VALUES> { valuesSpan = span(); }
+    rowConstructor = RowConstructor()
+    [ <RPAREN> ]
+    {
+        // TODO zfong 5/26/06: note that extra parentheses are accepted above
+        // around the VALUES clause as a hack for unparse, but this is
+        // actually invalid SQL; should fix unparse
+        insertValues = SqlStdOperatorTable.VALUES.createCall(
+            valuesSpan.end(this), rowConstructor);
+
+        return new SqlInsertTable(insertSpan.end(this),
+            table, insertValues, insertColumnList);
     }
 }
 
@@ -600,6 +1183,7 @@ SqlNode SqlRefreshDataset() :
  }
  {
      fName = SimpleIdentifier()
+     (<COLON>)?
      fType = DataType()
      nullable = NullableOptDefaultTrue()
      {
@@ -609,6 +1193,7 @@ SqlNode SqlRefreshDataset() :
      (
          <COMMA>
          fName = SimpleIdentifier()
+         (<COLON>)?
          fType = DataType()
          nullable = NullableOptDefaultTrue()
          {
@@ -620,6 +1205,7 @@ SqlNode SqlRefreshDataset() :
 
  /**
  * Parse Row type with format: ROW(name1  type1, name2 type2).
+ * Parse Row type with format: STRUCT<name1 : type1, name2 : type2>.
  * Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
  * i.e. ROW(name1  type1 not null, name2 type2 null).
  */
@@ -629,8 +1215,8 @@ SqlNode SqlRefreshDataset() :
      List<SqlComplexDataTypeSpec> fieldTypes = new ArrayList<SqlComplexDataTypeSpec>();
  }
  {
-     <ROW>
-     <LPAREN> FieldNameStructTypeCommaList(fieldNames, fieldTypes) <RPAREN>
+     (<ROW> | <STRUCT>)
+     (<LPAREN> | <LT>) FieldNameStructTypeCommaList(fieldNames, fieldTypes) (<RPAREN> | <GT>)
      {
          return new SqlRowTypeSpec(getPos(), fieldNames, fieldTypes);
      }
@@ -638,6 +1224,7 @@ SqlNode SqlRefreshDataset() :
 
  /**
   * Parse Array type with format: ARRAY(data_type).
+  * Parse Array type with format: LIST<data_type>.
   * Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
   * i.e. col1 ARRAY(varchar NOT NULL).
   */
@@ -647,11 +1234,11 @@ SqlNode SqlRefreshDataset() :
       boolean nullable;
   }
   {
-      <ARRAY>
-      <LPAREN>
+      (<ARRAY> | <LIST>)
+      (<LPAREN> | <LT>)
        fType = DataType()
        nullable = NullableOptDefaultTrue()
-      <RPAREN>
+      (<RPAREN> | <GT>)
       {
           return new SqlArrayTypeSpec(getPos(), new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
       }

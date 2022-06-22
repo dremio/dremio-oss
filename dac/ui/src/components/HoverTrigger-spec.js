@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
-import HoverTrigger from './HoverTrigger';
+import { shallow, mount } from "enzyme";
+import HoverTrigger from "./HoverTrigger";
 
-describe('HoverTrigger', () => {
+describe("HoverTrigger", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -24,19 +24,19 @@ describe('HoverTrigger', () => {
     commonProps = {
       ...minimalProps,
       onEnter: sinon.spy(),
-      onLeave: sinon.spy()
+      onLeave: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<HoverTrigger {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<HoverTrigger {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should add mouseleave listener and call onLeave from props when item loses hover', () => {
-    const instance = mount(<HoverTrigger {...commonProps}/>).instance();
-    const event = new Event('mouseleave');
-    sinon.spy(instance, 'watchMouseLeave');
+  it("should add mouseleave listener and call onLeave from props when item loses hover", () => {
+    const instance = mount(<HoverTrigger {...commonProps} />).instance();
+    const event = new Event("mouseleave");
+    sinon.spy(instance, "watchMouseLeave");
     instance.componentDidMount();
     expect(instance.watchMouseLeave).to.be.called;
     expect(commonProps.onLeave).to.not.be.called;
@@ -44,10 +44,10 @@ describe('HoverTrigger', () => {
     expect(commonProps.onLeave).to.be.called;
   });
 
-  it('should call onEnter from props when item hovered', () => {
-    const wrapper = mount(<HoverTrigger {...commonProps}/>);
+  it("should call onEnter from props when item hovered", () => {
+    const wrapper = mount(<HoverTrigger {...commonProps} />);
     expect(commonProps.onEnter).to.be.not.called;
-    wrapper.simulate('mouseenter');
+    wrapper.simulate("mouseenter");
     expect(commonProps.onEnter).to.be.called;
   });
 });

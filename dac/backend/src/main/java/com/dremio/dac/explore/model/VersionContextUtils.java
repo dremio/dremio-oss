@@ -17,7 +17,7 @@ package com.dremio.dac.explore.model;
 
 import com.dremio.exec.catalog.VersionContext;
 
-public class VersionContextUtils {
+public final class VersionContextUtils {
   private VersionContextUtils() {
   }
 

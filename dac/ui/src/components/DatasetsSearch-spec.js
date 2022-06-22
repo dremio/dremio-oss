@@ -13,84 +13,99 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import DatasetsSearch from './DatasetsSearch';
+import DatasetsSearch from "./DatasetsSearch";
 
-describe('DatasetsSearch-spec', () => {
-
+describe("DatasetsSearch-spec", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
       searchData: Immutable.fromJS([
         {
-          fullPath: ['@test_user', 'business_review'],
-          displayFullPath: ['@test_user', 'business_review'],
-          context: ['@test_user'],
-          'parents': [{
-            datasetPathList: ['@test_user', 'business_review'],
-            type: 'VIRTUAL_DATASET'
-          }],
-          fields: [{name: 'A', type: 'BIGINT'}, {name: 'B', type: 'BIGINT'}],
-          datasetType: 'VIRTUAL_DATASET',
+          fullPath: ["@test_user", "business_review"],
+          displayFullPath: ["@test_user", "business_review"],
+          context: ["@test_user"],
+          parents: [
+            {
+              datasetPathList: ["@test_user", "business_review"],
+              type: "VIRTUAL_DATASET",
+            },
+          ],
+          fields: [
+            { name: "A", type: "BIGINT" },
+            { name: "B", type: "BIGINT" },
+          ],
+          datasetType: "VIRTUAL_DATASET",
           links: {
             edit: '/space/"@test_user"/"business_review"?mode=edit',
-            self: '/space/"@test_user"/"business_review"'
-          }
+            self: '/space/"@test_user"/"business_review"',
+          },
         },
         {
-          fullPath: ['@test_user', 'foo'],
-          displayFullPath: ['@test_user', 'foo'],
-          context: ['@test_user'],
-          parents: [{
-            datasetPathList: ['@test_user', 'foo'],
-            type: 'VIRTUAL_DATASET'
-          }],
-          fields: [{name: 'A', type: 'BIGINT'}, {name: 'B', type: 'BIGINT'}],
-          datasetType: 'VIRTUAL_DATASET',
+          fullPath: ["@test_user", "foo"],
+          displayFullPath: ["@test_user", "foo"],
+          context: ["@test_user"],
+          parents: [
+            {
+              datasetPathList: ["@test_user", "foo"],
+              type: "VIRTUAL_DATASET",
+            },
+          ],
+          fields: [
+            { name: "A", type: "BIGINT" },
+            { name: "B", type: "BIGINT" },
+          ],
+          datasetType: "VIRTUAL_DATASET",
           links: {
             self: '/space/"@test_user"/"foo"',
-            edit: '/space/"@test_user"/"foo"?mode=edit'
-          }
-        }
+            edit: '/space/"@test_user"/"foo"?mode=edit',
+          },
+        },
       ]),
       visible: true,
       globalSearch: true,
-      searchViewState: Immutable.fromJS({isInProgress: false}),
-      inputValue: 'foo',
-      handleSearchHide: () => {}
+      searchViewState: Immutable.fromJS({ isInProgress: false }),
+      inputValue: "foo",
+      handleSearchHide: () => {},
     };
   });
 
-  it('render elements', () => {
-    const wrapper = shallow(<DatasetsSearch {...commonProps}/>);
-    expect(wrapper.find('.datasets-search')).have.length(1);
-    expect(wrapper.find('.dataset-wrapper')).have.length(1);
-    expect(wrapper.find('.dataset-wrapper').find('Connect(ViewStateWrapper)')).to.have.length(1);
-    expect(wrapper.find('h3')).have.length(1);
+  it("render elements", () => {
+    const wrapper = shallow(<DatasetsSearch {...commonProps} />);
+    expect(wrapper.find(".datasets-search")).have.length(1);
+    expect(wrapper.find(".dataset-wrapper")).have.length(1);
+    expect(
+      wrapper.find(".dataset-wrapper").find("Connect(ViewStateWrapper)")
+    ).to.have.length(1);
   });
 
-  it('renders bad data without exploding', () => {
-    const wrapper = shallow(<DatasetsSearch {...commonProps} searchData={Immutable.List()}/>);
-    expect(wrapper.find('.datasets-search')).have.length(1);
+  it("renders bad data without exploding", () => {
+    const wrapper = shallow(
+      <DatasetsSearch {...commonProps} searchData={Immutable.List()} />
+    );
+    expect(wrapper.find(".datasets-search")).have.length(1);
   });
 
-  it('check content', () => {
-    const wrapper = shallow(<DatasetsSearch {...commonProps}/>);
-    const dataset = wrapper.find('.dataset-wrapper').find('.dataset');
-    const mainSettingsBtn = dataset.at(1).find('.main-settings-btn');
+  it("check content", () => {
+    const wrapper = shallow(<DatasetsSearch {...commonProps} />);
+    const dataset = wrapper.find(".dataset-wrapper").find(".dataset");
+    const mainSettingsBtn = dataset.at(1).find(".main-settings-btn");
 
-    expect(wrapper.find('h3').text()).to.contain('Search Results for "foo"');
     expect(dataset).have.length(2);
 
-    expect(dataset.at(0).prop('to'))
-      .equal(commonProps.searchData.get(0).getIn(['links', 'self']));
-    expect(dataset.at(1).prop('to'))
-      .equal(commonProps.searchData.get(1).getIn(['links', 'self']));
-    expect(mainSettingsBtn.childAt(0).prop('to'))
-      .equal(commonProps.searchData.get(1).getIn(['links', 'edit']));
-    expect(mainSettingsBtn.childAt(1).prop('to'))
-      .equal(commonProps.searchData.get(1).getIn(['links', 'self']));
+    expect(dataset.at(0).prop("to")).equal(
+      commonProps.searchData.get(0).getIn(["links", "self"])
+    );
+    expect(dataset.at(1).prop("to")).equal(
+      commonProps.searchData.get(1).getIn(["links", "self"])
+    );
+    expect(mainSettingsBtn.childAt(0).prop("to")).equal(
+      commonProps.searchData.get(1).getIn(["links", "edit"])
+    );
+    expect(mainSettingsBtn.childAt(1).prop("to")).equal(
+      commonProps.searchData.get(1).getIn(["links", "self"])
+    );
   });
 });

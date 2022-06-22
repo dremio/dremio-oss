@@ -328,7 +328,7 @@ public class ClassGenerator<T> {
   }
 
   public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
-    Preconditions.checkState(isLazyExpressionsAddOn == false, "Lazy Expression evaluation is on, must not be adding exps directly");
+    Preconditions.checkState(!isLazyExpressionsAddOn, "Lazy Expression evaluation is on, must not be adding exps directly");
     if (mode == BlockCreateMode.NEW_BLOCK || mode == BlockCreateMode.NEW_IF_TOO_LARGE) {
       rotateBlock(mode);
     }
@@ -363,7 +363,7 @@ public class ClassGenerator<T> {
   }
 
   public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
-    Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED) == true,
+    Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED),
       "Lazy Expression evaluation is set to false");
     isLazyExpressionsAddOn = true;
     ExpressionEvalInfo expressionEvalInfo = new ExpressionEvalInfo(ex, mode, allowInnerMethods);

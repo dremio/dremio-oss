@@ -43,7 +43,7 @@ import com.google.common.collect.Lists;
  */
 public class EqualityConvertlet implements SqlRexConvertlet {
 
-  public final static EqualityConvertlet INSTANCE = new EqualityConvertlet();
+  public static final EqualityConvertlet INSTANCE = new EqualityConvertlet();
   private static final int MAX_PRECISION = 38;
 
   private EqualityConvertlet() {
@@ -127,4 +127,3 @@ public class EqualityConvertlet implements SqlRexConvertlet {
         rexBuilder.makeLiteral(true)));
   }
 }
-

@@ -13,80 +13,81 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Popover } from '@app/components/Popover';
-import { SelectView } from './SelectView';
-import { select as selectCls } from './SelectView.less';
+import { shallow } from "enzyme";
+import { Popover } from "@app/components/Popover";
+import { SelectView } from "./SelectView";
+import { select as selectCls } from "./SelectView.less";
 
-const testClass = 'test-class';
+const testClass = "test-class";
 const testSelector = `.${testClass}`;
 const testContent = <div className={testClass}></div>;
-describe('SelectView', () => {
-  it('should render Popover', () => {
+describe("SelectView", () => {
+  it("should render Popover", () => {
     expect(shallow(<SelectView />).find(Popover)).to.have.length(1);
   });
 
-  describe('#props.content', () => {
-    it('works fine with render props pattern', () => {
+  describe("#props.content", () => {
+    it("works fine with render props pattern", () => {
       const renderFn = sinon.stub().returns(testContent);
       const wrapper = shallow(<SelectView content={renderFn} />);
       const instance = wrapper.instance();
       expect(renderFn).to.be.calledWith({
         openDD: instance.openDD,
         closeDD: instance.closeDD,
-        isOpen: instance.isOpen
+        isOpen: instance.isOpen,
       });
       expect(wrapper.find(testSelector)).to.have.length(1);
     });
 
-    it('works fine with node element', () => {
+    it("works fine with node element", () => {
       const wrapper = shallow(<SelectView content={testContent} />);
       expect(wrapper.find(testSelector)).to.have.length(1);
     });
   });
 
-  describe('#props.children', () => {
-    it('works fine with render props pattern', () => {
+  describe("#props.children", () => {
+    it("works fine with render props pattern", () => {
       const renderFn = sinon.stub().returns(testContent);
-      const wrapper = shallow(<SelectView children={renderFn} />);
+      const wrapper = shallow(<SelectView>{renderFn}</SelectView>);
       const instance = wrapper.instance();
       expect(renderFn).to.be.calledWith({
         openDD: instance.openDD,
         closeDD: instance.closeDD,
-        isOpen: instance.isOpen
+        isOpen: instance.isOpen,
       });
       expect(wrapper.find(testSelector)).to.have.length(1);
     });
 
-    it('works fine with node element', () => {
-      const wrapper = shallow(<SelectView children={testContent} />);
+    it("works fine with node element", () => {
+      const wrapper = shallow(<SelectView>{testContent}</SelectView>);
       expect(wrapper.find(testSelector)).to.have.length(1);
     });
   });
 
-  it('should open a Popover on main content click', () => { // runs to long
+  it("should open a Popover on main content click", () => {
+    // runs to long
     const wrapper = shallow(<SelectView />);
     const instance = wrapper.instance();
 
     // simulate a ref to avoid mounting
     instance.contentRef = { current: <div></div> };
-    expect(!!wrapper.find(Popover).prop('anchorEl')).to.be.false;
-    wrapper.find(`.${selectCls}`).simulate('click');
-    expect(!!wrapper.find(Popover).prop('anchorEl')).to.be.true;
+    expect(!!wrapper.find(Popover).prop("anchorEl")).to.be.false;
+    wrapper.find(`.${selectCls}`).simulate("click");
+    expect(!!wrapper.find(Popover).prop("anchorEl")).to.be.true;
 
     // there is no way to simulate a popover's click away action. So lets call closeDD directly
     instance.closeDD();
-    expect(!!wrapper.find(Popover).prop('anchorEl')).to.be.false;
+    expect(!!wrapper.find(Popover).prop("anchorEl")).to.be.false;
   });
 
-  it('a Popover should stay closed if SelectView is disabled', () => {
+  it("a Popover should stay closed if SelectView is disabled", () => {
     const wrapper = shallow(<SelectView disabled />);
     const instance = wrapper.instance();
 
     // simulate a ref to avoid mounting
     instance.contentRef = { current: <div></div> };
-    expect(!!wrapper.find(Popover).prop('anchorEl')).to.be.false;
-    wrapper.find(`.${selectCls}`).simulate('click');
-    expect(!!wrapper.find(Popover).prop('anchorEl')).to.be.false;
+    expect(!!wrapper.find(Popover).prop("anchorEl")).to.be.false;
+    wrapper.find(`.${selectCls}`).simulate("click");
+    expect(!!wrapper.find(Popover).prop("anchorEl")).to.be.false;
   });
 });

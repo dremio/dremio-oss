@@ -142,9 +142,14 @@ public class ClusterStatsResource {
     final long end = System.currentTimeMillis();
     final long start = end - TimeUnit.DAYS.toMillis(7);
     final JobStatsRequest request = JobStatsRequest.newBuilder()
-        .setStartDate(Timestamps.fromMillis(start))
-        .setEndDate(Timestamps.fromMillis(end))
-        .build();
+      .setStartDate(Timestamps.fromMillis(start))
+      .setEndDate(Timestamps.fromMillis(end))
+      .addJobStatsType(JobStats.Type.UI)
+      .addJobStatsType(JobStats.Type.EXTERNAL)
+      .addJobStatsType(JobStats.Type.ACCELERATION)
+      .addJobStatsType(JobStats.Type.DOWNLOAD)
+      .addJobStatsType(JobStats.Type.INTERNAL)
+      .build();
     // job stats
     final JobStats jobStats = jobsService.getJobStats(request);
     final List<JobTypeStats> jobTypeStats = jobStats.getCountsList().stream()

@@ -15,5 +15,5 @@
  */
 
 export default {
-  hideSearchTab: false
+  hideSearchTab: false,
 };

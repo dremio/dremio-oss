@@ -13,37 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import ExtractPattern from './ExtractPattern';
+import { shallow } from "enzyme";
+import ExtractPattern from "./ExtractPattern";
 
-describe('ExtractPattern', () => {
-  it('should render with minimal props without exploding', () => {
+describe("ExtractPattern", () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<ExtractPattern />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('Pattern Index input', () => {
-    it('should render Pattern Index field if pattern.value.value.value = INDEX', () => {
+  describe("Pattern Index input", () => {
+    it("should render Pattern Index field if pattern.value.value.value = INDEX", () => {
       const props = {
         fields: {
           pattern: {
-            value: { value: { value: 'INDEX' } }
-          }
-        }
+            value: { value: { value: "INDEX" } },
+          },
+        },
       };
-      const wrapper = shallow(<ExtractPattern {...props}/>);
+      const wrapper = shallow(<ExtractPattern {...props} />);
       expect(wrapper.find('input[data-qa="PatternIndex"]')).to.have.length(1);
     });
 
-    it('should render Pattern Index field if pattern.value.value.value = CAPTURE_GROUP', () => {
+    it("should render Pattern Index field if pattern.value.value.value = CAPTURE_GROUP", () => {
       const props = {
         fields: {
           pattern: {
-            value: { value: { value: 'CAPTURE_GROUP' } }
-          }
-        }
+            value: { value: { value: "CAPTURE_GROUP" } },
+          },
+        },
       };
-      const wrapper = shallow(<ExtractPattern {...props}/>);
+      const wrapper = shallow(<ExtractPattern {...props} />);
       expect(wrapper.find('input[data-qa="PatternIndex"]')).to.have.length(1);
     });
 
@@ -52,11 +52,11 @@ describe('ExtractPattern', () => {
       const props = {
         fields: {
           pattern: {
-            value: { value: { value: 'LAST' } }
-          }
-        }
+            value: { value: { value: "LAST" } },
+          },
+        },
       };
-      const wrapper = shallow(<ExtractPattern {...props}/>);
+      const wrapper = shallow(<ExtractPattern {...props} />);
       expect(wrapper.find('input[data-qa="PatternIndex"]')).to.have.length(0);
     });
   });

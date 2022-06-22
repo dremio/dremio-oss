@@ -19,11 +19,21 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 
 import org.projectnessie.api.params.CommitLogParams;
+import org.projectnessie.api.params.CommitLogParamsBuilder;
 import org.projectnessie.api.params.DiffParams;
+import org.projectnessie.api.params.DiffParamsBuilder;
 import org.projectnessie.api.params.EntriesParams;
+import org.projectnessie.api.params.EntriesParamsBuilder;
 import org.projectnessie.api.params.GetReferenceParams;
+import org.projectnessie.api.params.GetReferenceParamsBuilder;
+import org.projectnessie.api.params.MultipleNamespacesParams;
+import org.projectnessie.api.params.MultipleNamespacesParamsBuilder;
+import org.projectnessie.api.params.NamespaceParams;
+import org.projectnessie.api.params.NamespaceParamsBuilder;
 import org.projectnessie.api.params.RefLogParams;
+import org.projectnessie.api.params.RefLogParamsBuilder;
 import org.projectnessie.api.params.ReferencesParams;
+import org.projectnessie.api.params.ReferencesParamsBuilder;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content.Type;
@@ -37,6 +47,7 @@ import org.projectnessie.model.EntriesResponse.Entry;
 import org.projectnessie.model.GetMultipleContentsRequest;
 import org.projectnessie.model.GetMultipleContentsResponse;
 import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
+import org.projectnessie.model.GetNamespacesResponse;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
 import org.projectnessie.model.ImmutableBranch;
@@ -47,19 +58,24 @@ import org.projectnessie.model.ImmutableDetached;
 import org.projectnessie.model.ImmutableDiffEntry;
 import org.projectnessie.model.ImmutableDiffResponse;
 import org.projectnessie.model.ImmutableEntriesResponse;
+import org.projectnessie.model.ImmutableGetNamespacesResponse;
 import org.projectnessie.model.ImmutableIcebergTable;
 import org.projectnessie.model.ImmutableIcebergView;
 import org.projectnessie.model.ImmutableLogEntry;
 import org.projectnessie.model.ImmutableLogResponse;
+import org.projectnessie.model.ImmutableMerge;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.ImmutablePut;
 import org.projectnessie.model.ImmutableRefLogResponse;
 import org.projectnessie.model.ImmutableReferenceMetadata;
 import org.projectnessie.model.ImmutableTag;
+import org.projectnessie.model.ImmutableTransplant;
 import org.projectnessie.model.ImmutableUnchanged;
 import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.LogResponse.LogEntry;
+import org.projectnessie.model.Merge;
+import org.projectnessie.model.Namespace;
 import org.projectnessie.model.Operation;
 import org.projectnessie.model.Operation.Delete;
 import org.projectnessie.model.Operation.Put;
@@ -71,6 +87,7 @@ import org.projectnessie.model.Reference;
 import org.projectnessie.model.Reference.ReferenceType;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.Tag;
+import org.projectnessie.model.Transplant;
 
 import com.dremio.services.nessie.grpc.api.CommitLogEntry;
 import com.dremio.services.nessie.grpc.api.CommitLogRequest;
@@ -86,9 +103,14 @@ import com.dremio.services.nessie.grpc.api.EntriesRequest;
 import com.dremio.services.nessie.grpc.api.FetchOption;
 import com.dremio.services.nessie.grpc.api.GetAllReferencesRequest;
 import com.dremio.services.nessie.grpc.api.GetReferenceByNameRequest;
+import com.dremio.services.nessie.grpc.api.MergeRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
+import com.dremio.services.nessie.grpc.api.MultipleNamespacesRequest;
+import com.dremio.services.nessie.grpc.api.MultipleNamespacesResponse;
+import com.dremio.services.nessie.grpc.api.NamespaceRequest;
 import com.dremio.services.nessie.grpc.api.NessieConfiguration;
+import com.dremio.services.nessie.grpc.api.TransplantRequest;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Timestamp;
 
@@ -273,8 +295,12 @@ public final class ProtoUtil {
     if (obj instanceof IcebergView) {
       return Content.newBuilder().setIcebergView(toProto((IcebergView) obj)).build();
     }
+
+    if (obj instanceof Namespace) {
+      return Content.newBuilder().setNamespace(toProto((Namespace) obj)).build();
+    }
     throw new IllegalArgumentException(
-      String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView", obj));
+      String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace", obj));
   }
 
   public static org.projectnessie.model.Content fromProto(Content obj) {
@@ -288,8 +314,11 @@ public final class ProtoUtil {
     if (obj.hasIcebergView()) {
       return fromProto(obj.getIcebergView());
     }
+    if (obj.hasNamespace()) {
+      return fromProto(obj.getNamespace());
+    }
     throw new IllegalArgumentException(
-      String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView", obj));
+      String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace", obj));
   }
 
   public static DeltaLakeTable fromProto(com.dremio.services.nessie.grpc.api.DeltaLakeTable deltaLakeTable) {
@@ -571,7 +600,7 @@ public final class ProtoUtil {
 
   public static EntriesParams fromProto(EntriesRequest request) {
     Preconditions.checkArgument(null != request, "EntriesRequest must be non-null");
-    EntriesParams.Builder builder = EntriesParams.builder();
+    EntriesParamsBuilder builder = EntriesParams.builder();
     if (request.hasHashOnRef()) {
       builder.hashOnRef(request.getHashOnRef());
     }
@@ -614,7 +643,7 @@ public final class ProtoUtil {
 
   public static CommitLogParams fromProto(CommitLogRequest request) {
     Preconditions.checkArgument(null != request, "CommitLogRequest must be non-null");
-    CommitLogParams.Builder builder = CommitLogParams.builder();
+    CommitLogParamsBuilder builder = CommitLogParams.builder();
     if (request.hasStartHash()) {
       builder.startHash(request.getStartHash());
     }
@@ -631,7 +660,7 @@ public final class ProtoUtil {
       builder.maxRecords(request.getMaxRecords());
     }
     if (request.hasFetchOption()) {
-      builder.fetch(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
+      builder.fetchOption(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
     }
     return builder.build();
   }
@@ -783,7 +812,7 @@ public final class ProtoUtil {
 
   public static ReferencesParams fromProto(GetAllReferencesRequest request) {
     Preconditions.checkArgument(null != request, "GetAllReferencesRequest must be non-null");
-    ReferencesParams.Builder builder = ReferencesParams.builder();
+    ReferencesParamsBuilder builder = ReferencesParams.builder();
     if (request.hasPageToken()) {
       builder.pageToken(request.getPageToken());
     }
@@ -794,7 +823,7 @@ public final class ProtoUtil {
       builder.filter(request.getFilter());
     }
     if (request.hasFetchOption()) {
-      builder.fetch(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
+      builder.fetchOption(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
     }
     return builder.build();
   }
@@ -819,10 +848,10 @@ public final class ProtoUtil {
 
   public static GetReferenceParams fromProto(GetReferenceByNameRequest request) {
     Preconditions.checkArgument(null != request, "GetReferenceByNameRequest must be non-null");
-    GetReferenceParams.Builder builder = GetReferenceParams.builder()
+    GetReferenceParamsBuilder builder = GetReferenceParams.builder()
       .refName(request.getNamedRef());
     if (request.hasFetchOption()) {
-      builder.fetch(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
+      builder.fetchOption(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
     }
     return builder.build();
   }
@@ -839,7 +868,7 @@ public final class ProtoUtil {
 
   public static DiffParams fromProto(DiffRequest request) {
     Preconditions.checkArgument(null != request, "DiffRequest must be non-null");
-    DiffParams.Builder builder = DiffParams.builder()
+    DiffParamsBuilder builder = DiffParams.builder()
       .fromRef(request.getFromRefName())
       .toRef(request.getToRefName());
     if (request.hasFromHashOnRef()) {
@@ -932,7 +961,7 @@ public final class ProtoUtil {
 
   public static RefLogParams fromProto(com.dremio.services.nessie.grpc.api.RefLogParams request) {
     Preconditions.checkArgument(null != request, "RefLogParams must be non-null");
-    RefLogParams.Builder builder = RefLogParams.builder();
+    RefLogParamsBuilder builder = RefLogParams.builder();
     if (request.hasStartHash()) {
       builder.startHash(request.getStartHash());
     }
@@ -997,5 +1026,140 @@ public final class ProtoUtil {
       .operation(entry.getOperation())
       .sourceHashes(entry.getSourceHashesList())
       .build();
+  }
+
+  public static com.dremio.services.nessie.grpc.api.Namespace toProto(Namespace namespace) {
+    Preconditions.checkArgument(null != namespace, "Namespace must be non-null");
+    return com.dremio.services.nessie.grpc.api.Namespace.newBuilder()
+      .addAllElements(namespace.getElements())
+      .putAllProperties(namespace.getProperties())
+      .build();
+  }
+
+  public static Namespace fromProto(com.dremio.services.nessie.grpc.api.Namespace namespace) {
+    Preconditions.checkArgument(null != namespace, "Namespace must be non-null");
+    return Namespace.of(namespace.getElementsList(), namespace.getPropertiesMap());
+  }
+
+  public static NamespaceRequest toProto(NamespaceParams params) {
+    Preconditions.checkArgument(null != params, "NamespaceParams must be non-null");
+    NamespaceRequest.Builder builder = NamespaceRequest.newBuilder()
+      .setNamedRef(params.getRefName())
+      .setNamespace(toProto(params.getNamespace()));
+    if (null != params.getHashOnRef()) {
+      builder.setHashOnRef(params.getHashOnRef());
+    }
+    return builder.build();
+  }
+
+  public static NamespaceParams fromProto(NamespaceRequest request) {
+    Preconditions.checkArgument(null != request, "NamespaceRequest must be non-null");
+    NamespaceParamsBuilder builder = NamespaceParams.builder()
+      .refName(request.getNamedRef())
+      .namespace(fromProto(request.getNamespace()));
+    if (request.hasHashOnRef()) {
+      builder.hashOnRef(request.getHashOnRef());
+    }
+    return builder.build();
+  }
+
+  public static MultipleNamespacesRequest toProto(MultipleNamespacesParams params) {
+    Preconditions.checkArgument(null != params, "MultipleNamespacesParams must be non-null");
+    MultipleNamespacesRequest.Builder builder = MultipleNamespacesRequest.newBuilder()
+      .setNamedRef(params.getRefName());
+    if (null != params.getNamespace()) {
+      builder.setNamespace(toProto(params.getNamespace()));
+    }
+    if (null != params.getHashOnRef()) {
+      builder.setHashOnRef(params.getHashOnRef());
+    }
+    return builder.build();
+  }
+
+  public static MultipleNamespacesParams fromProto(MultipleNamespacesRequest request) {
+    Preconditions.checkArgument(null != request, "MultipleNamespacesRequest must be non-null");
+    MultipleNamespacesParamsBuilder builder = MultipleNamespacesParams.builder()
+      .refName(request.getNamedRef());
+    if (request.hasNamespace()) {
+      builder.namespace(fromProto(request.getNamespace()));
+    }
+    if (request.hasHashOnRef()) {
+      builder.hashOnRef(request.getHashOnRef());
+    }
+    return builder.build();
+  }
+
+  public static MultipleNamespacesResponse toProto(GetNamespacesResponse response) {
+    Preconditions.checkArgument(null != response, "GetNamespacesResponse must be non-null");
+    return MultipleNamespacesResponse.newBuilder()
+      .addAllNamespaces(response.getNamespaces()
+        .stream().map(ProtoUtil::toProto)
+        .collect(Collectors.toList()))
+      .build();
+  }
+
+  public static GetNamespacesResponse fromProto(MultipleNamespacesResponse response) {
+    Preconditions.checkArgument(null != response, "MultipleNamespacesResponse must be non-null");
+    return ImmutableGetNamespacesResponse.builder()
+      .addAllNamespaces(response.getNamespacesList()
+        .stream().map(ProtoUtil::fromProto)
+        .collect(Collectors.toList()))
+      .build();
+  }
+
+  public static Merge fromProto(MergeRequest request) {
+    Preconditions.checkArgument(null != request, "MergeRequest must be non-null");
+    ImmutableMerge.Builder builder = ImmutableMerge.builder()
+      .fromHash(request.getFromHash())
+      .fromRefName(request.getFromRefName());
+    if (request.hasKeepIndividualCommits()) {
+      builder.keepIndividualCommits(request.getKeepIndividualCommits());
+    }
+    return builder.build();
+  }
+
+  public static MergeRequest toProto(String branchName, String hash, Merge merge) {
+    Preconditions.checkArgument(null != merge, "Merge must be non-null");
+    MergeRequest.Builder builder =
+      MergeRequest.newBuilder().setToBranch(branchName).setExpectedHash(hash);
+    if (null != merge.getFromHash()) {
+      builder.setFromHash(merge.getFromHash());
+    }
+    if (null != merge.getFromRefName()) {
+      builder.setFromRefName(merge.getFromRefName());
+    }
+    if (null != merge.keepIndividualCommits()) {
+      builder.setKeepIndividualCommits(merge.keepIndividualCommits());
+    }
+    return builder.build();
+  }
+
+  public static Transplant fromProto(TransplantRequest request) {
+    Preconditions.checkArgument(null != request, "TransplantRequest must be non-null");
+    ImmutableTransplant.Builder builder = ImmutableTransplant.builder()
+      .hashesToTransplant(request.getHashesToTransplantList())
+      .fromRefName(request.getFromRefName());
+    if (request.hasKeepIndividualCommits()) {
+      builder.keepIndividualCommits(request.getKeepIndividualCommits());
+    }
+    return builder.build();
+  }
+
+  public static TransplantRequest toProto(String branchName, String hash, String message, Transplant transplant) {
+    Preconditions.checkArgument(null != transplant, "Transplant must be non-null");
+    TransplantRequest.Builder builder = TransplantRequest.newBuilder()
+      .setBranchName(branchName)
+      .setHash(hash)
+      .addAllHashesToTransplant(transplant.getHashesToTransplant());
+    if (null != message) {
+      builder.setMessage(message);
+    }
+    if (null != transplant.getFromRefName()) {
+      builder.setFromRefName(transplant.getFromRefName());
+    }
+    if (null != transplant.keepIndividualCommits()) {
+      builder.setKeepIndividualCommits(transplant.keepIndividualCommits());
+    }
+    return builder.build();
   }
 }

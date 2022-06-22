@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.physical.base;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+
 import java.util.List;
 
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.PartitionSpec;
 
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.planner.physical.DistributionTrait;
@@ -28,7 +31,9 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.WriterUpdater;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -45,7 +50,10 @@ public class WriterOptions {
   public enum IcebergWriterOperation {
     NONE,
     CREATE,
-    INSERT
+    DELETE,
+    INSERT,
+    MERGE,
+    UPDATE
   }
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
 
@@ -61,12 +69,12 @@ public class WriterOptions {
   private final String tableLocation;
   private final boolean singleWriter;
   private long recordLimit;
+  private IcebergTableProps icebergTableProps;
   // output limit per query from the PlannerSettings.OUTPUT_LIMIT_SIZE
   private final long outputLimitSize;
   private final IcebergWriterOperation icebergWriterOperation;
   private final ByteString extendedProperty;
   private final boolean outputLimitEnabled;
-  private final IcebergTableProps icebergTableProps;
   private final boolean readSignatureSupport;
   private final ResolvedVersionContext version;
 
@@ -122,6 +130,23 @@ public class WriterOptions {
     List<String> sortColumns,
     List<String> distributionColumns,
     PartitionDistributionStrategy partitionDistributionStrategy,
+    String tableLocation,
+    boolean singleWriter,
+    long recordLimit,
+    IcebergWriterOperation icebergWriterOperation,
+    ByteString extendedProperty,
+    IcebergTableProps icebergTableProps
+  ) {
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
+      singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE, icebergTableProps, true, null);
+  }
+
+  public WriterOptions(
+    Integer ringCount,
+    List<String> partitionColumns,
+    List<String> sortColumns,
+    List<String> distributionColumns,
+    PartitionDistributionStrategy partitionDistributionStrategy,
     boolean singleWriter,
     long recordLimit,
     IcebergWriterOperation icebergWriterOperation,
@@ -132,7 +157,6 @@ public class WriterOptions {
       singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE,
       null, true, version);
   }
-
 
   @JsonCreator
   public WriterOptions(
@@ -217,6 +241,10 @@ public class WriterOptions {
 
   public boolean hasSort() {
     return sortColumns != null && !sortColumns.isEmpty();
+  }
+
+  public void setIcebergTableProps(IcebergTableProps icebergTableProps) {
+    this.icebergTableProps = icebergTableProps;
   }
 
   public WriterOptions withRecordLimit(long recordLimit) {
@@ -304,5 +332,23 @@ public class WriterOptions {
                 return new DistributionField(input);
               }
             }).toList());
+  }
+
+  @JsonIgnore
+  public PartitionSpec getDeserializedPartitionSpec() {
+    ByteString serializedPartitionSpec = icebergTableProps == null ? null : icebergTableProps.getPartitionSpec();
+    return (serializedPartitionSpec == null) ? null
+      : IcebergSerDe.deserializePartitionSpec(deserializedJsonAsSchema(icebergTableProps.getIcebergSchema()),
+      serializedPartitionSpec.toByteArray());
+  }
+
+  @Override
+  public String toString() {
+    return "WriterOptions{" +
+      " tableLocation='" + tableLocation +
+      ", outputLimitSize=" + outputLimitSize +
+      ", icebergWriterOperation=" + icebergWriterOperation +
+      ", version=" + version +
+      '}';
   }
 }

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import { applyValidators, isRequired, isWholeNumber } from 'utils/validation';
-import FormUtils from '@app/utils/FormUtils/FormUtils';
+import { applyValidators, isRequired, isWholeNumber } from "utils/validation";
+import FormUtils from "@app/utils/FormUtils/FormUtils";
 
-import Host from './Host';
+import Host from "./Host";
 
 const { CONFIG_PROP_NAME } = FormUtils;
 
@@ -32,14 +32,17 @@ export default class SingleHostOptionalPort extends Component {
   static validate(values) {
     return {
       [CONFIG_PROP_NAME]: applyValidators(values[CONFIG_PROP_NAME], [
-        isRequired('hostname'),
-        isWholeNumber('port')
-      ])
+        isRequired("hostname"),
+        isWholeNumber("port"),
+      ]),
     };
   }
 
   render() {
-    const {fields: { [CONFIG_PROP_NAME]: configFields }, ...otherProps} = this.props;
+    const {
+      fields: { [CONFIG_PROP_NAME]: configFields },
+      ...otherProps
+    } = this.props;
     return <Host fields={configFields} {...otherProps} />;
   }
 }

@@ -67,4 +67,3 @@ public class ModifiableLocalSchedulerService extends LocalSchedulerService imple
     LOGGER.info("ModifiableLocalSchedulerService is up");
   }
 }
-

@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema, arrayOf } from 'normalizr';
+import { Schema, arrayOf } from "normalizr";
 
-import fileFormat from './fileFormat';
-import dataset from './dataset';
-import file from './file';
-import physicalDataset from './physicalDataset';
+import fileFormat from "./fileFormat";
+import dataset from "./dataset";
+import file from "./file";
+import physicalDataset from "./physicalDataset";
 
-const folder = new Schema('folder');
+const folder = new Schema("folder");
 
 folder.define({
   folderFormat: fileFormat,
@@ -28,8 +28,8 @@ folder.define({
     datasets: arrayOf(dataset),
     files: arrayOf(file),
     folders: arrayOf(folder),
-    physicalDatasets: arrayOf(physicalDataset)
-  }
+    physicalDatasets: arrayOf(physicalDataset),
+  },
 });
 
 export default folder;

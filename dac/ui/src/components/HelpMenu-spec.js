@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { HelpMenu } from './HelpMenu';
+import { HelpMenu } from "./HelpMenu";
 
-describe('HelpMenu', () => {
-
+describe("HelpMenu", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       closeMenu: sinon.spy(),
-      location: {}
+      location: {},
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<HelpMenu {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<HelpMenu {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

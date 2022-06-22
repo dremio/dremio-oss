@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { EngineStatusIcon } from '@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus';
-import { getEngineStatusCounts } from 'dyn-load/pages/AdminPage/subpages/Provisioning/provisioningUtils';
-import { getItems } from '@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/EngineStatusBarMixin';
+import { EngineStatusIcon } from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
+import { getEngineStatusCounts } from "dyn-load/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+import { getItems } from "@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/EngineStatusBarMixin";
 export function EngineStatusBar(props) {
   const { engine, type } = props;
 
@@ -26,33 +26,44 @@ export function EngineStatusBar(props) {
 
   const statusCounts = getEngineStatusCounts(engine);
 
-  return (<div style={styles.statusBar}>
-    {getItems(statusCounts).map(item => <div key={item.status} style={styles.statusItem}>
-      <EngineStatusIcon status={item.status} style={styles.statusIcon} type={type}/> <div style={styles.statusText}>{item.label}: {item.count} </div>
-    </div>)}
-  </div>);
+  return (
+    <div style={styles.statusBar}>
+      {getItems(statusCounts).map((item) => (
+        <div key={item.status} style={styles.statusItem}>
+          <EngineStatusIcon
+            status={item.status}
+            style={styles.statusIcon}
+            type={type}
+          />{" "}
+          <div style={styles.statusText}>
+            {item.label}: {item.count}{" "}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 EngineStatusBar.propTypes = {
   engine: PropTypes.instanceOf(Immutable.Map),
-  type: PropTypes.string
+  type: PropTypes.string,
 };
 
 const styles = {
   statusBar: {
-    display: 'flex',
-    margin: '10px 0'
+    display: "flex",
+    margin: "10px 0",
   },
   statusItem: {
-    display: 'flex',
-    marginRight: 30
+    display: "flex",
+    marginRight: 30,
   },
   statusIcon: {
-    margin: '0 5px -8px 0'
+    margin: "0 5px -8px 0",
   },
   statusText: {
-    alignItems: 'center',
-    display: 'flex',
-    marginTop: '5px'
-  }
+    alignItems: "center",
+    display: "flex",
+    marginTop: "5px",
+  },
 };

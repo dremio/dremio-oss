@@ -203,7 +203,7 @@ public class ExternalSortTracer {
     return exceptionBuilder;
   }
 
-  private static abstract class AllocatorState {
+  private abstract static class AllocatorState {
     protected String name;
     protected long allocatedMemory;
     protected long initReservation;

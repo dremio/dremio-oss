@@ -36,7 +36,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 /**
  * Interface to perform actions on datasets.
  */
-public interface DatasetCatalog {
+public interface DatasetCatalog extends PrivilegeCatalog {
   /**
    * Add or update a dataset.
    *
@@ -56,6 +56,8 @@ public interface DatasetCatalog {
 
   void dropTable(NamespaceKey key, TableMutationOptions tableMutationOptions);
 
+  void alterTable(NamespaceKey key, DatasetConfig datasetConfig, AlterTableOption alterTableOption, TableMutationOptions tableMutationOptions);
+
   void forgetTable(NamespaceKey key);
 
   /**
@@ -66,6 +68,7 @@ public interface DatasetCatalog {
   void createDataset(NamespaceKey key, com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator);
 
   UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions);
+  UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions, boolean isPrivilegeValidationNeeded);
 
   /**
    * Create or update a physical dataset along with its read definitions and splits.
@@ -97,18 +100,28 @@ public interface DatasetCatalog {
 
   void truncateTable(NamespaceKey path, TableMutationOptions tableMutationOptions);
 
-  void addColumns(NamespaceKey table, List<Field> colsToAdd, TableMutationOptions tableMutationOptions);
+  void addColumns(NamespaceKey datasetKey, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions);
 
-  void dropColumn(NamespaceKey table, String columnToDrop, TableMutationOptions tableMutationOptions);
+  void dropColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToDrop, TableMutationOptions tableMutationOptions);
 
-  void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions);
+  void changeColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions);
 
   boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes);
 
   boolean alterColumnOption(final NamespaceKey key, String columnToChange,
                             final String attributeName, final AttributeValue attributeValue);
 
+  void addPrimaryKey(final NamespaceKey namespaceKey, List<String> columns);
+
+  void dropPrimaryKey(final NamespaceKey namespaceKey);
+
+  List<String> getPrimaryKey(final NamespaceKey namespaceKey);
+
   boolean toggleSchemaLearning(NamespaceKey path, boolean enableSchemaLearning);
+
+  Catalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping);
+
+  Catalog resolveCatalogResetContext(String sourceName, VersionContext versionContext);
 
   /**
    * Retrieve a table

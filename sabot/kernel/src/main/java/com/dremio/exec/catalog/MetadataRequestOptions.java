@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.immutables.value.Value;
@@ -73,6 +74,20 @@ public abstract class MetadataRequestOptions {
         .setSchemaConfig(newSchemaConfig)
         .setCheckValidity(checkValidity)
         .build();
+  }
+
+  MetadataRequestOptions cloneWith(Map<String, VersionContext> sourceVersionMapping) {
+    return new ImmutableMetadataRequestOptions.Builder().from(this)
+      .setSourceVersionMapping(sourceVersionMapping)
+      .build();
+  }
+
+  MetadataRequestOptions cloneWith(String sourceName, VersionContext versionContext) {
+    Map<String, VersionContext> sourceVersionMapping = new HashMap<>(this.getSourceVersionMapping());
+    sourceVersionMapping.put(sourceName,versionContext);
+    return new ImmutableMetadataRequestOptions.Builder().from(this)
+      .setSourceVersionMapping(sourceVersionMapping)
+      .build();
   }
 
   /**

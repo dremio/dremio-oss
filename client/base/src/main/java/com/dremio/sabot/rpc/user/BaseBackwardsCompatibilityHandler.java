@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import static java.lang.String.format;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -80,11 +78,15 @@ abstract class BaseBackwardsCompatibilityHandler {
     }
   }
 
-  protected final Logger logger = LoggerFactory.getLogger(getClass());
-  protected final BufferAllocator allocator;
+  private static final Logger logger = LoggerFactory.getLogger(BaseBackwardsCompatibilityHandler.class);
+  private final BufferAllocator allocator;
 
   BaseBackwardsCompatibilityHandler(final BufferAllocator allocator) {
     this.allocator = allocator;
+  }
+
+  protected BufferAllocator getAllocator() {
+    return allocator;
   }
 
   /**
@@ -140,9 +142,9 @@ abstract class BaseBackwardsCompatibilityHandler {
         && (bufferStart + buffersLength) <= oldBuffers.length,
       "bufferStart: %s, buffersLength: %s, oldBuffers.length: %s", bufferStart, buffersLength, oldBuffers.length);
 
-    if (getLogger().isDebugEnabled()) {
-      getLogger().debug(format("%sfields: %s, buffers: %s for %s", indent, sizesString(fields),
-        sizesString(oldBuffers, bufferStart, buffersLength), parentName));
+    if (logger.isDebugEnabled()) {
+      logger.debug("{}fields: {}, buffers: {} for {}", indent, sizesString(fields),
+        sizesString(oldBuffers, bufferStart, buffersLength), parentName);
     }
 
     int bufferIndex = bufferStart;
@@ -166,8 +168,6 @@ abstract class BaseBackwardsCompatibilityHandler {
 
   public abstract void patch(SerializedField.Builder field, ByteBuf[] buffers, int bufferStart,
                              int buffersLength, String parentName, String indent);
-
-  public abstract Logger getLogger();
 
   /**
    * present the list of sizes for the designated buffers

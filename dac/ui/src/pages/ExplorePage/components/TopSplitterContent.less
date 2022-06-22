@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
- :global {
+:global {
   .dremioSidebar {
     flex-basis: 300px;
+    font-size: 1.4rem;
+    max-width: 480px;
+    position: relative;
     width: 300px;
-    transition: 300ms ease all;
+
+    &.--active {
+      pointer-events: none;
+
+      .dremioSidebar__drag {
+        background: rgba(204, 204, 204, 0.6);
+      }
+    }
 
     .dremioSidebarWrap__inner {
       width: 100%;
@@ -28,7 +38,19 @@
         height: 100%;
       }
     }
-    
+
+    &__drag {
+      height: 100%;
+      pointer-events: auto;
+      position: absolute;
+      right: -5px;
+      width: 10px;
+      z-index: 1000;
+
+      &:hover {
+        cursor: col-resize;
+      }
+    }
   }
 
   .dremioSidebarHeader {
@@ -45,7 +67,7 @@
       }
     }
   }
-  
+
   .topContent {
     position: relative;
   }
@@ -59,10 +81,10 @@
     height: 4px;
     display: inline-block;
     bottom: 5px;
-    background: #C5CAD0;
+    background: #c5cad0;
     border-radius: 2px;
 
-      &:hover {
+    &:hover {
       cursor: row-resize;
     }
   }

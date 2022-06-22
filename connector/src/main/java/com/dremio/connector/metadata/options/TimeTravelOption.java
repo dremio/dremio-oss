@@ -38,37 +38,18 @@ public final class TimeTravelOption implements GetDatasetOption, GetMetadataOpti
   }
 
   /**
-   * Time travel specifier.
-   */
-  public enum TimeTravelSpecifier {
-    AT,
-    BEFORE
-  }
-
-  /**
    * Time travel request.
    */
-  public abstract static class TimeTravelRequest {
-    private final TimeTravelSpecifier timeTravelSpecifier;
-
-    private TimeTravelRequest(TimeTravelSpecifier timeTravelSpecifier) {
-      this.timeTravelSpecifier = timeTravelSpecifier;
-    }
-
-    public TimeTravelSpecifier getTimeTravelSpecifier() {
-      return timeTravelSpecifier;
-    }
-  }
+  public interface TimeTravelRequest {}
 
   /**
    * Timestamp based time travel request.
    */
-  public static final class TimestampRequest extends TimeTravelRequest {
+  public static final class TimestampRequest implements TimeTravelRequest {
 
     private final long millis;
 
-    private TimestampRequest(TimeTravelSpecifier timeTravelSpecifier, long millis) {
-      super(timeTravelSpecifier);
+    private TimestampRequest(long millis) {
       this.millis = millis;
     }
 
@@ -80,12 +61,11 @@ public final class TimeTravelOption implements GetDatasetOption, GetMetadataOpti
   /**
    * Snapshot id based time travel request.
    */
-  public static final class SnapshotIdRequest extends TimeTravelRequest {
+  public static final class SnapshotIdRequest implements TimeTravelRequest {
 
     private final String snapshotId;
 
-    private SnapshotIdRequest(TimeTravelSpecifier timeTravelSpecifier, String snapshotId) {
-      super(timeTravelSpecifier);
+    private SnapshotIdRequest(String snapshotId) {
       this.snapshotId = snapshotId;
     }
 
@@ -94,12 +74,12 @@ public final class TimeTravelOption implements GetDatasetOption, GetMetadataOpti
     }
   }
 
-  public static TimeTravelRequest newSnapshotIdRequest(TimeTravelSpecifier timeTravelSpecifier, String snapshotId) {
-    return new SnapshotIdRequest(timeTravelSpecifier, snapshotId);
+  public static TimeTravelRequest newSnapshotIdRequest(String snapshotId) {
+    return new SnapshotIdRequest(snapshotId);
   }
 
-  public static TimeTravelRequest newTimestampRequest(TimeTravelSpecifier timeTravelSpecifier, long millis) {
-    return new TimestampRequest(timeTravelSpecifier, millis);
+  public static TimeTravelRequest newTimestampRequest(long millis) {
+    return new TimestampRequest(millis);
   }
 
   public static TimeTravelOption newTimeTravelOption(TimeTravelRequest timeTravelRequest) {

@@ -15,26 +15,24 @@
  */
 // todo: rename this file
 
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { FormattedMessage } from 'react-intl';
-import { FormBody, FormTitle } from 'components/Forms';
-import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
+import { FormattedMessage } from "react-intl";
+import { FormBody, FormTitle } from "components/Forms";
+import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 
-import { getIconDataTypeFromEntity } from 'utils/iconUtils';
+import { getIconDataTypeFromEntity } from "utils/iconUtils";
 
-import DatasetOverviewFormMixin
-  from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin'; // eslint-disable-line max-len
+import DatasetOverviewFormMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin"; // eslint-disable-line max-len
 
 @DatasetOverviewFormMixin
 export default class DatasetOverviewForm extends PureComponent {
-
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   render() {
     const { entity } = this.props;
@@ -49,17 +47,17 @@ export default class DatasetOverviewForm extends PureComponent {
     return (
       <FormBody>
         <FormTitle>
-          <FormattedMessage id = 'Common.Overview' />
+          <FormattedMessage id="Common.Overview" />
         </FormTitle>
         <div>
           <DatasetItemLabel
-            name={entity.get('name')}
-            fullPath={entity.get('fullPathList')}
+            name={entity.get("name")}
+            fullPath={entity.get("fullPathList")}
             showFullPath
-            typeIcon={typeIcon}/>
+            typeIcon={typeIcon}
+          />
         </div>
       </FormBody>
     );
   }
 }
-

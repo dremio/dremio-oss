@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 export const ICON_COLOR = [
-  { backgroundColor: '#D02362', color: '#FFF' },
-  { backgroundColor: '#F79472', color: '#333' },
-  { backgroundColor: '#FFDCA7', color: '#333' },
-  { backgroundColor: '#3B84CB', color: '#FFF' },
-  { backgroundColor: '#63DAFF', color: '#333' },
-  { backgroundColor: '#9A51BF', color: '#FFF' },
-  { backgroundColor: '#CC88AE', color: '#333' },
-  { backgroundColor: '#8CA4E9', color: '#333' },
-  { backgroundColor: '#64C5BF', color: '#333' },
-  { backgroundColor: '#72D398', color: '#333'}
+  { backgroundColor: "#D02362", color: "#FFF" },
+  { backgroundColor: "#F79472", color: "#333" },
+  { backgroundColor: "#FFDCA7", color: "#333" },
+  { backgroundColor: "#3B84CB", color: "#FFF" },
+  { backgroundColor: "#63DAFF", color: "#333" },
+  { backgroundColor: "#9A51BF", color: "#FFF" },
+  { backgroundColor: "#CC88AE", color: "#333" },
+  { backgroundColor: "#8CA4E9", color: "#333" },
+  { backgroundColor: "#64C5BF", color: "#333" },
+  { backgroundColor: "#72D398", color: "#333" },
 ];
 
 export default ICON_COLOR;

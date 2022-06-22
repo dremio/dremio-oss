@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-export * from './ModalFormAction';
+export * from "./ModalFormAction";
 
-export { default } from './ModalFormAction';
+export { default } from "./ModalFormAction";

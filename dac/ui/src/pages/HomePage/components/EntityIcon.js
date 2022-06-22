@@ -13,28 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import { getIconAltTextByEntityIconType, getIconTypeByEntityTypeAndStatus } from 'utils/iconUtils';
-import { ENTITY_TYPES } from '@app/constants/Constants';
-import { getEntity } from '@app/selectors/resources';
-import { getRootEntityTypeByIdV3 } from '@app/selectors/home';
-import { Tooltip } from 'dremio-ui-lib';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import {
+  getIconAltTextByEntityIconType,
+  getIconTypeByEntityTypeAndStatus,
+} from "utils/iconUtils";
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import { getEntity } from "@app/selectors/resources";
+import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
+import { Tooltip } from "dremio-ui-lib";
 
-import FontIcon from '@app/components/Icon/FontIcon';
+import FontIcon from "@app/components/Icon/FontIcon";
 
 const mapStateToPropsForEntityIcon = (state, { entityId }) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
   const props = {
     entityType: type,
-    sourceStatus: null
+    sourceStatus: null,
+    sourceType: null,
   };
 
   if (type === ENTITY_TYPES.source) {
     // this work only for v2 api. We should think how to change this when we start migrate sources to v3 api
     const entity = getEntity(state, entityId, type);
-    props.sourceStatus = entity.getIn(['state', 'status'], null);
+    props.sourceStatus = entity.getIn(["state", "status"], null);
+    props.sourceType = entity.get("type");
   }
 
   return props;
@@ -50,13 +55,24 @@ export class EntityIcon extends PureComponent {
     //public api entityId
     entityId: PropTypes.string,
     //connected
-    entityType: PropTypes.oneOf([ENTITY_TYPES.home, ENTITY_TYPES.source, ENTITY_TYPES.space]).isRequired,
-    sourceStatus: PropTypes.string // available only for sources
+    entityType: PropTypes.oneOf([
+      ENTITY_TYPES.home,
+      ENTITY_TYPES.source,
+      ENTITY_TYPES.space,
+    ]).isRequired,
+    sourceStatus: PropTypes.string, // available only for sources
+    sourceType: PropTypes.string, // available only for sources
   };
 
   render() {
-    const { entityType, sourceStatus } = this.props;
-    return <PureEntityIcon entityType={entityType} sourceStatus={sourceStatus} />;
+    const { entityType, sourceStatus, sourceType } = this.props;
+    return (
+      <PureEntityIcon
+        entityType={entityType}
+        sourceStatus={sourceStatus}
+        sourceType={sourceType}
+      />
+    );
   }
 }
 
@@ -64,18 +80,23 @@ export class PureEntityIcon extends PureComponent {
   static propTypes = {
     entityType: PropTypes.string.isRequired,
     sourceStatus: PropTypes.string,
-    style: PropTypes.object
+    sourceType: PropTypes.string,
+    style: PropTypes.object,
   };
 
   render() {
-    const {entityType, sourceStatus, style} = this.props;
-    const iconType = getIconTypeByEntityTypeAndStatus(entityType, sourceStatus);
-    const iconAltText = getIconAltTextByEntityIconType(iconType) || '';
+    const { entityType, sourceStatus, sourceType, style } = this.props;
+    const iconType = getIconTypeByEntityTypeAndStatus(
+      entityType,
+      sourceStatus,
+      sourceType
+    );
+    const iconAltText = getIconAltTextByEntityIconType(iconType) || "";
 
     return (
       <Tooltip title={iconAltText}>
         <>
-          <FontIcon type={iconType}  theme={{...iconStyle, ...style}} />
+          <FontIcon type={iconType} theme={{ ...iconStyle, ...style }} />
         </>
       </Tooltip>
     );
@@ -85,8 +106,8 @@ export class PureEntityIcon extends PureComponent {
 const iconStyle = {
   Container: {
     height: 24,
-    display: 'inline-block',
-    verticalAlign: 'middle',
-    marginRight: 5
-  }
+    display: "inline-block",
+    verticalAlign: "middle",
+    marginRight: 5,
+  },
 };

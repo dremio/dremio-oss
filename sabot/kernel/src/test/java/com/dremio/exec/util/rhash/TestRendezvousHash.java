@@ -131,5 +131,3 @@ public class TestRendezvousHash {
     return new RendezvousHash<>(hfunc, strFunnel, strFunnel, new ArrayList<>());
   }
 }
-
-

@@ -19,11 +19,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.calcite.sql.SqlNode;
+
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
@@ -47,15 +54,9 @@ public class PlanCache {
     return cachePlans;
   }
 
-  private void addCacheToDatasetMap(String datasetId, Long cacheId) {
-    synchronized (datasetMap) {
-      datasetMap.put(datasetId, cacheId);
-    }
-  }
-
-  public boolean addCacheToDatasetMap(Catalog catalog, long cachedKey) {
+  public void createNewCachedPlan(Catalog catalog, long cachedKey, String sql,
+                                  Prel prel, String textPlan, SqlHandlerConfig config) {
     Preconditions.checkNotNull(catalog);
-
     boolean addedCacheToDatasetMap = false;
     Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
     for (DremioTable dataset : datasets) {
@@ -74,10 +75,24 @@ public class PlanCache {
         logger.debug(String.format("Dataset %s is ignored (no physical dataset available).", dataset.getPath()));
         continue;
       }
-      addCacheToDatasetMap(datasetConfig.getId().getId(), cachedKey);
+      synchronized (datasetMap) {
+        datasetMap.put(datasetConfig.getId().getId(), cachedKey);
+      }
       addedCacheToDatasetMap = true;
     }
-    return addedCacheToDatasetMap;
+    if (addedCacheToDatasetMap) {
+      CachedPlan newCachedPlan = CachedPlan.createCachedPlan(sql, prel, textPlan, prel.getEstimatedSize());
+      config.getObserver().setCachedAccelDetails(newCachedPlan);
+      cachePlans.put(cachedKey, newCachedPlan);
+    }
+  }
+
+  public static boolean supportPlanCache(PlanCache planCache, SqlHandlerConfig config, SqlNode sqlNode) {
+    if (org.apache.commons.lang3.StringUtils.containsIgnoreCase(sqlNode.toString(), "external_query")) {
+      return false;
+    }
+    return config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable()
+      && planCache != null && config.getContext().getPlannerSettings().isPlanCacheEnabled();
   }
 
   public static long generateCacheKey(String sql, QueryContext context) {
@@ -105,7 +120,7 @@ public class PlanCache {
     return result;
   }
 
-  public CachedPlan getIfPresentAndValid(Catalog catalog, long cacheId) {
+  public CachedPlan getIfPresentAndValid(Catalog catalog, CatalogService catalogService, long cacheId) {
     if (cachePlans == null) {
       return null;
     }
@@ -115,10 +130,29 @@ public class PlanCache {
       for (DremioTable dataset : datasets) {
         try {
           DatasetConfig config = dataset.getDatasetConfig();
-          if (config != null && (config.getLastModified() > cachedPlan.getCreationTime())) {
-            // for this case, we can only invalidate this cach entry, other cache entries may still be valid
-            cachePlans.invalidate(cacheId);
-            return null;
+          if (config != null) {
+            // DatasetConfig modified
+            if (config.getLastModified() > cachedPlan.getCreationTime()) {
+              // for this case, we can only invalidate this cache entry, other cache entries may still be valid
+              cachePlans.invalidate(cacheId);
+              return null;
+            } else {
+              // Check if source config is modified and invalidate the cache.
+              try {
+                ManagedStoragePlugin plugin = catalogService.getManagedSource(dataset.getPath().getRoot());
+                if (plugin != null) {
+                  SourceConfig sourceConfig = plugin.getConfig();
+                  if ((sourceConfig != null) && sourceConfig.getCtime() > cachedPlan.getCreationTime()) {
+                    logger.debug("Invalidating cached plan for the source {} cached ctime {} source ctime {}",
+                      sourceConfig.getName(), cachedPlan.getCreationTime(), sourceConfig.getCtime());
+                    cachePlans.invalidate(cacheId);
+                    return null;
+                  }
+                }
+              } catch (Exception e) {
+                logger.error("Exception while checking for Source config modification for dataset {}", dataset.getPath().getRoot(), e);
+              }
+            }
           }
         } catch (IllegalStateException ignore) {
           logger.debug(String.format("Dataset %s is ignored (no dataset config available).", dataset.getPath()), ignore);

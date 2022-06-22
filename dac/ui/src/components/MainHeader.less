@@ -15,7 +15,8 @@
  */
 @import "constants.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .main-header {
     flex-shrink: 0;
     display: flex;
@@ -46,57 +47,54 @@
         }
       }
 
-    .left-part {
-      .icon-type {
-        margin-right: 5px;
-      }
-
-      .projectList {
-        display: flex;
-      }
-    }
-
-    .right-part {
-      display: flex;
-    }
-
-    .dremio {
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-    }
-
-    .logo {
-      width: 75px;
-      display: flex;
-      align-items: center;
-      padding-bottom: 1px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 20px;
-    }
-
-    .headerLinkContent {
-      display: flex;
-      position: relative;
-      margin-top: 3px;
-      color: #77818f;
-
-
-      .text {
-        display: inline-block;
-        font-size: 13px;
-        margin-top: 1px;
-      }
-
-      &:hover {
+      .left-part {
         .icon-type {
-          color: #41b4c4;
-          ;
+          margin-right: 5px;
+        }
+
+        .projectList {
+          display: flex;
         }
       }
-    }
 
+      .right-part {
+        display: flex;
+      }
+
+      .dremio {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      .logo {
+        width: 75px;
+        display: flex;
+        align-items: center;
+        padding-bottom: 1px;
+        color: #fff;
+        cursor: pointer;
+        font-size: 20px;
+      }
+
+      .headerLinkContent {
+        display: flex;
+        position: relative;
+        margin-top: 3px;
+        color: #77818f;
+
+        .text {
+          display: inline-block;
+          font-size: 13px;
+          margin-top: 1px;
+        }
+
+        &:hover {
+          .icon-type {
+            color: #41b4c4;
+          }
+        }
+      }
     }
 
     .right-part {
@@ -159,8 +157,6 @@
       &:hover {
         color: #41b4c4 !important;
       }
-
-
     }
 
     .adminSettingsDropdownIcon {

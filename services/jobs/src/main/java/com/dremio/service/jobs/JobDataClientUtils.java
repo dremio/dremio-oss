@@ -114,7 +114,7 @@ public final class JobDataClientUtils {
     final Ticket ticket = new Ticket(cticket.toByteArray());
     try (FlightStream flightStream = flightClient.getStream(ticket)) {
       return new JobDataFragmentImpl(new RecordBatches(JobDataClientUtils.getData(
-        flightStream, bufferAllocator, limit)), offset, jobId);
+        flightStream, bufferAllocator, limit)), offset, jobId, null);
     } catch (FlightRuntimeException fre) {
       Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
       throw ue.isPresent() ? ue.get() : fre;

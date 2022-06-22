@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect } from 'react';
-import { connect } from 'react-redux';
-import { fetchDefaultReference as fetchDefaultReferenceAction } from '@app/actions/nessie/nessie';
-import SideNav from '@app/components/SideNav/SideNav';
-import { NessieRootState } from '@app/reducers/nessie/nessie';
-import { ViewStateWrapper } from '@app/components/ViewStateWrapper';
+import { useEffect } from "react";
+import { connect } from "react-redux";
+import { fetchDefaultReference as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
+import SideNav from "@app/components/SideNav/SideNav";
+import { NessieRootState } from "@app/reducers/nessie/nessie";
+import { ViewStateWrapper } from "@app/components/ViewStateWrapper";
 import {
   createNessieContext,
-  NessieContext as NessieContext
-} from './utils/context';
+  NessieContext as NessieContext,
+} from "./utils/context";
 
-import './NessieHomePage.less';
+import "./NessieHomePage.less";
 
 type NessieHomePageProps = {
   children: any;
-  source: { id: string; name: string, endpoint?: string };
+  source: { id: string; name: string; endpoint?: string };
   viewState: any;
 };
 
@@ -37,12 +37,12 @@ type ConnectedProps = {
   nessie: NessieRootState;
 };
 
-function NessieHomePage(props: NessieHomePageProps & ConnectedProps) {
+function NessieHomePage(props: NessieHomePageProps) {
   const Content = props.source ? <HomePageContent {...props} /> : null;
   return (
-    <div className='nessieHomePage'>
+    <div className="nessieHomePage">
       <SideNav />
-      <div className='nessieHomePage-content'>
+      <div className="nessieHomePage-content">
         {props.viewState ? (
           <ViewStateWrapper
             hideChildrenWhenInProgress
@@ -58,11 +58,11 @@ function NessieHomePage(props: NessieHomePageProps & ConnectedProps) {
   );
 }
 
-function HomePageContent({
+function HomePageContentUnconnected({
   children,
   fetchDefaultReference,
   nessie,
-  source: sourceInfo
+  source: sourceInfo,
 }: NessieHomePageProps & ConnectedProps) {
   const contextValue = createNessieContext(sourceInfo, nessie);
 
@@ -80,6 +80,11 @@ function HomePageContent({
 
 const mapStateToProps = ({ nessie }: any) => ({ nessie });
 const mapDispatchToProps = {
-  fetchDefaultReference: fetchDefaultReferenceAction
+  fetchDefaultReference: fetchDefaultReferenceAction,
 };
-export default connect(mapStateToProps, mapDispatchToProps)(NessieHomePage);
+export const HomePageContent = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(HomePageContentUnconnected);
+
+export default NessieHomePage;

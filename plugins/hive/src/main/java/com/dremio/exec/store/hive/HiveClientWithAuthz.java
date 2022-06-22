@@ -20,13 +20,18 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzPluginException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivObjectActionType;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.exceptions.UserException;
@@ -60,7 +65,10 @@ public class HiveClientWithAuthz extends HiveClientImpl {
   void connect() throws MetaException {
     doAsCommand(
       (PrivilegedExceptionAction<Void>) () -> {
-        client = Hive.get(hiveConf).getMSC();
+        final HiveConf hiveConfCopy = new HiveConf(hiveConf);
+        hiveConfCopy.set("user.name", userName);
+        hiveConfCopy.set("proxy.user.name", userName);
+        client = Hive.get(hiveConfCopy).getMSC();
         return null;
       },
         ugiForRpc,
@@ -91,7 +99,7 @@ public class HiveClientWithAuthz extends HiveClientImpl {
   public List<String> getDatabases(boolean ignoreAuthzErrors) throws TException {
     try {
       authorizer.authorizeShowDatabases();
-    } catch (final HiveAccessControlException e) {
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
       if (ignoreAuthzErrors) {
         return Collections.emptyList();
       }
@@ -105,7 +113,7 @@ public class HiveClientWithAuthz extends HiveClientImpl {
   public List<String> getTableNames(final String dbName, boolean ignoreAuthzErrors) throws TException {
     try {
       authorizer.authorizeShowTables(dbName);
-    } catch (final HiveAccessControlException e) {
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
       if (ignoreAuthzErrors) {
         return Collections.emptyList();
       }
@@ -119,7 +127,7 @@ public class HiveClientWithAuthz extends HiveClientImpl {
   public Table getTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
     try {
       authorizer.authorizeReadTable(dbName, tableName);
-    } catch (final HiveAccessControlException e) {
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
       if (!ignoreAuthzErrors) {
         throw UserException.permissionError(e).build(logger);
       } else {
@@ -127,6 +135,34 @@ public class HiveClientWithAuthz extends HiveClientImpl {
       }
     }
     return super.getTable(dbName, tableName, ignoreAuthzErrors);
+  }
+
+
+  @Override
+  public void createTable(Table tbl) throws AlreadyExistsException, InvalidObjectException, MetaException, NoSuchObjectException, TException {
+
+    try {
+      authorizer.authorizeCreateTable(tbl.getDbName(), tbl.getTableName());
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
+      throw UserException.permissionError(e).build(logger);
+    }
+    super.createTable(tbl);
+
+  }
+
+
+  @Override
+  public void dropTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
+    try {
+      authorizer.authorizeDropTable(dbName, tableName);
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
+      if (!ignoreAuthzErrors) {
+        throw UserException.permissionError(e).build(logger);
+      } else {
+        return;
+      }
+    }
+    super.dropTable(dbName, tableName, ignoreAuthzErrors);
   }
 
   @Override
@@ -140,6 +176,42 @@ public class HiveClientWithAuthz extends HiveClientImpl {
       return authorizer.getAuthorizer().applyRowFilterAndColumnMasking(contextBuilder.build(), inputHiveObjects);
     } else {
       return Collections.emptyList();
+    }
+  }
+
+  @Override
+  public void checkDmlPrivileges(String dbName, String tableName, List<HivePrivObjectActionType> actionTypes) {
+    try {
+      authorizer.authorizeDml(dbName, tableName, actionTypes);
+    } catch (HiveAccessControlException | HiveAuthzPluginException e) {
+      throw UserException.permissionError(e).buildSilently();
+    }
+  }
+
+  @Override
+  public void checkCreateTablePrivileges(String dbName, String tableName) {
+    try {
+      authorizer.authorizeCreateTable(dbName, tableName);
+    } catch (HiveAccessControlException | HiveAuthzPluginException e) {
+      throw UserException.permissionError(e).buildSilently();
+    }
+  }
+
+  @Override
+  public void checkTruncateTablePrivileges(String dbName, String tableName) {
+    try {
+      authorizer.authorizeTruncateTable(dbName, tableName);
+    } catch (HiveAccessControlException | HiveAuthzPluginException e) {
+      throw UserException.permissionError(e).buildSilently();
+    }
+  }
+
+  @Override
+  public void checkAlterTablePrivileges(String dbName, String tableName) {
+    try {
+      authorizer.authorizeAlterTable(dbName, tableName);
+    } catch (HiveAccessControlException | HiveAuthzPluginException e) {
+      throw UserException.permissionError(e).buildSilently();
     }
   }
 }

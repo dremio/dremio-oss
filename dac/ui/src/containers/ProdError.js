@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { connect } from 'react-redux';
+import { connect } from "react-redux";
 
-import { hideAppError } from 'actions/prodError';
-import ProdErrorModal from 'components/Modals/ProdErrorModal';
-import config from 'dyn-load/utils/config';
-import { getAppError, getAppErrorId } from '@app/reducers';
+import { hideAppError } from "actions/prodError";
+import ProdErrorModal from "components/Modals/ProdErrorModal";
+import config from "dyn-load/utils/config";
+import { getAppError, getAppErrorId } from "@app/reducers";
 
 export const SHOW_GO_HOME_AFTER_PERIOD = 5000;
 
@@ -30,14 +30,14 @@ export class ProdErrorContainer extends Component {
   static propTypes = {
     error: PropTypes.object,
     errorId: PropTypes.string,
-    hideAppError: PropTypes.func
-  }
+    hideAppError: PropTypes.func,
+  };
 
   initTime = Date.now();
 
   handleHide = () => {
     this.props.hideAppError();
-  }
+  };
 
   render() {
     const { error, errorId } = this.props;
@@ -60,10 +60,10 @@ export class ProdErrorContainer extends Component {
 function mapStateToProps(state) {
   return {
     error: getAppError(state),
-    errorId: getAppErrorId(state)
+    errorId: getAppErrorId(state),
   };
 }
 
 export default connect(mapStateToProps, {
-  hideAppError
+  hideAppError,
 })(ProdErrorContainer);

@@ -13,46 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { compose } from 'redux';
-import { injectIntl } from 'react-intl';
-import {FormTitle} from '@app/components/Forms';
-import EllipsedText from '@app/components/EllipsedText';
-import Button from '@app/components/Buttons/Button';
+import { compose } from "redux";
+import { injectIntl } from "react-intl";
+import { FormTitle } from "@app/components/Forms";
+import EllipsedText from "@app/components/EllipsedText";
+import Button from "@app/components/Buttons/Button";
 
 function AccelerationFormMixin(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderHeader() {
       const { mode } = this.state;
-      const {intl: { formatMessage } } = this.props;
-      const switchModeText = mode === 'BASIC' ? formatMessage({ id: 'Reflections.Mode.Advanced'}) : formatMessage({ id: 'Reflections.Mode.Basic'});
-      const hoverTextForButton = mode === 'BASIC' ? formatMessage({ id: 'Reflections.Button.Advanced'}) : formatMessage({ id: 'Reflections.Button.Basic'});
-
+      const {
+        intl: { formatMessage },
+      } = this.props;
+      const switchModeText =
+        mode === "BASIC"
+          ? formatMessage({ id: "Reflections.Mode.Advanced" })
+          : formatMessage({ id: "Reflections.Mode.Basic" });
+      const hoverTextForButton =
+        mode === "BASIC"
+          ? formatMessage({ id: "Reflections.Button.Advanced" })
+          : formatMessage({ id: "Reflections.Button.Basic" });
       return (
         <div>
-          <div style={{float: 'right', display: 'flex', marginTop: '5px'}}>
-            {mode === 'ADVANCED' && <Button disableSubmit onClick={this.clearReflections} type='CUSTOM' text={la('Remove All Reflections')} style={{ fontSize: 10 }} />}
-            <EllipsedText text={hoverTextForButton} children={<Button
-              disable={mode === 'ADVANCED' && this.getMustBeInAdvancedMode()}
-              disableSubmit
-              onClick={this.toggleMode}
-              type='CUSTOM'
-              style={{ fontSize: 10, marginLeft: 10 }}
-              text={switchModeText}
-            />} />
+          <div style={{ float: "right", display: "flex", marginTop: "5px" }}>
+            {mode === "ADVANCED" && (
+              <Button
+                disableSubmit
+                onClick={this.clearReflections}
+                type="CUSTOM"
+                text={la("Remove All Reflections")}
+                style={{ fontSize: 10 }}
+              />
+            )}
+            <EllipsedText text={hoverTextForButton}>
+              <Button
+                disable={mode === "ADVANCED" && this.getMustBeInAdvancedMode()}
+                disableSubmit
+                onClick={this.toggleMode}
+                type="CUSTOM"
+                style={{ fontSize: 10, marginLeft: 10 }}
+                text={switchModeText}
+              />
+            </EllipsedText>
           </div>
-          <FormTitle>
-            {la('Reflections')}
-          </FormTitle>
+          <FormTitle>{la("Reflections")}</FormTitle>
         </div>
       );
-    }
+    },
   });
   return input;
 }
 
 export const AccelerationFormWithMixin = (accelerationForm) => {
-  return compose(
-    injectIntl,
-    AccelerationFormMixin
-  )(accelerationForm);
+  return compose(injectIntl, AccelerationFormMixin)(accelerationForm);
 };

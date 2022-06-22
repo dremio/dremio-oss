@@ -19,11 +19,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -35,6 +40,7 @@ import com.google.common.base.Stopwatch;
  * Class used to commit insert into table operation
  */
 public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
+  private static final Logger logger = LoggerFactory.getLogger(IcebergInsertOperationCommitter.class);
   private List<ManifestFile> manifestFileList = new ArrayList<>();
 
   private final IcebergCommand icebergCommand;
@@ -44,7 +50,7 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   public IcebergInsertOperationCommitter(IcebergCommand icebergCommand, OperatorStats operatorStats) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
     this.icebergCommand = icebergCommand;
-    this.icebergCommand.beginInsertTableTransaction();
+    this.icebergCommand.beginTransaction();
     this.operatorStats = operatorStats;
     this.prevMetadataRootPointer = icebergCommand.getRootPointer();;
   }
@@ -54,10 +60,12 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
     Stopwatch stopwatch = Stopwatch.createStarted();
     if (manifestFileList.size() > 0) {
       icebergCommand.beginInsert();
+      logger.debug("Committing manifest files list [Path , filecount] {} ",
+        manifestFileList.stream().map(l -> new ImmutablePair(l.path(), l.addedFilesCount())).collect(Collectors.toList()));
       icebergCommand.consumeManifestFiles(manifestFileList);
       icebergCommand.finishInsert();
     }
-    Snapshot snapshot = icebergCommand.endInsertTableTransaction();
+    Snapshot snapshot = icebergCommand.endTransaction().currentSnapshot();
     long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
     operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
     return snapshot;
@@ -74,6 +82,11 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   }
 
   @Override
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) {
+    throw new UnsupportedOperationException("Delete data file Operation is not allowed for Insert Transaction");
+  }
+
+  @Override
   public void updateSchema(BatchSchema newSchema) {
     throw new UnsupportedOperationException("Updating schema is not supported for update table Transaction");
   }
@@ -86,6 +99,11 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   @Override
   public Map<Integer, PartitionSpec> getCurrentSpecMap() {
     return icebergCommand.getPartitionSpecMap();
+  }
+
+  @Override
+  public Schema getCurrentSchema() {
+    return icebergCommand.getIcebergSchema();
   }
 
   @Override

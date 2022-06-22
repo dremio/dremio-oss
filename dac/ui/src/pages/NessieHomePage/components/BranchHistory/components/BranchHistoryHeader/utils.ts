@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { browserHistory } from 'react-router';
+import { browserHistory } from "react-router";
 
 export type DialogStatesType = {
   create: boolean;
@@ -26,27 +26,30 @@ export type DialogStatesType = {
 export const manageDialogs = (
   dialogStates: DialogStatesType,
   setDialogStates: React.Dispatch<React.SetStateAction<DialogStatesType>>,
-  dialog: 'create' | 'merge' | 'rename' | 'delete',
+  dialog: "create" | "merge" | "rename" | "delete",
   open: boolean
 ) => {
   switch (dialog) {
-  case 'create':
-    setDialogStates({ ...dialogStates, create: open });
-    break;
-  case 'merge':
-    setDialogStates({ ...dialogStates, merge: open });
-    break;
-  case 'rename':
-    setDialogStates({ ...dialogStates, rename: open });
-    break;
-  case 'delete':
-    setDialogStates({ ...dialogStates, delete: open });
-    break;
-  default:
-    return;
+    case "create":
+      setDialogStates({ ...dialogStates, create: open });
+      break;
+    case "merge":
+      setDialogStates({ ...dialogStates, merge: open });
+      break;
+    case "rename":
+      setDialogStates({ ...dialogStates, rename: open });
+      break;
+    case "delete":
+      setDialogStates({ ...dialogStates, delete: open });
+      break;
+    default:
+      return;
   }
 };
 
-export const redirectOnReferenceActions = (newName: string, baseUrl?: string) => {
-  browserHistory.replace(`${baseUrl}/branches${newName ? '/' + newName : ''}`);
+export const redirectOnReferenceActions = (
+  newName: string,
+  baseUrl?: string
+) => {
+  browserHistory.replace(`${baseUrl}/branches${newName ? "/" + newName : ""}`);
 };

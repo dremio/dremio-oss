@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -75,7 +76,11 @@ public class SpillManager implements AutoCloseable {
 
   public SpillManager(SabotConfig sabotConfig, OptionManager optionManager, String id, Configuration hadoopConf,
       SpillService spillService, String caller, OperatorStats stats)  {
-    final List<String> directories = new ArrayList<>(sabotConfig.getStringList(ExecConstants.SPILL_DIRS));
+    this(new ArrayList<>(sabotConfig.getStringList(ExecConstants.SPILL_DIRS)), optionManager, id, spillService, caller, stats);
+  }
+
+  public SpillManager(List<String> directories, OptionManager optionManager, String id, SpillService spillService,
+                      String caller, OperatorStats stats) {
     if (directories.isEmpty()) {
       throw UserException.dataWriteError().message("No spill locations specified.").build(logger);
     }
@@ -121,7 +126,7 @@ public class SpillManager implements AutoCloseable {
     spillService.deleteSpillSubdirs(id);
   }
 
-  final public class SpillFile implements AutoCloseable {
+  public final class SpillFile implements AutoCloseable {
     private final FileSystem fs;
     private final Path path;
 
@@ -339,6 +344,11 @@ public class SpillManager implements AutoCloseable {
 
     public void load(VectorContainer container, BufferAllocator allocator) throws IOException {
       VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+      serializable.readFromStream(top);
+    }
+
+    public void load(VectorContainer container, Function<Integer, ArrowBuf> allocatorFunc) throws IOException {
+      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocatorFunc, stats);
       serializable.readFromStream(top);
     }
 

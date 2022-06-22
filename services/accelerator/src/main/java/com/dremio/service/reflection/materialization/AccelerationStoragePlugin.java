@@ -62,6 +62,7 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.iceberg.IcebergExecutionDatasetAccessor;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
+import com.dremio.exec.store.iceberg.TableSchemaProvider;
 import com.dremio.exec.store.iceberg.TableSnapshotProvider;
 import com.dremio.exec.store.iceberg.TimeTravelProcessors;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
@@ -252,8 +253,10 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
       // TODO: create a DX!
       final TableSnapshotProvider tableSnapshotProvider =
           TimeTravelProcessors.getTableSnapshotProvider(null, null);
+      final TableSchemaProvider tableSchemaProvider =
+              TimeTravelProcessors.getTableSchemaProvider(null);
       return Optional.of(new IcebergExecutionDatasetAccessor(datasetPath, tableSupplier, getFsConfCopy(),
-          icebergFormatPlugin, getSystemUserFS(), tableSnapshotProvider, this));
+          icebergFormatPlugin, getSystemUserFS(), tableSnapshotProvider, this, tableSchemaProvider));
     } else {
       return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
         this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));

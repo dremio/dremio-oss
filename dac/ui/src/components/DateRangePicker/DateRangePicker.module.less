@@ -1,0 +1,56 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+.dremio-daterangepicker {
+  :global(.rdrNextPrevButton) {
+    background: transparent;
+    &:hover {
+      background: var(--dremio--color--neutral--150);
+    }
+  }
+
+  :global(.rdrMonthPicker select),
+  :global(.rdrYearPicker select) {
+    font-weight: 600;
+    color: var(--dremio--color--neutral--850);
+  }
+
+  :global(.rdrDateDisplayWrapper),
+  :global(.rdrInputRanges) {
+    display: none;
+  }
+
+  :global(.rdrCalendarWrapper) {
+    width: 100%;
+  }
+
+  :global(.rdrDayToday .rdrDayNumber span:after) {
+    background: var(--dremio--color--neutral--850) !important;
+    height: 1px;
+    width: 13px;
+    bottom: 5px;
+  }
+
+  :global(.rdrDay:not(.rdrDayPassive) .rdrInRange ~ .rdrDayNumber span),
+  :global(.rdrDay:not(.rdrDayPassive) .rdrStartEdge ~ .rdrDayNumber span),
+  :global(.rdrDay:not(.rdrDayPassive) .rdrEndEdge ~ .rdrDayNumber span),
+  :global(.rdrDay:not(.rdrDayPassive) .rdrSelected ~ .rdrDayNumber span) {
+    color: var(--dremio--color--neutral--850) !important;
+  }
+
+  :global(.rdrMonth) {
+    width: 100%;
+  }
+}

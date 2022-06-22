@@ -17,74 +17,94 @@
 import {
   parseQueryState,
   renderQueryState,
-  renderQueryStateForServer
-} from './jobsQueryState';
+  renderQueryStateForServer,
+} from "./jobsQueryState";
 
-describe('jobsQueryState', () => {
-
-  describe('parseQueryState', () => {
-    it('parses query state from query', () => {
+describe("jobsQueryState", () => {
+  describe("parseQueryState", () => {
+    it("parses query state from query", () => {
       const result = parseQueryState({
         filters: '{"qt":["UI","EXTERNAL"]}',
-        sort: 'qt',
-        order: 'ASCENDING'
+        sort: "qt",
+        order: "ASCENDING",
       });
       expect(result.toJS()).to.eql({
-        filters: {qt: ['UI', 'EXTERNAL']},
-        sort: 'qt',
-        order: 'ASCENDING'
+        filters: { qt: ["UI", "EXTERNAL"] },
+        sort: "qt",
+        order: "ASCENDING",
       });
     });
 
-    it('defaults sort and order', () => {
-      const result = parseQueryState({filters: '{"qt":["UI","EXTERNAL"]}'});
+    it("defaults sort and order", () => {
+      const result = parseQueryState({ filters: '{"qt":["UI","EXTERNAL"]}' });
       expect(result.toJS()).to.eql({
-        filters: {qt: ['UI', 'EXTERNAL']},
-        sort: 'st',
-        order: 'DESCENDING'
+        filters: { qt: ["UI", "EXTERNAL"] },
+        sort: "st",
+        order: "DESCENDING",
       });
     });
   });
 
-  describe('renderQueryState', () => {
-    it('should render filter as json', () => {
-      const result = renderQueryState(Immutable.fromJS({
-        filters: {qt: ['UI', 'EXTERNAL']},
-        sort: 'qt',
-        order: 'ASCENDING'
-      }));
+  describe("renderQueryState", () => {
+    it("should render filter as json", () => {
+      const result = renderQueryState(
+        Immutable.fromJS({
+          filters: { qt: ["UI", "EXTERNAL"] },
+          sort: "qt",
+          order: "ASCENDING",
+        })
+      );
       expect(result).to.eql({
-        sort: 'qt',
-        order: 'ASCENDING',
-        filters: '{"qt":["UI","EXTERNAL"]}'
+        sort: "qt",
+        order: "ASCENDING",
+        filters: '{"qt":["UI","EXTERNAL"]}',
       });
     });
   });
 
-  describe('renderQueryStateForServer', () => {
-    it('should render normal filters', () => {
-      let result = renderQueryStateForServer(Immutable.fromJS({
-        filters: {qt: ['UI', 'EXTERNAL']}
-      }));
-      expect(result).to.eql(`filter=${encodeURIComponent('(qt=="UI",qt=="EXTERNAL")')}`);
-      result = renderQueryStateForServer(Immutable.fromJS({
-        filters: {asd: ['"@dremio"."sys+v\\ersion"']}
-      }));
-      expect(result).to.eql(`filter=${encodeURIComponent('(asd=="\\"@dremio\\".\\"sys+v\\\\ersion\\"")')}`);
+  describe("renderQueryStateForServer", () => {
+    it("should render normal filters", () => {
+      let result = renderQueryStateForServer(
+        Immutable.fromJS({
+          filters: { qt: ["UI", "EXTERNAL"] },
+        })
+      );
+      expect(result).to.eql(
+        `filter=${encodeURIComponent('(qt=="UI",qt=="EXTERNAL")')}`
+      );
+      result = renderQueryStateForServer(
+        Immutable.fromJS({
+          filters: { asd: ['"@dremio"."sys+v\\ersion"'] },
+        })
+      );
+      expect(result).to.eql(
+        `filter=${encodeURIComponent(
+          '(asd=="\\"@dremio\\".\\"sys+v\\\\ersion\\"")'
+        )}`
+      );
     });
 
-    it('should render date filter', () => {
-      const result = renderQueryStateForServer(Immutable.fromJS({
-        filters: {st: [12345, 12345]}
-      }));
-      expect(result).to.eql('filter=' + encodeURIComponent('(st=gt=12345;st=lt=12345)'));
+    it("should render date filter", () => {
+      const result = renderQueryStateForServer(
+        Immutable.fromJS({
+          filters: { st: [12345, 12345] },
+        })
+      );
+      expect(result).to.eql(
+        "filter=" + encodeURIComponent("(st=gt=12345;st=lt=12345)")
+      );
     });
 
-    it('should render contains filter', () => {
-      const result = renderQueryStateForServer(Immutable.fromJS({
-        filters: {contains: ['"@dremio"."a+\\folder"']}
-      }));
-      expect(result).to.eql('filter=' + encodeURIComponent('*=contains="\\"@dremio\\".\\"a+\\\\folder\\""'));
+    it("should render contains filter", () => {
+      const result = renderQueryStateForServer(
+        Immutable.fromJS({
+          filters: { contains: ['"@dremio"."a+\\folder"'] },
+        })
+      );
+      expect(result).to.eql(
+        "filter=" +
+          encodeURIComponent('*=contains="\\"@dremio\\".\\"a+\\\\folder\\""')
+      );
     });
   });
 });

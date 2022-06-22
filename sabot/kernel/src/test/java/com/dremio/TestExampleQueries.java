@@ -343,8 +343,21 @@ public class TestExampleQueries extends PlanTestBase {
         .baselineColumns("o_orderkey", "y1", "y2")
         .baselineValues(1, 1996l, 1996l)
         .go();
+
+      test(String.format("ALTER SESSION SET \"%s\" = false", ExecConstants.SPLIT_CACHING_ENABLED_KEY));
+      testBuilder()
+        .sqlQuery("SELECT o_orderkey,  extractYear(castDate(o_orderdate)) as y1,  " +
+          "extractYear(TO_DATE(o_orderdate, 'yyyy-mm-dd')) as y2 "
+          + "FROM "
+          + "cp.\"tpch/orders.parquet\" "
+          + "ORDER BY o_orderkey limit 1")
+        .unOrdered()
+        .baselineColumns("o_orderkey", "y1", "y2")
+        .baselineValues(1, 1996l, 1996l)
+        .go();
     } finally {
       test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      test(String.format("ALTER SESSION SET \"%s\" = true", ExecConstants.SPLIT_CACHING_ENABLED_KEY));
     }
   }
 

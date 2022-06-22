@@ -13,26 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
+import { Component } from "react";
+import DataFreshnessSection from "components/Forms/DataFreshnessSection";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class DataFreshnessWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
     fields: PropTypes.object,
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, fields, editing } = this.props;
+    const { elementConfig, fields, editing } = this.props;
     return (
       <DataFreshnessSection
         fields={fields}
         elementConfig={elementConfig.getConfig()}
         editing={editing}
-        entityType='source' />
+        entityType="source"
+      />
     );
   }
 }

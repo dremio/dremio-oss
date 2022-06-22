@@ -70,6 +70,8 @@ public class HDFSStoragePlugin extends FileSystemPlugin<HDFSConf> implements Sup
       result.add(new Property(HDFS_DFS_DOMAIN_SOCKET_PATH_KEY,
           Optional.fromNullable(hdfsConf.getShortCircuitSocketPath()).or("")));
       break;
+    default:
+      throw new AssertionError("Unknown enum value: " + hdfsConf.getShortCircuitFlag());
     }
 
     return result;

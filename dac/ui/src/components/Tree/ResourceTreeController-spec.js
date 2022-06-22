@@ -13,179 +13,231 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { ResourceTreeController } from './ResourceTreeController';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import ResourceTreeController from "./ResourceTreeController";
 
-describe('ResourceTreeController', () => {
-  let minimalProps;
-  let commonProps;
+describe("ResourceTreeController", () => {
+  let minimalProps, commonProps, wrapper, instance;
   beforeEach(() => {
     minimalProps = {
-      loadResourceTree: sinon.stub().returns({
-        then: (callback) => callback({})
+      updateTreeNodeData: sinon.stub().returns({
+        then: (callback) => callback({}),
       }),
-      loadSourceListData: sinon.stub().returns({
-        then: (callback) => callback({})
-      })
     };
     commonProps = {
       ...minimalProps,
+      sidebarCollapsed: false,
       onChange: sinon.spy(),
+      tabRendered: "All",
+      isSqlEditorTab: true,
+      dispatchSetActiveScript: sinon.spy(),
       resourceTree: Immutable.fromJS([
         {
-          type: 'SPACE',
-          name: 'DG',
-          fullPath: ['DG'],
-          resources: [{
-            type: 'FOLDER',
-            name: 'fold',
-            fullPath: ['DG', 'fold'],
-            resources: [{
-              type: 'VIRTUAL_DATASET',
-              name: 'ds',
-              fullPath: ['DG', 'fold', 'ds']
-            }]
-          }]
+          type: "SPACE",
+          name: "DG",
+          fullPath: ["DG"],
+          resources: [
+            {
+              type: "FOLDER",
+              name: "fold",
+              fullPath: ["DG", "fold"],
+              resources: [
+                {
+                  type: "VIRTUAL_DATASET",
+                  name: "ds",
+                  fullPath: ["DG", "fold", "ds"],
+                },
+              ],
+            },
+          ],
         },
         {
-          type: 'SOURCE',
-          name: 'dfs',
-          fullPath: ['dfs']
+          type: "SOURCE",
+          name: "dfs",
+          fullPath: ["dfs"],
         },
         {
-          type: 'HOME',
-          name: '@dremio',
-          fullPath: ['@dremio']
-        }
-      ])
+          type: "HOME",
+          name: "@dremio",
+          fullPath: ["@dremio"],
+        },
+      ]),
     };
+    wrapper = shallow(<ResourceTreeController {...commonProps} />);
+    instance = wrapper.instance();
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ResourceTreeController {...minimalProps}/>);
+
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ResourceTreeController {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+  it("should render with common props without exploding", () => {
     expect(wrapper).to.have.length(1);
   });
-  describe('componentWillMount', () => {
-    it(`should set selectedNodeId, call onChange, call expandPathToSelectedNode,
-      call loadResourceTree, call loadSourceListData if has preselectedNodeId`, () => {
-      const props = {
-        ...commonProps,
-        preselectedNodeId: 'DG'
-      };
-      const wrapper = shallow(<ResourceTreeController {...props}/>);
-      const instance = wrapper.instance();
-      sinon.spy(instance, 'expandPathToSelectedNode');
-      sinon.spy(instance, 'loadResourceTree');
-      instance.componentWillMount();
-      expect(wrapper.state('selectedNodeId')).to.eql(props.preselectedNodeId);
-      expect(props.onChange.called).to.be.true;
-      expect(instance.expandPathToSelectedNode.called).to.be.true;
-      expect(instance.expandPathToSelectedNode.calledWith(props.preselectedNodeId)).to.be.true;
-      expect(instance.loadResourceTree.called).to.be.true;
-      expect(instance.loadResourceTree.calledWith(props.preselectedNodeId, true)).to.be.true;
+
+  describe("componentDidMount", () => {
+    const ININTAL_LOAD = true;
+    it("should not initilize the resource tree", async () => {
+      sinon.spy(instance, "initializeTree");
+      await instance.componentDidMount();
+      expect(instance.initializeTree.called).to.be.false;
     });
-    it('should call loadResourceTree if preselectedNodeId is empty', () => {
-      shallow(<ResourceTreeController {...commonProps}/>);
-      expect(commonProps.loadResourceTree.called).to.be.true;
+    it("should initilize the resource tree", async () => {
+      const props = {
+        ...minimalProps,
+        resourceTree: Immutable.fromJS([]),
+      };
+      const wrapper = shallow(<ResourceTreeController {...props} />);
+      const instance = wrapper.instance();
+      sinon.spy(instance, "initializeTree");
+      await instance.componentDidMount();
+      expect(wrapper.instance().initializeTree.called).to.be.true;
+      expect(wrapper.instance().initializeTree.calledWith(ININTAL_LOAD)).to.be
+        .true;
     });
   });
 
-  describe('handleSelectedNodeChange', () => {
-    it('should call onChange with selectedNodeId and node and set state with selectedNodeId', () => {
-      const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+  describe("componentDidUpdate", () => {
+    it("should initilize the resource tree because treeInitialized has not been initilized", async () => {
+      const prevProps = {
+        sidebarCollapsed: true,
+        isSqlEditorTab: true,
+      };
+      instance.setState({ treeInitialized: false });
+      sinon.spy(instance, "initializeTree");
+      instance.componentDidUpdate(prevProps);
+      expect(instance.initializeTree.called).to.be.true;
+    });
+    it("should initilize the resource tree because resourceTree is empty", async () => {
+      const prevProps = {
+        sidebarCollapsed: false,
+      };
+      const props = {
+        ...minimalProps,
+        sidebarCollapsed: true,
+        resourceTree: Immutable.fromJS([]),
+      };
+      const wrapper = shallow(<ResourceTreeController {...props} />);
       const instance = wrapper.instance();
-      const node =  {
-        type: 'SPACE',
-        name: 'DG',
-        fullPath: ['DG']
+      instance.setState({ treeInitialized: false });
+      sinon.spy(instance, "initializeTree");
+      instance.componentDidUpdate(prevProps);
+      expect(instance.initializeTree.called).to.be.true;
+    });
+    it("dispatchSetActiveScript", async () => {
+      const prevProps = {
+        isSqlEditorTab: true,
+      };
+      const props = {
+        ...commonProps,
+        isSqlEditorTab: false,
+      };
+      const wrapper = shallow(<ResourceTreeController {...props} />);
+      const instance = wrapper.instance();
+      instance.componentDidUpdate(prevProps);
+      expect(commonProps.dispatchSetActiveScript).to.have.been.called;
+    });
+  });
+
+  describe("handleSelectedNodeChange", () => {
+    it("should call onChange with selectedNodeId and node and set state with selectedNodeId", () => {
+      const wrapper = shallow(<ResourceTreeController {...commonProps} />);
+      const instance = wrapper.instance();
+      const node = {
+        type: "SPACE",
+        name: "DG",
+        fullPath: ["DG"],
       };
       instance.handleSelectedNodeChange(node.name, node);
       expect(commonProps.onChange.called).to.be.true;
       expect(commonProps.onChange.calledWith(node.name, node)).to.be.true;
-      expect(wrapper.state('selectedNodeId')).to.equal(node.name);
+      expect(wrapper.state("selectedNodeId")).to.equal(node.name);
     });
   });
-  describe('isNodeExpanded', () => {
-    it('should return true if node is expanded', () => {
-      const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+  describe("isNodeExpanded", () => {
+    it("should return true if node is expanded", () => {
+      const wrapper = shallow(<ResourceTreeController {...commonProps} />);
       const instance = wrapper.instance();
       const node = Immutable.fromJS({
-        type: 'SPACE',
-        name: 'DG',
-        fullPath: ['DG']
+        type: "SPACE",
+        name: "DG",
+        fullPath: ["DG"],
       });
-      const expandedNodes = Immutable.fromJS([node.get('name')]);
+      const expandedNodes = Immutable.fromJS([node.get("name")]);
 
       wrapper.setState({ expandedNodes });
       expect(instance.isNodeExpanded(node)).to.be.true;
     });
-    it('should return false if node is not expanded', () => {
-      const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+    it("should return false if node is not expanded", () => {
+      const wrapper = shallow(<ResourceTreeController {...commonProps} />);
       const instance = wrapper.instance();
       const node = Immutable.fromJS({
-        type: 'SPACE',
-        name: 'DG',
-        fullPath: ['DG']
+        type: "SPACE",
+        name: "DG",
+        fullPath: ["DG"],
       });
       expect(instance.isNodeExpanded(node)).to.be.false;
     });
   });
-  describe('expandPathToSelectedNode', () => {
-    it('should add all parent combinations as dotted paths to state.expandedNodes', () => {
-      const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+  describe("expandPathToSelectedNode", () => {
+    it("should add all parent combinations as dotted paths to state.expandedNodes", () => {
+      const wrapper = shallow(<ResourceTreeController {...commonProps} />);
       const instance = wrapper.instance();
-      const path = 'DG.folder.asd';
+      const path = "DG.folder.asd";
       instance.expandPathToSelectedNode(path);
-      expect(wrapper.state('expandedNodes')).to.be.equal(Immutable.List(['DG', 'DG.folder']));
+      expect(wrapper.state("expandedNodes")).to.be.equal(
+        Immutable.List(["DG", "DG.folder"])
+      );
     });
 
-    it('should add nothing to state.expandedNodes if no parents exist', () => {
-      const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+    it("should add nothing to state.expandedNodes if no parents exist", () => {
+      const wrapper = shallow(<ResourceTreeController {...commonProps} />);
       const instance = wrapper.instance();
-      const path = 'asd';
+      const path = "asd";
       instance.expandPathToSelectedNode(path);
-      expect(wrapper.state('expandedNodes').size).to.be.equal(0);
+      expect(wrapper.state("expandedNodes").size).to.be.equal(0);
     });
 
-    it('should correctly handle paths with doublequotes', () => {
-      const wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+    it("should correctly handle paths with doublequotes", () => {
+      const wrapper = shallow(<ResourceTreeController {...commonProps} />);
       const instance = wrapper.instance();
       const path = '"@drem.io".folder.another.andanother';
       instance.expandPathToSelectedNode(path);
-      expect(wrapper.state('expandedNodes')).to.be.equal(Immutable.List([
-        '"@drem.io"',
-        '"@drem.io".folder',
-        '"@drem.io".folder.another'
-      ]));
+      expect(wrapper.state("expandedNodes")).to.be.equal(
+        Immutable.List([
+          '"@drem.io"',
+          '"@drem.io".folder',
+          '"@drem.io".folder.another',
+        ])
+      );
     });
   });
-  describe('handleNodeClick', () => {
+  describe("handleNodeClick", () => {
     let wrapper;
     let instance;
     let node;
     beforeEach(() => {
-      wrapper = shallow(<ResourceTreeController {...commonProps}/>);
+      wrapper = shallow(<ResourceTreeController {...commonProps} />);
       instance = wrapper.instance();
       node = commonProps.resourceTree.get(0);
     });
-    it('should set selectedNodeId, if node does not exists in expandedNodes then add it, call loadResourceTree', () => {
-      sinon.spy(instance, 'loadResourceTree');
+    it("should set selectedNodeId, if node does not exists in expandedNodes then add it, call loadResourceTree", () => {
       instance.handleNodeClick(node);
-      expect(instance.loadResourceTree.called).to.be.true;
-      expect(instance.loadResourceTree.calledWith(node.get('name'))).to.be.true;
-      expect(wrapper.state('selectedNodeId')).to.eql(node.get('name'));
-      expect(wrapper.state('expandedNodes').includes(node.get('name'))).to.be.true;
+      expect(commonProps.updateTreeNodeData.called).to.be.true;
+      expect(commonProps.updateTreeNodeData.calledWith(false, node.get("name")))
+        .to.be.true;
+      expect(wrapper.state("selectedNodeId")).to.eql(node.get("name"));
+      expect(wrapper.state("expandedNodes").includes(node.get("name"))).to.be
+        .true;
     });
-    it('should delete node from expandedNodes if it exists, with children', () => {
-      sinon.spy(instance, 'loadResourceTree');
-      wrapper.setState({ expandedNodes: Immutable.fromJS(['DG', 'DG.fold']) });
+    it("should delete node from expandedNodes if it exists, with children", () => {
+      wrapper.setState({ expandedNodes: Immutable.fromJS(["DG", "DG.fold"]) });
       instance.handleNodeClick(node);
-      expect(instance.loadResourceTree).to.be.called;
-      expect(wrapper.state('expandedNodes').size).to.be.equal(0);
+      expect(commonProps.updateTreeNodeData.called).to.be.true;
+      expect(commonProps.updateTreeNodeData.calledWith(false, node.get("name")))
+        .to.be.true;
+      expect(wrapper.state("expandedNodes").size).to.be.equal(0);
     });
   });
 });

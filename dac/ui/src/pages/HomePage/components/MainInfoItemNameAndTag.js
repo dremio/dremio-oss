@@ -13,39 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
-import { connect } from 'react-redux';
-import { startSearch as startSearchAction } from 'actions/search';
-import { TagList } from '@app/pages/HomePage/components/TagList';
-
-import MainInfoItemName from './MainInfoItemName';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
+import { connect } from "react-redux";
+import { startSearch as startSearchAction } from "actions/search";
+import CopyButton from "components/Buttons/CopyButton";
+import { TagList } from "@app/pages/HomePage/components/TagList";
+import { constructFullPath, getFullPathListFromEntity } from "utils/pathUtils";
+import MainInfoItemName from "./MainInfoItemName";
 
 @injectIntl
 class MainInfoItemNameAndTag extends Component {
-
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     intl: PropTypes.object.isRequired,
-    startSearch: PropTypes.func // (textToSearch) => {}
+    startSearch: PropTypes.func, // (textToSearch) => {}
   };
 
   constructor() {
     super();
     this.state = {
-      modalIsOpen: false
+      modalIsOpen: false,
     };
     this.openModal = this.openModal.bind(this);
     this.closeModal = this.closeModal.bind(this);
   }
 
   openModal(event) {
-    this.setState({modalIsOpen: true, anchorEl: event.currentTarget});
+    this.setState({ modalIsOpen: true, anchorEl: event.currentTarget });
   }
   closeModal() {
-    this.setState({modalIsOpen: false});
+    this.setState({ modalIsOpen: false });
   }
 
   onTagClick = (tag) => {
@@ -53,21 +53,31 @@ class MainInfoItemNameAndTag extends Component {
   };
 
   render() {
-    const { item } = this.props;
-    const tagsFromItem = item.get('tags');
+    const { item, intl } = this.props;
+    const tagsFromItem = item.get("tags");
+    const fullPath = constructFullPath(getFullPathListFromEntity(item));
     return (
-      <div style={{display: 'flex'}}>
+      <div style={{ display: "flex" }}>
         <MainInfoItemName item={item} />
-        {tagsFromItem && tagsFromItem.size && <TagList
-          tags={tagsFromItem}
-          style={{flex: 1, minWidth: 0}}
-          onTagClick={this.onTagClick}
-        />}
+        {fullPath && (
+          <CopyButton
+            text={fullPath}
+            title={intl.formatMessage({ id: "Path.Copy" })}
+            style={{ transform: "translateY(5px)" }}
+          />
+        )}
+        {tagsFromItem && tagsFromItem.size && (
+          <TagList
+            tags={tagsFromItem}
+            style={{ flex: 1, minWidth: 0, marginLeft: "1%" }}
+            onTagClick={this.onTagClick}
+          />
+        )}
       </div>
     );
   }
 }
 
-export default connect(null, dispatch => ({
-  startSearch: startSearchAction(dispatch)
+export default connect(null, (dispatch) => ({
+  startSearch: startSearchAction(dispatch),
 }))(MainInfoItemNameAndTag);

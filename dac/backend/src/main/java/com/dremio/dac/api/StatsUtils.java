@@ -112,7 +112,7 @@ public class StatsUtils {
           exceptionPointer.value = err;
           // exit on first exception.
           while (latch.getCount() > 0) {
-            latch.countDown();;
+            latch.countDown();
           }
         }
         latch.countDown();

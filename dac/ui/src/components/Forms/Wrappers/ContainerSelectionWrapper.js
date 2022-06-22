@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import ContainerSelection from 'components/Forms/ContainerSelection';
+import { Component } from "react";
+import ContainerSelection from "components/Forms/ContainerSelection";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class ContainerSelectionWrapper extends Component {
   static propTypes = {
     disabled: PropTypes.bool,
     elementConfig: PropTypes.object,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   render() {
-    const {disabled, elementConfig, fields} = this.props;
+    const { disabled, elementConfig, fields } = this.props;
     return (
       <ContainerSelection
         disabled={disabled}
         fields={fields}
-        elementConfig={elementConfig}/>
+        elementConfig={elementConfig}
+      />
     );
   }
 }

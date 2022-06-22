@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { take, takeEvery, race, put } from 'redux-saga/effects';
+import { take, takeEvery, race, put } from "redux-saga/effects";
 
 import {
   TRANSFORM_CARD_PREVIEW_START,
   TRANSFORM_CARD_PREVIEW_SUCCESS,
   TRANSFORM_CARD_PREVIEW_FAILURE,
   RESET_RECOMMENDED_TRANSFORMS,
-  updateTransformCard
-} from 'actions/explore/recommended';
+  updateTransformCard,
+} from "actions/explore/recommended";
 
 export function getRequestPredicate(actionType, meta) {
   return (action) =>
@@ -39,12 +39,12 @@ export function* handleTransformCardPreview({ meta }) {
   const { success } = yield race({
     success: take(getRequestPredicate(TRANSFORM_CARD_PREVIEW_SUCCESS, meta)),
     failure: take(getRequestPredicate(TRANSFORM_CARD_PREVIEW_FAILURE, meta)),
-    anotherRequest: take(getRequestPredicate(TRANSFORM_CARD_PREVIEW_START, meta)),
-    reset: take(RESET_RECOMMENDED_TRANSFORMS)
+    anotherRequest: take(
+      getRequestPredicate(TRANSFORM_CARD_PREVIEW_START, meta)
+    ),
+    reset: take(RESET_RECOMMENDED_TRANSFORMS),
   });
   if (success && !success.error) {
     yield put(updateTransformCard(success.payload, success.meta));
   }
 }
-
-

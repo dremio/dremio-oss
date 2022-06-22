@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { select } from 'redux-saga/effects';
-import { NessieRootState } from '@app/reducers/nessie/nessie';
-import { getTypeAndValue } from '@app/utils/nessieUtils';
+import { select } from "redux-saga/effects";
+import { NessieRootState } from "@app/reducers/nessie/nessie";
+import { getNessieReferencePayload } from "@app/utils/nessieUtils";
 
 export function* getNessieReferences() {
-  const nessie: NessieRootState = yield select((state: any) => (state.nessie || {}) as NessieRootState);
-  const stateKeys =  Object.keys(nessie).filter(key => key && key.startsWith('ref/'));
-  return (stateKeys || []).reduce((acc, key) => {
-    const refState = nessie[key];
-    const [, source] = key.split('ref/');
-
-    const value = getTypeAndValue(refState);
-    if (value != null)  acc[source] = value;
-
-    return acc;
-  }, {} as any);
+  const nessie: NessieRootState = yield select(
+    (state: any) => (state.nessie || {}) as NessieRootState
+  );
+  return getNessieReferencePayload(nessie);
 }

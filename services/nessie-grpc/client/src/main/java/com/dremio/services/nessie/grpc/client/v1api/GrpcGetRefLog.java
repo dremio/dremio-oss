@@ -22,6 +22,7 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleN
 import javax.annotation.Nullable;
 
 import org.projectnessie.api.params.RefLogParams;
+import org.projectnessie.api.params.RefLogParamsBuilder;
 import org.projectnessie.client.api.GetRefLogBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.RefLogResponse;
@@ -31,7 +32,7 @@ import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceBlocki
 final class GrpcGetRefLog implements GetRefLogBuilder {
 
   private final RefLogServiceBlockingStub stub;
-  private final RefLogParams.Builder params = RefLogParams.builder();
+  private final RefLogParamsBuilder params = RefLogParams.builder();
 
   public GrpcGetRefLog(RefLogServiceBlockingStub stub) {
     this.stub = stub;

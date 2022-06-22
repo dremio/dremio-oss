@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect }   from 'react-redux';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { getExploreState } from '@app/selectors/explore';
+import { createRef, PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import { getExploreState } from "@app/selectors/explore";
 
-import SqlAutoComplete from 'pages/ExplorePage/components/SqlEditor/SqlAutoComplete';
-import FunctionsHelpPanel from 'pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel';
+import SqlAutoComplete from "pages/ExplorePage/components/SqlEditor/SqlAutoComplete";
+import FunctionsHelpPanel from "pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel";
 
-import './AddFieldEditor.less';
+import "./AddFieldEditor.less";
 
 // TODO: because api can't return info about one dataset, we load all for space, should be remove in future
 // TODO: remove code duplication with sql part
-@Radium
 export class AddFieldEditor extends PureComponent {
   static propTypes = {
     pageType: PropTypes.string,
@@ -42,11 +40,11 @@ export class AddFieldEditor extends PureComponent {
     onFocus: PropTypes.func,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
   static defaultProps = {
     sqlHeight: 112,
-    blockHeight: 159
+    blockHeight: 159,
   };
 
   constructor(props) {
@@ -55,9 +53,10 @@ export class AddFieldEditor extends PureComponent {
     this.hideDropDown = this.hideDropDown.bind(this);
     this.addFuncToSqlEditor = this.addFuncToSqlEditor.bind(this);
     this.toggleFunctionsHelpPanel = this.toggleFunctionsHelpPanel.bind(this);
+    this.editorRef = createRef();
     this.state = {
       funcHelpPanel: true,
-      dropDownVisible:false
+      dropDownVisible: false,
     };
   }
 
@@ -74,30 +73,36 @@ export class AddFieldEditor extends PureComponent {
 
   getItem(item, separator, isLast) {
     return (
-      <div className='item' key={item.name}>
-        <span style={item.style}>{item.name}{separator}</span>
-        <span className='values'>
-          {item.values.map((value) => <span className='value' key={value}>{' ' + value}</span>)}
+      <div className="item" key={item.name}>
+        <span style={item.style}>
+          {item.name}
+          {separator}
         </span>
-        <span className='separate-line'>{isLast ? '' : '|'}</span>
+        <span className="values">
+          {item.values.map((value) => (
+            <span className="value" key={value}>
+              {" " + value}
+            </span>
+          ))}
+        </span>
+        <span className="separate-line">{isLast ? "" : "|"}</span>
       </div>
     );
   }
 
   addFuncToSqlEditor(functionName, args) {
-    this.refs.editor.insertFunction(functionName, args);
+    this.editorRef.current.insertFunction(functionName, args);
   }
 
-  hideDropDown = () => this.setState({ dropDownVisible: false })
+  hideDropDown = () => this.setState({ dropDownVisible: false });
 
-  showDropDown = () => this.setState({ dropDownVisible: true })
+  showDropDown = () => this.setState({ dropDownVisible: true });
 
   toggleFunctionsHelpPanel() {
     this.setState({
-      funcHelpPanel: !this.state.funcHelpPanel
+      funcHelpPanel: !this.state.funcHelpPanel,
     });
   }
-
 
   render() {
     const { name, onBlur, onFocus, onChange } = this.props;
@@ -107,21 +112,32 @@ export class AddFieldEditor extends PureComponent {
 
     return (
       <div style={styles.base}>
-        <div style={{height: this.props.blockHeight, position: 'relative', marginTop: 10}}>
-          <div className='sql-part add-field-editor'
+        <div
+          style={{
+            height: this.props.blockHeight,
+            position: "relative",
+            marginTop: 10,
+          }}
+        >
+          <div
+            className="sql-part add-field-editor"
             onClick={this.hideDropDown}
-            style={[styles.base, this.props.style]}>
+            style={{ ...styles.base, ...(this.props.style || {}) }}
+          >
             <div style={widthSqlEditor}>
               <SqlAutoComplete
                 pageType={this.props.pageType}
                 onChange={inputProps.onChange}
                 tooltip={this.props.tooltip}
                 defaultValue={this.props.initialValue}
-                ref='editor'
+                ref={this.editorRef}
                 hideDropDown={this.hideDropDown}
                 height={this.props.sqlHeight}
                 sqlSize={this.props.sqlHeight}
-                style={{...styles.sqlEditorStyle, ...styles.normalSqlEditorWidth}}
+                style={{
+                  ...styles.sqlEditorStyle,
+                  ...styles.normalSqlEditorWidth,
+                }}
                 dragType={this.props.dragType}
                 autoCompleteEnabled={false}
                 onFunctionChange={this.toggleFunctionsHelpPanel}
@@ -137,7 +153,7 @@ export class AddFieldEditor extends PureComponent {
 
 function mapStateToProps(state) {
   return {
-    height: getExploreState(state).ui.get('sqlSize')
+    height: getExploreState(state).ui.get("sqlSize"),
   };
 }
 
@@ -145,15 +161,16 @@ export default connect(mapStateToProps)(AddFieldEditor);
 
 const styles = {
   base: {
-    width: '100%'
+    width: "100%",
   },
   sqlEditorStyle: {
-    marginLeft: 12
+    marginLeft: 0,
   },
   smallerSqlEditorWidth: {
-    width: '50%'
+    width: "50%",
+    background: "white",
   },
   normalSqlEditorWidth: {
-    width: 'calc(100% - 27px)'
-  }
+    width: "100%",
+  },
 };

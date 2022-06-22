@@ -29,7 +29,7 @@ import com.dremio.common.util.TestTools;
 public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(5000, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(5000, TimeUnit.SECONDS);
 
   private static final String E_SIMPLE = String.format(
       "SELECT * FROM " +

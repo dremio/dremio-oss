@@ -33,12 +33,12 @@ public class JobResourceNotFoundException extends NotFoundException {
   }
 
   public JobResourceNotFoundException(JobId jobId, Exception error) {
-    super(new JobResourcePath(jobId), "job " + jobId, error);
+    super(new JobResourcePath(jobId), "job " + jobId.getId(), error);
     this.jobId = jobId;
   }
 
   public JobResourceNotFoundException(JobId jobId) {
-    super(new JobResourcePath(jobId), "Missing job " + jobId);
+    super(new JobResourcePath(jobId), "Missing job " + jobId.getId());
     this.jobId = jobId;
   }
 

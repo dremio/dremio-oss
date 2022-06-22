@@ -13,56 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import browserUtils from 'utils/browserUtils';
-import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import browserUtils from "utils/browserUtils";
+import UnsupportedBrowserForm from "components/UnsupportedBrowserForm";
 
-import SignupForm from './components/SignupForm';
+import SignupForm from "./components/SignupForm";
 
 export default class SignupPage extends PureComponent {
   static propTypes = {
-    location: PropTypes.object.isRequired
-  }
+    location: PropTypes.object.isRequired,
+  };
   state = {
-    showSignupForm: browserUtils.hasSupportedBrowserVersion() || browserUtils.isApprovedUnsupportedBrowser()
-  }
+    showSignupForm:
+      browserUtils.hasSupportedBrowserVersion() ||
+      browserUtils.isApprovedUnsupportedBrowser(),
+  };
 
   approveBrowser = () => {
     browserUtils.approveUnsupportedBrowser();
     this.setState({
-      showSignupForm: true
+      showSignupForm: true,
     });
-  }
+  };
   renderSignupForm() {
     return (
-      <div id='signup-page' className='page' style={styles.base}>
-        <div className='main-header' style={styles.header} />
+      <div id="signup-page" className="page" style={styles.base}>
+        <div className="main-header" style={styles.header} />
         <div style={styles.form}>
-          <SignupForm location={this.props.location}/>
+          <SignupForm location={this.props.location} />
         </div>
       </div>
     );
   }
 
   render() {
-    return (
-      this.state.showSignupForm ? this.renderSignupForm()
-        : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} />
+    return this.state.showSignupForm ? (
+      this.renderSignupForm()
+    ) : (
+      <UnsupportedBrowserForm approveBrowser={this.approveBrowser} />
     );
   }
 }
 
 const styles = {
   base: {
-    alignItems: 'center'
+    alignItems: "center",
   },
   header: {
-    width: '100%'
+    width: "100%",
   },
   form: {
-    display: 'flex',
-    alignItems: 'center',
-    height: '80%'
-  }
+    display: "flex",
+    alignItems: "center",
+    height: "80%",
+  },
 };

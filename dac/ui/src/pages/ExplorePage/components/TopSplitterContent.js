@@ -13,19 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect }   from 'react-redux';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
 
-import { setResizeProgressState, updateSqlPartSize, toggleExploreSql } from './../../../actions/explore/ui';
+import {
+  setResizeProgressState,
+  updateSqlPartSize,
+  toggleExploreSql,
+} from "./../../../actions/explore/ui";
 
-import './TopSplitterContent.less';
-import SqlEditorController from './SqlEditor/SqlEditorController';
+import "./TopSplitterContent.less";
+import SqlEditorController from "./SqlEditor/SqlEditorController";
 
 const MIN_SQL_HEIGHT = 80;
 
-@Radium
 export class TopSplitterContent extends Component {
   static propTypes = {
     isRawMode: PropTypes.bool,
@@ -43,7 +45,8 @@ export class TopSplitterContent extends Component {
     dragType: PropTypes.string,
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
     handleSidebarCollapse: PropTypes.func,
-    sidebarCollapsed: PropTypes.bool
+    sidebarCollapsed: PropTypes.bool,
+    editorWidth: PropTypes.any,
   };
 
   constructor(props) {
@@ -54,7 +57,7 @@ export class TopSplitterContent extends Component {
     this.state = {
       resizeLineTop: props.sqlSize,
       isDragInProgress: false,
-      maxHeight: 0
+      maxHeight: 0,
     };
   }
 
@@ -63,18 +66,18 @@ export class TopSplitterContent extends Component {
   componentWillReceiveProps(nextProps) {
     if (nextProps.sqlSize !== this.props.sqlSize) {
       this.setState({
-        resizeLineTop: nextProps.sqlSize
+        resizeLineTop: nextProps.sqlSize,
       });
     }
   }
 
   componentDidUpdate(props, state) {
     if (this.state.isDragInProgress && !state.isDragInProgress) {
-      document.addEventListener('mousemove', this.doDrag);
-      document.addEventListener('mouseup', this.stopDrag);
+      document.addEventListener("mousemove", this.doDrag);
+      document.addEventListener("mouseup", this.stopDrag);
     } else if (!this.state.isDragInProgress && state.isDragInProgress) {
-      document.removeEventListener('mousemove', this.doDrag);
-      document.removeEventListener('mouseup', this.stopDrag);
+      document.removeEventListener("mousemove", this.doDrag);
+      document.removeEventListener("mouseup", this.stopDrag);
     }
   }
 
@@ -102,12 +105,12 @@ export class TopSplitterContent extends Component {
 
     if (nextHeight >= maxHeight) {
       return this.setState({
-        resizeLineTop: maxHeight
+        resizeLineTop: maxHeight,
       });
     }
 
     this.setState({
-      resizeLineTop: Math.max(nextHeight, MIN_SQL_HEIGHT)
+      resizeLineTop: Math.max(nextHeight, MIN_SQL_HEIGHT),
     });
   }
 
@@ -120,7 +123,7 @@ export class TopSplitterContent extends Component {
     this.setState({
       isDragInProgress: false,
       // see https://dremio.atlassian.net/browse/DX-7038
-      resizeLineTop: height <= MIN_SQL_HEIGHT ? this.props.sqlSize : height
+      resizeLineTop: height <= MIN_SQL_HEIGHT ? this.props.sqlSize : height,
     });
 
     if (height >= MIN_SQL_HEIGHT) {
@@ -132,7 +135,7 @@ export class TopSplitterContent extends Component {
   startDrag(e) {
     this.props.setResizeProgressState(true);
     this.setState({
-      isDragInProgress: true
+      isDragInProgress: true,
     });
     this.startTop = e.pageY;
     this.startHeight = this.props.sqlSize;
@@ -140,10 +143,18 @@ export class TopSplitterContent extends Component {
 
   render() {
     const { isDragInProgress, resizeLineTop } = this.state;
-    const { dataset, dragType, exploreViewState, handleSidebarCollapse, sqlState, sqlSize, sidebarCollapsed } = this.props;
+    const {
+      dataset,
+      dragType,
+      exploreViewState,
+      handleSidebarCollapse,
+      sqlState,
+      sqlSize,
+      sidebarCollapsed,
+    } = this.props;
 
     return (
-      <div className='topContent' ref='topSplitter'>
+      <div className="topContent">
         <SqlEditorController
           dataset={dataset}
           dragType={dragType}
@@ -152,45 +163,57 @@ export class TopSplitterContent extends Component {
           exploreViewState={exploreViewState}
           handleSidebarCollapse={handleSidebarCollapse}
           sidebarCollapsed={sidebarCollapsed}
-          ref={(ref) => this.topSplitterContentRef = ref}
+          ref={(ref) => (this.topSplitterContentRef = ref)}
+          editorWidth={this.props.editorWidth}
         >
-          <div className='resizeEditor' onMouseDown={this.startDrag}></div>
+          <div className="resizeEditor" onMouseDown={this.startDrag}></div>
         </SqlEditorController>
-        <div style={[styles.separatorLine, {display: isDragInProgress ? 'block' : 'none', top: resizeLineTop}]}></div>
+        <div
+          style={{
+            ...styles.separatorLine,
+            display: isDragInProgress ? "block" : "none",
+            top: resizeLineTop,
+          }}
+        ></div>
       </div>
     );
   }
 }
 
-export default connect(null, {
-  updateSqlPartSize,
-  setResizeProgressState,
-  toggleExploreSql
-}, null, { forwardRef: true })(TopSplitterContent);
+export default connect(
+  null,
+  {
+    updateSqlPartSize,
+    setResizeProgressState,
+    toggleExploreSql,
+  },
+  null,
+  { forwardRef: true }
+)(TopSplitterContent);
 
 const styles = {
   base: {
-    position: 'relative',
+    position: "relative",
     minHeight: 0,
-    backgroundColor: '#F5FCFF',
-    flexShrink: 0 // do not allow to reduce a height
+    backgroundColor: "#F5FCFF",
+    flexShrink: 0, // do not allow to reduce a height
   },
   separatorLine: {
-    position: 'absolute',
+    position: "absolute",
     height: 10,
-    background: '#ccc',
-    cursor: 'row-resize',
+    background: "#ccc",
+    cursor: "row-resize",
     zIndex: 10,
     left: 0,
-    width: '100%',
-    opacity: '.6',
-    display: 'block'
+    width: "100%",
+    opacity: ".6",
+    display: "block",
   },
   separator: {
     Icon: {
       fontSize: 17,
-      cursor: 'row-resize',
-      color: '#CACACA'
-    }
-  }
+      cursor: "row-resize",
+      color: "#CACACA",
+    },
+  },
 };

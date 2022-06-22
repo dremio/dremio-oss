@@ -13,45 +13,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import Art from 'components/Art';
-import { formatMessage } from '../utils/locale';
+import PropTypes from "prop-types";
+import Art from "components/Art";
+import { formatMessage } from "../utils/locale";
 
-const ARROW_DOWN = 'ArrowDownSmall';
-
+const ARROW_DOWN = "ArrowDownSmall";
 
 const ExpandIcon = ({ expanded }) => {
-  const topArrowStyle = expanded ? {
-    ...styles.transform,
-    bottom: -4
-  } : {};
-  const bottomArrowStyle = !expanded ? {
-    bottom: -4
-  } : styles.transform;
+  const topArrowStyle = expanded
+    ? {
+        ...styles.transform,
+        bottom: -4,
+      }
+    : {};
+  const bottomArrowStyle = !expanded
+    ? {
+        bottom: -4,
+      }
+    : styles.transform;
   return (
-    <div style={styles.wrapper} role='img' aria-label={formatMessage(`Common.${expanded ? 'Collapse' : 'Expand'}`)}>
-      <Art src={`${ARROW_DOWN}.svg`} alt={''} style={{ ...styles.base, ...topArrowStyle }}/>
-      <Art src={`${ARROW_DOWN}.svg`} alt={''} style={{ ...styles.base, ...bottomArrowStyle }} />
+    <div
+      style={styles.wrapper}
+      role="img"
+      aria-label={formatMessage(`Common.${expanded ? "Collapse" : "Expand"}`)}
+    >
+      <Art
+        src={`${ARROW_DOWN}.svg`}
+        alt={""}
+        style={{ ...styles.base, ...topArrowStyle }}
+      />
+      <Art
+        src={`${ARROW_DOWN}.svg`}
+        alt={""}
+        style={{ ...styles.base, ...bottomArrowStyle }}
+      />
     </div>
   );
 };
 
 ExpandIcon.propTypes = {
-  expanded: PropTypes.bool
+  expanded: PropTypes.bool,
 };
 
 const styles = {
   wrapper: {
     width: 24,
     height: 24,
-    position: 'relative'
+    position: "relative",
   },
   base: {
-    position: 'absolute'
+    position: "absolute",
   },
   transform: {
-    transform: 'rotate(180deg)'
-  }
+    transform: "rotate(180deg)",
+  },
 };
 
 export default ExpandIcon;

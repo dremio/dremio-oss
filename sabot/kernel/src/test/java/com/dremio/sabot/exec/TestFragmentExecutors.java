@@ -48,6 +48,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
+import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.task.AsyncTask;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
@@ -195,12 +196,14 @@ public class TestFragmentExecutors {
 
     final MaestroProxy mockMaestroProxy = mock(MaestroProxy.class);
     when(mockMaestroProxy.tryStartQuery(any(), any(), any())).thenReturn(true);
+    final MemoryArbiter mockMemoryArbiter = mock(MemoryArbiter.class);
 
     final FragmentExecutors fe = new FragmentExecutors(
       mockMaestroProxy,
       mock(FragmentWorkManager.ExitCallback.class),
       mockTaskPool,
-      mockOptionManager);
+      mockOptionManager,
+      mockMemoryArbiter);
 
     final QueryId queryId = QueryId
       .newBuilder()
@@ -280,7 +283,7 @@ public class TestFragmentExecutors {
       int majorId = planFragment.getMajorFragmentId();
       int minorId = planFragment.getMinorFragmentId();
       return fragmentExecutors[majorId + minorId];
-    }).when(mockFragmentExecutorBuilder).build(any(), any(), eq(1), any(), any(), any());
+    }).when(mockFragmentExecutorBuilder).build(any(), any(), eq(1), eq(null), any(), any(), any());
 
     return new TestState(fe, initializeFragments, runningTasks, mockMaestroProxy, new Runnable() {
       @Override

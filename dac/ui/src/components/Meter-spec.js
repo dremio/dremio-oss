@@ -13,34 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Meter from './Meter';
+import Meter from "./Meter";
 
-describe('Meter', () => {
-
+describe("Meter", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {};
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<Meter {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<Meter {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render bar with min-width 0px when value is 0', () => {
-    const wrapper = shallow(<Meter {...minimalProps}/>).find('div > div');
+  it("should render bar with min-width 0px when value is 0", () => {
+    const wrapper = shallow(<Meter {...minimalProps} />).find("div > div");
     expect(wrapper.props().style.minWidth).to.be.eql(0);
   });
 
-  it('should render bar with min-width 1px when value is larger than 0', () => {
-    const wrapper = shallow(<Meter {...minimalProps} value={0.1}/>).find('div > div');
+  it("should render bar with min-width 1px when value is larger than 0", () => {
+    const wrapper = shallow(<Meter {...minimalProps} value={0.1} />).find(
+      "div > div"
+    );
     expect(wrapper.props().style.minWidth).to.be.eql(1);
   });
 
-  it('should render bar with correct scale', () => {
-    const wrapper = shallow(<Meter {...minimalProps} value={0.1}/>).find('div > div');
-    expect(wrapper.props().style.width).to.be.eql('10%');
+  it("should render bar with correct scale", () => {
+    const wrapper = shallow(<Meter {...minimalProps} value={0.1} />).find(
+      "div > div"
+    );
+    expect(wrapper.props().style.width).to.be.eql("10%");
   });
 });

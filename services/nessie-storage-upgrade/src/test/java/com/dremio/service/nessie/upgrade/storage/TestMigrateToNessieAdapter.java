@@ -50,6 +50,8 @@ import org.projectnessie.versioned.VersionStore;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
+import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
+import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.store.PersistVersionStore;
 
 import com.dremio.common.config.SabotConfig;
@@ -60,8 +62,6 @@ import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
-import com.dremio.service.nessie.ImmutableNessieDatabaseAdapterConfig;
-import com.dremio.service.nessie.NessieDatabaseAdapterConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
@@ -74,6 +74,8 @@ class TestMigrateToNessieAdapter {
   private static final ScanResult scanResult = ClassPathScanner.fromPrescan(SabotConfig.create());
 
   private static final String UPGRADE_BRANCH_NAME = "upgrade-test";
+
+  private final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
 
   private MigrateToNessieAdapter task;
   private LocalKVStoreProvider storeProvider;
@@ -91,10 +93,12 @@ class TestMigrateToNessieAdapter {
       .build());
     nessieDatastore.initialize();
 
-    NessieDatabaseAdapterConfig adapterCfg = new ImmutableNessieDatabaseAdapterConfig.Builder().build();
+    NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
+      .builder()
+      .build();
     adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)
-      .withConnector(nessieDatastore).build();
+      .withConnector(nessieDatastore).build(worker);
     // Note: adapter.initializeRepo() will be called by the upgrade task
   }
 
@@ -127,7 +131,6 @@ class TestMigrateToNessieAdapter {
     // This particular test needs to initialize the repo to be able to inject previous history
     adapter.initializeRepo("main");
 
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
     VersionStore<Content, CommitMeta, Content.Type> versionStore = new PersistVersionStore<>(adapter, worker);
 
     Key extraKey = Key.of("existing", "table", "abc");
@@ -174,8 +177,6 @@ class TestMigrateToNessieAdapter {
         testEntries.add(location + "|" + nessieKey);
       }
     });
-
-    TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
 
     VersionStore<Content, CommitMeta, Content.Type> versionStore = new PersistVersionStore<>(adapter, worker);
 

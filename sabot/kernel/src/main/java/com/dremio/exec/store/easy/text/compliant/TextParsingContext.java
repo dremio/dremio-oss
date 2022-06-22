@@ -117,4 +117,3 @@ class TextParsingContext implements ParsingContext {
     return false;
   }
 }
-

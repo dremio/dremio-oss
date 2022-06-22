@@ -13,51 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import Cards from '@app/pages/ExplorePage/components/Transform/components/Cards';
-import ExtractMapCard from './ExtractMapCard';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
+import ExtractMapCard from "./ExtractMapCard";
 
-@Radium
-export default class ExtractMapCards extends Component {
-
+class ExtractMapCards extends Component {
   static getFields() {
     return [
       ...ExtractMapCard.getFields().map((field) => `cards[].${field}`),
-      'activeCard'
+      "activeCard",
     ];
   }
 
   static validate = (values) => ({
-    ...ExtractMapCard.validate(values)
+    ...ExtractMapCard.validate(values),
   });
 
   static propTypes = {
     cards: PropTypes.instanceOf(Immutable.List),
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   handleCardClick(index) {
-    const {fields: {activeCard}} = this.props;
+    const {
+      fields: { activeCard },
+    } = this.props;
     if (index !== activeCard.value) {
       activeCard.onChange(index);
     }
   }
 
   render() {
-    const {cards, fields} = this.props;
-    return <Cards>
-      {fields.cards.map((card, index) =>
-        <ExtractMapCard
-          key={index}
-          card={cards.get(index) || Immutable.Map()}
-          fields={card}
-          active={index === fields.activeCard.value}
-          onClick={this.handleCardClick.bind(this, index)}/>
-      )}
-    </Cards>;
-
+    const { cards, fields } = this.props;
+    return (
+      <Cards>
+        {fields.cards.map((card, index) => (
+          <ExtractMapCard
+            key={index}
+            card={cards.get(index) || Immutable.Map()}
+            fields={card}
+            active={index === fields.activeCard.value}
+            onClick={this.handleCardClick.bind(this, index)}
+          />
+        ))}
+      </Cards>
+    );
   }
 }
+export default Radium(ExtractMapCards);

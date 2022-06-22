@@ -15,166 +15,102 @@
  */
 package com.dremio.service.autocomplete;
 
-import java.util.ArrayList;
+import static com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog.createCatalog;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.parser.StringAndPos;
-import org.junit.Assert;
-import org.junit.Test;
 
-import com.dremio.service.autocomplete.catalog.CatalogNodeResolverTests;
-import com.dremio.service.autocomplete.catalog.mock.MockSchemas;
-import com.dremio.service.autocomplete.columns.ColumnResolverTests;
+import com.dremio.service.autocomplete.catalog.AutocompleteSchemaProvider;
+import com.dremio.service.autocomplete.catalog.mock.MockAutocompleteSchemaProvider;
+import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
+import com.dremio.service.autocomplete.completions.CompletionItem;
+import com.dremio.service.autocomplete.completions.Completions;
+import com.dremio.service.autocomplete.functions.FunctionContext;
 import com.dremio.service.autocomplete.functions.ParameterResolverTests;
-import com.dremio.service.autocomplete.tokens.TokenResolverTests;
-import com.dremio.test.GoldenFileTestBuilder;
+import com.dremio.service.autocomplete.nessie.MockNessieElementReader;
 import com.dremio.test.GoldenFileTestBuilder.MultiLineString;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 
 /**
  * Tests for the autocomplete engine.
  */
-public class AutocompleteEngineTests {
-  private static final ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> TABLE_SCHEMAS = new ImmutableMap.Builder<String, ImmutableList<MockSchemas.ColumnSchema>>()
-    .put("EMP", MockSchemas.EMP)
-    .put("DEPT", MockSchemas.DEPT)
-    .put("SALGRADE", MockSchemas.SALGRADE)
-    .build();
+public abstract class AutocompleteEngineTests {
 
-  public static final AutocompleteEngine AUTOCOMPLETE_ENGINE = new AutocompleteEngine(
-    TokenResolverTests.TOKEN_RESOLVER,
-    ColumnResolverTests.createColumnResolver(TABLE_SCHEMAS),
-    CatalogNodeResolverTests.CATALOG_NODE_RESOLVER,
-    ParameterResolverTests.createParameterResolver(ParameterResolverTests.SQL_FUNCTION_DICTIONARY, TABLE_SCHEMAS));
-
-  @Test
-  public void tests() {
-    new GoldenFileTestBuilder<>(AutocompleteEngineTests::executeTest)
-      .add(
-        "NO FROM CLAUSE",
-        MultiLineString.create("SELECT ^"))
-      .add(
-        "SELECT * FROM",
-        MultiLineString.create("SELECT * FROM ^"))
-      .add(
-        "SELECT * FROM TABLE",
-        MultiLineString.create("SELECT * FROM EMP ^"))
-      .add(
-        "FROM + WHERE",
-        MultiLineString.create("SELECT * FROM EMP WHERE ^"))
-      .add(
-        "CURSOR IN PROJECTION",
-        MultiLineString.create("SELECT ^ FROM EMP"))
-      .add(
-        "FROM CLAUSE WITH COMMAS",
-        MultiLineString.create("SELECT ^ FROM EMP, DEPT"))
-      .add(
-        "FROM CLAUSE WITH JOINS",
-        MultiLineString.create("SELECT ^ FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO"))
-      .add(
-        "SUBQUERY WITH CURSOR IN INNER QUERY",
-        MultiLineString.create("SELECT DEPTNO, NAME, (SELECT MAX(EMP.SAL), ^\n" +
-          " FROM EMP\n" +
-          " WHERE EMP.DEPTNO = DEPT.DEPTNO) AS MAX_SAL_IN_DEPTNO\n" +
-          "FROM DEPT"))
-      .add(
-        "SUBQUERY WITH CURSOR IN OUTER QUERY",
-        MultiLineString.create("SELECT DEPTNO, ^, NAME, (SELECT MAX(EMP.SAL)\n" +
-          " FROM EMP\n" +
-          " WHERE EMP.DEPTNO = DEPT.DEPTNO) AS MAX_SAL_IN_DEPTNO\n" +
-          "FROM DEPT"))
-      .add(
-        "MULTI QUERY",
-        MultiLineString.create("SELECT DEPTNO FROM DEPT\n" +
-          " UNION\n" +
-          "SELECT EMPNO, ^ FROM EMP\n" +
-          " UNION\n" +
-          "SELECT GRADE FROM SALGRADE"))
-      .add(
-        "EVERYTHING",
-        MultiLineString.create("SELECT DEPTNO FROM DEPT\n" +
-          " UNION\n" +
-          "SELECT DEPTNO, NAME, (SELECT MAX(EMP.SAL), ^\n" +
-          " FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO\n" +
-          " WHERE EMP.DEPTNO = DEPT.DEPTNO) AS MAX_SAL_IN_DEPTNO\n" +
-          "FROM DEPT\n" +
-          " UNION\n" +
-          "SELECT GRADE FROM SALGRADE"))
-      .add(
-        "FUNCTION",
-        MultiLineString.create("SELECT ONE_ARG_NUM^"))
-      .add(
-        "FUNCTION NEEDING PARAMETER",
-        MultiLineString.create("SELECT ONE_ARG_NUMERIC_FUNCTION(^ FROM EMP"))
-      .runTests();
+  protected CompletionsForBaselines executeTestWithRootContext(MultiLineString query) {
+    return executeTest(query, ImmutableList.of());
   }
 
-  private static Output executeTest(MultiLineString query) throws JsonProcessingException {
-    final int numCompletions = 5;
+  protected CompletionsForBaselines executeTestWithFolderContext(MultiLineString query) {
+    return executeTest(query, ImmutableList.of("space", "folder"));
+  }
 
-    String corpus = query.toString();
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(corpus);
-
-    corpus = new StringBuilder(corpus).deleteCharAt(stringAndPos.cursor).toString();
-
-    List<CompletionItem> completions = AUTOCOMPLETE_ENGINE.generateCompletions(
-      corpus,
+  protected CompletionsForBaselines executeTest(MultiLineString query, ImmutableList<String> context) {
+    StringAndPos stringAndPos = SqlParserUtil.findPos(query.toString());
+    AutocompleteEngine autocompleteEngine = create(context);
+    Completions completions = autocompleteEngine.generateCompletions(
+      stringAndPos.sql,
       stringAndPos.cursor);
-    List<CompletionItem> filteredCompletions = completions
-      .stream()
-      .limit(numCompletions)
-      .collect(Collectors.toList());
-    int numRemaining = Math.max(completions.size() - numCompletions, 0);
+    return CompletionsForBaselines.create(completions);
+  }
 
-    return Output.create(filteredCompletions, numRemaining);
+  protected AutocompleteEngine create(List<String> context) {
+    MockMetadataCatalog.CatalogData data = createCatalog(context);
+    AutocompleteSchemaProvider schemaProvider = new MockAutocompleteSchemaProvider(
+      data.getContext(),
+      data.getHead());
+    SqlOperatorTable operatorTable = OperatorTableFactory.createWithProductionFunctions(ParameterResolverTests.FUNCTIONS);
+    MockMetadataCatalog catalog = new MockMetadataCatalog(data);
+    AutocompleteEngine autocompleteEngine = new AutocompleteEngine(schemaProvider,
+      Suppliers.ofInstance(MockNessieElementReader.INSTANCE),
+      operatorTable,
+      catalog);
+    return autocompleteEngine;
   }
 
   /**
    * The output for an autocompletion test.
    */
-  public static final class Output {
-    private final List<MultiLineString> completions;
-    private final int numRemaining;
+  public static final class CompletionsForBaselines {
+    private final List<CompletionItem> completions;
+    private final FunctionContext functionContext;
+    private final boolean hasMoreResults;
 
-    private Output(List<MultiLineString> completions, int numRemaining) {
+    private CompletionsForBaselines(
+      List<CompletionItem> completions,
+      FunctionContext functionContext,
+      boolean hasMoreResults) {
       this.completions = completions;
-      this.numRemaining = numRemaining;
+      this.functionContext = functionContext;
+      this.hasMoreResults = hasMoreResults;
     }
 
-    public List<MultiLineString> getCompletions() {
+    public List<CompletionItem> getCompletions() {
       return completions;
     }
 
-    public int getNumRemaining() {
-      return numRemaining;
+    public FunctionContext getFunctionContext() {
+      return functionContext;
     }
 
-    public static Output create(List<CompletionItem> completionItems, int numRemaining) throws JsonProcessingException {
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.registerModule(new Jdk8Module().configureAbsentsAsNulls(true));
-      mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    public boolean isHasMoreResults() {
+      return hasMoreResults;
+    }
 
-      List<MultiLineString> serializedCompletionItems = new ArrayList<>();
-
-      for (CompletionItem completionItem : completionItems) {
-        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(completionItem);
-
-        Object deserializedValue = mapper.readValue(json, completionItem.getClass());
-        String roundTripJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(deserializedValue);
-        Assert.assertEquals(json, roundTripJson);
-
-        serializedCompletionItems.add(MultiLineString.create(json));
-      }
-
-      return new Output(serializedCompletionItems, numRemaining);
+    public static CompletionsForBaselines create(Completions completions) {
+      final int numCompletions = 5;
+      return new CompletionsForBaselines(
+        completions
+          .getCompletionItems()
+          .stream()
+          .limit(numCompletions)
+          .collect(Collectors.toList()),
+        completions.getFunctionContext(),
+        completions.getCompletionItems().size() - numCompletions > 0);
     }
   }
 }
-

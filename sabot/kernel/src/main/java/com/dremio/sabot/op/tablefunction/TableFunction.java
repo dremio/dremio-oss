@@ -32,6 +32,14 @@ public interface TableFunction extends AutoCloseable {
   VectorAccessible setup(VectorAccessible accessible) throws Exception;
 
   /**
+   * Start processing an input record batch.
+   * @param records Number of records in the input batch.
+   */
+  default void startBatch(int records) {
+    // do nothing
+  }
+
+  /**
    * Start processing an input row.
    * @param row to be processed
    */

@@ -13,43 +13,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-import { APIV2Call } from '@app/core/APICall';
+import { RSAA } from "redux-api-middleware";
+import { getRefQueryParamsFromPath } from "@app/utils/nessieUtils";
+import { store } from "@app/store/store";
+import { APIV2Call } from "@app/core/APICall";
 
-export const LOAD_RESOURCE_TREE_START = 'LOAD_RESOURCE_TREE_START';
-export const LOAD_RESOURCE_TREE_SUCCESS = 'LOAD_RESOURCE_TREE_SUCCESS';
-export const LOAD_RESOURCE_TREE_FAILURE = 'LOAD_RESOURCE_TREE_FAILURE';
+export const LOAD_RESOURCE_TREE_START = "LOAD_RESOURCE_TREE_START";
+export const LOAD_RESOURCE_TREE_SUCCESS = "LOAD_RESOURCE_TREE_SUCCESS";
+export const LOAD_RESOURCE_TREE_FAILURE = "LOAD_RESOURCE_TREE_FAILURE";
 
-const fetchResourceTree = (fullPath, { showDatasets, showSpaces, showSources, showHomes, isExpand, params }) => {
-  const meta = { viewId: 'ResourceTree', path: fullPath, isExpand};
+const fetchResourceTree = (
+  storageName,
+  viewId,
+  fullPath,
+  { showDatasets, showSpaces, showSources, showHomes, isExpand },
+  nodeExpanded,
+  currNode
+) => {
+  const meta = { viewId, path: fullPath, isExpand, nodeExpanded, currNode };
 
-  const apiCall = new APIV2Call()
-    .path('resourcetree')
-    .params(params || {})
-    .paths(fullPath);
+  const apiCall = new APIV2Call().path("resourcetree").paths(fullPath);
 
   if (isExpand) {
-    apiCall.path('expand');
+    apiCall.path("expand");
   }
 
   apiCall.params({
+    ...getRefQueryParamsFromPath(fullPath, store.getState().nessie),
     showDatasets,
     showSources,
     showSpaces,
-    showHomes
+    showHomes,
   });
 
   return {
     [RSAA]: {
       types: [
-        { type: LOAD_RESOURCE_TREE_START, meta},
-        { type: LOAD_RESOURCE_TREE_SUCCESS, meta},
-        { type: LOAD_RESOURCE_TREE_FAILURE, meta}
+        {
+          type: `${
+            storageName ? `${storageName}_START}` : LOAD_RESOURCE_TREE_START
+          }`,
+          meta,
+        },
+        {
+          type: `${
+            storageName ? `${storageName}_SUCCESS` : LOAD_RESOURCE_TREE_SUCCESS
+          }`,
+          meta,
+        },
+        {
+          type: `${
+            storageName ? `${storageName}_FAILURE` : LOAD_RESOURCE_TREE_FAILURE
+          }`,
+          meta,
+        },
       ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 };
 
-export const loadResourceTree = (fullPath, params) => (dispatch) => dispatch(fetchResourceTree(fullPath, params));
+export const loadResourceTree =
+  (storageName, viewId, fullPath, params, nodeExpanded, currNode) =>
+  (dispatch) =>
+    dispatch(
+      fetchResourceTree(
+        storageName,
+        viewId,
+        fullPath,
+        params,
+        nodeExpanded,
+        currNode
+      )
+    );

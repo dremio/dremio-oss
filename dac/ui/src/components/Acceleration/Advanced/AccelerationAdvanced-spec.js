@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import {AccelerationAdvanced} from './AccelerationAdvanced';
-import AccelerationRaw from './AccelerationRaw';
-import AccelerationAggregation from './AccelerationAggregation';
+import { AccelerationAdvanced } from "./AccelerationAdvanced";
+import AccelerationRaw from "./AccelerationRaw";
+import AccelerationAggregation from "./AccelerationAggregation";
 
-describe('AccelerationAdvanced', () => {
+describe("AccelerationAdvanced", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -35,229 +35,303 @@ describe('AccelerationAdvanced', () => {
         aggregationReflections: [
           {
             fakeFieldList: [],
-            booly: true
-          }
+            booly: true,
+          },
         ],
         rawReflections: [
           {
             fakeFieldList: [],
-            booly: true
-          }
-        ]
-      }
+            booly: true,
+          },
+        ],
+      },
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccelerationAdvanced {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AccelerationAdvanced {...minimalProps} />);
     expect(wrapper).to.have.length(1);
     expect(wrapper.find(AccelerationRaw)).to.have.length(1);
   });
 
-  it('should render AccelerationAggregation if we select tab=Aggregation', () => {
-    const wrapper = shallow(<AccelerationAdvanced {...commonProps}/>);
-    wrapper.setState({activeTab: 'AGGREGATION'});
+  it("should render AccelerationAggregation if we select tab=Aggregation", () => {
+    const wrapper = shallow(<AccelerationAdvanced {...commonProps} />);
+    wrapper.setState({ activeTab: "AGGREGATION" });
     expect(wrapper.find(AccelerationAggregation)).to.have.length(1);
   });
 
-  describe('#getActiveTab()', () => {
+  describe("#getActiveTab()", () => {
     // other cases covered in minimal/common tests
-    it('should render AccelerationAggregation as needed if we have such a layoutId', () => {
+    it("should render AccelerationAggregation as needed if we have such a layoutId", () => {
       const props = {
         ...commonProps,
-        location: {state:{layoutId:'foo'}},
+        location: { state: { layoutId: "foo" } },
         acceleration: Immutable.fromJS({
-          aggregationReflections: [{id: {id: 'foo'}}]
-        })
+          aggregationReflections: [{ id: { id: "foo" } }],
+        }),
       };
-      const wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      wrapper.setState({activeTab: 'AGGREGATION'});
+      const wrapper = shallow(<AccelerationAdvanced {...props} />);
+      wrapper.setState({ activeTab: "AGGREGATION" });
       expect(wrapper.find(AccelerationAggregation)).to.have.length(1); // use as canary
     });
   });
 
-  describe('#areAdvancedReflectionsFieldsEqual', () => {
+  describe("#areAdvancedReflectionsFieldsEqual", () => {
     let wrapper;
     let instance;
     let aggregationReflections;
     let rawReflections;
     beforeEach(() => {
-      aggregationReflections = Immutable.fromJS(commonProps.values.aggregationReflections);
+      aggregationReflections = Immutable.fromJS(
+        commonProps.values.aggregationReflections
+      );
       rawReflections = Immutable.fromJS(commonProps.values.rawReflections);
-      wrapper = shallow(<AccelerationAdvanced {...commonProps}/>);
+      wrapper = shallow(<AccelerationAdvanced {...commonProps} />);
       instance = wrapper.instance();
     });
 
-    it('should return true when aggregationReflections and rawReflections are equal', () => {
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections);
+    it("should return true when aggregationReflections and rawReflections are equal", () => {
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        rawReflections
+      );
 
       expect(result).to.be.true;
     });
 
-    it('should return false when aggregationReflections has been changed', () => {
-      const changedAggregationReflections = aggregationReflections
-        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
+    it("should return false when aggregationReflections has been changed", () => {
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "fakeFieldList"],
+        Immutable.fromJS([{ name: "foo" }])
+      );
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        changedAggregationReflections,
+        rawReflections
+      );
 
       expect(result).to.be.false;
     });
 
-    it('should return false when rawReflections has been changed', () => {
-      const changedRawLayouts = rawReflections
-        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
+    it("should return false when rawReflections has been changed", () => {
+      const changedRawLayouts = rawReflections.setIn(
+        [0, "fakeFieldList"],
+        Immutable.fromJS([{ name: "foo" }])
+      );
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedRawLayouts
+      );
 
       expect(result).to.be.false;
     });
 
-    it('should return false if initialReflections don\'t have layoutList from next layout list', () => {
+    it("should return false if initialReflections don't have layoutList from next layout list", () => {
       const changedRawLayouts = Immutable.fromJS([
         { fakeFieldList: [] },
-        { anotherFieldList: [] }
+        { anotherFieldList: [] },
       ]);
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedRawLayouts
+      );
 
       expect(result).to.be.false;
     });
 
-    it('should return true if aggregation field has changed and then has returned to initial state', () => {
-      const changedAggregationReflections = aggregationReflections
-        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
+    it("should return true if aggregation field has changed and then has returned to initial state", () => {
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "fakeFieldList"],
+        Immutable.fromJS([{ name: "foo" }])
+      );
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        changedAggregationReflections,
+        rawReflections
+      );
 
       expect(result).to.be.false;
 
-      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections);
+      const initResult = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        rawReflections
+      );
 
       expect(initResult).to.be.true;
     });
 
-    it('should return true if raw field has changed and then has returned to initial state', () => {
-      const changedRawLayouts = rawReflections
-        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'foo' } ]));
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
+    it("should return true if raw field has changed and then has returned to initial state", () => {
+      const changedRawLayouts = rawReflections.setIn(
+        [0, "fakeFieldList"],
+        Immutable.fromJS([{ name: "foo" }])
+      );
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedRawLayouts
+      );
 
       expect(result).to.be.false;
 
-      const initResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections);
+      const initResult = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        rawReflections
+      );
 
       expect(initResult).to.be.true;
     });
 
-    it('should return true if we get equal field list but with values in a different order', () => {
+    it("should return true if we get equal field list but with values in a different order", () => {
       const props = {
         ...commonProps,
         values: {
           aggregationReflections: Immutable.fromJS([
             {
-              fakeFieldList: [{ name: 'foo' }, { name: 'bar' }],
-              booly: true
-            }
+              fakeFieldList: [{ name: "foo" }, { name: "bar" }],
+              booly: true,
+            },
           ]),
           rawReflections: Immutable.fromJS([
             {
               fakeFieldList: [],
-              booly: true
-            }
-          ])
-        }
+              booly: true,
+            },
+          ]),
+        },
       };
-      wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      const changedAggregationReflections = aggregationReflections
-        .setIn([0, 'fakeFieldList'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
-      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
+      wrapper = shallow(<AccelerationAdvanced {...props} />);
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "fakeFieldList"],
+        Immutable.fromJS([{ name: "bar" }, { name: "foo" }])
+      );
+      const result = wrapper
+        .instance()
+        .areAdvancedReflectionsFieldsEqual(
+          changedAggregationReflections,
+          rawReflections
+        );
 
       expect(result).to.be.true;
     });
 
-    it('should return true if we get sortFields with values in the same order', () => {
+    it("should return true if we get sortFields with values in the same order", () => {
       const props = {
         ...commonProps,
         values: {
           aggregationReflections: Immutable.fromJS([
             {
               fakeFieldList: [],
-              sortFields: [{ name: 'foo' }, { name: 'bar' }],
-              booly: true
-            }
+              sortFields: [{ name: "foo" }, { name: "bar" }],
+              booly: true,
+            },
           ]),
           rawReflections: Immutable.fromJS([
             {
               fakeFieldList: [],
               sortFields: [],
-              booly: true
-
-            }
-          ])
-        }
+              booly: true,
+            },
+          ]),
+        },
       };
-      wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      const changedAggregationReflections = aggregationReflections
-        .setIn([0, 'sortFields'], Immutable.fromJS([ { name: 'foo' }, { name: 'bar' } ]));
-      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
+      wrapper = shallow(<AccelerationAdvanced {...props} />);
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "sortFields"],
+        Immutable.fromJS([{ name: "foo" }, { name: "bar" }])
+      );
+      const result = wrapper
+        .instance()
+        .areAdvancedReflectionsFieldsEqual(
+          changedAggregationReflections,
+          rawReflections
+        );
 
       expect(result).to.be.true;
     });
 
-    it('should return false if we get sortFields with values in a different order', () => {
+    it("should return false if we get sortFields with values in a different order", () => {
       const props = {
         ...commonProps,
         values: {
           aggregationReflections: Immutable.fromJS([
             {
               fakeFieldList: [],
-              sortFields: [{ name: 'foo' }, { name: 'bar' }],
-              booly: true
-            }
+              sortFields: [{ name: "foo" }, { name: "bar" }],
+              booly: true,
+            },
           ]),
           rawReflections: Immutable.fromJS([
             {
               fakeFieldList: [],
               sortFields: [],
-              booly: true
-            }
-          ])
-        }
+              booly: true,
+            },
+          ]),
+        },
       };
-      wrapper = shallow(<AccelerationAdvanced {...props}/>);
-      const changedAggregationReflections = aggregationReflections
-        .setIn([0, 'sortFields'], Immutable.fromJS([ { name: 'bar' }, { name: 'foo' } ]));
-      const result = wrapper.instance().areAdvancedReflectionsFieldsEqual(changedAggregationReflections, rawReflections);
+      wrapper = shallow(<AccelerationAdvanced {...props} />);
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "sortFields"],
+        Immutable.fromJS([{ name: "bar" }, { name: "foo" }])
+      );
+      const result = wrapper
+        .instance()
+        .areAdvancedReflectionsFieldsEqual(
+          changedAggregationReflections,
+          rawReflections
+        );
 
       expect(result).to.be.false;
     });
 
-    it('should return false if enabled value is different from initial state', () => {
-      const changedAggregationReflections = aggregationReflections.setIn([0, 'enabled'], true);
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedAggregationReflections);
+    it("should return false if enabled value is different from initial state", () => {
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "enabled"],
+        true
+      );
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedAggregationReflections
+      );
 
       expect(result).to.be.false;
 
-      const changedRawLayouts = rawReflections.setIn([0, 'enabled'], true);
-      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
+      const changedRawLayouts = rawReflections.setIn([0, "enabled"], true);
+      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedRawLayouts
+      );
 
       expect(anotherResult).to.be.false;
     });
 
-    it('should return false if non-array value is different from initial state', () => {
-      const changedAggregationReflections = aggregationReflections.setIn([0, 'booly'], false);
-      const result = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedAggregationReflections);
+    it("should return false if non-array value is different from initial state", () => {
+      const changedAggregationReflections = aggregationReflections.setIn(
+        [0, "booly"],
+        false
+      );
+      const result = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedAggregationReflections
+      );
 
       expect(result).to.be.false;
 
-      const changedRawLayouts = rawReflections.setIn([0, 'booly'], false);
-      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(aggregationReflections, changedRawLayouts);
+      const changedRawLayouts = rawReflections.setIn([0, "booly"], false);
+      const anotherResult = instance.areAdvancedReflectionsFieldsEqual(
+        aggregationReflections,
+        changedRawLayouts
+      );
 
       expect(anotherResult).to.be.false;
     });
   });
 
-  describe('#componentDidUpdate', () => {
-    it('should updateFormDirtyState when getting new props', () => {
-      const wrapper = shallow(<AccelerationAdvanced {...minimalProps}/>, { disableLifecycleMethods: false });
+  describe("#componentDidUpdate", () => {
+    it("should updateFormDirtyState when getting new props", () => {
+      const wrapper = shallow(<AccelerationAdvanced {...minimalProps} />, {
+        disableLifecycleMethods: false,
+      });
       wrapper.setProps(commonProps);
 
       expect(commonProps.updateFormDirtyState).to.be.called;

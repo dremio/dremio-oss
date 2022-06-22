@@ -124,9 +124,4 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
       startPoint += decimalLength;
     }
   }
-
-  @Override
-  public Logger getLogger() {
-    return logger;
-  }
 }

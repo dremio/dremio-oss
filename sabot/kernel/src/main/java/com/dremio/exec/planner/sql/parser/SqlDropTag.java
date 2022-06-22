@@ -29,14 +29,20 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
- * Implements SQL DROP TAG to drop a tag under a source. Represents statements like:
- * DROP TAG [ IF EXISTS ] tagName [ AT commitHash | FORCE ] IN source
+ * Drops a tag under a source.
+ *
+ * DROP TAG [ IF EXISTS ] tagName
+ * ( AT COMMIT commitHash | FORCE )
+ * [ IN sourceName ]
  */
 public final class SqlDropTag extends SqlVersionBase {
   public static final SqlSpecialOperator OPERATOR =
@@ -67,12 +73,12 @@ public final class SqlDropTag extends SqlVersionBase {
       SqlIdentifier tagName,
       SqlIdentifier commitHash,
       SqlLiteral forceDrop,
-      SqlIdentifier source) {
-    super(pos, source);
-    this.tagName = tagName;
-    this.existenceCheck = existenceCheck;
+      SqlIdentifier sourceName) {
+    super(pos, sourceName);
+    this.existenceCheck = Preconditions.checkNotNull(existenceCheck);
+    this.tagName = Preconditions.checkNotNull(tagName);
     this.commitHash = commitHash;
-    this.forceDrop = forceDrop;
+    this.forceDrop = Preconditions.checkNotNull(forceDrop);
   }
 
   @Override
@@ -111,17 +117,19 @@ public final class SqlDropTag extends SqlVersionBase {
       writer.keyword("FORCE");
     }
 
-    writer.keyword("IN");
-    getSourceName().unparse(writer, leftPrec, rightPrec);
+    unparseSourceName(writer, leftPrec, rightPrec);
   }
 
   @Override
   public SqlDirectHandler<?> toDirectHandler(QueryContext context) {
     try {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.DropTagHandler");
-      final Constructor<?> ctor = cl.getConstructor(QueryContext.class);
+      final Constructor<?> ctor = cl.getConstructor(Catalog.class, OptionResolver.class, UserSession.class);
 
-      return (SqlDirectHandler<?>) ctor.newInstance(context);
+      return (SqlDirectHandler<?>) ctor.newInstance(
+        context.getCatalog(),
+        context.getOptions(),
+        context.getSession());
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
           .message("DROP TAG action is not supported.")

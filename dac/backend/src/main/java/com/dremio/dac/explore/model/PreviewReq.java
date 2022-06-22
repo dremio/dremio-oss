@@ -44,4 +44,3 @@ public class PreviewReq<R, S> {
     return rule;
   }
 }
-

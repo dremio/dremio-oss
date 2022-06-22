@@ -51,7 +51,7 @@ import com.google.common.collect.Sets;
 
 public class UserRpcConfig {
 
-  private final static String USER_RPC_TIMEOUT = "dremio.exec.rpc.user.timeout";
+  private static final String USER_RPC_TIMEOUT = "dremio.exec.rpc.user.timeout";
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserRpcConfig.class);
 
@@ -81,7 +81,7 @@ public class UserRpcConfig {
         .build();
   }
 
-  public static int RPC_VERSION = 5;
+  public static final int RPC_VERSION = 5;
 
   /**
    * Contains the list of methods supported by the server (from user to bit)

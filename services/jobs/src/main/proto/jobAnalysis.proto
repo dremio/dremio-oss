@@ -70,6 +70,7 @@ message PhaseData {
   repeated OperatorData operatorData = 6;
   required int64 runTime = 7;
   required int64 totalMemory = 8;
+  required int64 totalBufferForIncomingMemory = 9;
 }
 
 message GraphNodeDetails {

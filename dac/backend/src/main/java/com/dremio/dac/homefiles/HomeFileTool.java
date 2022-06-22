@@ -29,8 +29,11 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.spaces.HomeName;
+import com.dremio.dac.service.errors.SourceBadStateException;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
@@ -47,6 +50,7 @@ import com.google.common.base.Supplier;
  * Injectable tool for doing home file manipulation.
  */
 public class HomeFileTool {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HomeFileTool.class);
 
   private final HomeFileConf config;
   private final FileSystem fs;
@@ -57,8 +61,22 @@ public class HomeFileTool {
 
   @Inject
   public HomeFileTool(SabotContext context, CatalogService catalog, HostNameProvider hostnameProvider, @Context SecurityContext securityContext) throws ExecutionSetupException {
-    StoragePlugin plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    StoragePlugin plugin;
+    try {
+      plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    } catch (Exception e) {
+      // When sources have permission issues or unavailable in the backend,
+      // we get '500 Internal Server Error' with no details in the exception. See Jira: DX-44078.
+      if (e instanceof UserException &&
+        ((UserException) e).getErrorType() == UserBitShared.DremioPBError.ErrorType.SOURCE_BAD_STATE) {
+        logger.error("The source [{}] is in bad state. {}", HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME, e.getMessage(), e);
+        throw new SourceBadStateException(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME, e.getMessage(), e);
+      }
+      logger.error("Exception while getting the plugin for the source [{}].", HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME, e);
+      throw e;
+    }
     Preconditions.checkNotNull(plugin, "Plugin [%s] not found.", HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+
     HomeFileSystemStoragePlugin homePlugin = (HomeFileSystemStoragePlugin) plugin;
     this.fs = homePlugin.getSystemUserFS();
     this.config = homePlugin.getConfig();

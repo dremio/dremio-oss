@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-const contextKey = '_dremioLocation';
+const contextKey = "_dremioLocation";
 
-export const getContext = location => ({ // export of this key is needed for tests
-  [contextKey]: location
+export const getContext = (location) => ({
+  // export of this key is needed for tests
+  [contextKey]: location,
 });
 
 export class LocationProvider extends Component {
   static propTypes = {
     location: PropTypes.object.isRequired,
-    children: PropTypes.object
-  }
+    children: PropTypes.object,
+  };
 
   static childContextTypes = {
-    [contextKey]: PropTypes.object
-  }
+    [contextKey]: PropTypes.object,
+  };
 
   getChildContext = () => getContext(this.props.location);
 
@@ -40,25 +41,21 @@ export class LocationProvider extends Component {
 }
 
 function getDisplayName(WrappedComponent) {
-  return WrappedComponent.displayName || WrappedComponent.name || 'Component';
+  return WrappedComponent.displayName || WrappedComponent.name || "Component";
 }
 
 export const withLocation = (Comp) => {
   const WithLocationComp = class extends Component {
-
     static contextTypes = {
-      [contextKey]: PropTypes.object.isRequired
+      [contextKey]: PropTypes.object.isRequired,
     };
 
     render() {
-      const {
-        [contextKey]: location
-      } = this.context;
-      return (<Comp {...this.props} location={location} />);
+      const { [contextKey]: location } = this.context;
+      return <Comp {...this.props} location={location} />;
     }
   };
   WithLocationComp.displayName = `withLocation(${getDisplayName(Comp)})`;
-
 
   return WithLocationComp;
 };

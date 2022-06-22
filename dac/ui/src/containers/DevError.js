@@ -13,61 +13,78 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect } from 'react-redux';
-import ReactDOM from 'react-dom';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import RedBox, { RedBoxError } from 'redbox-react';
-import { hideAppError } from '@app/actions/prodError';
-import { getAppError } from '@app/reducers';
+import { Component } from "react";
+import { connect } from "react-redux";
+import ReactDOM from "react-dom";
+import PropTypes from "prop-types";
+import RedBox, { RedBoxError } from "redbox-react";
+import { hideAppError } from "@app/actions/prodError";
+import { getAppError } from "@app/reducers";
 
-import fileABug from '../utils/fileABug';
-import FontIcon from '../components/Icon/FontIcon';
+import fileABug from "../utils/fileABug";
+import FontIcon from "../components/Icon/FontIcon";
 
-@Radium
-export class CustomRedBox extends RedBox {
+class CustomRedBox extends RedBox {
   static propTypes = {
     onDismiss: PropTypes.func.isRequired, // note: React provides its RSOD in dev mode, so we can't actually dissmiss there
-    error: PropTypes.instanceOf(Error).isRequired
-  }
+    error: PropTypes.instanceOf(Error).isRequired,
+  };
 
   handleFileABugClick = () => {
     fileABug(this.props.error);
-  }
+  };
 
   renderRedBoxError() {
-    ReactDOM.render(<div>
-      <RedBoxError rel='' error={this.props.error} style={{message:{whiteSpace: 'pre'}}}/>
-      <div style={styles.topRight}>
-        <FontIcon type='XBig' onClick={this.props.onDismiss} style={styles.dismissButton}/>
-      </div>
-      <div style={styles.bottomRight}>
-        <button style={styles.fileBugButton} onClick={this.handleFileABugClick}>{la('File a Bug')}</button>
-      </div>
-    </div>, this.el);
+    ReactDOM.render(
+      <div>
+        <RedBoxError
+          rel=""
+          error={this.props.error}
+          style={{ message: { whiteSpace: "pre" } }}
+        />
+        <div style={styles.topRight}>
+          <FontIcon
+            type="XBig"
+            onClick={this.props.onDismiss}
+            style={styles.dismissButton}
+          />
+        </div>
+        <div style={styles.bottomRight}>
+          <button
+            style={styles.fileBugButton}
+            onClick={this.handleFileABugClick}
+          >
+            {la("File a Bug")}
+          </button>
+        </div>
+      </div>,
+      this.el
+    );
   }
 }
 
-
-const mapStateToProps = state => ({
-  error: getAppError(state)
+const mapStateToProps = (state) => ({
+  error: getAppError(state),
 });
 
-const mapDispatchToProps = ({
-  onDismiss: hideAppError
-});
+const mapDispatchToProps = {
+  onDismiss: hideAppError,
+};
 
 export class DevErrorView extends Component {
-
   static propTypes = {
     error: PropTypes.object,
-    onDismiss: PropTypes.func.isRequired
-  }
+    onDismiss: PropTypes.func.isRequired,
+  };
 
   render() {
     if (this.props.error) {
-      return <CustomRedBox error={this.props.error} onDismiss={this.props.onDismiss}/>;
+      return (
+        <CustomRedBox
+          error={this.props.error}
+          onDismiss={this.props.onDismiss}
+        />
+      );
     }
     return null;
   }
@@ -77,31 +94,31 @@ export default connect(mapStateToProps, mapDispatchToProps)(DevErrorView);
 
 const styles = {
   topRight: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     right: 0,
     zIndex: 2147483647,
-    padding: 20
+    padding: 20,
   },
   bottomRight: {
-    position: 'fixed',
+    position: "fixed",
     bottom: 0,
     right: 0,
     zIndex: 2147483647,
-    padding: 20
+    padding: 20,
   },
   fileBugButton: {
-    fontSize: '20px',
+    fontSize: "20px",
     padding: 20,
     borderRadius: 10,
-    background: '#eee',
-    marginRight: 20
+    background: "#eee",
+    marginRight: 20,
   },
   dismissButton: {
-    cursor: 'pointer',
-    transform: 'scale(1.5, 1.5)',
-    ':active': {
-      transform: 'scale(1.2, 1.2)'
-    }
-  }
+    cursor: "pointer",
+    transform: "scale(1.5, 1.5)",
+    ":active": {
+      transform: "scale(1.2, 1.2)",
+    },
+  },
 };

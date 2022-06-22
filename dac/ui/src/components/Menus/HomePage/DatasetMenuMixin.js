@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import DividerHr from 'components/Menus/DividerHr';
-import MenuItemLink from 'components/Menus/MenuItemLink';
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import DividerHr from "components/Menus/DividerHr";
+import MenuItemLink from "components/Menus/MenuItemLink";
 
-import AnalyzeMenuItem from 'components/Menus/HomePage/AnalyzeMenuItem';
+import AnalyzeMenuItem from "components/Menus/HomePage/AnalyzeMenuItem";
 
-import { abilities } from 'utils/datasetUtils';
+import { abilities } from "utils/datasetUtils";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getGraphLink() {
       return null;
     },
@@ -31,86 +32,102 @@ export default function(input) {
     render() {
       const { entity, closeMenu, entityType } = this.props;
 
-      const { canRemoveFormat, canEdit, canMove, canDelete } = abilities(entity, entityType);
+      const { canRemoveFormat, canEdit, canMove, canDelete } = abilities(
+        entity,
+        entityType
+      );
 
-      return <Menu>
-        {
-          <MenuItemLink
-            href={entity.getIn(['links', 'query'])}
-            text={la('Query')}
-            closeMenu={closeMenu}/>
-        }
+      return (
+        <Menu>
+          {
+            <MenuItemLink
+              href={entity.getIn(["links", "query"])}
+              text={la("Query")}
+              closeMenu={closeMenu}
+            />
+          }
 
-        {
-          // feature has a bug see DX-7054
-          /*
+          {
+            // feature has a bug see DX-7054
+            /*
           entityType === 'folder' && <MenuItemLink
             text={la('Browse Contents')}
             href={entity.getIn(['links', 'self'])}
             closeMenu={closeMenu} />
           */
-        }
+          }
 
-        {
-          canEdit && <MenuItemLink
-            href={entity.getIn(['links', 'edit'])} text={la('Edit')}/>
-        }
+          {canEdit && (
+            <MenuItemLink
+              href={entity.getIn(["links", "edit"])}
+              text={la("Edit")}
+            />
+          )}
 
-        {
-          <MenuItemLink href={this.getMenuItemUrl('wiki')} text={la('Catalog')}/>
-        }
+          {
+            <MenuItemLink
+              href={this.getMenuItemUrl("wiki")}
+              text={la("Catalog")}
+            />
+          }
 
-        {
-          // EE has data graph menu item here
-        }
+          {
+            // EE has data graph menu item here
+          }
 
-        { <AnalyzeMenuItem entity={entity} closeMenu={closeMenu} /> }
+          {<AnalyzeMenuItem entity={entity} closeMenu={closeMenu} />}
 
-        <DividerHr />
+          <DividerHr />
 
-        {
-          canDelete &&
-          (entityType !== 'file' && <MenuItemLink
+          {canDelete &&
+            ((entityType !== "file" && (
+              <MenuItemLink
+                closeMenu={closeMenu}
+                href={this.getRemoveLocation()}
+                text={la("Remove")}
+              />
+            )) ||
+              (entityType === "file" && (
+                <MenuItem onClick={this.handleRemoveFile}>
+                  {la("Remove")}
+                </MenuItem>
+              )))}
+
+          {canMove && (
+            <MenuItemLink
+              closeMenu={closeMenu}
+              href={this.getRenameLocation()}
+              text={la("Rename")}
+            />
+          )}
+
+          {canMove && (
+            <MenuItemLink
+              closeMenu={closeMenu}
+              href={this.getMoveLocation()}
+              text={la("Move")}
+            />
+          )}
+
+          <MenuItem onClick={this.copyPath}>{la("Copy Path")}</MenuItem>
+
+          <DividerHr />
+
+          <MenuItemLink
             closeMenu={closeMenu}
-            href={this.getRemoveLocation()}
-            text={la('Remove')}/> ||
-            entityType === 'file' && <MenuItem
-              onClick={this.handleRemoveFile}>
-              {la('Remove')}
-            </MenuItem>
-          )
-        }
+            href={this.getSettingsLocation()}
+            text={la("Settings")}
+          />
 
-        {
-          canMove && <MenuItemLink
-            closeMenu={closeMenu}
-            href={this.getRenameLocation()}
-            text={la('Rename')}/>
-        }
-
-        {
-          canMove && <MenuItemLink
-            closeMenu={closeMenu}
-            href={this.getMoveLocation()}
-            text={la('Move')}/>
-        }
-
-        <MenuItem onClick={this.copyPath}>{la('Copy Path')}</MenuItem>
-
-        <DividerHr />
-
-        <MenuItemLink
-          closeMenu={closeMenu}
-          href={this.getSettingsLocation()}
-          text={la('Settings')}/>
-
-        {
-          canRemoveFormat && <MenuItemLink
-            closeMenu={closeMenu}
-            href={this.getRemoveFormatLocation()}
-            text={la('Remove Format')}/>
-        }
-      </Menu>;
-    }
+          {canRemoveFormat && (
+            <MenuItemLink
+              closeMenu={closeMenu}
+              href={this.getRemoveFormatLocation()}
+              text={la("Remove Format")}
+            />
+          )}
+        </Menu>
+      );
+    },
   });
 }

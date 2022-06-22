@@ -13,38 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Divider from '@material-ui/core/Divider';
+import { createRef, PureComponent } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Divider from "@material-ui/core/Divider";
 
-import { AUTO_TYPES } from '@app/constants/columnTypeGroups';
-import { JSONTYPE } from '@app/constants/DataTypes';
+import { AUTO_TYPES } from "@app/constants/columnTypeGroups";
+import { JSONTYPE } from "@app/constants/DataTypes";
 
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
-import MenuItem from './../MenuItem';
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
+import MenuItem from "./../MenuItem";
 
-@Radium
-export default class AutoGroup extends PureComponent {
+class AutoGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    columnType: PropTypes.string
-  }
+    columnType: PropTypes.string,
+  };
 
   constructor(props) {
     super(props);
     this.setVisibility = this.setVisibility.bind(this);
+    this.rootRef = createRef();
     this.state = {
-      visibility: true
+      visibility: true,
     };
   }
 
   componentDidMount() {
-    if (!this.refs.root || !this.refs.root.children) {
+    const { current: { children } = {} } = this.rootRef;
+    if (!children) {
       return null;
     }
 
-    const divs = [...this.refs.root.children].filter(child => child.nodeName === 'DIV');
+    const divs = Array.from(children).filter(
+      (child) => child.nodeName === "DIV"
+    );
     if (divs.length === 1) {
       this.setVisibility(false);
     } else {
@@ -54,22 +57,27 @@ export default class AutoGroup extends PureComponent {
 
   setVisibility(visibility) {
     this.setState({
-      visibility
+      visibility,
     });
   }
 
   render() {
     return (
-      <div ref='root' style={{display: this.state.visibility ? 'block' : 'none'}}>
-        <Divider style={{marginTop: 5, marginBottom: 5}}/>
+      <div
+        ref={this.rootRef}
+        style={{ display: this.state.visibility ? "block" : "none" }}
+      >
+        <Divider style={{ marginTop: 5, marginBottom: 5 }} />
         <MenuItem disabled>AUTO-DETECT</MenuItem>
         <ColumnMenuItem
           actionType={JSONTYPE}
           columnType={this.props.columnType}
-          title='JSON'
+          title="JSON"
           availableTypes={AUTO_TYPES}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
       </div>
     );
   }
 }
+export default Radium(AutoGroup);

@@ -13,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import TextArea from '../TextArea';
+import TextArea from "../TextArea";
 
 const FormikTextArea = ({ field, ...otherProps }) => {
-  return (
-    <TextArea {...field} {...otherProps} />
-  );
+  return <TextArea {...field} {...otherProps} />;
 };
 
 FormikTextArea.propTypes = {
   classes: PropTypes.shape({
     root: PropTypes.string,
     label: PropTypes.string,
-    container: PropTypes.string
+    container: PropTypes.string,
   }),
   disabled: PropTypes.bool,
   enableCopy: PropTypes.bool,
@@ -36,7 +34,7 @@ FormikTextArea.propTypes = {
   label: PropTypes.string,
   minLines: PropTypes.number,
   maxLines: PropTypes.number,
-  noResize: PropTypes.bool
+  noResize: PropTypes.bool,
 };
 
 FormikTextArea.defaultProps = {
@@ -47,7 +45,7 @@ FormikTextArea.defaultProps = {
   label: null,
   minLines: 1,
   maxLines: 3,
-  noResize: false
+  noResize: false,
 };
 
 export default FormikTextArea;

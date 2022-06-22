@@ -119,7 +119,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
       tr(4l, "b2", 4l, "a2")
-    );
+    ).orderInsensitive();
     nullKeys(includeNullsInfo, includeNulls);
 
   }
@@ -153,7 +153,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       th("id2", "name2", "id1", "name1"),
       tr(4l, "b2", 4l, "a2"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
-    );
+    ).orderInsensitive();
     nullKeys(noNullsInfo, noNulls);
   }
 

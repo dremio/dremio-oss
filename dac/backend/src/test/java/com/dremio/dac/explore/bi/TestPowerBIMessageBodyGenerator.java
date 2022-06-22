@@ -35,6 +35,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 /**
  * Unit tests for {@link PowerBIMessageBodyGenerator}
  */
+@SuppressWarnings("checkstyle:VisibilityModifier")
 @RunWith(Parameterized.class)
 public class TestPowerBIMessageBodyGenerator {
   @Parameterized.Parameters(name = "{0}")

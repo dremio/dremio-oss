@@ -460,6 +460,15 @@ public class SourceService {
     return newFolder(folderPath, folderConfig, contents, isPhysicalDataset(sourceName, folderPath), isFileSystemPlugin);
   }
 
+  public Folder createFolder(
+      SourceName sourceName,
+      SourceFolderPath folderPath,
+      String userName,
+      String refType,
+      String refValue) {
+    throw new UnsupportedOperationException("Creating folder is not supported");
+  }
+
   protected Folder newFolder(SourceFolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemPlugin)
       throws NamespaceNotFoundException {
     // TODO: why do we need to look up the dataset again in isPhysicalDataset?
@@ -675,8 +684,7 @@ public class SourceService {
       DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
       deleteCallback.onDatasetDelete(datasetConfig);
       namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
-    }
-      catch (NamespaceException nse) {
+    } catch (NamespaceException nse) {
       throw new PhysicalDatasetNotFoundException(sourceName, datasetPath, nse);
     }
   }

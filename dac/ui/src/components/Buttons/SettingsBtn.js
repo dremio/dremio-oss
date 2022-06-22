@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent } from 'react';
-import classNames from 'classnames';
-import PropTypes from 'prop-types';
-import Popover from '@material-ui/core/Popover';
-import Radium from 'radium';
+import React, { createRef, PureComponent } from "react";
+import classNames from "classnames";
+import PropTypes from "prop-types";
+import Popover from "@material-ui/core/Popover";
+import Radium from "radium";
 
-import FontIcon from '../Icon/FontIcon';
-import './SettingsBtn.less';
+import FontIcon from "../Icon/FontIcon";
+import "./SettingsBtn.less";
 
-
-@Radium
-export default class SettingsBtn extends PureComponent {
+class SettingsBtn extends PureComponent {
   static propTypes = {
     classStr: PropTypes.string,
     dataQa: PropTypes.string,
@@ -36,32 +34,34 @@ export default class SettingsBtn extends PureComponent {
     hideArrowIcon: PropTypes.bool,
     children: PropTypes.node,
     style: PropTypes.object,
-    stopPropagation: PropTypes.bool
+    stopPropagation: PropTypes.bool,
+    disabled: PropTypes.bool,
   };
 
   static defaultProps = {
     hasDropdown: true,
-    children: <FontIcon type='Settings' />,
-    classStr: 'main-settings-btn min-btn'
+    children: <FontIcon type="Settings" />,
+    classStr: "main-settings-btn min-btn",
   };
 
   constructor(props) {
     super(props);
     this.handleRequestClose = this.handleRequestClose.bind(this);
     this.handleTouchTap = this.handleTouchTap.bind(this);
+    this.settingsWrapRef = createRef();
     this.state = {
       open: false,
-      subDropRight: true
+      subDropRight: true,
     };
   }
 
   handleRequestClose(event) {
     this.props.stopPropagation && event && event.stopPropagation();
     if (this.props.handleSettingsClose) {
-      this.props.handleSettingsClose(this.refs.settingsWrap);
+      this.props.handleSettingsClose(this.settingsWrapRef.current);
     }
     this.setState({
-      open: false
+      open: false,
     });
   }
 
@@ -69,11 +69,11 @@ export default class SettingsBtn extends PureComponent {
     event.preventDefault();
     this.props.stopPropagation && event.stopPropagation();
     if (this.props.handleSettingsOpen) {
-      this.props.handleSettingsOpen(this.refs.settingsWrap);
+      this.props.handleSettingsOpen(this.settingsWrapRef.current);
     }
     this.setState({
       open: true,
-      anchorEl: event.currentTarget
+      anchorEl: event.currentTarget,
     });
   }
 
@@ -84,44 +84,57 @@ export default class SettingsBtn extends PureComponent {
       style,
       hideArrowIcon,
       children,
-      position
+      position,
+      disabled,
     } = this.props;
-    const wrapClasses = classNames(classStr, {'active': this.state.open});
+    const wrapClasses = classNames(classStr, { active: this.state.open });
     return (
-      <span className={wrapClasses} ref='settingsWrap'>
+      <span className={wrapClasses} ref={this.settingsWrapRef}>
         <button
-          className='settings-button'
-          data-qa={this.props.dataQa || 'settings-button'}
+          className="settings-button"
+          data-qa={this.props.dataQa || "settings-button"}
           onClick={this.handleTouchTap}
           style={[styles.button, style]}
         >
           {children}
-          {hasDropdown && !hideArrowIcon && <FontIcon
-            type='Arrow-Down-Small'
-            theme={{Icon: {width: 12, backgroundPosition: '-7px 2px'}}}
-          />}
+          {hasDropdown && !disabled && !hideArrowIcon && (
+            <FontIcon
+              type="Arrow-Down-Small"
+              theme={{ Icon: { width: 12, backgroundPosition: "-7px 2px" } }}
+            />
+          )}
         </button>
-        {hasDropdown && <Popover
-          open={this.state.open}
-          anchorEl={this.state.anchorEl}
-          anchorOrigin={{horizontal: position ? position : 'left', vertical: 'bottom'}}
-          transformOrigin={{horizontal: position ? position : 'left', vertical: 'top'}}
-          onClose={this.handleRequestClose}
-        >
-          {React.cloneElement(this.props.menu, {closeMenu: this.handleRequestClose})}
-        </Popover>}
+        {hasDropdown && !disabled && (
+          <Popover
+            open={this.state.open}
+            anchorEl={this.state.anchorEl}
+            anchorOrigin={{
+              horizontal: position ? position : "left",
+              vertical: "bottom",
+            }}
+            transformOrigin={{
+              horizontal: position ? position : "left",
+              vertical: "top",
+            }}
+            onClose={this.handleRequestClose}
+          >
+            {React.cloneElement(this.props.menu, {
+              closeMenu: this.handleRequestClose,
+            })}
+          </Popover>
+        )}
       </span>
     );
   }
 }
 
-
 const styles = {
   popover: {
-    width: '',
-    margin: 0
+    width: "",
+    margin: 0,
   },
   button: {
-    display: 'flex'
-  }
+    display: "flex",
+  },
 };
+export default Radium(SettingsBtn);

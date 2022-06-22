@@ -13,51 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { ExplorePageContentWrapper } from './ExplorePageContentWrapper';
+import { ExplorePageContentWrapper } from "./ExplorePageContentWrapper";
 
-describe('ExplorePageContentWrapper', () => {
-
+describe("ExplorePageContentWrapper", () => {
   let minimalProps;
   let contextTypes;
 
   beforeEach(() => {
     minimalProps = {
       dataset: Immutable.fromJS({}),
-      columnFilter: '',
+      columnFilter: "",
       updateColumnFilter: () => {},
       columnCount: 0,
       filteredColumnCount: 0,
-      location: {pathname: ''},
+      location: { pathname: "" },
       exploreViewState: Immutable.fromJS({}),
-      pageType: 'default',
+      pageType: "default",
       rightTreeVisible: true,
       toggleRightTree: () => {},
       startDrag: () => {},
       errorData: new Immutable.Map(),
-      isError: false
+      isError: false,
+      queryStatuses: [],
     };
     contextTypes = {
-      router: {}
+      router: {},
     };
   });
 
-  describe('render', () => {
-
-    it('should render with minimal props without exploding', () => {
-      const wrapper = shallow(<ExplorePageContentWrapper {...minimalProps}/>, {context: contextTypes});
+  describe("render", () => {
+    it("should render with minimal props without exploding", () => {
+      const wrapper = shallow(<ExplorePageContentWrapper {...minimalProps} />, {
+        context: contextTypes,
+      });
       expect(wrapper).to.have.length(1);
-      expect(wrapper.find('div[data-qa=\'columnFilterStats\']')).to.have.length(1);
-      expect(wrapper.find('span[data-qa=\'columnFilterCount\']')).to.have.length(0);
-    });
-
-    it('should hide column filter count w/o filter', () => {
-      const wrapper = shallow(<ExplorePageContentWrapper {...minimalProps}/>, {context: contextTypes});
-      expect(wrapper.find('div[data-qa=\'columnFilterStats\']')).to.have.length(1);
-      expect(wrapper.find('span[data-qa=\'columnFilterCount\']')).to.have.length(0);
     });
   });
-
 });

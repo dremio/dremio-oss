@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 export const getParamsForSpacesUrl = (includeDatasetCount) => {
-  return includeDatasetCount ? ['datasetCount'] : [];
+  return includeDatasetCount ? ["datasetCount"] : [];
 };

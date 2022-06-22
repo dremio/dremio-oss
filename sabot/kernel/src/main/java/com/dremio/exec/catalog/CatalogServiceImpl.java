@@ -49,9 +49,12 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.CatalogRPC;
 import com.dremio.exec.proto.CatalogRPC.RpcType;
 import com.dremio.exec.proto.CatalogRPC.SourceWrapper;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.rpc.FutureBitCommand;
@@ -284,8 +287,7 @@ public class CatalogServiceImpl implements CatalogService {
       isInfluxSource, modifiableSchedulerService.get());
   }
 
-  private void communicateChange(SourceConfig config, RpcType rpcType) {
-
+  public void communicateChange(SourceConfig config, RpcType rpcType) {
     final Set<NodeEndpoint> endpoints = new HashSet<>();
     endpoints.add(context.get().getEndpoint());
 
@@ -305,6 +307,7 @@ public class CatalogServiceImpl implements CatalogService {
     try {
       Futures.successfulAsList(futures).get(CHANGE_COMMUNICATION_WAIT, TimeUnit.MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e1) {
+      // Error is ignored here as plugin propagation is best effort
       logger.warn("Failure while communicating source change [{}].", config.getName(), e1);
     }
   }
@@ -424,6 +427,11 @@ public class CatalogServiceImpl implements CatalogService {
       throw UserException.concurrentModificationError(e).message("Source already exists with name %s.", config.getName()).buildSilently();
     } catch (ConcurrentModificationException ex) {
       throw ex;
+    } catch (UserException ue) {
+      // If it's a UserException, message is probably helpful, so rethrow
+      throw ue;
+    } catch (IllegalArgumentException e) {
+      throw e;
     } catch (Exception ex) {
       afterUnknownEx = true;
       logger.error("Exception encountered: {}", ex.getMessage(), ex);
@@ -567,7 +575,7 @@ public class CatalogServiceImpl implements CatalogService {
       if (!errorOnMissing) {
         return null;
       }
-      throw UserException.validationError().message("Tried to access non-existent source [%s].", name).build(logger);
+      throw UserException.validationError(ex).message("Tried to access non-existent source [%s].", name).build(logger);
     } catch (Exception ex) {
       throw UserException.validationError(ex).message("Failure while trying to read source [%s].", name).build(logger);
     }
@@ -630,27 +638,30 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   protected Catalog createCatalog(MetadataRequestOptions requestOptions) {
-    return createCatalog(requestOptions, new CatalogIdentityResolver());
+    return createCatalog(requestOptions, new CatalogIdentityResolver(), context.get().getNamespaceServiceFactory());
   }
 
-  protected Catalog createCatalog(MetadataRequestOptions requestOptions, IdentityResolver identityProvider) {
+  protected Catalog createCatalog(MetadataRequestOptions requestOptions, IdentityResolver identityProvider,
+                                  NamespaceService.Factory namespaceServiceFactory) {
     OptionManager optionManager = requestOptions.getSchemaConfig().getOptions();
     if (optionManager == null) {
       optionManager = context.get().getOptionManager();
     }
 
+    PluginRetriever retriever = new Retriever();
+
     return new CatalogImpl(
       requestOptions,
-      new Retriever(),
+      retriever,
       new SourceModifier(requestOptions.getSchemaConfig().getAuthContext().getSubject()),
       optionManager,
       context.get().getNamespaceService(SystemUser.SYSTEM_USERNAME),
-      context.get().getNamespaceServiceFactory(),
+      namespaceServiceFactory,
       context.get().getOrphanageFactory().get(),
       context.get().getDatasetListing(),
       context.get().getViewCreatorFactoryProvider().get(),
-      identityProvider
-    );
+      identityProvider,
+      new VersionContextResolverImpl(retriever));
   }
 
   @Override
@@ -798,6 +809,25 @@ public class CatalogServiceImpl implements CatalogService {
       }
 
       return null;
+    }
+  }
+
+  public void communicateChangeToExecutors(List<CoordinationProtos.NodeEndpoint> nodeEndpointList, SourceConfig config, CatalogRPC.RpcType rpcType) {
+    List<RpcFuture<GeneralRPCProtos.Ack>> futures = new ArrayList<>();
+    CatalogRPC.SourceWrapper wrapper = CatalogRPC.SourceWrapper.newBuilder().setBytes(ByteString.copyFrom(ProtobufIOUtil.toByteArray(config, SourceConfig.getSchema(), LinkedBuffer.allocate()))).build();
+
+    for(CoordinationProtos.NodeEndpoint e : nodeEndpointList) {
+      SendSource send = new SendSource(wrapper, rpcType);
+      tunnelFactory.getCommandRunner(e.getAddress(), e.getFabricPort()).runCommand(send);
+      logger.info("Sending [{}] to {}:{}", config.getName(), e.getAddress(), e.getUserPort());
+      futures.add(send.getFuture());
+    }
+
+    try {
+      Futures.successfulAsList(futures).get(10, TimeUnit.SECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e1) {
+      // Error is ignored here as plugin propagation is best effort
+      logger.warn("Failure while communicating source change [{}].", config.getName(), e1);
     }
   }
 }

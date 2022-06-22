@@ -41,7 +41,7 @@ public class TypeCoercionRules {
    * @param tableType {@link CompleteType} of the table
    * @return {@code Optional} of the resultant {@link CompleteType} if a match is found, {@code Optional.empty()} otherwise
    */
-  public static Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
+  public Optional<CompleteType> getResultantType(CompleteType fileType, CompleteType tableType) {
     if (fileType.equals(NULL)) {
       return Optional.of(tableType);
     }
@@ -69,7 +69,7 @@ public class TypeCoercionRules {
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForIntFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForIntFileType(CompleteType tableType) {
     if (tableType.getType().getTypeID().equals(ArrowType.ArrowTypeID.FloatingPoint)) {
       // INT to FLOAT coercions are lossy, so we coerce to double. INT to DOUBLE coercions as usual
       return Optional.of(DOUBLE);
@@ -80,7 +80,7 @@ public class TypeCoercionRules {
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForBigIntFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForBigIntFileType(CompleteType tableType) {
     if (tableType.getType().getTypeID().equals(ArrowType.ArrowTypeID.FloatingPoint)) {
       return Optional.of(DOUBLE);
     }
@@ -90,35 +90,35 @@ public class TypeCoercionRules {
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForFloatFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForFloatFileType(CompleteType tableType) {
     if (tableType.isValidDecimal() || tableType.isText() || tableType.equals(DOUBLE)) {
       return Optional.of(tableType);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForDoubleFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForDoubleFileType(CompleteType tableType) {
     if (tableType.isText()) {
       return Optional.of(tableType);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForBooleanFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForBooleanFileType(CompleteType tableType) {
     if (tableType.isText()) {
       return Optional.of(tableType);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForDecimalFileType(CompleteType tableType) {
     if (tableType.isValidDecimal() || tableType.isText() || tableType.equals(DOUBLE)) {
       return Optional.of(tableType);
     }
     return Optional.empty();
   }
 
-  private static Optional<CompleteType> getResultantTypeForTemporalFileType(CompleteType tableType) {
+  private Optional<CompleteType> getResultantTypeForTemporalFileType(CompleteType tableType) {
     if (tableType.isText()) {
       return Optional.of(tableType);
     }

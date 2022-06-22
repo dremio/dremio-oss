@@ -38,10 +38,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
@@ -55,15 +56,17 @@ import io.protostuff.ByteString;
 public class DataProcessorTestUtil {
 
   static TableFunctionContext getTableFunctionContext(DataProcessorType datafileProcessorType) throws Exception {
-    SplitGenManifestScanTableFunctionContext functionContext = mock(SplitGenManifestScanTableFunctionContext.class);
+    ManifestScanTableFunctionContext functionContext = mock(ManifestScanTableFunctionContext.class);
 
     BatchSchema batchSchema = getBatchSchema(datafileProcessorType);
+    Schema schema = new SchemaConverter().toIcebergSchema(batchSchema);
     Map map = new HashMap();
     map.put(0, PartitionSpec.unpartitioned());
-    ByteString mapByteString = ByteString.copyFrom(IcebergSerDe.serializePartitionSpecMap(map));
-    when(functionContext.getPartitionSpecMap()).thenReturn(mapByteString);
+    ByteString mapByteString = ByteString.copyFrom(IcebergSerDe.serializePartitionSpecAsJsonMap(map));
+    when(functionContext.getJsonPartitionSpecMap()).thenReturn(mapByteString);
     BatchSchema spyBatchSchema = spy(batchSchema);
     when(functionContext.getFullSchema()).thenReturn(spyBatchSchema);
+    when(functionContext.getIcebergSchema()).thenReturn(IcebergSerDe.serializedSchemaAsJson(schema));
     when(functionContext.getColumns()).thenReturn(Arrays.asList(SchemaPath.getSimplePath(SPLIT_INFORMATION),
       SchemaPath.getSimplePath(COL_IDS), SchemaPath.getSimplePath(PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.DATAFILE_PATH)));
     when(functionContext.getTableSchema()).thenReturn(getBatchSchema(datafileProcessorType));

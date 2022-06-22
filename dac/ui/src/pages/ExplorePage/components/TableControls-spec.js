@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import exploreUtils from 'utils/explore/exploreUtils';
-import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
+import exploreUtils from "utils/explore/exploreUtils";
+import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
 
-import TableControlsView from './TableControlsView';
-import { TableControls } from './TableControls';
+import TableControlsView from "./TableControlsView";
+import { TableControls } from "./TableControls";
 
-describe('TableControls', () => {
-
+describe("TableControls", () => {
   let minimalProps;
   let commonProps;
   let context;
@@ -35,44 +34,47 @@ describe('TableControls', () => {
       transformHistoryCheck: sinon.spy(),
       pageType: PageTypes.default,
       sqlState: false,
-      dataset: Immutable.Map({datasetVersion: '12345'}),
+      dataset: Immutable.Map({ datasetVersion: "12345" }),
       sqlSize: 300,
       exploreViewState: Immutable.Map(),
       collapseExploreSql: sinon.stub(),
       tableColumns: Immutable.List(),
+      queryStatuses: [],
       location: {
-        pathname: 'loc'
-      }
+        pathname: "loc",
+      },
     };
     commonProps = {
       ...minimalProps,
-      currentSql: 'select * from foo',
-      queryContext: Immutable.List(['context'])
+      currentSql: "select * from foo",
+      queryContext: Immutable.List(["context"]),
     };
     context = {
       location: {},
       router: {
-        push: sinon.spy()
-      }
+        push: sinon.spy(),
+      },
     };
 
-    wrapper = shallow(<TableControls {...commonProps}/>, {context});
+    wrapper = shallow(<TableControls {...commonProps} />, { context });
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<TableControls {...minimalProps}/>,  {context});
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<TableControls {...minimalProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render TableControlsView', () => {
+  it("should render TableControlsView", () => {
     expect(wrapper.find(TableControlsView)).to.have.length(1);
   });
 
-  describe('navigateToTransformWizard', () => {
-    const params = {params: 'params'};
+  describe("navigateToTransformWizard", () => {
+    const params = { params: "params" };
     beforeEach(() => {
-      sinon.stub(exploreUtils, 'getLocationToGoToTransformWizard').returns('location');
+      sinon
+        .stub(exploreUtils, "getLocationToGoToTransformWizard")
+        .returns("location");
       instance.navigateToTransformWizard(params);
     });
 
@@ -80,13 +82,14 @@ describe('TableControls', () => {
       exploreUtils.getLocationToGoToTransformWizard.restore();
     });
 
-    it('should call navigate to wizard location', () => {
+    it("should call navigate to wizard location", () => {
       //call callback
       commonProps.performTransform.args[0][0].callback();
-      expect(
-        exploreUtils.getLocationToGoToTransformWizard
-      ).to.be.calledWith({...params, location: commonProps.location});
-      expect(context.router.push).to.be.calledWith('location');
+      expect(exploreUtils.getLocationToGoToTransformWizard).to.be.calledWith({
+        ...params,
+        location: commonProps.location,
+      });
+      expect(context.router.push).to.be.calledWith("location");
     });
   });
 });

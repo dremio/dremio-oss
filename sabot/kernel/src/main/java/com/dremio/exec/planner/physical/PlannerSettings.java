@@ -173,7 +173,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator NLJ_PUSHDOWN = new BooleanValidator("planner.nlj.expression_pushdown", true);
   public static final BooleanValidator HASH_JOIN_PUSHDOWN = new BooleanValidator("planner.hash_join.expression_pushdown", true);
 
-  public static final BooleanValidator USE_CARTESIAN_COST_FOR_LOGICAL_NLJ = new BooleanValidator("planner.cost.use_cartesian_cost_for_logical_nlj", false);
+  public static final BooleanValidator USE_CARTESIAN_COST_FOR_LOGICAL_NLJ = new BooleanValidator("planner.cost.use_cartesian_cost_for_logical_nlj", true);
 
   public static final BooleanValidator NEW_SELF_JOIN_COST = new BooleanValidator("planner.cost.new_self_join_cost", true);
 
@@ -281,6 +281,9 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator VERBOSE_PROFILE = new BooleanValidator("planner.verbose_profile", false);
   public static final BooleanValidator USE_STATISTICS = new BooleanValidator("planner.use_statistics", false);
   public static final BooleanValidator USE_MIN_SELECTIVITY_ESTIMATE_FACTOR_FOR_STAT = new BooleanValidator("planner.use_selectivity_estimate_factor_for_stat", false);
+  public static final BooleanValidator USE_SEMIJOIN_COSTING = new BooleanValidator("planner.join.semijoin_costing", true);
+  public static final PositiveLongValidator STATISTICS_SAMPLING_THRESHOLD = new PositiveLongValidator("planner.statistics_sampling_threshold", Long.MAX_VALUE, 1000000000L);
+  public static final DoubleValidator STATISTICS_SAMPLING_RATE = new DoubleValidator("planner.statistics_sampling_rate", 5.0);
   public static final BooleanValidator USE_ROW_COUNT_STATISTICS = new BooleanValidator("planner.use_rowcount_statistics", false);
   public static final BooleanValidator VERBOSE_RULE_MATCH_LISTENER = new BooleanValidator("planner.verbose_rule_match_listener", false);
 
@@ -289,6 +292,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_JOIN_OPTIMIZATION = new BooleanValidator("planner.enable_join_optimization", true);
 
   public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", false);
+  public static final BooleanValidator JOIN_USE_KEY_FOR_NEXT_FACTOR = new BooleanValidator("planner.join.use_key_for_next_factor", false);
+  public static final BooleanValidator JOIN_ROTATE_FACTORS = new BooleanValidator("planner.join.rotate_factors", true);
 
   public static final BooleanValidator ENABLE_RANGE_QUERY_REWRITE = new BooleanValidator("planner.enable_range_query_rewrite", false);
 
@@ -299,11 +304,13 @@ public class PlannerSettings implements Context{
 
   public static final PositiveLongValidator STATISTICS_MAX_COLUMN_LIMIT = new PositiveLongValidator("planner.statistics_max_column_limit", Integer.MAX_VALUE, 50);
 
+  public static final PositiveLongValidator NO_OF_SPLITS_PER_FILE = new PositiveLongValidator("planner.num_splits_per_file", Integer.MAX_VALUE,  1);
+
   public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
           new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, DEFAULT_FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR);
 
   public static final DoubleValidator SELF_JOIN_ROW_COUNT_FACTOR =
-    new RangeDoubleValidator("planner.cost.self_join_row_count_factor", 0.0, 2.0, 1);
+    new RangeDoubleValidator("planner.cost.self_join_row_count_factor", 0.0, 2.0, 0.8);
 
   public static final BooleanValidator REMOVE_ROW_ADJUSTMENT = new BooleanValidator("planner.remove_rowcount_adjustment", true);
 
@@ -371,6 +378,8 @@ public class PlannerSettings implements Context{
    */
   public static final BooleanValidator QUERY_PLAN_CACHE_ENABLED = new BooleanValidator("planner.query_plan_cache_enabled", true);
 
+  public static final BooleanValidator REFLECTION_ROUTING_INHERITANCE_ENABLED = new BooleanValidator("planner.reflection_routing_inheritance_enabled", false);
+
   private final SabotConfig sabotConfig;
   private final ExecutionControls executionControls;
   private final StatisticsService statisticsService;
@@ -433,9 +442,14 @@ public class PlannerSettings implements Context{
     return options.getOption(USE_STATISTICS);
   }
 
+  public boolean semiJoinCosting() {
+    return options.getOption(USE_SEMIJOIN_COSTING);
+  }
+
   public boolean isUseCartesianCostForLogicalNljEnabled() {
     return options.getOption(USE_CARTESIAN_COST_FOR_LOGICAL_NLJ);
   }
+
 
   public boolean useRowCountStatistics() {
     return options.getOption(USE_ROW_COUNT_STATISTICS);
@@ -455,6 +469,10 @@ public class PlannerSettings implements Context{
 
   public long getLeafLimit(){
     return options.getOption(LEAF_LIMIT_SIZE);
+  }
+
+  public long getNoOfSplitsPerFile() {
+    return options.getOption(NO_OF_SPLITS_PER_FILE);
   }
 
   public boolean isFilterFlattenTransposeEnabled(){
@@ -549,6 +567,10 @@ public class PlannerSettings implements Context{
     return options.getOption(FLATTEN_EXPANSION_AMOUNT);
   }
 
+  public double getStatisticsSamplingRate() {
+    return options.getOption(STATISTICS_SAMPLING_RATE);
+  }
+
   public boolean useDefaultCosting() {
     return useDefaultCosting;
   }
@@ -571,6 +593,10 @@ public class PlannerSettings implements Context{
 
   public boolean isPlanCacheEnabled() {
     return options.getOption(QUERY_PLAN_CACHE_ENABLED);
+  }
+
+  public boolean isReflectionRoutingInheritanceEnabled() {
+    return options.getOption(REFLECTION_ROUTING_INHERITANCE_ENABLED);
   }
 
   public long getCaseExpressionsThreshold() {
@@ -629,6 +655,10 @@ public class PlannerSettings implements Context{
 
   public boolean isTransitiveReduceFilterExpressionsEnabled() {
     return options.getOption(ENABLE_TRANSITIVE_REDUCE_FILTER);
+  }
+
+  public long getStatisticsSamplingThreshold() {
+    return options.getOption(STATISTICS_SAMPLING_THRESHOLD);
   }
 
   public boolean isTransitiveReduceCalcExpressionsEnabled() {
@@ -788,6 +818,14 @@ public class PlannerSettings implements Context{
 
   public boolean isExperimentalBushyJoinOptimizerEnabled() {
     return options.getOption(ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER);
+  }
+
+  public boolean joinUseKeyForNextFactor() {
+    return options.getOption(JOIN_USE_KEY_FOR_NEXT_FACTOR);
+  }
+
+  public boolean joinRotateFactors() {
+    return options.getOption(JOIN_ROTATE_FACTORS);
   }
 
   boolean shouldPullDistributionTrait() {

@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import MuiDialog from '@material-ui/core/Dialog';
+import MuiDialog from "@material-ui/core/Dialog";
 
-import DialogContext from './DialogContext';
-import DialogTitle from './DialogTitle';
+import DialogContext from "./DialogContext";
+import DialogTitle from "./DialogTitle";
 
-import './dialog.scss';
+import "./dialog.scss";
 
 const Dialog = (props) => {
   const {
@@ -40,42 +40,51 @@ const Dialog = (props) => {
     type,
     title,
     children,
-    endChildren
+    endChildren,
   } = props;
 
   const dialogClasses = {
     ...classes,
-    root: clsx(['dremioDialog', { [classes.root]: classes.root }]),
-    container: clsx('dremioDialog__container', { '--centered': isCentered }),
-    paper: clsx(['dremioDialog__paper', { [classes.paper]: classes.paper }])
+    root: clsx(["dremioDialog", { [classes.root]: classes.root }]),
+    container: clsx(
+      "dremioDialog__container",
+      { [classes.container]: classes.container },
+      { "--centered": isCentered }
+    ),
+    paper: clsx(["dremioDialog__paper", { [classes.paper]: classes.paper }]),
   };
 
-  return <MuiDialog
-    classes={dialogClasses}
-    maxWidth={size}
-    onClose={onClose}
-    onEnter={onEnter}
-    onEntered={onEntered}
-    onExit={onExit}
-    onExited={onExited}
-    onExiting={onExiting}
-    open={open}
-  >
-    <DialogContext.Provider value={{ onClose }}>
-      {title && (
-        <DialogTitle onClose={onClose} endChildren={endChildren} type={type}>
-          {title}
-        </DialogTitle>
-      )}
+  return (
+    <MuiDialog
+      classes={dialogClasses}
+      maxWidth={size}
+      onClose={onClose}
+      onEnter={onEnter}
+      onEntered={onEntered}
+      onExit={onExit}
+      onExited={onExited}
+      onExiting={onExiting}
+      open={open}
+      BackdropProps={{
+        className: "dremioDialog__backdrop",
+      }}
+    >
+      <DialogContext.Provider value={{ onClose }}>
+        {title && (
+          <DialogTitle onClose={onClose} endChildren={endChildren} type={type}>
+            {title}
+          </DialogTitle>
+        )}
 
-      { children }
-    </DialogContext.Provider>
-  </MuiDialog>;
+        {children}
+      </DialogContext.Provider>
+    </MuiDialog>
+  );
 };
 
 Dialog.propTypes = {
   // Dialog Props
-  size: PropTypes.oneOf(['xs', 'sm', 'md', 'lg', 'xl']),
+  size: PropTypes.oneOf(["xs", "sm", "md", "lg", "xl"]),
   isCentered: PropTypes.bool,
   onClose: PropTypes.func,
   onEnter: PropTypes.func,
@@ -84,21 +93,18 @@ Dialog.propTypes = {
   onExited: PropTypes.func,
   onExiting: PropTypes.func,
   open: PropTypes.bool.isRequired,
-  children: PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.func
-  ]),
+  children: PropTypes.oneOfType([PropTypes.node, PropTypes.func]),
   title: PropTypes.string,
   classes: PropTypes.object,
   endChildren: PropTypes.node,
-  type: PropTypes.oneOf(['default', 'info', 'warning', 'error'])
+  type: PropTypes.oneOf(["default", "info", "warning", "error"]),
 };
 
 Dialog.defaultProps = {
   isCentered: false,
-  size: 'sm',
+  size: "sm",
   classes: {},
-  type: 'default'
+  type: "default",
 };
 
 export default Dialog;

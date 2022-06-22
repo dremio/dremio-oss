@@ -55,4 +55,3 @@ public class SysFlightScanDrel extends ScanRelBase implements Rel {
   }
 
 }
-

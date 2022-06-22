@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import ResourceTree from './ResourceTree';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import ResourceTree from "./ResourceTree";
 
-describe('ResourceTree', () => {
+describe("ResourceTree", () => {
   let minimalProps;
   let commonProps;
   let homeNode;
@@ -28,72 +28,77 @@ describe('ResourceTree', () => {
       ...minimalProps,
       handleSelectedNodeChange: sinon.spy(),
       handleNodeClick: sinon.spy(),
-      formatIdFromNode: (node) => node.get('fullPath').join('.'),
+      formatIdFromNode: (node) => node.get("fullPath").join("."),
       isNodeExpanded: sinon.spy(),
-      selectedNodeId: 'foo.bar'
+      selectedNodeId: "foo.bar",
     };
     homeNode = Immutable.fromJS({
-      fullPath: ['@dremio'],
-      name: 'Home',
-      type: 'HOME'
+      fullPath: ["@dremio"],
+      name: "Home",
+      type: "HOME",
     });
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ResourceTree {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ResourceTree {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render Tree', () => {
-    const wrapper = shallow(<ResourceTree {...commonProps}/>);
-    expect(wrapper.find('Tree')).to.have.length(1);
+  it("should render Tree", () => {
+    const wrapper = shallow(<ResourceTree {...commonProps} />);
+    expect(wrapper.find("Tree")).to.have.length(1);
   });
-  describe('isNodeExpandable', () => {
-    it('should return true if node type is expandable', () => {
+  describe("isNodeExpandable", () => {
+    it("should return true above dataset level if node type is expandable", () => {
       expect(ResourceTree.isNodeExpandable(homeNode)).to.be.true;
-      let node = homeNode.set('type', 'FOLDER');
+      let node = homeNode.set("type", "FOLDER");
       expect(ResourceTree.isNodeExpandable(node)).to.be.true;
-      node = node.set('type', 'SPACE');
+      node = node.set("type", "SPACE");
       expect(ResourceTree.isNodeExpandable(node)).to.be.true;
-      node = node.set('type', 'SOURCE');
+      node = node.set("type", "SOURCE");
       expect(ResourceTree.isNodeExpandable(node)).to.be.true;
     });
-    it('should return false if node type is not expandable', () => {
-      const node = homeNode.set('type', 'VIRTUAL_DATASET');
+    it("should return false if node type is not expandable or is a dataset with stopAtDatasets being passed", () => {
+      let node = homeNode.set("type", "TEXT");
       expect(ResourceTree.isNodeExpandable(node)).to.be.false;
+      node = homeNode.set("type", "PHYSICAL_DATASET");
+      expect(ResourceTree.isNodeExpandable(node, true)).to.be.false;
     });
   });
-  describe('renderNode', () => {
+  describe("renderNode", () => {
     let wrapper;
     beforeEach(() => {
-      wrapper = shallow(<ResourceTree {...commonProps}/>);
+      wrapper = shallow(<ResourceTree {...commonProps} />);
       instance = wrapper.instance();
     });
   });
 
-  describe('handleSelectedNodeChange', () => {
+  describe("handleSelectedNodeChange", () => {
     let wrapper;
     beforeEach(() => {
-      sinon.spy(commonProps, 'formatIdFromNode');
-      wrapper = shallow(<ResourceTree {...commonProps}/>);
+      sinon.spy(commonProps, "formatIdFromNode");
+      wrapper = shallow(<ResourceTree {...commonProps} />);
       instance = wrapper.instance();
     });
     afterEach(() => {
       commonProps.formatIdFromNode.restore();
     });
 
-    it('should call handleSelectedNodeChange, formatIdFromNode from props', () => {
+    it("should call handleSelectedNodeChange, formatIdFromNode from props", () => {
       instance.handleSelectedNodeChange(homeNode);
       expect(commonProps.handleSelectedNodeChange).to.be.called;
       expect(commonProps.formatIdFromNode).to.be.calledWith(homeNode);
     });
-    it('should call handleNodeClick from props when clicked node is expandable', () => {
+    it("should call handleNodeClick from props when clicked node is expandable", () => {
       instance.handleSelectedNodeChange(homeNode);
       expect(commonProps.handleNodeClick).to.be.calledWith(homeNode);
       expect(commonProps.handleSelectedNodeChange).to.be.called;
       expect(commonProps.formatIdFromNode).to.be.calledWith(homeNode);
     });
 
-    it('should not call handleNodeClick from props when node is not expandable', () => {
-      const nonExpandableNode = Immutable.fromJS({ type: 'VIRTUAL_DATASET', fullPath: ['@dremio', 'ds']});
+    it("should not call handleNodeClick from props when node is not expandable", () => {
+      const nonExpandableNode = Immutable.fromJS({
+        type: "COLUMN_ITEM",
+        fullPath: ["@dremio", "ds"],
+      });
       instance.handleSelectedNodeChange(nonExpandableNode);
       expect(commonProps.handleNodeClick).to.be.not.called;
       expect(commonProps.handleSelectedNodeChange).to.be.called;

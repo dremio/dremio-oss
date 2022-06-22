@@ -201,7 +201,8 @@ public class ReflectionUtils {
         .setQueryType(JobsProtoUtil.toBuf(QueryType.ACCELERATOR_CREATE))
         .setVersionedDataset(VersionedDatasetPath.newBuilder().addAllPath(datasetPathList.getPathComponents()).build())
         .build(),
-      new MultiJobStatusListener(submittedListener, jobStatusListener));
+      new MultiJobStatusListener(submittedListener, jobStatusListener))
+      .getJobId();
     submittedListener.await();
     return jobId;
   }

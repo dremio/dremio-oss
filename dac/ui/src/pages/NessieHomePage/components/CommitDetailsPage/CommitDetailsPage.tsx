@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -15,47 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Spinner from '@app/components/Spinner';
-import { isReqLoading } from '@app/utils/smartPromise';
-import { useMemo } from 'react';
-import { usePromise } from 'react-smart-promise';
-import { oc } from 'ts-optchain';
-import CommitDetails from '../CommitDetails/CommitDetails';
-import PageBreadcrumbHeader from '../PageBreadcrumbHeader/PageBreadcrumbHeader';
-import { useNessieContext } from '../../utils/context';
+import Spinner from "@app/components/Spinner";
+import { isReqLoading } from "@app/utils/smartPromise";
+import { useMemo } from "react";
+import { usePromise } from "react-smart-promise";
+import CommitDetails from "../CommitDetails/CommitDetails";
+import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
+import { useNessieContext } from "../../utils/context";
 
-import './CommitDetailsPage.less';
+import "./CommitDetailsPage.less";
 
 function CommitDetailsPage({ params }: { params: any }) {
   const { api } = useNessieContext();
   const [branchName, commitHash] = useMemo(() => {
-    const name = oc(params).branchName('');
-    const hash = oc(params).commitHash('');
+    const name = params?.branchName || "";
+    const hash = params?.commitHash || "";
     return [name, hash];
   }, [params]);
 
   const [, data, status] = usePromise(
     useMemo(
-      () => !branchName || !commitHash ?
-        null :
-        () => api.getCommitLog({
-          ref: branchName,
-          filter: `commit.hash == "${commitHash}"`
-        }),
+      () =>
+        !branchName || !commitHash
+          ? null
+          : () =>
+              api.getCommitLog({
+                ref: branchName,
+                filter: `commit.hash == "${commitHash}"`,
+              }),
       [branchName, commitHash, api]
     )
   );
 
   const commit = useMemo(() => {
-    const entries = oc(data).logEntries([]);
+    const entries = data?.logEntries || [];
     if (entries.length > 0) return entries[0];
     else return null;
   }, [data]);
 
-  const commitMeta = oc(commit).commitMeta();
+  const commitMeta = commit?.commitMeta;
 
   return (
-    <div className='commitDetailsPage'>
+    <div className="commitDetailsPage">
       <PageBreadcrumbHeader hasBranchPicker={false} />
       {isReqLoading(status) && <Spinner />}
       {commitMeta && (

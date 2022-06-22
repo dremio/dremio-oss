@@ -45,7 +45,7 @@ import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, RuntimeException> {
 
 
-  private final static ConstantChecker INSTANCE = new ConstantChecker();
+  private static final ConstantChecker INSTANCE = new ConstantChecker();
 
   private ConstantChecker() {}
 

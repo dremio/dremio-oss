@@ -108,6 +108,7 @@ public class DailyJobStatsResource {
         JobStatsRequest jobStatsRequest = JobStatsRequest.newBuilder()
           .setStartDate(StatsUtils.convert(iterStartDate))
           .setEndDate(StatsUtils.convert(iterEndDate))
+          .addJobStatsType(JobStats.Type.DAILY_JOBS)
           .build();
         JobStats jobStats = jobsService.getJobStats(jobStatsRequest);
 

@@ -15,11 +15,9 @@
  */
 package com.dremio.common.expression;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -59,16 +57,28 @@ public class CaseExpression extends LogicalExpressionBase {
   @Override
   @Nonnull
   public Iterator<LogicalExpression> iterator() {
-    List<LogicalExpression> children = caseConditions.stream()
-      .flatMap(e -> {
-        List<LogicalExpression> exprs = new ArrayList<>();
-        exprs.add(e.whenExpr);
-        exprs.add(e.thenExpr);
-        return exprs.stream();
-      })
-      .collect(Collectors.toList());
-    children.add(elseExpr);
-    return children.iterator();
+    return new Iterator<LogicalExpression>() {
+      private int currentExprIdx = 0;
+
+      @Override
+      public boolean hasNext() {
+        return currentExprIdx < sizeOfChildren;
+      }
+
+      @Override
+      public LogicalExpression next() {
+        if (currentExprIdx < sizeOfChildren - 1) {
+          final boolean isWhen = currentExprIdx % 2 == 0;
+          final CaseConditionNode node = caseConditions.get(currentExprIdx / 2);
+          currentExprIdx++;
+          return (isWhen) ? node.whenExpr : node.thenExpr;
+        } else if (currentExprIdx == sizeOfChildren - 1) {
+          currentExprIdx++;
+          return elseExpr;
+        }
+        return null;
+      }
+    };
   }
 
   @Override

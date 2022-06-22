@@ -13,50 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from '@app/core/APICall';
+import { APIV2Call } from "@app/core/APICall";
 
-export const SCHEDULE_CHECK_SERVER_STATUS = 'SCHEDULE_CHECK_SERVER_STATUS';
+export const SCHEDULE_CHECK_SERVER_STATUS = "SCHEDULE_CHECK_SERVER_STATUS";
 export function scheduleCheckServerStatus(delay) {
-  return {type: SCHEDULE_CHECK_SERVER_STATUS, meta: {delay}};
+  return { type: SCHEDULE_CHECK_SERVER_STATUS, meta: { delay } };
 }
 
-export const UNSCHEDULE_CHECK_SERVER_STATUS = 'UNSCHEDULE_CHECK_SERVER_STATUS';
+export const UNSCHEDULE_CHECK_SERVER_STATUS = "UNSCHEDULE_CHECK_SERVER_STATUS";
 export function unscheduleCheckServerStatus() {
-  return {type: UNSCHEDULE_CHECK_SERVER_STATUS};
+  return { type: UNSCHEDULE_CHECK_SERVER_STATUS };
 }
 
-export const MANUALLY_CHECK_SERVER_STATUS = 'MANUALLY_CHECK_SERVER_STATUS';
+export const MANUALLY_CHECK_SERVER_STATUS = "MANUALLY_CHECK_SERVER_STATUS";
 
 export function manuallyCheckServerStatus() {
-  return {type: MANUALLY_CHECK_SERVER_STATUS};
+  return { type: MANUALLY_CHECK_SERVER_STATUS };
 }
 
-export const CHECK_SERVER_STATUS_VIEW_ID = 'CHECK_SERVER_STATUS_VIEW_ID';
+export const CHECK_SERVER_STATUS_VIEW_ID = "CHECK_SERVER_STATUS_VIEW_ID";
 
-export const CHECK_SERVER_STATUS_START = 'CHECK_SERVER_STATUS_START';
-export const CHECK_SERVER_STATUS_SUCCESS = 'CHECK_SERVER_STATUS_SUCCESS';
-export const CHECK_SERVER_STATUS_FAILURE = 'CHECK_SERVER_STATUS_FAILURE';
+export const CHECK_SERVER_STATUS_START = "CHECK_SERVER_STATUS_START";
+export const CHECK_SERVER_STATUS_SUCCESS = "CHECK_SERVER_STATUS_SUCCESS";
+export const CHECK_SERVER_STATUS_FAILURE = "CHECK_SERVER_STATUS_FAILURE";
 
 export function checkServerStatus(delay) {
-  const meta = {viewId: CHECK_SERVER_STATUS_VIEW_ID, delay};
+  const meta = { viewId: CHECK_SERVER_STATUS_VIEW_ID, delay };
 
-  const apiCall = new APIV2Call().path('server_status');
+  const apiCall = new APIV2Call().path("server_status");
 
   return {
     [RSAA]: {
       types: [
         { type: CHECK_SERVER_STATUS_START, meta },
         { type: CHECK_SERVER_STATUS_SUCCESS, meta },
-        { type: CHECK_SERVER_STATUS_FAILURE, meta }
+        { type: CHECK_SERVER_STATUS_FAILURE, meta },
       ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 }
 
 export function serverUnavailable(status) {
-  return {type: CHECK_SERVER_STATUS_SUCCESS, error: true, payload: Immutable.Map({status})};
+  return {
+    type: CHECK_SERVER_STATUS_SUCCESS,
+    error: true,
+    payload: Immutable.Map({ status }),
+  };
 }

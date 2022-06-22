@@ -159,6 +159,8 @@ public class RefreshDoneHandler {
       materialization.setExpiration(computeExpiration())
         .setInitRefreshExecution(details.getJobStart())
         .setLastRefreshFromPds(lastDone.getLastRefreshFromPds())
+        .setLastRefreshFinished(lastDone.getLastRefreshFinished())
+        .setLastRefreshDurationMillis(lastDone.getLastRefreshDurationMillis())
         .setLogicalPlan(lastDone.getLogicalPlan())
         .setLogicalPlanStrippedHash(decision.getLogicalPlanStrippedHash())
         .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)
@@ -168,9 +170,13 @@ public class RefreshDoneHandler {
         .setPartitionList(lastDone.getPartitionList());
     } else {
       final Optional<Long> oldestDependentMaterialization = dependencyManager.getOldestDependentMaterialization(reflection.getId());
+      long currentTime = System.currentTimeMillis();
+      long lastRefreshTime = oldestDependentMaterialization.or(materialization.getInitRefreshSubmit());
       materialization.setExpiration(computeExpiration())
         .setInitRefreshExecution(details.getJobStart())
-        .setLastRefreshFromPds(oldestDependentMaterialization.or(materialization.getInitRefreshSubmit()))
+        .setLastRefreshFromPds(lastRefreshTime)
+        .setLastRefreshFinished(currentTime)
+        .setLastRefreshDurationMillis(currentTime - lastRefreshTime)
         .setLogicalPlan(planBytes)
         .setLogicalPlanStrippedHash(decision.getLogicalPlanStrippedHash())
         .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)

@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import NewFieldSection from "components/Forms/NewFieldSection";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
 
-import { isRequired, applyValidators } from 'utils/validation';
-import { TextToDateForm } from './TextToDateForm';
+import { isRequired, applyValidators } from "utils/validation";
+import { TextToDateForm } from "./TextToDateForm";
 
 // TODO: look into creating a base class this and TextToDateForm can inherit from.
 
 const SECTIONS = [NewFieldSection];
 
 function validate(values) {
-  if (values.format === 'CUSTOM') {
-    return applyValidators(values, [isRequired('customValue', 'Custom')]);
+  if (values.format === "CUSTOM") {
+    return applyValidators(values, [isRequired("customValue", "Custom")]);
   }
 }
 
@@ -36,25 +36,31 @@ function mapStateToProps(state, props) {
   const formats = TextToDateForm.getFormats(fromType);
 
   let initialFormat = format || formats.values[0];
-  initialFormat = formats.values.indexOf(initialFormat) !== -1 ? initialFormat : 'CUSTOM';
+  initialFormat =
+    formats.values.indexOf(initialFormat) !== -1 ? initialFormat : "CUSTOM";
 
-  const customValue = formats.values.indexOf(format) !== -1 ? '' : format;
+  const customValue = formats.values.indexOf(format) !== -1 ? "" : format;
 
   return {
     toType: fromType,
     hideNotMatchingOptions: true,
     initialValues: {
       format: initialFormat,
-      customValue: customValue || '',
+      customValue: customValue || "",
       newFieldName: props.columnName,
-      dropSourceField: dropSourceField !== undefined ? dropSourceField : true
-    }
+      dropSourceField: dropSourceField !== undefined ? dropSourceField : true,
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'dateToTextForm',
-  fields: ['customValue', 'format'],
-  overwriteOnInitialValuesChange: false,
-  validate
-}, SECTIONS, mapStateToProps, null)(TextToDateForm);
+export default connectComplexForm(
+  {
+    form: "dateToTextForm",
+    fields: ["customValue", "format"],
+    overwriteOnInitialValuesChange: false,
+    validate,
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(TextToDateForm);

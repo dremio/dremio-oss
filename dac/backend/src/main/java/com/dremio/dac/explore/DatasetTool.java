@@ -63,6 +63,7 @@ import com.dremio.dac.proto.model.dataset.Derivation;
 import com.dremio.dac.proto.model.dataset.From;
 import com.dremio.dac.proto.model.dataset.FromType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
 import com.dremio.dac.proto.model.dataset.TransformType;
@@ -90,6 +91,7 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
@@ -199,6 +201,7 @@ public class DatasetTool {
           }
           dataLimited = cls.add(getDataOnlyWithColumns(
             JobsProtoUtil.toStuff(jobDetails.getJobId()),
+            job.getSessionId(),
             JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getBatchSchema()));
         }
       } catch (Exception ex) {
@@ -207,7 +210,7 @@ public class DatasetTool {
         }
 
         if (ex instanceof UserException) {
-          toInvalidQueryException((UserException) ex, datasetUI.getSql(), ImmutableList.<String>of());
+          toInvalidQueryException((UserException) ex, datasetUI.getSql(), ImmutableList.<String>of(), job.getJobId(), job.getSessionId());
         }
         error = new ApiErrorModel<Void>(ApiErrorModel.ErrorType.INITIAL_PREVIEW_ERROR, ex.getMessage(), GenericErrorMessage.printStackTrace(ex), null);
       }
@@ -226,11 +229,17 @@ public class DatasetTool {
     // path (tip version path) to be able to get a preview/run data
     // TODO(DX-14701) move links from BE to UI
     datasetUI.setFullPathList(tipVersion.getDataset().toPathList());
-    return InitialPreviewResponse.of(newDataset(datasetUI, tipVersion.getVersion()), job.getJobId(), dataLimited, true,
-      history, error);
+    return InitialPreviewResponse.of(
+      newDataset(datasetUI, tipVersion.getVersion()),
+      job.getJobId(),
+      job.getSessionId(),
+      dataLimited,
+      true,
+      history,
+      error);
   }
 
-  private JobDataFragment getDataOnlyWithColumns(JobId jobId, ByteString batchSchema) {
+  private JobDataFragment getDataOnlyWithColumns(JobId jobId, SessionId sessionId, ByteString batchSchema) {
     if (batchSchema == null) {
       return null;
     }
@@ -240,6 +249,11 @@ public class DatasetTool {
       @Override
       public JobId getJobId() {
         return jobId;
+      }
+
+      @Override
+      public SessionId getSessionId() {
+        return sessionId;
       }
 
       @Override
@@ -289,9 +303,10 @@ public class DatasetTool {
     };
   }
 
-  InitialRunResponse createRunResponse(VirtualDatasetUI datasetUI, JobId jobId, DatasetVersion tipVersion) throws DatasetVersionNotFoundException, NamespaceException {
+  InitialRunResponse createRunResponse(VirtualDatasetUI datasetUI, JobId jobId, SessionId sessionId, DatasetVersion tipVersion)
+    throws DatasetVersionNotFoundException, NamespaceException {
     final History history = getHistory(new DatasetPath(datasetUI.getFullPathList()), datasetUI.getVersion(), tipVersion);
-    return new InitialRunResponse(newDataset(datasetUI, null), JobResource.getPaginationURL(jobId), jobId, history);
+    return new InitialRunResponse(newDataset(datasetUI, null), JobResource.getPaginationURL(jobId), jobId, sessionId, history);
   }
 
   InitialPreviewResponse createPreviewResponse(DatasetPath path, Transformer.DatasetAndData datasetAndData, BufferAllocator allocator, int maxRecords, boolean catchExecutionError)
@@ -316,12 +331,14 @@ public class DatasetTool {
     ApiErrorModel<?> error = null;
 
     try (AutoCloseables.RollbackCloseable cls = new AutoCloseables.RollbackCloseable(true)) {
+      final String userName = username();
       final JobDetailsRequest request = JobDetailsRequest.newBuilder()
         .setJobId(JobsProtoUtil.toBuf(new JobId(jobId)))
-        .setUserName(username())
+        .setUserName(userName)
         .build();
       jobDetails = jobsService.getJobDetails(request);
-      job = new JobUI(jobsService, new JobId(jobId), username());
+      SessionId sessionId = jobDetails.getSessionId() == null ? null : JobsProtoUtil.toStuff(jobDetails.getSessionId());
+      job = new JobUI(jobsService, new JobId(jobId), sessionId, userName);
       final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
 
       if (!canViewJobResult(jobInfo)) {
@@ -343,6 +360,7 @@ public class DatasetTool {
             }
           } else {
             dataLimited = cls.add(getDataOnlyWithColumns(JobsProtoUtil.toStuff(jobDetails.getJobId()),
+              sessionId,
               JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getBatchSchema()));
           }
           break;
@@ -355,7 +373,7 @@ public class DatasetTool {
               case EXECUTION:
               case VALIDATION:
                 error = new ApiErrorModel<>(ApiErrorModel.ErrorType.INVALID_QUERY, failureInfo.getMessage(), null,
-                  new InvalidQueryException.Details(jobInfo.getSql(), ImmutableList.<String>of(), failureInfo.getErrors(), null));
+                  new InvalidQueryException.Details(jobInfo.getSql(), ImmutableList.<String>of(), failureInfo.getErrors(), null, jobInfo.getJobId(), sessionId));
                 break;
 
               case UNKNOWN:
@@ -381,7 +399,12 @@ public class DatasetTool {
     }
 
     final History history = getHistory(datasetPath, newDataset.getVersion(), tipVersion);
-    return InitialPreviewResponse.of(newDataset(newDataset, null), job.getJobId(), dataLimited, isApproximate,
+    return InitialPreviewResponse.of(
+      newDataset(newDataset, null),
+      job.getJobId(),
+      job.getSessionId(),
+      dataLimited,
+      isApproximate,
       history, error);
   }
 
@@ -414,10 +437,13 @@ public class DatasetTool {
    * @param e
    * @param sql
    * @param context
+   * @param jobId
+   * @param sessionId
    * @return the original exception if it cannot be converted into {@code InvalidQueryException}
    */
-  public static UserException toInvalidQueryException(UserException e, String sql, List<String> context) {
-    return toInvalidQueryException(e, sql, context, null);
+  public static UserException toInvalidQueryException(UserException e, String sql, List<String> context,
+                                                      JobId jobId, SessionId sessionId) {
+    return toInvalidQueryException(e, sql, context, null, jobId, sessionId);
   }
 
   /**
@@ -428,20 +454,22 @@ public class DatasetTool {
    * @param sql
    * @param context
    * @param datasetSummary
+   * @param jobId
+   * @param sessionId
    * @return the original exception if it cannot be converted into {@code InvalidQueryException}
    */
   public static UserException toInvalidQueryException(UserException e, String sql, List<String> context,
-                                                      DatasetSummary datasetSummary) {
+                                                      DatasetSummary datasetSummary, JobId jobId, SessionId sessionId) {
     switch(e.getErrorType()) {
-    case PARSE:
-    case PLAN:
-    case VALIDATION:
-      String errorMessage = InvalidQueryErrorConverter.convert(e.getOriginalMessage());
-      throw new InvalidQueryException(
+      case PARSE:
+      case PLAN:
+      case VALIDATION:
+        String errorMessage = InvalidQueryErrorConverter.convert(e.getOriginalMessage());
+        throw new InvalidQueryException(
           new InvalidQueryException.Details(
-              sql,
-              context,
-              QueryError.of(e), datasetSummary), e, errorMessage);
+            sql,
+            context,
+            QueryError.of(e), datasetSummary, jobId, sessionId), e, errorMessage);
 
       default:
         return e;
@@ -512,19 +540,24 @@ public class DatasetTool {
       Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context,
+      DatasetResourceUtils.createSourceVersionReferenceList(references));
     final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
     final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
+    JobId jobId = null;
+    SessionId jobDataSessionId = null;
     try {
       final MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
       final QueryType queryType = prepare ? QueryType.PREPARE_INTERNAL : QueryType.UI_PREVIEW;
       final JobData jobData = executor.runQueryWithListener(query, queryType, TMP_DATASET_PATH, newDataset.getVersion(), listener, runInSameThread);
+      jobId = jobData.getJobId();
+      jobDataSessionId = jobData.getSessionId();
       final QueryMetadata queryMetadata = listener.getMetadata();
       // get the job's info after the query metadata is available to make sure the schema has already been populated
       final JobDetails jobDetails = jobsService.getJobDetails(
         JobDetailsRequest.newBuilder()
-          .setJobId(JobsProtoUtil.toBuf(jobData.getJobId()))
+          .setJobId(JobsProtoUtil.toBuf(jobId))
           .setUserName(query.getUsername())
           .build());
       final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
@@ -541,7 +574,7 @@ public class DatasetTool {
       List<String> parentDataset = getParentDataset(from);
 
       if (ex instanceof UserException) {
-        toInvalidQueryException((UserException) ex, query.getSql(), context, parentSummary);
+        toInvalidQueryException((UserException) ex, query.getSql(), context, parentSummary, jobId, jobDataSessionId);
       }
 
       // make sure we pass the parentSummary so that the UI can render edit original sql
@@ -564,11 +597,13 @@ public class DatasetTool {
   }
 
     VirtualDatasetUI createNewUntitledMetadataOnly(FromBase from,
-                                                DatasetVersion version,
-                                                List<String> context) {
+                                                   DatasetVersion version,
+                                                   List<String> context,
+                                                   List<SourceVersionReference> sourceVersionReferences) {
     final DatasetPath datasetPath = TMP_DATASET_PATH;
     final VirtualDatasetUI newDataset = newDatasetBeforeQueryMetadata(datasetPath, version, from.wrap(), context, username());
     newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
+    newDataset.setReferencesList(sourceVersionReferences);
     return newDataset;
   }
 
@@ -580,15 +615,20 @@ public class DatasetTool {
                                        Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
 
-    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context,
+      DatasetResourceUtils.createSourceVersionReferenceList(references));
     final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
     final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
     newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
     MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
 
+    JobId jobId = null;
+    SessionId jobDataSessionId = null;
     try {
-      final JobId jobId = executor.runQueryWithListener(query, QueryType.UI_RUN, TMP_DATASET_PATH, version, listener).getJobId();
+      final JobData jobData = executor.runQueryWithListener(query, QueryType.UI_RUN, TMP_DATASET_PATH, version, listener);
+      jobId = jobData.getJobId();
+      jobDataSessionId = jobData.getSessionId();
       final QueryMetadata queryMetadata = listener.getMetadata();
       // get the job's info after the query metadata is available to make sure the schema has already been populated
       final JobDetails jobDetails = jobsService.getJobDetails(
@@ -598,7 +638,7 @@ public class DatasetTool {
           .build());
       final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
       applyQueryMetaToDatasetAndSave(jobInfo, queryMetadata, newDataset, query, from);
-      return createRunResponse(newDataset, jobId, newDataset.getVersion());
+      return createRunResponse(newDataset, jobId, jobDataSessionId, newDataset.getVersion());
     } catch(UserException e) {
       String failureMessage = e.getOriginalMessage();
       if (failureMessage.startsWith("ResourceAllocationException")) {
@@ -606,12 +646,12 @@ public class DatasetTool {
           .message(failureMessage)
           .build(logger);
       } else {
-        throw toInvalidQueryException(e, query.getSql(), context);
+        throw toInvalidQueryException(e, query.getSql(), context, jobId, jobDataSessionId);
       }
     } catch (JobNotFoundException e) {
       // should never be thrown
       UserException uex = UserException.systemError(e).buildSilently();
-      throw toInvalidQueryException(uex, query.getSql(), context);
+      throw toInvalidQueryException(uex, query.getSql(), context, jobId, jobDataSessionId);
     }
   }
 

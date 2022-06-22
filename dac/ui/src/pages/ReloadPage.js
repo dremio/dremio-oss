@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
 
 // In order to force React to do an internal refresh of whatever the current page is
 // we navigate to this "ReloadPage" and then immediately back to where we came from.
@@ -22,19 +22,19 @@ import PropTypes from 'prop-types';
 
 export default class ReloadPage extends PureComponent {
   static propTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   static contextTypes = {
-    router: PropTypes.object.isRequired
-  }
+    router: PropTypes.object.isRequired,
+  };
 
   componentWillMount() {
     try {
       this.context.router.replace(this.props.location.state.to);
     } catch (e) {
       console.error(e.message);
-      this.context.router.replace('/');
+      this.context.router.replace("/");
     }
   }
 

@@ -67,7 +67,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
       getLogger(Drill2769UnsupportedReportsUseSqlExceptionTest.class);
 
   @Rule
-  public TestRule TIMEOUT = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   private static Statement plainStatement;
   private static PreparedStatement preparedStatement;

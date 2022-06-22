@@ -13,49 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { findMenuItemLinkByText, findMenuItemByText } from 'testUtil';
-import {AllSpacesMenu as AllSpacesMenuBase} from 'components/Menus/HomePage/AllSpacesMenu';
-import { getRenderEntityLinkContent } from '@app/pages/HomePage/components/EntityLink-spec';
-import { EntityLinkProvider } from '@app/pages/HomePage/components/EntityLink';
-import AllSpacesMenuMixin from './AllSpacesMenuMixin';
+import { findMenuItemLinkByText, findMenuItemByText } from "testUtil";
+import { AllSpacesMenu as AllSpacesMenuBase } from "components/Menus/HomePage/AllSpacesMenu";
+import { getRenderEntityLinkContent } from "@app/pages/HomePage/components/EntityLink-spec";
+import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
+import AllSpacesMenuMixin from "./AllSpacesMenuMixin";
 
 @AllSpacesMenuMixin
 class AllSpacesMenu extends AllSpacesMenuBase {}
 
-describe('AllSpacesMenuMixin', () => {
+describe("AllSpacesMenuMixin", () => {
   let minimalProps;
   let commonProps;
 
-  const context = {context: {location: {bar: 2, state: {foo: 1}}}};
-  beforeEach(() => { // todo: DRY
-    const id = 'simpleSpace';
+  const context = { context: { location: { bar: 2, state: { foo: 1 } } } };
+  beforeEach(() => {
+    // todo: DRY
+    const id = "simpleSpace";
     minimalProps = {
       spaceId: id,
-      spaceName: 'spaceName',
-      spaceVersion: '0',
+      spaceName: "spaceName",
+      spaceVersion: "0",
       showDialog: sinon.stub(),
       item: Immutable.fromJS({
         id,
         links: {
-          self: '/asd'
-        }
+          self: "/asd",
+        },
       }),
       closeMenu: sinon.stub(),
       removeItem: sinon.stub(),
-      showConfirmationDialog: sinon.stub()
+      showConfirmationDialog: sinon.stub(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render menu items', () => {
+  it("should render menu items", () => {
     const wrapper = shallow(<AllSpacesMenu {...commonProps} />, context);
     const browse = getRenderEntityLinkContent(wrapper.find(EntityLinkProvider));
-    expect(browse.props.text).to.be.equal('Browse');
-    expect(findMenuItemLinkByText(wrapper, 'Edit Details')).to.have.length(1);
-    expect(findMenuItemByText(wrapper, 'Remove Space')).to.have.length(1);
+    expect(browse.props.text).to.be.equal("Browse");
+    expect(findMenuItemLinkByText(wrapper, "Edit Details")).to.have.length(1);
+    expect(findMenuItemByText(wrapper, "Remove Space")).to.have.length(1);
   });
 });

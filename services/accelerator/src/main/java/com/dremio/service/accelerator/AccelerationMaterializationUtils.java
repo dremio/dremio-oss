@@ -76,6 +76,11 @@ public class AccelerationMaterializationUtils {
 
           final String failureMsg = materialization.getFailure() != null ? materialization.getFailure().getMessage() : null;
 
+          Long lastRefreshDuration = null;
+          if (materialization.getLastRefreshFromPds() != null && materialization.getLastRefreshFinished() != null) {
+            lastRefreshDuration = materialization.getLastRefreshFinished() - materialization.getLastRefreshFromPds();
+          }
+
           return new AccelerationListManager.MaterializationInfo(
             materialization.getReflectionId().getId(),
             materialization.getId().getId(),
@@ -89,8 +94,10 @@ public class AccelerationMaterializationUtils {
             materialization.getState().toString(),
             Optional.ofNullable(failureMsg).orElse("NONE"),
             dataPartitionsToString(materialization.getPartitionList()),
-            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L))
-          );
+            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L)),
+            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFinished()).orElse(0L)),
+            lastRefreshDuration
+            );
        }).iterator();
   }
 }

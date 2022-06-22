@@ -13,25 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import $ from 'jquery';
-import classNames from 'classnames';
-import result from 'lodash/result';
+import { createRef, PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import $ from "jquery";
+import classNames from "classnames";
+import result from "lodash/result";
 
-import JSONTree from 'react-json-tree';
-import { FLEX_COL_START } from 'uiTheme/radium/flexStyle';
-import { LIST, MAP } from '@app/constants/DataTypes';
-import exploreUtils from 'utils/explore/exploreUtils';
-import SelectedTextPopover from './SelectedTextPopover';
-import getTheme from './themeTreeMap';
+import JSONTree from "react-json-tree";
+import { FLEX_COL_START } from "uiTheme/radium/flexStyle";
+import { LIST, MAP } from "@app/constants/DataTypes";
+import exploreUtils from "utils/explore/exploreUtils";
+import SelectedTextPopover from "./SelectedTextPopover";
+import getTheme from "./themeTreeMap";
 
-import './CellPopover.less';
+import "./CellPopover.less";
 
-@Radium
-export default class CellPopover extends PureComponent {
+class CellPopover extends PureComponent {
   static propTypes = {
     availibleActions: PropTypes.array,
     cellPopover: PropTypes.instanceOf(Immutable.Map),
@@ -43,11 +41,11 @@ export default class CellPopover extends PureComponent {
     isDumbTable: PropTypes.bool,
     hide: PropTypes.func,
     onCurrentPathChange: PropTypes.func,
-    onSelectMenuVisibleChange: PropTypes.func
+    onSelectMenuVisibleChange: PropTypes.func,
   };
 
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -56,28 +54,30 @@ export default class CellPopover extends PureComponent {
     this.selectItem = this.selectItem.bind(this);
     this.renderLabel = this.renderLabel.bind(this);
     this.data = JSON.parse(props.data);
+    this.cellPopoverRef = createRef();
+    this.state = {};
   }
 
   componentDidMount() {
     this.clickHandler = (e) => {
       const $element = $(e.target);
-      if ($element.closest('.cell-popover-wrap').length > 0) {
+      if ($element.closest(".cell-popover-wrap").length > 0) {
         return null;
       }
 
-      if (!$element.hasClass('table-control-wrap')) {
+      if (!$element.hasClass("table-control-wrap")) {
         this.props.hideCellPopover();
       }
     };
     // TODO: change on better desion
-    $('#grid-page').on('click.popover', this.clickHandler);
+    $("#grid-page").on("click.popover", this.clickHandler);
   }
 
   getMapModel(keyPath) {
     const mapPathList = keyPath.slice().reverse();
     // we need concat item of list with parent like "list[indexOfList]"
     const path = mapPathList.reduce((prev, cur) => {
-      if (typeof cur === 'number') {
+      if (typeof cur === "number") {
         prev[prev.length - 1] = prev[prev.length - 1] + `[${cur}]`;
       } else {
         prev.push(cur);
@@ -86,8 +86,8 @@ export default class CellPopover extends PureComponent {
     }, []);
 
     return Immutable.fromJS({
-      columnName: this.props.cellPopover.get('columnName'),
-      mapPathList: path
+      columnName: this.props.cellPopover.get("columnName"),
+      mapPathList: path,
     });
   }
 
@@ -95,22 +95,22 @@ export default class CellPopover extends PureComponent {
     const index = keyPath[0];
     return Immutable.fromJS({
       cellText: this.props.data,
-      columnName: this.props.cellPopover.get('columnName'),
+      columnName: this.props.cellPopover.get("columnName"),
       startIndex: index,
       endIndex: index + 1,
-      listLength: this.data.length
+      listLength: this.data.length,
     });
   }
 
   getMapValueFromSelection() {
     const { keyPath } = this.state;
     const key = keyPath[keyPath.length - 1];
-    const label = $.isNumeric(key) ? '' : `${key}:`;
-    return `${label}${JSON.stringify(result(this.data, keyPath.join('.')))}`;
+    const label = $.isNumeric(key) ? "" : `${key}:`;
+    return `${label}${JSON.stringify(result(this.data, keyPath.join(".")))}`;
   }
 
   hideDrop() {
-    this.setState({anchor: null});
+    this.setState({ anchor: null });
     if (this.props.onSelectMenuVisibleChange) {
       this.props.onSelectMenuVisibleChange(false);
     }
@@ -121,12 +121,14 @@ export default class CellPopover extends PureComponent {
 
   handleMouseOver = (e, keyPath) => {
     if (this.props.onCurrentPathChange && !this.props.isDumbTable) {
-      this.props.onCurrentPathChange(keyPath && keyPath.slice().reverse().join('.'));
+      this.props.onCurrentPathChange(
+        keyPath && keyPath.slice().reverse().join(".")
+      );
     }
   };
 
   selectItem(e, keyPath) {
-    if (e.target.tagName === 'DIV' || this.props.isDumbTable) {
+    if (e.target.tagName === "DIV" || this.props.isDumbTable) {
       return;
     }
 
@@ -136,22 +138,29 @@ export default class CellPopover extends PureComponent {
     }
 
     const { location, cellPopover } = this.props;
-    const columnType = cellPopover.get('columnType');
-    const model = columnType === LIST ? this.getListModel(keyPath) : this.getMapModel(keyPath);
+    const columnType = cellPopover.get("columnType");
+    const model =
+      columnType === LIST
+        ? this.getListModel(keyPath)
+        : this.getMapModel(keyPath);
     const query = {
       ...location.query,
-      column: cellPopover.get('columnName'),
-      columnType
+      column: cellPopover.get("columnName"),
+      columnType,
     };
     const state = {
       ...location.state,
-      selection: model
+      selection: model,
     };
-    this.context.router.push({ pathname: this.props.location.pathname, query, state });
+    this.context.router.push({
+      pathname: this.props.location.pathname,
+      query,
+      state,
+    });
   }
 
   shouldToggleExpand(e) {
-    return e.target.tagName === 'DIV';
+    return e.target.tagName === "DIV";
   }
 
   shouldExpandNode() {
@@ -165,29 +174,32 @@ export default class CellPopover extends PureComponent {
   };
 
   renderLabel(keyPath) {
-    const {isDumbTable} = this.props;
+    const { isDumbTable } = this.props;
     return (
-      <span
-        className='label_node'
-        style={isDumbTable && {cursor: 'default'}}
-      >
-        {$.isNumeric(keyPath[0]) ? '' : `${keyPath[0]}:`}
+      <span className="label_node" style={isDumbTable && { cursor: "default" }}>
+        {$.isNumeric(keyPath[0]) ? "" : `${keyPath[0]}:`}
       </span>
     );
   }
 
   render() {
     const { cellPopover, isDumbTable } = this.props;
-    const className = classNames('large_overlay_tree',
-      { 'overlay-array': cellPopover.get('columnType') === LIST },
-      { 'overlay-object': cellPopover.get('columnType') === MAP }
+    const className = classNames(
+      "large_overlay_tree",
+      { "overlay-array": cellPopover.get("columnType") === LIST },
+      { "overlay-object": cellPopover.get("columnType") === MAP }
     );
     return (
-      <div  className='cell-popover-wrap' ref='cellPopover'>
-        <div style={[styles.selectedDrop, { maxHeight: this.props.treeHeight || 300 }]}>
+      <div className="cell-popover-wrap" ref={this.cellPopoverRef}>
+        <div
+          style={{
+            ...styles.selectedDrop,
+            maxHeight: this.props.treeHeight || 300,
+          }}
+        >
           <div style={FLEX_COL_START} className={className}>
             <JSONTree
-              getItemString={() => <span/>}
+              getItemString={() => <span />}
               theme={getTheme(!isDumbTable)}
               invertTheme={false}
               data={this.data}
@@ -196,16 +208,18 @@ export default class CellPopover extends PureComponent {
               onMouseOver={this.handleMouseOver}
               shouldToggleExpand={this.shouldToggleExpand}
               shouldExpandNode={this.shouldExpandNode}
-              maxClickableNodeDepth={Array.isArray(this.data) && 1 || null}
-              hideRoot/>
+              maxClickableNodeDepth={(Array.isArray(this.data) && 1) || null}
+              hideRoot
+            />
           </div>
           <SelectedTextPopover
             copySelection={this.copySelection}
             visibleItems={this.props.availibleActions}
             anchor={this.state.anchor}
             hideDrop={this.hideDrop}
-            columnType={this.props.cellPopover.get('columnType')}
-            columnName={this.props.cellPopover.get('columnName')}/>
+            columnType={this.props.cellPopover.get("columnType")}
+            columnName={this.props.cellPopover.get("columnName")}
+          />
         </div>
       </div>
     );
@@ -214,19 +228,19 @@ export default class CellPopover extends PureComponent {
 
 const styles = {
   selectedDrop: {
-    background: '#FFF',
-    listStyle: 'none',
+    background: "#FFF",
+    listStyle: "none",
     margin: 0,
-    border: '1px solid #e9e9e9',
-    borderRadius: '2px',
-    boxShadow: '0 0 5px rgba(0,0,0,.1)',
-    overflowX: 'auto'
+    border: "1px solid #e9e9e9",
+    borderRadius: "2px",
+    boxShadow: "0 0 5px rgba(0,0,0,.1)",
+    overflowX: "auto",
   },
-  value: {
-  },
+  value: {},
   checkbox: {
     marginLeft: 5,
     width: 12,
-    height: 12
-  }
+    height: 12,
+  },
 };
+export default CellPopover;

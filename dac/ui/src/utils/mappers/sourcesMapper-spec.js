@@ -13,66 +13,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import sourcesMapper from './sourcesMapper';
+import sourcesMapper from "./sourcesMapper";
 
-describe('newSource', () => {
-  const sourceType = 'S3';
+describe("newSource", () => {
+  const sourceType = "S3";
   const hostList = [
-    {id: 'a1', hostname: 'a1', port: '1111'},
-    {id: 'a2', hostname: 'a2', port: '2222'}
+    { id: "a1", hostname: "a1", port: "1111" },
+    { id: "a2", hostname: "a2", port: "2222" },
   ];
   let data, expected;
 
   beforeEach(() => {
     data = {};
-    expected = {config: {}, type: 'S3'};
+    expected = { config: {}, type: "S3" };
   });
 
-  it('should work w/o data.config', () => {
+  it("should work w/o data.config", () => {
     const result = sourcesMapper.newSource(sourceType, data);
     expect(result).to.eql(expected);
   });
 
-  it('should set hostlist eliminating ids', () => {
-    data.config = {hostList};
+  it("should set hostlist eliminating ids", () => {
+    data.config = { hostList };
     const result = sourcesMapper.newSource(sourceType, data);
     expect(result.config.hostList).to.eql([
-      {hostname: 'a1', port: '1111'},
-      {hostname: 'a2', port: '2222'}
+      { hostname: "a1", port: "1111" },
+      { hostname: "a2", port: "2222" },
     ]);
   });
 
-  it('should set propertylist eliminating ids', () => {
-    data.config = {propertyList: hostList};
+  it("should set propertylist eliminating ids", () => {
+    data.config = { propertyList: hostList };
     const result = sourcesMapper.newSource(sourceType, data);
     expect(result.config.propertyList).to.eql([
-      {hostname: 'a1', port: '1111'},
-      {hostname: 'a2', port: '2222'}
+      { hostname: "a1", port: "1111" },
+      { hostname: "a2", port: "2222" },
     ]);
   });
 
-  it('should set auth timeout as number', () => {
-    data.config = {authenticationTimeoutMillis: '1572978773448'};
+  it("should set auth timeout as number", () => {
+    data.config = { authenticationTimeoutMillis: "1572978773448" };
     const result = sourcesMapper.newSource(sourceType, data);
     expect(result.config.authenticationTimeoutMillis).to.equal(1572978773448);
   });
 
-  it('should set partition size as number', () => {
-    data.config = {subpartitionSize: '123'};
+  it("should set partition size as number", () => {
+    data.config = { subpartitionSize: "123" };
     const result = sourcesMapper.newSource(sourceType, data);
     expect(result.config.subpartitionSize).to.equal(123);
   });
 
-  it('should clear secret for master auth', () => {
-    data.config = {authenticationType: 'MASTER', secretResourceUrl: 'http://'};
+  it("should clear secret for master auth", () => {
+    data.config = {
+      authenticationType: "MASTER",
+      secretResourceUrl: "http://",
+    };
     const result = sourcesMapper.newSource(sourceType, data);
-    expect(result.config).to.eql({authenticationType: 'MASTER', secretResourceUrl: ''});
+    expect(result.config).to.eql({
+      authenticationType: "MASTER",
+      secretResourceUrl: "",
+    });
   });
 
-  it('should set auth type to MASTER if secret is set', () => {
-    data.config = {authenticationType: 'SECRET', secretResourceUrl: 'http://'};
+  it("should set auth type to MASTER if secret is set", () => {
+    data.config = {
+      authenticationType: "SECRET",
+      secretResourceUrl: "http://",
+    };
     const result = sourcesMapper.newSource(sourceType, data);
-    expect(result.config).to.eql({authenticationType: 'MASTER', secretResourceUrl: 'http://'});
+    expect(result.config).to.eql({
+      authenticationType: "MASTER",
+      secretResourceUrl: "http://",
+    });
   });
-
 });

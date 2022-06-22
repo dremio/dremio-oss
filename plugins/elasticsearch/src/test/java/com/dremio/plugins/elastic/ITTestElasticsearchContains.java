@@ -39,8 +39,8 @@ import com.google.common.collect.ImmutableMap;
 public class ITTestElasticsearchContains extends ElasticBaseTestQuery {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
-  
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+
   @Before
   public void checkForContainsSupport() {
     // DX-12162: upstream typo when processing contains

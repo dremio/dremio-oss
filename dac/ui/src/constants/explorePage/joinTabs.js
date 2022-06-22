@@ -13,5 +13,5 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const RECOMMENDED_JOIN = 'recommended';
-export const CUSTOM_JOIN = 'custom';
+export const RECOMMENDED_JOIN = "recommended";
+export const CUSTOM_JOIN = "custom";

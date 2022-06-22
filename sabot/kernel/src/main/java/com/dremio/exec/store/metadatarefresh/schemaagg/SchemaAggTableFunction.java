@@ -26,8 +26,11 @@ import org.apache.arrow.vector.util.TransferPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -47,7 +50,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
  * Output Vector -
  *  1) A varbinaryVector of size 1 with the merged schema
  */
-public class SchemaAggTableFunction extends AbstractTableFunction {
+public class SchemaAggTableFunction extends AbstractTableFunction implements SupportsTypeCoercionsAndUpPromotions {
   private static final Logger logger = LoggerFactory.getLogger(SchemaAggTableFunction.class);
 
   private VarBinaryVector outputFileSchemaVector;
@@ -104,7 +107,11 @@ public class SchemaAggTableFunction extends AbstractTableFunction {
 
     logger.debug("Processing schema {}", currentSchema.toJSONString());
     //Will just try and reconcile the schema
-    this.reconciledSchema = reconciledSchema.mergeWithUpPromotion(currentSchema);
+    try {
+      this.reconciledSchema = reconciledSchema.mergeWithUpPromotion(currentSchema, this);
+    } catch (NoSupportedUpPromotionOrCoercionException e) {
+      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+    }
     logger.debug("Merged schema after processing row {} is {}", startOutIndex, reconciledSchema.toJSONString());
     if (reconciledSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
       throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));

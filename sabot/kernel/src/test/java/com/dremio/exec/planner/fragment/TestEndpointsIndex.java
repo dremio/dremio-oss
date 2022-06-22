@@ -86,4 +86,3 @@ public class TestEndpointsIndex {
     assertEquals(64, index.getUniqueFragmentEndpointCount());
   }
 }
-

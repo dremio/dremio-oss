@@ -1,0 +1,627 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "USING"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING^ "
+   - "  RAW REFLECTION CREATE: "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISPLAY OPEN PARENS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY("
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISPLAY FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISPLAY FIELD FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD,"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISPLAY FIELDS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISPLAY FIELDS FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY (FIELD, FIELD2)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE+BY"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE BY OPEN PARENS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY("
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    DISTRIBUTE: ( ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE BY FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY(FIELD"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    DISTRIBUTE: ( FIELD^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE BY FIELD FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY(FIELD, "
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    DISTRIBUTE: ( FIELD , ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE BY FIELDS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY(FIELD, FIELD2"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    DISTRIBUTE: ( FIELD , FIELD2^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DISTRIBUTE BY FIELDS FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY(FIELD, FIELD2)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2 ) ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2 ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    DISTRIBUTE: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED+PARTITION"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED+PARTITION+BY"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION BY"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED PARTITION BY OPEN PARENS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION BY("
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED PARTITION BY FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION BY(FIELD"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED PARTITION BY FIELD FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION BY(FIELD, "
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD , ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD , ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED PARTITION BY FIELDS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION BY(FIELD, FIELD2"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD , FIELD2^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD , FIELD2^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "STRIPED PARTITION BY FIELDS FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "STRIPED PARTITION BY(FIELD, FIELD2)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD , FIELD2 ) ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) STRIPED PARTITION BY ( FIELD , FIELD2 ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED+PARTITION"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED+PARTITION+BY"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION BY"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED PARTITION BY OPEN PARENS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION BY("
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED PARTITION BY FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION BY(FIELD"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED PARTITION BY FIELD FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION BY(FIELD, "
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD , ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD , ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED PARTITION BY FIELDS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION BY(FIELD, FIELD2"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD , FIELD2^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD , FIELD2^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "CONSOLIDATED PARTITION BY FIELDS FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "CONSOLIDATED PARTITION BY(FIELD, FIELD2)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD , FIELD2 ) ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) CONSOLIDATED PARTITION BY ( FIELD , FIELD2 ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT+BY"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT BY OPEN PARENS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY("
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT BY FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT BY FIELD FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, "
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , ^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT BY FIELDS"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, FIELD2"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , FIELD2^ "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "LOCALSORT BY FIELDS FINISHED"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, FIELD2)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "EVERYTHING"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "DISTRIBUTE BY(FIELD, FIELD2)"
+   - "PARTITION BY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, FIELD2)"
+   - "ARROW CACHE true"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    DISTRIBUTE: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "SUFFIX"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "PARTITION BY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, FIELD2)"
+   - "ARROW CACHE true"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "INVALID ORDER"
+  input:
+   - "ALTER TABLE myTable CREATE RAW REFLECTION myReflection"
+   - "USING "
+   - "DISPLAY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, FIELD2)"
+   - "PARTITION BY(FIELD, FIELD2)"
+   - "ARROW CACHE true"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE RAW REFLECTION myReflection USING DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "  RAW REFLECTION CREATE: DISPLAY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DISPLAY: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."

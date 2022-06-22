@@ -85,13 +85,13 @@ public class TestLocalExchange extends PlanTestBase {
 
   public static TemporaryFolder testTempFolder = new TemporaryFolder();
 
-  private final static int CLUSTER_SIZE = 3;
-  private final static String MUX_EXCHANGE = "\"unordered-mux-exchange\"";
-  private final static String DEMUX_EXCHANGE = "\"unordered-demux-exchange\"";
-  private final static String MUX_EXCHANGE_CONST = "unordered-mux-exchange";
-  private final static String DEMUX_EXCHANGE_CONST = "unordered-demux-exchange";
+  private static final int CLUSTER_SIZE = 3;
+  private static final String MUX_EXCHANGE = "\"unordered-mux-exchange\"";
+  private static final String DEMUX_EXCHANGE = "\"unordered-demux-exchange\"";
+  private static final String MUX_EXCHANGE_CONST = "unordered-mux-exchange";
+  private static final String DEMUX_EXCHANGE_CONST = "unordered-demux-exchange";
   private static final String HASH_EXCHANGE = "hash-to-random-exchange";
-  private final static UserSession USER_SESSION = UserSession.Builder.newBuilder()
+  private static final UserSession USER_SESSION = UserSession.Builder.newBuilder()
     .withSessionOptionManager(
       new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
       getSabotContext().getOptionManager())
@@ -100,10 +100,10 @@ public class TestLocalExchange extends PlanTestBase {
 
   private SimpleParallelizer PARALLELIZER;
 
-  private final static int NUM_DEPTS = 40;
-  private final static int NUM_EMPLOYEES = 1000;
-  private final static int NUM_MNGRS = 1;
-  private final static int NUM_IDS = 1;
+  private static final int NUM_DEPTS = 40;
+  private static final int NUM_EMPLOYEES = 1000;
+  private static final int NUM_MNGRS = 1;
+  private static final int NUM_IDS = 1;
 
   private static String empTableLocation;
   private static String deptTableLocation;

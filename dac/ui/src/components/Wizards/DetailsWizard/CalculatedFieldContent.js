@@ -13,28 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
+import {
+  connectComplexForm,
+  InnerComplexForm,
+} from "components/Forms/connectComplexForm";
 
-import { applyValidators, isRequired } from 'utils/validation';
-import exploreUtils from 'utils/explore/exploreUtils';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import AddFieldEditor from './components/AddFieldEditor';
-import DefaultWizardFooter from './../components/DefaultWizardFooter';
-import { content } from './CalculatedFieldContent.less';
+import { applyValidators, isRequired } from "utils/validation";
+import exploreUtils from "utils/explore/exploreUtils";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import AddFieldEditor from "./components/AddFieldEditor";
+import DefaultWizardFooter from "./../components/DefaultWizardFooter";
+import { content } from "./CalculatedFieldContent.less";
 
 function validate(values) {
-  return applyValidators(values, [isRequired('expression'), isRequired('newFieldName')]);
+  return applyValidators(values, [
+    isRequired("expression"),
+    isRequired("newFieldName"),
+  ]);
 }
 
-@Radium
 class CalculatedFieldContent extends PureComponent {
-
   static propTypes = {
     columnName: PropTypes.string,
     columns: PropTypes.instanceOf(Immutable.List),
@@ -46,28 +49,36 @@ class CalculatedFieldContent extends PureComponent {
     submitting: PropTypes.bool,
     error: PropTypes.object,
     errors: PropTypes.object,
-    dragType: PropTypes.string
+    dragType: PropTypes.string,
   };
   render() {
-    const { fields: { expression }, columnName, errors, valid } = this.props;
+    const {
+      fields: { expression },
+      columnName,
+      errors,
+      valid,
+    } = this.props;
     return (
-      <div className='convert-case-content'>
-        <InnerComplexForm
-          {...this.props}
-          onSubmit={this.props.submit}>
+      <div className="convert-case-content">
+        <InnerComplexForm {...this.props} onSubmit={this.props.submit}>
           <AddFieldEditor
-            pageType='details'
+            pageType="details"
             {...expression}
             activeMode
             dragType={this.props.dragType}
           />
           <div className={content}>
-            <NewFieldSection columnName={columnName} fields={this.props.fields} showDropSource={Boolean(columnName)}/>
+            <NewFieldSection
+              columnName={columnName}
+              fields={this.props.fields}
+              showDropSource={Boolean(columnName)}
+            />
           </div>
           <DefaultWizardFooter
             onCancel={this.props.cancel}
             submitting={!valid && Object.keys(errors).length !== 0}
-            onFormSubmit={this.props.submit} />
+            onFormSubmit={this.props.submit}
+          />
         </InnerComplexForm>
       </div>
     );
@@ -77,19 +88,29 @@ class CalculatedFieldContent extends PureComponent {
 const mapStateToProps = (state, props) => {
   const fieldsForColumn = props.columnName
     ? { sourceColumnName: props.columnName, dropSourceField: true }
-    : { sourceColumnName: props.columns && props.columns.getIn([0, 'name']), dropSourceField: false};
+    : {
+        sourceColumnName: props.columns && props.columns.getIn([0, "name"]),
+        dropSourceField: false,
+      };
   return {
     initialValues: {
-      newFieldName: props.columnName || la('new_field'),
-      expression: props.columnName ? exploreUtils.escapeFieldNameForSQL(props.columnName) : '',
+      newFieldName: props.columnName || la("new_field"),
+      expression: props.columnName
+        ? exploreUtils.escapeFieldNameForSQL(props.columnName)
+        : "",
       ...fieldsForColumn,
-      ...props.initialValues
-    }
+      ...props.initialValues,
+    },
   };
 };
 
-export default connectComplexForm({
-  form: 'calculatedField',
-  fields: ['expression', 'sourceColumnName'],
-  validate
-}, [NewFieldSection], mapStateToProps, null)(CalculatedFieldContent);
+export default connectComplexForm(
+  {
+    form: "calculatedField",
+    fields: ["expression", "sourceColumnName"],
+    validate,
+  },
+  [NewFieldSection],
+  mapStateToProps,
+  null
+)(CalculatedFieldContent);

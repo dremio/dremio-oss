@@ -16,11 +16,13 @@
 package com.dremio.exec.planner.sql.parser;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
@@ -30,14 +32,21 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-public class SqlInsertTable extends SqlCall implements DataAdditionCmdCall {
+public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, SqlDmlOperator {
+
+  // Create a separate `extendedTargetTable` to handle extended columns, as there's
+  // no way to set SqlInsert::targetTable without an assertion being thrown.
+  private SqlNode extendedTargetTable;
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("INSERT", SqlKind.INSERT) {
     @Override
@@ -60,10 +69,21 @@ public class SqlInsertTable extends SqlCall implements DataAdditionCmdCall {
     SqlIdentifier tblName,
     SqlNode query,
     SqlNodeList insertFields) {
-    super(pos);
+    super(pos, SqlNodeList.EMPTY, tblName, query, insertFields);
     this.tblName = tblName;
     this.query = query;
     this.insertFields = insertFields;
+  }
+
+  public void extendTableWithDataFileSystemColumns() {
+    if (extendedTargetTable == null) {
+      extendedTargetTable = DmlUtils.extendTableWithDataFileSystemColumns(getTargetTable());
+    }
+  }
+
+  @Override
+  public SqlNode getTargetTable() {
+    return extendedTargetTable == null ? super.getTargetTable() : extendedTargetTable;
   }
 
   @Override
@@ -99,6 +119,11 @@ public class SqlInsertTable extends SqlCall implements DataAdditionCmdCall {
   }
 
   @Override
+  public List<PartitionTransform> getPartitionTransforms(DremioTable dremioTable) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public List<String> getSortColumns() {
     return Lists.newArrayList();
   }
@@ -109,8 +134,21 @@ public class SqlInsertTable extends SqlCall implements DataAdditionCmdCall {
   }
 
   @Override
-  public PartitionDistributionStrategy getPartitionDistributionStrategy() {
-    return PartitionDistributionStrategy.UNSPECIFIED;
+  public PartitionDistributionStrategy getPartitionDistributionStrategy(
+    SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
+    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)) {
+      return PartitionDistributionStrategy.UNSPECIFIED;
+    }
+
+    // DX-50375: when we use VALUES clause in INSERT command, the field names end up with using expr, e.g., "EXPR%$0",
+    // which are not the real underlying field names. Keep to use 'UNSPECIFIED' for this scenario.
+    for (String partitionFieldName : partitionFieldNames) {
+      if(!fieldNames.contains(partitionFieldName)) {
+        return PartitionDistributionStrategy.UNSPECIFIED;
+      }
+    }
+
+    return PartitionDistributionStrategy.HASH;
   }
 
   @Override

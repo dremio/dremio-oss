@@ -14,22 +14,25 @@
  * limitations under the License.
  */
 
-import PropTypes from 'prop-types';
-import { compose } from 'redux';
-import { withRouter } from 'react-router';
-import '@app/components/IconFont/css/DremioIcons.css';
-import '@app/components/SideNav/SideNav.less';
-import {isActive} from '@app/components/SideNav/SideNavUtils';
-import {TopAction} from '@app/components/SideNav/components/TopAction';
-
-
+import PropTypes from "prop-types";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import "@app/components/IconFont/css/DremioIcons.css";
+import "@app/components/SideNav/SideNav.less";
+import { isActive } from "@app/components/SideNav/SideNavUtils";
+import { TopAction } from "@app/components/SideNav/components/TopAction";
 
 const SideNavAdmin = (props) => {
-  const {location} = props;
+  const { location } = props;
   const loc = location.pathname;
 
   return (
-    <TopAction active={isActive({ name: '/admin', loc, admin: true})} url='/admin' icon='SideNav-gear.svg' alt='SideNav.Admin' />
+    <TopAction
+      active={isActive({ name: "/admin", loc, admin: true })}
+      url="/admin"
+      icon="SideNav-gear.svg"
+      alt="SideNav.Admin"
+    />
   );
 };
 
@@ -37,8 +40,8 @@ SideNavAdmin.propTypes = {
   location: PropTypes.object,
   router: PropTypes.shape({
     isActive: PropTypes.func,
-    push: PropTypes.func
-  })
+    push: PropTypes.func,
+  }),
 };
 
 export default compose(withRouter)(SideNavAdmin);

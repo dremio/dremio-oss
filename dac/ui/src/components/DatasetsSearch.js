@@ -13,211 +13,240 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import { injectIntl } from 'react-intl';
-import Art from 'components/Art';
-import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
-import { TagList } from '@app/pages/HomePage/components/TagList';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import { injectIntl } from "react-intl";
+import Art from "components/Art";
+import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
+import { TagList } from "@app/pages/HomePage/components/TagList";
+import { Tooltip } from "dremio-ui-lib";
 
-import { bodySmall } from 'uiTheme/radium/typography';
+import { bodySmall } from "uiTheme/radium/typography";
 
-
-import { PALE_NAVY, PALE_ORANGE } from 'uiTheme/radium/colors';
-import DatasetItemLabel from './Dataset/DatasetItemLabel';
-import './DatasetsSearch.less';
+import { PALE_NAVY } from "uiTheme/radium/colors";
+import DatasetItemLabel from "./Dataset/DatasetItemLabel";
+import "./DatasetsSearch.less";
 
 const emptyList = new Immutable.List();
 
-@injectIntl
-@Radium
-export default class DatasetsSearch extends PureComponent {
+class DatasetsSearch extends PureComponent {
   static propTypes = {
     searchData: PropTypes.instanceOf(Immutable.List).isRequired,
     globalSearch: PropTypes.bool,
     handleSearchHide: PropTypes.func.isRequired,
     inputValue: PropTypes.string,
     searchViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   onClickDataSetItem = () => {
     this.props.handleSearchHide();
-  }
+  };
 
   getDatasetsList(searchData, inputValue) {
     const { globalSearch } = this.props;
     return searchData.map((value, key) => {
-      const name = value.getIn(['fullPath', -1]);
+      const name = value.getIn(["fullPath", -1]);
       const datasetItem = (
-        <div key={key} style={[styles.datasetItem, bodySmall]}
+        <div
+          key={key}
+          style={{ ...styles.datasetItem, ...bodySmall }}
           data-qa={`ds-search-row-${name}`}
-          className='search-result-row'>
-          <div style={[styles.datasetData]}>
+          className="search-result-row"
+        >
+          <div style={styles.datasetData}>
             <DatasetItemLabel
+              isSearchItem
               name={name}
               showFullPath
               inputValue={inputValue}
-              fullPath={value.get('displayFullPath')}
-              typeIcon={getIconDataTypeFromDatasetType(value.get('datasetType'))}
-              placement='right'
+              fullPath={value.get("displayFullPath")}
+              typeIcon={getIconDataTypeFromDatasetType(
+                value.get("datasetType")
+              )}
+              placement="right"
             />
           </div>
           {/* DX-11249 <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>
             {this.getParentItems(value, inputValue)}
           </div> */}
-          <TagList tags={value.get('tags', emptyList)} style={{flex: 1, minWidth: 0}} />
+          <TagList
+            tags={value.get("tags", emptyList)}
+            style={{ flex: 1, minWidth: 0 }}
+          />
           {this.getActionButtons(value)}
         </div>
       );
-      return globalSearch
-        ? <Link key={key} className='dataset' style={{textDecoration: 'none'}}
-          to={value.getIn(['links', 'self'])} onClick={this.onClickDataSetItem}>{datasetItem}</Link>
-        : datasetItem;
+      return globalSearch ? (
+        <Link
+          key={key}
+          className="dataset"
+          style={{ textDecoration: "none" }}
+          to={value.getIn(["links", "self"])}
+          onClick={this.onClickDataSetItem}
+        >
+          {datasetItem}
+        </Link>
+      ) : (
+        datasetItem
+      );
     });
   }
 
   getActionButtons(dataset) {
+    const {
+      intl: { formatMessage },
+    } = this.props;
     return (
-      <span className='main-settings-btn min-btn'
-        style={[styles.actionButtons]}>
-        {
-          dataset.getIn(['links', 'edit']) &&
-          <Link to={dataset.getIn(['links', 'edit'])}>
-            <button className='settings-button' data-qa='edit'>
-              <Art
-                src={'Edit.svg'}
-                alt={this.props.intl.formatMessage({ id: 'Common.Edit' })}
-                style={styles.icon} />
-            </button>
+      <span className="main-settings-btn min-btn" style={styles.actionButtons}>
+        {dataset.getIn(["links", "edit"]) && (
+          <Link to={dataset.getIn(["links", "edit"])}>
+            <Tooltip title={formatMessage({ id: "Common.Edit" })}>
+              <button className="settings-button" data-qa="edit">
+                <dremio-icon
+                  name="common/Edit"
+                  style={styles.icon}
+                  alt={formatMessage({ id: "Common.Edit" })}
+                ></dremio-icon>
+              </button>
+            </Tooltip>
           </Link>
-        }
-        <Link to={dataset.getIn(['links', 'self'])}>
-          <button className='settings-button' data-qa='query'>
-            <Art
-              src={'Query.svg'}
-              alt={this.props.intl.formatMessage({ id: 'Common.DoQuery' })}
-              style={styles.icon} />
-          </button>
+        )}
+        <Link to={dataset.getIn(["links", "self"])}>
+          <Tooltip title={formatMessage({ id: "Common.DoQuery" })}>
+            <button className="settings-button" data-qa="query">
+              <dremio-icon
+                name="common/SQLRunner"
+                style={styles.icon}
+                alt={formatMessage({ id: "Common.DoQuery" })}
+              ></dremio-icon>
+            </button>
+          </Tooltip>
         </Link>
       </span>
     );
   }
 
   getParentItems(dataset, inputValue) {
-    if (dataset && dataset.get('parents')) {
-      return dataset.get('parents').map((value, key) => {
-        if (!value.has('type')) return; // https://dremio.atlassian.net/browse/DX-7233
+    if (dataset && dataset.get("parents")) {
+      return dataset
+        .get("parents")
+        .map((value, key) => {
+          if (!value.has("type")) return; // https://dremio.atlassian.net/browse/DX-7233
 
-        const lastParent = value.get('datasetPathList').size < 1
-          ? value.get('datasetPathList').size
-          : value.get('datasetPathList').size - 1;
-        return (
-          <div key={`parent_${key}`} style={styles.parentDatasets}>
-            <DatasetItemLabel
-              name={value.get('datasetPathList').get(lastParent)}
-              inputValue={inputValue}
-              fullPath={value.get('datasetPathList')}
-              showFullPath
-              typeIcon={getIconDataTypeFromDatasetType(value.get('type'))}
-            />
-          </div>
-        );
-      }).filter(Boolean);
+          const lastParent =
+            value.get("datasetPathList").size < 1
+              ? value.get("datasetPathList").size
+              : value.get("datasetPathList").size - 1;
+          return (
+            <div key={`parent_${key}`} style={styles.parentDatasets}>
+              <DatasetItemLabel
+                isSearchItem={true}
+                name={value.get("datasetPathList").get(lastParent)}
+                inputValue={inputValue}
+                fullPath={value.get("datasetPathList")}
+                showFullPath
+                typeIcon={getIconDataTypeFromDatasetType(value.get("type"))}
+              />
+            </div>
+          );
+        })
+        .filter(Boolean);
     }
   }
 
   getHeader(inputValue) {
+    const { intl: { formatMessage } = {} } = this.props || {};
     return (
       <h3 style={styles.header}>
-        {la('Search Results for')} "{inputValue}"
+        {formatMessage({ id: "Dataset.Search.Result" }, { inputValue })}
         <Art
-          src={'XBig.svg'}
-          alt={this.props.intl.formatMessage({ id: 'Common.Close' })}
+          src={"XBig.svg"}
+          alt={this.props.intl.formatMessage({ id: "Common.Close" })}
           style={styles.closeIcon}
-          onClick={this.props.handleSearchHide.bind(this)} />
+          onClick={this.props.handleSearchHide.bind(this)}
+        />
       </h3>
     );
   }
 
   render() {
     const { searchData, inputValue, searchViewState } = this.props;
-    const searchBlock = searchData && searchData.size && searchData.size > 0
-      ? <div>{this.getDatasetsList(searchData, inputValue)}</div>
-      : <div style={styles.notFound}>{la('Not found')}</div>;
-    return <section className='datasets-search' style={styles.main}>
-      {this.getHeader(inputValue)}
-      <div className='dataset-wrapper' style={styles.datasetWrapper}>
-        <ViewStateWrapper viewState={searchViewState}>
-          {searchBlock}
-        </ViewStateWrapper>
-      </div>
-    </section>;
+    const searchBlock =
+      searchData && searchData.size && searchData.size > 0 ? (
+        <div>{this.getDatasetsList(searchData, inputValue)}</div>
+      ) : (
+        <div style={styles.notFound}>{la("No views or tables found")}</div>
+      );
+    return (
+      <section className="datasets-search" style={styles.main}>
+        <div className="dataset-wrapper" style={styles.datasetWrapper}>
+          <ViewStateWrapper viewState={searchViewState}>
+            {searchBlock}
+          </ViewStateWrapper>
+        </div>
+      </section>
+    );
   }
 }
 
 const styles = {
   main: {
-    background: '#fff',
+    background: "#fff",
     zIndex: 999,
-    color: '#000',
-    boxShadow: '-1px 1px 1px #ccc'
+    color: "#000",
+    boxShadow: "-1px 1px 1px #ccc",
   },
   datasetItem: {
-    padding: '10px',
-    borderBottom: '1px solid rgba(0,0,0,.1)',
+    padding: "10px",
+    borderBottom: "1px solid rgba(0,0,0,.1)",
     height: 45,
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    ':hover': {
-      background: PALE_ORANGE
-    }
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
   },
   datasetData: {
-    margin: '0 0 0 5px',
-    minWidth: 300
+    margin: "0 0 0 5px",
+    minWidth: 300,
   },
   header: {
     height: 38,
-    width: '100%',
+    width: "100%",
     background: PALE_NAVY,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 10px'
+    display: "flex",
+    alignItems: "center",
+    padding: "0 10px",
   },
   datasetWrapper: {
     maxHeight: 360,
-    overflow: 'auto'
+    overflow: "auto",
   },
   icon: {
     width: 24,
-    height: 24
+    height: 24,
   },
   closeIcon: {
-    margin: '0 0 0 auto',
+    margin: "0 0 0 auto",
     height: 24,
-    cursor: 'pointer'
+    cursor: "pointer",
   },
   actionButtons: {
-    margin: '0 0 0 auto'
+    margin: "0 0 0 auto",
   },
   parentDatasetsHolder: {
-    display: 'flex'
+    display: "flex",
   },
   parentDatasets: {
-    display: 'flex',
-    alignItems: 'center',
-    margin: '0 10px 0 0'
-  },
-  hover: {
-    ':hover': {}
+    display: "flex",
+    alignItems: "center",
+    margin: "0 10px 0 0",
   },
   notFound: {
-    padding: '10px 10px'
-  }
+    fontSize: 14,
+    padding: "16px",
+  },
 };
+export default injectIntl(DatasetsSearch);

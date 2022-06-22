@@ -27,14 +27,14 @@ import org.apache.poi.util.ShortField;
  */
 
 public abstract class Property {
-  static final private int    _name_size_offset         = 0x40;
+  private static final int    _name_size_offset         = 0x40;
 
   // useful offsets
-  static final private int    _previous_property_offset = 0x44;
-  static final private int    _next_property_offset     = 0x48;
-  static final private int    _child_property_offset    = 0x4C;
-  static final private int    _start_block_offset       = 0x74;
-  static final private int    _size_offset              = 0x78;
+  private static final int    _previous_property_offset = 0x44;
+  private static final int    _next_property_offset     = 0x48;
+  private static final int    _child_property_offset    = 0x4C;
+  private static final int    _start_block_offset       = 0x74;
+  private static final int    _size_offset              = 0x78;
 
   private String              _name;
   private IntegerField        _previous_property;
@@ -110,7 +110,7 @@ public abstract class Property {
   /**
    * @return true if a directory type Property
    */
-  abstract public boolean isDirectory();
+  public abstract boolean isDirectory();
 
   /**
    * Get the child property (its index in the Property Table)

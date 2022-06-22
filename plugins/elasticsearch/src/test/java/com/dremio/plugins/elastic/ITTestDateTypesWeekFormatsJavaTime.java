@@ -52,7 +52,7 @@ public class ITTestDateTypesWeekFormatsJavaTime extends ElasticBaseTestQuery {
   private static final String basicWeekDatetimeNoMillisFormat = "[[YYYY]'W'wwe['T']HHmmss[z]]";
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public ITTestDateTypesWeekFormatsJavaTime(String format) {
     this.format = format;

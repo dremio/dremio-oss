@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-@import '../../../styles/constants/index.scss';
+@import "../../../styles/constants/index.scss";
 
 .dialogContent {
   flex: 1 1 auto;
-  padding: map-get($map: $gutter-sizes, $key: full) map-get($map: $gutter-sizes, $key: double) map-get($map: $gutter-sizes, $key: double);
+  padding: map-get($map: $gutter-sizes, $key: double);
   width: 100%;
   overflow: auto;
 

@@ -13,35 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import config from 'dyn-load/utils/config';
+import config from "dyn-load/utils/config";
 
 // todo: loc - all this one-off custom loc stuff needs tearing out and replacing
 
 const languageHash = {
-  'en': 'dataEN'
+  en: "dataEN",
 };
 
 let languages = {};
 
 const defaultLanguage = config.useRunTimeLanguage
-  ? languageHash[window.language] || 'dataEN'
-  : languageHash[config.language] || 'dataEN';
+  ? languageHash[window.language] || "dataEN"
+  : languageHash[config.language] || "dataEN";
 
 if (config.useRunTimeLanguage) {
-  languages = require('./dataAll');
+  languages = require("./dataAll");
 } else {
   languages[defaultLanguage] = {
-    dropdownItemsForTransformControls:
-      require('./' + defaultLanguage + '/explore/dropdownItemsForTransformControls.json'),
-    datasetModel: require('./' + defaultLanguage + '/home/datasetModel.json'),
-    radioButtonsForAddResource: require('./' + defaultLanguage + '/home/radioButtonsForAddResource.json'),
-    exploreInfoBlock: require('./' + defaultLanguage + '/explore/exploreInfoBlock.json'),
-    btnsHeaderForGrid: require('./' + defaultLanguage + '/explore/btnsHeaderForGrid.json'),
-    btnsHeaderForPhysicalDataset: require('./' + defaultLanguage + '/explore/btnsHeaderForPhysicalDataset.json'),
-    sectionsForSources: require('./' + defaultLanguage + '/home/sectionsForSources.json'),
-    subtypeForTransformTab: require('./' + defaultLanguage + '/explore/subtypeForTransformTab.json'),
-    dataForAccelerationFrequency: require('./' + defaultLanguage + '/home/dataForAccelerationFrequency.json'),
-    dataTypeForConverter: require('./' + defaultLanguage + '/explore/dataTypeForConverter.json')
+    dropdownItemsForTransformControls: require("./" +
+      defaultLanguage +
+      "/explore/dropdownItemsForTransformControls.json"),
+    datasetModel: require("./" + defaultLanguage + "/home/datasetModel.json"),
+    radioButtonsForAddResource: require("./" +
+      defaultLanguage +
+      "/home/radioButtonsForAddResource.json"),
+    exploreInfoBlock: require("./" +
+      defaultLanguage +
+      "/explore/exploreInfoBlock.json"),
+    btnsHeaderForGrid: require("./" +
+      defaultLanguage +
+      "/explore/btnsHeaderForGrid.json"),
+    btnsHeaderForPhysicalDataset: require("./" +
+      defaultLanguage +
+      "/explore/btnsHeaderForPhysicalDataset.json"),
+    sectionsForSources: require("./" +
+      defaultLanguage +
+      "/home/sectionsForSources.json"),
+    subtypeForTransformTab: require("./" +
+      defaultLanguage +
+      "/explore/subtypeForTransformTab.json"),
+    dataForAccelerationFrequency: require("./" +
+      defaultLanguage +
+      "/home/dataForAccelerationFrequency.json"),
+    dataTypeForConverter: require("./" +
+      defaultLanguage +
+      "/explore/dataTypeForConverter.json"),
   };
 }
 
@@ -51,7 +68,7 @@ class DataStoreUtils {
   }
 
   getCurrentLanguage() {
-    return languageHash[config.language || window.language] || 'dataEN';
+    return languageHash[config.language || window.language] || "dataEN";
   }
 
   getHomeHeaderData() {
@@ -59,7 +76,8 @@ class DataStoreUtils {
   }
 
   getDropdownItemsForTransformControls() {
-    return languages[this.getCurrentLanguage()].dropdownItemsForTransformControls;
+    return languages[this.getCurrentLanguage()]
+      .dropdownItemsForTransformControls;
   }
 
   getItemsForDataset() {

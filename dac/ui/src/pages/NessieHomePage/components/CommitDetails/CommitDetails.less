@@ -17,59 +17,59 @@
 @import "~@app/uiTheme/less/color-schema.less";
 
 :global {
-    .commitDetails {
-        flex: 1;
-        min-width: 0;
-        padding-left: 16px;
-        padding-top: 16px;
+  .commitDetails {
+    flex: 1;
+    min-width: 0;
+    padding-left: 16px;
+    padding-top: 16px;
 
-        .copy__icon {
-            opacity: 1;
-        }
-
-        &-header {
-            .flex-center;
-            font-weight: 500;
-            font-size: 15px;
-        }
-        &-hash {
-            display: flex;
-            flex-shrink: 0;
-            &:after {
-                content: ':';
-            }
-        }
-        &-desc {
-            margin-left: 8px;
-        }
-
-        &-content {
-            padding-top: 24px;
-        }
-
-        &-details {
-            display: flex;
-        }
-
-        &-metaSection {
-            max-width: 200px;
-            margin-right: 32px;
-        }
-
-        &-metaHeader {
-            text-transform: uppercase;
-            color: @SECONDARY_600;
-            padding-bottom: 12px;
-            user-select: none;
-        }
-
-        &-metaDetail {
-            height: 24px;
-            .flex-center;
-        }
-
-        &-userInfo {
-            .flex-center;
-        }
+    .copy__icon {
+      opacity: 1;
     }
+
+    &-header {
+      .flex-center;
+      font-weight: 500;
+      font-size: 15px;
+    }
+    &-hash {
+      display: flex;
+      flex-shrink: 0;
+      &:after {
+        content: ":";
+      }
+    }
+    &-desc {
+      margin-left: 8px;
+    }
+
+    &-content {
+      padding-top: 24px;
+    }
+
+    &-details {
+      display: flex;
+    }
+
+    &-metaSection {
+      max-width: 200px;
+      margin-right: 32px;
+    }
+
+    &-metaHeader {
+      text-transform: uppercase;
+      color: @SECONDARY_600;
+      padding-bottom: 12px;
+      user-select: none;
+    }
+
+    &-metaDetail {
+      height: 24px;
+      .flex-center;
+    }
+
+    &-userInfo {
+      .flex-center;
+    }
+  }
 }

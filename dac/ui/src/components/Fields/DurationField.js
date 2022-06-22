@@ -13,30 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-import MultiplierField from './MultiplierField';
+import MultiplierField from "./MultiplierField";
 
-const MULTIPLIERS = new Map([ // todo: loc, proper pluralization
-  ['Millisecond(s)', 1],
-  ['Second(s)', 1000],
-  ['Minute(s)', 60 * 1000],
-  ['Hour(s)', 60 * 60 * 1000],
-  ['Day(s)', 24 * 60 * 60 * 1000],
-  ['Week(s)', 7 * 24 * 60 * 60 * 1000]
+const MULTIPLIERS = new Map([
+  // todo: loc, proper pluralization
+  ["Millisecond(s)", 1],
+  ["Second(s)", 1000],
+  ["Minute(s)", 60 * 1000],
+  ["Hour(s)", 60 * 60 * 1000],
+  ["Day(s)", 24 * 60 * 60 * 1000],
+  ["Week(s)", 7 * 24 * 60 * 60 * 1000],
 ]);
 
 export default class DurationField extends Component {
   static propTypes = {
-    multipliers: PropTypes.instanceOf(Map)
+    multipliers: PropTypes.instanceOf(Map),
   };
 
   static defaultProps = {
-    multipliers: MULTIPLIERS
+    multipliers: MULTIPLIERS,
   };
 
   render() {
-    return <MultiplierField {...this.props} unitMultipliers={this.props.multipliers} />;
+    return (
+      <MultiplierField
+        {...this.props}
+        unitMultipliers={this.props.multipliers}
+      />
+    );
   }
 }

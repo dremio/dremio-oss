@@ -13,34 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { SingleEngineView } from './SingleEngineView';
+import { SingleEngineView } from "./SingleEngineView";
 
-describe('SingleEngineView', () => {
+describe("SingleEngineView", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      engine: Immutable.fromJS({})
+      engine: Immutable.fromJS({}),
     };
     commonProps = {
-      engine: Immutable.fromJS({name: 'default'}),
-      queues: Immutable.fromJS([
-        {engineId: 'default'}
-      ])
+      engine: Immutable.fromJS({ name: "default" }),
+      queues: Immutable.fromJS([{ engineId: "default" }]),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SingleEngineView {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SingleEngineView {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<SingleEngineView {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<SingleEngineView {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
-
 });

@@ -18,7 +18,7 @@ package com.dremio.exec.store;
 /**
  * Thrown if a reference already exists.
  */
-public class ReferenceAlreadyExistsException extends Exception {
+public class ReferenceAlreadyExistsException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
   public ReferenceAlreadyExistsException() {

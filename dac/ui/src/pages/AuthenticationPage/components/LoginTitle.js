@@ -13,39 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import { injectIntl } from "react-intl";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Art from 'components/Art';
+import Art from "components/Art";
 
-@injectIntl
-@Radium
+const isBeta = process.env.DREMIO_BETA === "true";
+
 class LoginTitle extends PureComponent {
   static propTypes = {
     subTitle: PropTypes.node,
     style: PropTypes.object,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
+    const { style } = this.props;
     return (
-      <div id='login-title' style={[styles.base, this.props.style]}>
-        <div style={[styles.mainTitle]}>
-          <span className={'dremioLogoWithTextContainer'}>
+      <div id="login-title" style={{ ...styles.base, ...(style || {}) }}>
+        <div style={styles.mainTitle}>
+          <span className={"dremioLogoWithTextContainer"}>
             <Art
-              src={'NarwhalLogoWithNameLight.svg'}
-              alt={this.props.intl.formatMessage({ id: 'App.NarwhalLogo' })}
+              src={
+                isBeta
+                  ? "Narwhal-Logo-With-Name-Light-Beta.svg"
+                  : "NarwhalLogoWithNameLight.svg"
+              }
+              alt={this.props.intl.formatMessage({ id: "App.NarwhalLogo" })}
               style={styles.icon}
-              className={'dremioLogoWithText'}
+              className={"dremioLogoWithText"}
             />
           </span>
         </div>
-        <h1 style={styles.subtitle}>
-          {this.props.subTitle}
-        </h1>
+        <h1 style={styles.subtitle}>{this.props.subTitle}</h1>
       </div>
     );
   }
@@ -53,21 +55,21 @@ class LoginTitle extends PureComponent {
 
 const styles = {
   base: {
-    marginBottom: 40
+    marginBottom: 40,
   },
   subtitle: {
-    color: '#43B8C9',
-    fontSize: 27
+    color: "#43B8C9",
+    fontSize: 27,
   },
   mainTitle: {
-    display: 'flex',
-    alignItems: 'center'
+    display: "flex",
+    alignItems: "center",
   },
   icon: {
     width: 223,
     height: 75,
-    marginBottom: 4
-  }
+    marginBottom: 4,
+  },
 };
 
-export default LoginTitle;
+export default injectIntl(LoginTitle);

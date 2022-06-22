@@ -14,28 +14,65 @@
  * limitations under the License.
  */
 
- @import "~@app/uiTheme/less/color-schema.less";
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
-  .treeNode {
-    cursor: pointer;
-    &:hover {
-      background: @PRIMARY_100;
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
+
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .modal-form-wrapper,
+  .update-dataset-content {
+    .treeNode .resourceTreeNodeWrap {
       border-radius: 4px;
+
+      &:hover {
+        background: @FIGMA_PRIMARY_100;
+      }
+      &.active-node {
+        background: @FIGMA_PRIMARY_150;
+      }
     }
+
+    .treeNode--isDisabledNode .resourceTreeNodeWrap {
+      background: transparent !important;
+    }
+  }
+
+  .treeNode {
+    border-radius: 4px;
+    cursor: pointer;
+
+    .dragSource:hover {
+      background: @FIGMA_PRIMARY_100;
+    }
+
+    // &--hasResources {
+    //   .dragSource:hover {
+    //     background: transparent;
+    //   }
+
+    //   .resourceTreeNodeWrap {
+    //     padding: 0;
+    //   }
+
+    //   .datasetItemLabel-item {
+    //     padding: 0.4rem 0;
+    //   }
+    // }
+
+    .datasetItemLabel-item {
+      &:hover {
+        background: @FIGMA_PRIMARY_100;
+      }
+    }
+
     .EllipsedText.node-text {
       flex-grow: 0;
     }
   }
 
-  .active-node {
-    background: @PRIMARY_100;
-    border-radius: 4px;
-  }
-
   .resourceTree {
     height: 100%;
-    padding-top: .2rem;
+    padding-top: 0.2rem;
     max-height: 24.2rem;
     min-height: 24rem;
     overflow-y: auto;
@@ -47,30 +84,77 @@
     flex: 1;
     min-width: 0;
 
+    &-nameWrapper {
+      align-items: center;
+      display: flex;
+      min-width: 0;
+    }
+
     &:hover {
       .resourceTreeNode__add {
         opacity: 1;
         visibility: visible;
       }
+      &--unstarred {
+        opacity: 1;
+        visibility: visible;
+      }
+      &--limitReached {
+        opacity: 1;
+        visibility: visible;
+      }
+    }
+
+    &__iconBlock {
+      display: flex;
+      align-items: center;
+      margin-right: 0.5rem;
+      gap: 0.4rem;
     }
 
     &__add {
-      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg) brightness(91%) contrast(85%);
-      height: 1.6rem;
-      margin-right: .5rem;
-      opacity: 0;
+      height: 2.4rem;
+      width: 2.4rem;
       transition: 300ms ease all;
-      width: 1.6rem;
+      padding: 0;
+
+      &__icon {
+        color: var(--dremio--color--neutral--600);
+
+        &:hover {
+          color: var(--dremio--color--link);
+        }
+      }
+    }
+
+    &__starIcon {
+      height: 1.8rem;
+      transition: 300ms ease all;
+      margin-bottom: 0.1rem;
+      width: 1.8rem;
 
       &:hover {
         cursor: pointer;
-        filter: invert(23%) sepia(91%) saturate(2296%) hue-rotate(165deg) brightness(99%) contrast(101%);
       }
     }
-    
+
+    &--limitReached {
+      cursor: default !important;
+      filter: invert(95%) sepia(11%) saturate(88%) hue-rotate(170deg)
+        brightness(120%) contrast(89%);
+    }
+
+    &--unstarred {
+      color: var(--dremio--color--neutral--600);
+
+      &:hover {
+        color: var(--dremio--color--link);
+      }
+    }
+
     // Fixed width for left panel items
     .datasetItemLabel-item__content {
-      width: 90%;
+      width: 80%;
     }
 
     .sources-branch-picker {
@@ -87,18 +171,33 @@
     display: flex;
     flex-direction: row;
     flex: 1;
-    width: 90%;
+    padding: 0.4rem 0;
+    width: 80%;
 
-    &:hover {
-      background: @PRIMARY_100;
-
-      .resourceTreeNode__add {
-        opacity: 1;
-      }  
+    &.__columnItem {
+      padding-left: 0.4rem;
     }
-    
+
     .resourceTreeNode__add {
       opacity: 0;
+    }
+    .resourceTreeNode--unstarred {
+      opacity: 0;
+    }
+    .resourceTreeNode--limitReached {
+      opacity: 0;
+    }
+
+    &:hover {
+      .resourceTreeNode__add {
+        opacity: 1;
+      }
+      .resourceTreeNode--unstarred {
+        opacity: 1;
+      }
+      .resourceTreeNode--limitReached {
+        opacity: 1;
+      }
     }
   }
 }

@@ -13,42 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'chai';
-import Immutable from 'immutable';
-import { RSAA } from 'redux-api-middleware';
+import { expect } from "chai";
+import Immutable from "immutable";
+import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from '@app/core/APICall';
-import * as Actions from './addFileModal.js';
+import { APIV2Call } from "@app/core/APICall";
+import * as Actions from "./addFileModal.js";
 
-describe('addFileModal actions', () => {
-  describe('test uploadFinish', () => {
-    it('to passthrough url', () => {
-      const apiCall = new APIV2Call()
-        .fullpath('/folder/foo/bar/baz?test=ad./ad');
+describe("addFileModal actions", () => {
+  describe("test uploadFinish", () => {
+    it("to passthrough url", () => {
+      const apiCall = new APIV2Call().fullpath(
+        "/folder/foo/bar/baz?test=ad./ad"
+      );
 
       const file = Immutable.fromJS({
         links: {
-          'upload_finish': '/folder/foo/bar/baz?test=ad./ad'
-        }
+          upload_finish: "/folder/foo/bar/baz?test=ad./ad",
+        },
       });
 
-      expect(Actions.uploadFinish(file, '')((obj) => obj)[RSAA].endpoint).to.eql(apiCall);
+      expect(
+        Actions.uploadFinish(file, "")((obj) => obj)[RSAA].endpoint
+      ).to.eql(apiCall);
     });
   });
 
-  describe('test uploadCancel', () => {
-    it('to passthrough url', () => {
-      const apiCall = new APIV2Call()
-        .fullpath('/folder/foo/bar/baz?test=ad./ad');
+  describe("test uploadCancel", () => {
+    it("to passthrough url", () => {
+      const apiCall = new APIV2Call().fullpath(
+        "/folder/foo/bar/baz?test=ad./ad"
+      );
 
       const file = Immutable.fromJS({
         links: {
-          'upload_cancel': '/folder/foo/bar/baz?test=ad./ad'
+          upload_cancel: "/folder/foo/bar/baz?test=ad./ad",
         },
-        fileFormat: {}
+        fileFormat: {},
       });
 
-      expect(Actions.uploadCancel(file, '')((obj) => obj)[RSAA].endpoint).to.eql(apiCall);
+      expect(
+        Actions.uploadCancel(file, "")((obj) => obj)[RSAA].endpoint
+      ).to.eql(apiCall);
     });
   });
 });

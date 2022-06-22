@@ -13,20 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Fragment, useState } from 'react';
-import PropTypes from 'prop-types';
+import React, { Fragment, useState } from "react";
+import PropTypes from "prop-types";
 
-import { useFormikContext } from 'formik';
+import { useFormikContext } from "formik";
 
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage } from "react-intl";
 
-import Dialog from '../Dialog';
-import DialogTitle from '../Dialog/DialogTitle';
-import DialogContent from '../Dialog/DialogContent';
-import ModalFormActionContainer from '../ModalForm/ModalFormActionContainer';
-import ModalFormAction, { MODAL_FORM_ACTION_DIRECTION } from '../ModalForm/ModalFormAction';
+import Dialog from "../Dialog";
+import DialogTitle from "../Dialog/DialogTitle";
+import DialogContent from "../Dialog/DialogContent";
+import ModalFormActionContainer from "../ModalForm/ModalFormActionContainer";
+import ModalFormAction, {
+  MODAL_FORM_ACTION_DIRECTION,
+} from "../ModalForm/ModalFormAction";
 
-import * as ButtonTypes from '../Button/ButtonTypes';
+import * as ButtonTypes from "../Button/ButtonTypes";
 
 const FormikUnsavedWarningHOC = (WrappedComponent) => (props) => {
   const {
@@ -35,7 +37,7 @@ const FormikUnsavedWarningHOC = (WrappedComponent) => (props) => {
   } = props;
 
   const { dirty = false } = useFormikContext() || {};
-  const [ showDialog, setShowDialog ] = useState(dirty);
+  const [showDialog, setShowDialog] = useState(dirty);
 
   const onClose = (...args) => {
     if (dirty) {
@@ -56,12 +58,18 @@ const FormikUnsavedWarningHOC = (WrappedComponent) => (props) => {
 
   return (
     <Fragment>
-      <Dialog onClose={handleStay} open={showDialog} size='sm' isCentered>
+      <Dialog onClose={handleStay} open={showDialog} size="sm" isCentered>
         <DialogTitle onClose={handleStay}>
-          <FormattedMessage id='common.unsavedChangesTitle' defaultMessage='Unsaved Changes' />
+          <FormattedMessage
+            id="common.unsavedChangesTitle"
+            defaultMessage="Unsaved Changes"
+          />
         </DialogTitle>
         <DialogContent centerContent>
-          <FormattedMessage id='common.unsavedChangesMessage' defaultMessage='You have unsaved changes. Are you sure you want to leave?' />
+          <FormattedMessage
+            id="common.unsavedChangesMessage"
+            defaultMessage="You have unsaved changes. Are you sure you want to leave?"
+          />
         </DialogContent>
         <ModalFormActionContainer>
           <ModalFormAction
@@ -69,13 +77,10 @@ const FormikUnsavedWarningHOC = (WrappedComponent) => (props) => {
             color={ButtonTypes.DEFAULT}
             direction={MODAL_FORM_ACTION_DIRECTION.RIGHT}
           >
-            <FormattedMessage id='common.stay' defaultMessage='Stay' />
+            <FormattedMessage id="common.stay" defaultMessage="Stay" />
           </ModalFormAction>
-          <ModalFormAction
-            onClick={handleLeave}
-            color={ButtonTypes.PRIMARY}
-          >
-            <FormattedMessage id='common.leave' defaultMessage='Leave' />
+          <ModalFormAction onClick={handleLeave} color={ButtonTypes.PRIMARY}>
+            <FormattedMessage id="common.leave" defaultMessage="Leave" />
           </ModalFormAction>
         </ModalFormActionContainer>
       </Dialog>
@@ -85,7 +90,7 @@ const FormikUnsavedWarningHOC = (WrappedComponent) => (props) => {
 };
 
 FormikUnsavedWarningHOC.propTypes = {
-  onClose: PropTypes.func
+  onClose: PropTypes.func,
 };
 
 export default FormikUnsavedWarningHOC;

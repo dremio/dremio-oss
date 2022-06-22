@@ -83,4 +83,3 @@ public class SqlForgetTable extends SqlSystemCall {
 
   public SqlIdentifier getTable() { return table; }
 }
-

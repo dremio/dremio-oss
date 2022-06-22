@@ -57,7 +57,8 @@ public class TestSlicer extends ExecTest {
 
   private double check(TpchTable table, double scale, int pageSize, int batchSize, String... columns) throws Exception {
     Table expected = TpchGenerator.singleGenerator(table, scale, getAllocator(), columns).toTable(batchSize);
-    return check(expected, pageSize, batchSize, TpchGenerator.singleGenerator(table, scale, allocator, columns));
+    return check(expected, pageSize, batchSize,
+      TpchGenerator.singleGenerator(table, scale, allocator, columns));
   }
 
   private double check(Table expected, int pageSize, int batchSize, Generator generator) throws Exception {
@@ -73,8 +74,9 @@ public class TestSlicer extends ExecTest {
         if(records == 0) {
           break;
         }
-        List<RecordBatchData> data = slicer.addBatch(records);
-        Preconditions.checkNotNull(data);
+        List<RecordBatchPage> data = new ArrayList<>();
+        int ret = slicer.addBatch(records, data);
+        Preconditions.checkState(ret == records);
 
         actual.addAll(data);
       }
@@ -91,7 +93,7 @@ public class TestSlicer extends ExecTest {
   }
 
   private ArrowBuf getFilledSV2(BufferAllocator allocator, int batchSize) {
-    ArrowBuf buf = allocator.buffer(batchSize);
+    ArrowBuf buf = allocator.buffer(batchSize * SelectionVector2.RECORD_SIZE);
     long addr = buf.memoryAddress();
     for (int i = 0; i < batchSize; ++i) {
       PlatformDependent.putShort(addr, (short)i);
@@ -99,5 +101,4 @@ public class TestSlicer extends ExecTest {
     }
     return buf;
   }
-
 }

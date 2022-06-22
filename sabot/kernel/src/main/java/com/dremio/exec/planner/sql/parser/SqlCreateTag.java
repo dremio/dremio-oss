@@ -102,7 +102,7 @@ public final class SqlCreateTag extends SqlCreateVersionBase {
 
     tagName.unparse(writer, leftPrec, rightPrec);
 
-    unparseRef(writer, leftPrec, rightPrec);
+    unparseRef(writer, leftPrec, rightPrec, "AT");
     unparseSourceName(writer, leftPrec, rightPrec);
   }
 

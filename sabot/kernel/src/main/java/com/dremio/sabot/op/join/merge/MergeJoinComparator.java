@@ -41,7 +41,7 @@ import com.dremio.sabot.op.join.merge.MergeJoinOperator.InternalState;
  *
  */
 public interface MergeJoinComparator {
-  public final static TemplateClassDefinition<MergeJoinComparator> TEMPLATE_DEFINITION =
+  public static final TemplateClassDefinition<MergeJoinComparator> TEMPLATE_DEFINITION =
       new TemplateClassDefinition<>(MergeJoinComparator.class, MergeJoinComparatorTemplate.class);
 
   /**

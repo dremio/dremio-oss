@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Divider from './Divider';
+import { shallow } from "enzyme";
+import Divider from "./Divider";
 
-describe('Divider', () => {
-
-  it('should render with the expected CSS class', () => {
-    const wrapper = shallow(<Divider/>);
-    expect(wrapper.hasClass('info-header-divider')).to.be.true;
+describe("Divider", () => {
+  it("should render with the expected CSS class", () => {
+    const wrapper = shallow(<Divider />);
+    expect(wrapper.hasClass("info-header-divider")).to.be.true;
   });
-
 });

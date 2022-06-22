@@ -16,8 +16,6 @@
 package com.dremio.exec.store.iceberg;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -27,33 +25,18 @@ import org.apache.hadoop.util.StringUtils;
 public class HadoopFsCacheKey {
   final String scheme;
   final String authority;
-  final String queryUsername;
-  final List<String> uniqueConnectionPropValues;
   final Configuration conf;
   final URI uri;
 
-  public HadoopFsCacheKey(URI uri, Iterable<Map.Entry<String, String>> conf, String queryUsername, List<String> uniqueConnectionProps) {
+  public HadoopFsCacheKey(URI uri, Iterable<Map.Entry<String, String>> conf) {
     this.conf = (Configuration) conf;
     this.uri = uri;
     scheme = uri.getScheme() == null ? "" : StringUtils.toLowerCase(uri.getScheme());
     authority = uri.getAuthority() == null ? "" : StringUtils.toLowerCase(uri.getAuthority());
-    this.queryUsername = queryUsername;
-    if (uniqueConnectionProps == null) {
-      uniqueConnectionPropValues = null;
-    } else {
-      uniqueConnectionPropValues = new ArrayList<>(uniqueConnectionProps.size());
-      for (String prop : uniqueConnectionProps) {
-        uniqueConnectionPropValues.add(this.conf.get(prop));
-      }
-    }
   }
 
   public URI getUri() {
     return uri;
-  }
-
-  public String getQueryUsername() {
-    return queryUsername;
   }
 
   public Configuration getConf() {
@@ -62,7 +45,7 @@ public class HadoopFsCacheKey {
 
   @Override
   public int hashCode() {
-    return Objects.hash(scheme, authority, queryUsername, uniqueConnectionPropValues);
+    return Objects.hash(scheme, authority);
   }
 
   @Override
@@ -76,13 +59,11 @@ public class HadoopFsCacheKey {
     HadoopFsCacheKey key = (HadoopFsCacheKey) o;
     return
       com.google.common.base.Objects.equal(scheme, key.scheme) &&
-        com.google.common.base.Objects.equal(authority, key.authority) &&
-        com.google.common.base.Objects.equal(queryUsername, key.queryUsername) &&
-        com.google.common.base.Objects.equal(uniqueConnectionPropValues, key.uniqueConnectionPropValues);
+        com.google.common.base.Objects.equal(authority, key.authority);
   }
 
   @Override
   public String toString() {
-    return "(" + queryUsername + ")@" + scheme + "://" + authority + "with [" + uniqueConnectionPropValues + "]";
+    return  scheme + "://" + authority;
   }
 }

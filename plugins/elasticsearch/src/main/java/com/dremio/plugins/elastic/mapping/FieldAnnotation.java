@@ -16,6 +16,7 @@
 package com.dremio.plugins.elastic.mapping;
 
 import java.util.List;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticAnnotation;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;

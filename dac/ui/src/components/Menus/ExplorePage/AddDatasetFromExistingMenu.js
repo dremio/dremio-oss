@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import MenuItem from './MenuItem';
-import Menu from './Menu';
+import MenuItem from "./MenuItem";
+import Menu from "./Menu";
 
-@Radium
-export default class AddDatasetFromExistingMenu extends PureComponent {
+class AddDatasetFromExistingMenu extends PureComponent {
   static propTypes = {
     type: PropTypes.string,
-    action: PropTypes.func
+    action: PropTypes.func,
   };
 
   constructor(props) {
@@ -35,16 +34,29 @@ export default class AddDatasetFromExistingMenu extends PureComponent {
   render() {
     return (
       <Menu>
-        <MenuItem onClick={this.props.action.bind(this, {name: 'add', label: 'Add'})}>
+        <MenuItem
+          onClick={this.props.action.bind(this, { name: "add", label: "Add" })}
+        >
           Add
         </MenuItem>
-        <MenuItem onClick={this.props.action.bind(this, {name: 'addAndQuery', label: 'Add and Query'})}>
+        <MenuItem
+          onClick={this.props.action.bind(this, {
+            name: "addAndQuery",
+            label: "Add and Query",
+          })}
+        >
           Add and Query
         </MenuItem>
-        <MenuItem onClick={this.props.action.bind(this, {name: 'addAndAnother', label: 'Add and Another'})}>
+        <MenuItem
+          onClick={this.props.action.bind(this, {
+            name: "addAndAnother",
+            label: "Add and Another",
+          })}
+        >
           Add and Another
         </MenuItem>
       </Menu>
     );
   }
 }
+export default Radium(AddDatasetFromExistingMenu);

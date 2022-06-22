@@ -15,15 +15,11 @@
  */
 package com.dremio.exec.hive;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.op.scan.ScanOperator;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 /**
  * Tests Hive File Format stat in profile

@@ -30,7 +30,7 @@ import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
 public class FlattenConvertlet implements SqlRexConvertlet {
 
-  public final static FlattenConvertlet INSTANCE = new FlattenConvertlet();
+  public static final FlattenConvertlet INSTANCE = new FlattenConvertlet();
 
   private FlattenConvertlet() {
   }
@@ -71,4 +71,3 @@ public class FlattenConvertlet implements SqlRexConvertlet {
 
 
 }
-

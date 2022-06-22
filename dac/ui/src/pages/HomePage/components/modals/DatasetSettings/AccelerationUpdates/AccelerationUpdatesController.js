@@ -13,38 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import {createSelector} from 'reselect';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import { createSelector } from "reselect";
 
-import ViewStateWrapper from '@app/components/ViewStateWrapper';
-import {constructFullPath} from '@app/utils/pathUtils';
-import {getEntity, getViewState} from '@app/selectors/resources';
-import {updateViewState} from '@app/actions/resources';
+import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import { constructFullPath } from "@app/utils/pathUtils";
+import { getEntity, getViewState } from "@app/selectors/resources";
+import { updateViewState } from "@app/actions/resources";
 import {
   clearDataSetAccelerationSettings,
   loadDatasetAccelerationSettings,
-  updateDatasetAccelerationSettings
-} from '@app/actions/resources/datasetAccelerationSettings';
-import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import {formatMessage} from '@app/utils/locale';
-import { INCREMENTAL_TYPES } from '@app/constants/columnTypeGroups';
-import {getCurrentFormatUrl} from '@app/selectors/home';
-import {loadFileFormat} from '@app/actions/modals/addFileModal';
+  updateDatasetAccelerationSettings,
+} from "@app/actions/resources/datasetAccelerationSettings";
+import ApiUtils from "@app/utils/apiUtils/apiUtils";
+import { formatMessage } from "@app/utils/locale";
+import { INCREMENTAL_TYPES } from "@app/constants/columnTypeGroups";
+import { getCurrentFormatUrl } from "@app/selectors/home";
+import { loadFileFormat } from "@app/actions/modals/addFileModal";
 
-import AccelerationUpdatesForm from './AccelerationUpdatesForm';
+import AccelerationUpdatesForm from "./AccelerationUpdatesForm";
 
-const VIEW_ID = 'AccelerationUpdatesController';
-const updateViewStateWrapper = viewState => updateViewState(VIEW_ID, {
-  // apply defaults
-  isInProgress: false,
-  isFailed: false,
-  error: null,
-  //----------------
-  ...viewState
-});
+const VIEW_ID = "AccelerationUpdatesController";
+const updateViewStateWrapper = (viewState) =>
+  updateViewState(VIEW_ID, {
+    // apply defaults
+    isInProgress: false,
+    isFailed: false,
+    error: null,
+    //----------------
+    ...viewState,
+  });
 
 export class AccelerationUpdatesController extends Component {
   static propTypes = {
@@ -60,11 +61,11 @@ export class AccelerationUpdatesController extends Component {
     updateDatasetAccelerationSettings: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
     accelerationSettings: PropTypes.instanceOf(Immutable.Map),
-    updateViewState: PropTypes.func.isRequired // (viewState) => void
+    updateViewState: PropTypes.func.isRequired, // (viewState) => void
   };
 
   state = {
-    dataset: null
+    dataset: null,
   };
 
   componentWillMount() {
@@ -92,7 +93,7 @@ export class AccelerationUpdatesController extends Component {
   receiveProps(nextProps, oldProps) {
     const { entity } = nextProps;
     if (entity !== oldProps.entity) {
-      const id = entity.get('id');
+      const id = entity.get("id");
       this.loadDataset(id, entity);
     }
   }
@@ -103,43 +104,61 @@ export class AccelerationUpdatesController extends Component {
     // We fetch to the full schema using the v3 catalog api here so we can filter out types.  v2 collapses types
     // by display types instead of returning the actual type.
     updateVS({ isInProgress: true });
-    return ApiUtils.fetchJson(`catalog/${id}`, json => {
-      updateVS({isInProgress: false});
-      this.setState({dataset: json});
-      this.props.loadDatasetAccelerationSettings(entity.get('fullPathList'), VIEW_ID);
-    }, error => {
-      // DX-22985: Server might return a valid error message.
-      //    - In case it does, we need to extract it out of the JSON and display the message.
-      //    - If not we need to display a generic error message.
-      error.json().then(json => updateVS({
-        isFailed: true,
-        error: { message: json.errorMessage }
-      })).catch(jsonError => updateVS({
-        // JSON parsing failed. So we are displaying a generic Error Message.
-        isFailed: true,
-        error: {
-          message: formatMessage('Message.ApiErr.Load.Dataset', {err: jsonError.statusText})
-        }
-      }));
-    });
+    return ApiUtils.fetchJson(
+      `catalog/${id}`,
+      (json) => {
+        updateVS({ isInProgress: false });
+        this.setState({ dataset: json });
+        this.props.loadDatasetAccelerationSettings(
+          entity.get("fullPathList"),
+          VIEW_ID
+        );
+      },
+      (error) => {
+        // DX-22985: Server might return a valid error message.
+        //    - In case it does, we need to extract it out of the JSON and display the message.
+        //    - If not we need to display a generic error message.
+        error
+          .json()
+          .then((json) =>
+            updateVS({
+              isFailed: true,
+              error: { message: json.errorMessage },
+            })
+          )
+          .catch((jsonError) =>
+            updateVS({
+              // JSON parsing failed. So we are displaying a generic Error Message.
+              isFailed: true,
+              error: {
+                message: formatMessage("Message.ApiErr.Load.Dataset", {
+                  err: jsonError.statusText,
+                }),
+              },
+            })
+          );
+      }
+    );
   }
 
   schemaToColumns(dataset) {
     const schema = (dataset && dataset.fields) || [];
-    const columns = schema.filter(i => INCREMENTAL_TYPES.indexOf(i.type.name) > -1)
+    const columns = schema
+      .filter((i) => INCREMENTAL_TYPES.indexOf(i.type.name) > -1)
       .map((item, index) => {
-        return {name: item.name, type: item.type.name, index};
+        return { name: item.name, type: item.type.name, index };
       });
     return Immutable.fromJS(columns);
   }
 
   submit = (form) => {
-    const fullPathList = this.props.entity.get('fullPathList');
+    const fullPathList = this.props.entity.get("fullPathList");
     return ApiUtils.attachFormSubmitHandlers(
       this.props.updateDatasetAccelerationSettings(fullPathList, form)
     ).then(() => {
       this.props.clearDataSetAccelerationSettings(fullPathList);
       this.props.onDone(null, true);
+      return null;
     });
   };
 
@@ -150,54 +169,64 @@ export class AccelerationUpdatesController extends Component {
       updateFormDirtyState,
       fileFormat,
       viewState,
-      entity
+      entity,
     } = this.props;
 
-    let fileFormatType = '';
+    let fileFormatType = "";
     if (fileFormat) {
-      fileFormatType = fileFormat.get('type');
+      fileFormatType = fileFormat.get("type");
     }
 
     return (
       <ViewStateWrapper viewState={viewState} hideChildrenWhenInProgress>
-        {accelerationSettings && <AccelerationUpdatesForm
-          accelerationSettings={accelerationSettings}
-          datasetFields={this.schemaToColumns(this.state.dataset)}
-          entityType={entity.get('entityType')}
-          fileFormatType={fileFormatType}
-          entityId={entity.get('id')}
-          onCancel={onCancel}
-          updateFormDirtyState={updateFormDirtyState}
-          entity={entity}
-          submit={this.submit} />}
+        {accelerationSettings && (
+          <AccelerationUpdatesForm
+            accelerationSettings={accelerationSettings}
+            datasetFields={this.schemaToColumns(this.state.dataset)}
+            entityType={entity.get("entityType")}
+            fileFormatType={fileFormatType}
+            entityId={entity.get("id")}
+            onCancel={onCancel}
+            updateFormDirtyState={updateFormDirtyState}
+            entity={entity}
+            submit={this.submit}
+          />
+        )}
       </ViewStateWrapper>
     );
   }
 }
 
-
-
 function mapStateToProps(state, ownProps) {
   const { entity } = ownProps;
-  const fullPathList = entity.get('fullPathList');
+  const fullPathList = entity.get("fullPathList");
   const fullPath = constructFullPath(fullPathList);
   // TODO: this is a workaround for accelerationSettings not having its own id
 
-  const entityType = entity.get('entityType');
+  const entityType = entity.get("entityType");
 
   // If entity type is folder, then get fileFormat. It will be used to disable incremental reflection option.
   let formatUrl, fileFormat;
-  if (['folder'].indexOf(entityType) !== -1) {
-    const getFullPathForFileFormat = createSelector(fullPathImmutable => fullPathImmutable, path => path ? path.toJS() : null);
-    formatUrl = fullPathList ? getCurrentFormatUrl(getFullPathForFileFormat(fullPathList), true) : null;
-    fileFormat = getEntity(state, formatUrl, 'fileFormat');
+  if (["folder"].indexOf(entityType) !== -1) {
+    const getFullPathForFileFormat = createSelector(
+      (fullPathImmutable) => fullPathImmutable,
+      (path) => (path ? path.toJS() : null)
+    );
+    formatUrl = fullPathList
+      ? getCurrentFormatUrl(getFullPathForFileFormat(fullPathList), true)
+      : null;
+    fileFormat = getEntity(state, formatUrl, "fileFormat");
   }
 
   return {
     fileFormat,
     formatUrl,
     viewState: getViewState(state, VIEW_ID),
-    accelerationSettings: getEntity(state, fullPath, 'datasetAccelerationSettings')
+    accelerationSettings: getEntity(
+      state,
+      fullPath,
+      "datasetAccelerationSettings"
+    ),
   };
 }
 
@@ -206,5 +235,5 @@ export default connect(mapStateToProps, {
   clearDataSetAccelerationSettings,
   loadDatasetAccelerationSettings,
   updateDatasetAccelerationSettings,
-  updateViewState: updateViewStateWrapper
+  updateViewState: updateViewStateWrapper,
 })(AccelerationUpdatesController);

@@ -13,26 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useRef, useEffect } from 'react';
-import { Tooltip } from '@app/components/Tooltip';
-import './DatasetGraph.less';
-import '@app/uiTheme/less/color-schema.less';
+import { useState, useRef, useEffect } from "react";
+import { Tooltip } from "@app/components/Tooltip";
+import "./DatasetGraph.less";
+import "@app/uiTheme/less/color-schema.less";
 
 const DatasetGraphToolTip = (props) => {
-  const {
-    item: {
-      sql = '',
-      dataSet: {
-        datasetName = ''
-      } = {}
-    } = {}
-  } = props || {};
+  const { item: { sql = "", dataSet: { datasetName = "" } = {} } = {} } =
+    props || {};
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const TooltipInnerStyle = {
-    width: 'auto',
-    maxWidth: '500px',
-    background: '@PRIMARY_100',
-    border: '1.5px solid orange'
+    width: "auto",
+    maxWidth: "500px",
+    background: "@PRIMARY_100",
+    border: "1.5px solid orange",
   };
 
   useEffect(() => {
@@ -54,21 +48,23 @@ const DatasetGraphToolTip = (props) => {
       ref={datasetRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      data-qa='dataSetGraphToolTip'
+      data-qa="dataSetGraphToolTip"
     >
       {datasetName}
-      {sql && <Tooltip
-        key='tooltip'
-        target={() => (tooltipOpen ? datasetRef.current : null)}
-        placement='bottom-start'
-        type='custom'
-        className='dataSetGraph__tooltip'
-        tooltipArrowClass='textWithHelp__tooltipArrow --light'
-        tooltipInnerStyle={TooltipInnerStyle}
-      >
-        <div className='dataSetGraph__sqlTooltipText'>{sql}</div>
-      </Tooltip>}
-    </div >
+      {sql && (
+        <Tooltip
+          key="tooltip"
+          target={() => (tooltipOpen ? datasetRef.current : null)}
+          placement="bottom-start"
+          type="custom"
+          className="dataSetGraph__tooltip"
+          tooltipArrowClass="textWithHelp__tooltipArrow --light"
+          tooltipInnerStyle={TooltipInnerStyle}
+        >
+          <div className="dataSetGraph__sqlTooltipText">{sql}</div>
+        </Tooltip>
+      )}
+    </div>
   );
 };
 

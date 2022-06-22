@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {abilities} from 'utils/datasetUtils';
-import datasetSettingsConfig from '@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig';
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+import { abilities } from "utils/datasetUtils";
+import datasetSettingsConfig from "@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig";
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     extendContentRenderers(contentRenderers) {
       return contentRenderers;
     },
     isReflectionsFullPage() {
-      const { location: { pathname } } = this.props;
-      return pathname && pathname.endsWith('/reflections');
+      const {
+        location: { pathname },
+      } = this.props;
+      return pathname && pathname.endsWith("/reflections");
     },
     getTabs() {
-      const {entity, intl} = this.props;
+      const { entity, intl } = this.props;
 
       if (!entity) {
         return new Immutable.OrderedMap();
@@ -33,14 +36,18 @@ export default function(input) {
 
       const map = [];
 
-      const {canEditFormat, canSetAccelerationUpdates} = abilities(entity, entity.get('entityType'));
+      const { canEditFormat, canSetAccelerationUpdates } = abilities(
+        entity,
+        entity.get("entityType")
+      );
 
       const { showFormatTab } = datasetSettingsConfig;
-      const format = showFormatTab && canEditFormat && ['format', intl.formatMessage({ id: 'File.Format' })];
+      const format = showFormatTab &&
+        canEditFormat && ["format", intl.formatMessage({ id: "File.Format" })];
 
       // If a file or folder has not been converted to a dataset, hide all other tabs
       // https://dremio.atlassian.net/browse/DX-3178
-      if (canEditFormat && !entity.get('queryable')) {
+      if (canEditFormat && !entity.get("queryable")) {
         map.push(format);
         return new Immutable.OrderedMap(map);
       }
@@ -48,13 +55,19 @@ export default function(input) {
       const isReflectionsPage = this.isReflectionsFullPage();
 
       map.push(
-        ['overview', intl.formatMessage({ id: 'Common.Overview' })],
+        ["overview", intl.formatMessage({ id: "Common.Overview" })],
         format,
-        !isReflectionsPage && ['acceleration', intl.formatMessage({ id: 'Reflection.Reflections' })],
-        canSetAccelerationUpdates && ['accelerationUpdates', intl.formatMessage({ id: 'Acceleration.RefreshPolicy' })]
+        !isReflectionsPage && [
+          "acceleration",
+          intl.formatMessage({ id: "Reflection.Reflections" }),
+        ],
+        canSetAccelerationUpdates && [
+          "accelerationUpdates",
+          intl.formatMessage({ id: "Acceleration.RefreshPolicy" }),
+        ]
       );
 
       return new Immutable.OrderedMap(map);
-    }
+    },
   });
 }

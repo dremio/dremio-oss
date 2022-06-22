@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -16,12 +15,16 @@
  */
 import {
   DEFAULT_REF_REQUEST_SUCCESS,
+  INIT_REFS,
   NessieActionTypes,
-  SET_REF
-} from '@app/actions/nessie/nessie';
-import { Reference } from '@app/services/nessie/client';
-import nessieErrorReducer from './nessieErrorReducer';
-import nessieLoadingReducer from './nessieLoadingReducer';
+  NessieRootActionTypes,
+  SET_REF,
+  SET_REFS,
+} from "@app/actions/nessie/nessie";
+import { Reference } from "@app/services/nessie/client";
+import nessieErrorReducer from "./nessieErrorReducer";
+import nessieLoadingReducer from "./nessieLoadingReducer";
+import { initializeDatasetRefs, initializeRefState } from "./utils";
 //@ts-ignore
 
 // Map - sourceId: NessieState
@@ -29,15 +32,14 @@ export type NessieRootState = {
   [key: string]: NessieState;
 };
 
-
 export type NessieState = {
-    defaultReference: Reference | null;
-    reference: Reference | null;
-    hash: string | null;
-    date: Date | null; // When user selects a commit before certain time in branch picker
-    loading: { [key: string]: boolean };
-    errors: { [key: string]: any };
-}
+  defaultReference: Reference | null;
+  reference: Reference | null;
+  hash: string | null;
+  date: Date | null; // When user selects a commit before certain time in branch picker
+  loading: { [key: string]: boolean };
+  errors: { [key: string]: any };
+};
 
 export const initialState: NessieState = {
   defaultReference: null,
@@ -45,47 +47,55 @@ export const initialState: NessieState = {
   hash: null,
   date: null,
   loading: {},
-  errors: {}
+  errors: {},
 };
 
-function nessieReducer(state = initialState, action: NessieActionTypes): NessieState {
+function nessieReducer(
+  state = initialState,
+  action: NessieActionTypes
+): NessieState {
   state.loading = nessieLoadingReducer(state.loading, action); //Automatically handles loading flags for req,success,failure
   state.errors = nessieErrorReducer(state.errors, action); //Automatically handles storing error payload
   switch (action.type) {
-  case SET_REF: {
-    return {
-      ...state,
-      ...action.payload,
-      hash: action.payload.hash || null,
-      date: action.payload.date || null
-    };
-  }
-  case DEFAULT_REF_REQUEST_SUCCESS:
-    return {
-      ...state,
-      defaultReference: action.payload,
-      ...(state.reference == null && {
-        reference: action.payload
-      })
-    };
-  default:
-    return state;
+    case SET_REF: {
+      return {
+        ...state,
+        ...action.payload,
+        hash: action.payload.hash || null,
+        date: action.payload.date || null,
+      };
+    }
+    case DEFAULT_REF_REQUEST_SUCCESS:
+      return {
+        ...state,
+        defaultReference: action.payload,
+        ...(state.reference == null && {
+          reference: action.payload,
+        }),
+      };
+    default:
+      return state;
   }
 }
 
 //Map: sourceId -> NessieState
 function nessieRootReducer(
   state = {} as NessieRootState,
-  action: NessieActionTypes
+  action: NessieActionTypes | NessieRootActionTypes
 ): NessieRootState {
   const { type } = action;
-  if (!type.startsWith('NESSIE_') || !action.source) {
+  if (!type.startsWith("NESSIE_")) {
     return state;
+  }
+  if (action.type === INIT_REFS) {
+    return { ...state, ...initializeRefState(state) };
+  } else if (action.type === SET_REFS) {
+    return { ...state, ...initializeDatasetRefs(state, action.payload) };
   } else {
     const { source } = action;
     return {
       ...state,
-      [source]: nessieReducer(state[source], action)
+      [source]: nessieReducer(state[source], action),
     };
   }
 }

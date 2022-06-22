@@ -24,9 +24,9 @@ import javax.net.ssl.SSLException;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.google.protobuf.Internal.EnumLite;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
+import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
 
@@ -240,7 +240,7 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
    *
    * @param <T> handshake type
    */
-  protected static abstract class ServerHandshakeHandler<T extends MessageLite> extends AbstractHandshakeHandler<T> {
+  protected abstract static class ServerHandshakeHandler<T extends MessageLite> extends AbstractHandshakeHandler<T> {
 
     protected ServerHandshakeHandler(EnumLite handshakeType, Parser<T> parser) {
       super(handshakeType, parser);

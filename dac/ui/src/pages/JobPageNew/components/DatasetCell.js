@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useRef, useEffect } from 'react';
-import PropTypes from 'prop-types';
+import { useState, useRef, useEffect } from "react";
+import PropTypes from "prop-types";
 
-import { Tooltip } from '@app/components/Tooltip';
-import FontIcon from 'components/Icon/FontIcon';
-import { getIconByEntityType } from 'utils/iconUtils';
+import { Tooltip } from "@app/components/Tooltip";
+import FontIcon from "components/Icon/FontIcon";
+import { getIconByEntityType } from "utils/iconUtils";
 
-import './JobsContent.less';
+import "./JobsContent.less";
 
 const DatasetCell = ({ job }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
 
   const TooltipInnerStyle = {
-    width: 'auto',
-    maxWidth: '450px',
-    background: '#F4FAFC', //DX-34369
-    border: '1.5px solid #43B8C9',
-    padding: '0px 8px 12px 8px'
+    width: "auto",
+    maxWidth: "450px",
+    background: "#F4FAFC", //DX-34369
+    border: "1.5px solid #43B8C9",
+    padding: "0px 8px 12px 8px",
   };
 
   useEffect(() => {
@@ -47,62 +47,69 @@ const DatasetCell = ({ job }) => {
   };
 
   const datasetRef = useRef(null);
-  const datasetArray = job.get('queriedDatasets');
-  const isInternalQuery = job.get('queryType') && job.get('queryType') === 'UI_INITIAL_PREVIEW';
+  const datasetArray = job.get("queriedDatasets");
+  const isInternalQuery =
+    job.get("queryType") && job.get("queryType") === "UI_INITIAL_PREVIEW";
 
   if (!datasetArray) {
     return null;
   }
   return (
     <div
-      className='jobsContent-dataset'
+      className="jobsContent-dataset"
       ref={datasetRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      data-qa='dataSetCell'
+      data-qa="dataSetCell"
     >
-
-      <span className='jobsContent-dataset__dataset'>
+      <span className="jobsContent-dataset__dataset">
         <FontIcon
-          type={getIconByEntityType(isInternalQuery ? 'OTHER' : datasetArray.getIn([0, 'datasetType']))}
+          type={getIconByEntityType(
+            isInternalQuery ? "OTHER" : datasetArray.getIn([0, "datasetType"])
+          )}
           iconStyle={{
-            verticalAlign: 'middle',
-            flexShrink: 0
+            verticalAlign: "middle",
+            flexShrink: 0,
           }}
         />
       </span>
-      <div className='jobsContent-dataset__name'>
-        {datasetArray.getIn([0, 'datasetName'])}
+      <div className="jobsContent-dataset__name">
+        {datasetArray.getIn([0, "datasetName"])}
       </div>
       <Tooltip
-        key='tooltip'
+        key="tooltip"
         target={() => (tooltipOpen ? datasetRef.current : null)}
-        placement='bottom-start'
-        type='custom'
-        className='jobsContent-dataset__tooltip'
-        tooltipArrowClass='textWithHelp__tooltipArrow --light'
+        placement="bottom-start"
+        type="custom"
+        className="jobsContent-dataset__tooltip"
+        tooltipArrowClass="textWithHelp__tooltipArrow --light"
         tooltipInnerStyle={TooltipInnerStyle}
       >
         {datasetArray.map((dataset, index) => {
-          const datasetName = dataset.get('datasetName');
-          const datasetPath = dataset.get('datasetPath');
-          const queryText = job.get('queryText');
-          const description = job.get('description');
-          const datasetDescription = !queryText || queryText === 'NA'
-            ? description : datasetPath;
-          const datasetType = dataset.get('datasetType');
+          const datasetName = dataset.get("datasetName");
+          const datasetPath = dataset.get("datasetPath");
+          const queryText = job.get("queryText");
+          const description = job.get("description");
+          const datasetDescription =
+            !queryText || queryText === "NA" ? description : datasetPath;
+          const datasetType = dataset.get("datasetType");
           return (
-            <div key={`datasetCell-${index}`} className='jobsContent-dataset__tooltipWrapper'>
+            <div
+              key={`datasetCell-${index}`}
+              className="jobsContent-dataset__tooltipWrapper"
+            >
               <FontIcon
                 type={getIconByEntityType(datasetType)}
                 iconStyle={{
-                  verticalAlign: 'middle',
-                  flexShrink: 0
+                  verticalAlign: "middle",
+                  flexShrink: 0,
                 }}
               />
-              <div className='jobsContent-dataset__nameWrapper'>
-                <div className='jobsContent-dataset__label'>{datasetName}</div>
-                <div className='jobsContent-dataset__path'>{datasetDescription}</div>
+              <div className="jobsContent-dataset__nameWrapper">
+                <div className="jobsContent-dataset__label">{datasetName}</div>
+                <div className="jobsContent-dataset__path">
+                  {datasetDescription}
+                </div>
               </div>
             </div>
           );
@@ -113,11 +120,11 @@ const DatasetCell = ({ job }) => {
 };
 
 DatasetCell.propTypes = {
-  job: PropTypes.object
+  job: PropTypes.object,
 };
 
 DatasetCell.defaultProps = {
-  job: null
+  job: null,
 };
 
 export default DatasetCell;

@@ -13,50 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classnames from 'classnames';
-import { FieldWithError, TextField } from 'components/Fields';
-import { get } from 'lodash';
-import { FormValidationMessage } from 'dremio-ui-lib';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classnames from "classnames";
+import { FieldWithError, TextField } from "components/Fields";
+import { get } from "lodash";
+import { FormValidationMessage } from "dremio-ui-lib";
 
-import { label } from 'uiTheme/radium/forms';
-import FieldList, { RemoveButton, AddButton } from 'components/Fields/FieldList';
+import { label } from "uiTheme/radium/forms";
+import FieldList, {
+  RemoveButton,
+  AddButton,
+} from "components/Fields/FieldList";
 
-import './TextFieldList.less';
+import "./TextFieldList.less";
 
 PropertyItem.propTypes = {
   item: PropTypes.object,
   onRemove: PropTypes.func,
   fieldKey: PropTypes.string,
   disabled: PropTypes.bool,
-  classess: PropTypes.object
+  classess: PropTypes.object,
 };
 
-function PropertyItem({
-  item,
-  onRemove,
-  fieldKey,
-  disabled,
-  classess
-}) {
+function PropertyItem({ item, onRemove, fieldKey, disabled, classess }) {
   const field = fieldKey ? get(item, fieldKey) : item;
   const inputContainer = classess && classess.inputContainer;
   const inputBox = classess && classess.inputBox;
   const removeIcon = classess && classess.removeIcon;
-  const className = classnames('property-item', 'propertyField');
-  const removeBtnClass = classnames('propertyField__removeButton', removeIcon);
+  const className = classnames("property-item", "propertyField");
+  const removeBtnClass = classnames("propertyField__removeButton", removeIcon);
 
   return (
     <div className={className}>
       <FieldWithError
-        errorPlacement='top'
+        errorPlacement="top"
         {...field}
         className={inputContainer}
       >
-        <TextField {...field} disabled={disabled} className={inputBox}/>
+        <TextField {...field} disabled={disabled} className={inputBox} />
       </FieldWithError>
-      {!disabled && onRemove && <RemoveButton onClick={onRemove} className={removeBtnClass} /> }
+      {!disabled && onRemove && (
+        <RemoveButton onClick={onRemove} className={removeBtnClass} />
+      )}
     </div>
   );
 }
@@ -71,20 +70,20 @@ export default class TextFieldList extends Component {
     fieldKey: PropTypes.string,
     initWithInitialValue: PropTypes.bool,
     errorMessage: PropTypes.string,
-    disabled : PropTypes.bool,
-    classess: PropTypes.object
+    disabled: PropTypes.bool,
+    classess: PropTypes.object,
   };
 
   static defaultProps = {
-    newItemDefaultValue: '',
+    newItemDefaultValue: "",
     minItems: 0,
-    fieldKey: '',
-    initWithInitialValue: false
+    fieldKey: "",
+    initWithInitialValue: false,
   };
 
   componentDidMount() {
     const { initWithInitialValue } = this.props;
-    if (initWithInitialValue ) {
+    if (initWithInitialValue) {
       this.addItem();
     }
   }
@@ -102,24 +101,32 @@ export default class TextFieldList extends Component {
       addButtonText,
       errorMessage,
       disabled,
-      classess
+      classess,
     } = this.props;
     return (
       <div>
-        { this.props.label && <div style={label}>{this.props.label}</div> }
-        <FieldList
-          items={arrayField}
-          minItems={minItems}>
-          <PropertyItem fieldKey={fieldKey} disabled={disabled} classess={classess}/>
+        {this.props.label && <div style={label}>{this.props.label}</div>}
+        <FieldList items={arrayField} minItems={minItems}>
+          <PropertyItem
+            fieldKey={fieldKey}
+            disabled={disabled}
+            classess={classess}
+          />
         </FieldList>
-        { errorMessage && (
-          <FormValidationMessage className='margin-top--half margin-bottom' dataQa='error'>
+        {errorMessage && (
+          <FormValidationMessage
+            className="margin-top--half margin-bottom"
+            dataQa="error"
+          >
             {errorMessage}
           </FormValidationMessage>
         )}
-        { !disabled && <AddButton addItem={this.addItem} className='gutter--none'>{addButtonText}</AddButton>}
+        {!disabled && (
+          <AddButton addItem={this.addItem} className="gutter--none">
+            {addButtonText}
+          </AddButton>
+        )}
       </div>
     );
   }
 }
-

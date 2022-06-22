@@ -53,7 +53,7 @@ public class IcebergHadoopModel extends IcebergBaseModel {
         fs,
         context, plugin);
         return new IcebergBaseCommand(configuration,
-        ((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations
+        ((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations, plugin
         );
     }
 

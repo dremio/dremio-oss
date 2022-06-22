@@ -27,9 +27,9 @@ import com.google.common.base.Strings;
 
 public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
   private static final String[] baselineCols = new String[] {"COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE",
-    "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES"};
-  private static final Object[] expVal1 = new Object[] {"key", "INTEGER", "YES", 32, 0, "[]"};
-  private static final Object[] expVal2 = new Object[] {"value", "CHARACTER VARYING", "YES", null, null, "[]"};
+    "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY"};
+  private static final Object[] expVal1 = new Object[] {"key", "INTEGER", "YES", 32, 0, "[]", null};
+  private static final Object[] expVal2 = new Object[] {"value", "CHARACTER VARYING", "YES", null, null, "[]", null};
 
   @Before
   public void ensureFullMetadataRead() throws NamespaceException{
@@ -191,6 +191,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("dfs_test")
         .baselineValues("dfs_hadoop")
         .baselineValues("dfs_test_hadoop")
+        .baselineValues("dfs_static_test_hadoop")
         .baselineValues("dfs_root")
         .baselineValues("dacfs")
         .baselineValues("hive")
@@ -233,8 +234,8 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .sqlQuery("DESCRIBE hive.\"db1\".kv_db1")
         .unOrdered()
         .baselineColumns(baselineCols)
-        .baselineValues("key", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("value", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("key", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("value", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 
@@ -259,8 +260,8 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
       .sqlQuery("DESCRIBE \"hive.db1\".kv_db1")
       .unOrdered()
       .baselineColumns(baselineCols)
-      .baselineValues("key", "CHARACTER VARYING", "YES", null, null, "[]")
-      .baselineValues("value", "CHARACTER VARYING", "YES", null, null, "[]")
+      .baselineValues("key", "CHARACTER VARYING", "YES", null, null, "[]", null)
+      .baselineValues("value", "CHARACTER VARYING", "YES", null, null, "[]", null)
       .go();
   }
 

@@ -15,5 +15,5 @@
  */
 export default {
   disableRunButton: false,
-  disablePreviewButton: false
+  disablePreviewButton: false,
 };

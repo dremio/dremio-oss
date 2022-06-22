@@ -274,12 +274,12 @@ public class PrelUtil {
 
   /** Visitor that finds the set of inputs that are used. */
   private static class RefFieldsVisitor extends RexVisitorImpl<PathSegment> {
-    final private Set<SchemaPath> columns;
-    final private List<RexNode> inputRefs = Lists.newArrayList();
-    final private List<String> fieldNames;
-    final private List<RelDataTypeField> fields;
-    final private Set<DesiredField> desiredFields;
-    final private Map<String,Integer> fieldNameMap = new HashMap<>();
+    private final Set<SchemaPath> columns;
+    private final List<RexNode> inputRefs = Lists.newArrayList();
+    private final List<String> fieldNames;
+    private final List<RelDataTypeField> fields;
+    private final Set<DesiredField> desiredFields;
+    private final Map<String,Integer> fieldNameMap = new HashMap<>();
 
     public RefFieldsVisitor(RelDataType rowType) {
       super(true);

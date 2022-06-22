@@ -13,21 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import Cards from '@app/pages/ExplorePage/components/Transform/components/Cards';
-import ExtractListCard from './ExtractListCard';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
+import ExtractListCard from "./ExtractListCard";
 
-
-@Radium
-export default class ExtractListCards extends Component {
-
+class ExtractListCards extends Component {
   static getFields() {
     return [
       ...ExtractListCard.getFields().map((field) => `cards[].${field}`),
-      'activeCard'
+      "activeCard",
     ];
   }
 
@@ -36,8 +33,8 @@ export default class ExtractListCards extends Component {
     if (activeCardValues) {
       const errors = {
         cards: {
-          [values.activeCard]: ExtractListCard.validate(activeCardValues)
-        }
+          [values.activeCard]: ExtractListCard.validate(activeCardValues),
+        },
       };
       return errors;
     }
@@ -45,7 +42,7 @@ export default class ExtractListCards extends Component {
 
   static propTypes = {
     cards: PropTypes.instanceOf(Immutable.List),
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   constructor(props) {
@@ -53,24 +50,29 @@ export default class ExtractListCards extends Component {
   }
 
   handleCardClick(index) {
-    const {fields: {activeCard}} = this.props;
+    const {
+      fields: { activeCard },
+    } = this.props;
     if (index !== activeCard.value) {
       activeCard.onChange(index);
     }
   }
 
   render() {
-    const {cards, fields} = this.props;
-    return <Cards>
-      {fields.cards.map((card, index) =>
-        <ExtractListCard
-          key={index}
-          card={cards.get(index) || Immutable.Map()}
-          fields={card}
-          active={index === fields.activeCard.value}
-          onClick={this.handleCardClick.bind(this, index)}/>
-      )}
-    </Cards>;
-
+    const { cards, fields } = this.props;
+    return (
+      <Cards>
+        {fields.cards.map((card, index) => (
+          <ExtractListCard
+            key={index}
+            card={cards.get(index) || Immutable.Map()}
+            fields={card}
+            active={index === fields.activeCard.value}
+            onClick={this.handleCardClick.bind(this, index)}
+          />
+        ))}
+      </Cards>
+    );
   }
 }
+export default Radium(ExtractListCards);

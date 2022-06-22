@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ENABLE_EXTEND_ON_SELECT;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,6 +45,7 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.util.ColumnUtils;
 import com.google.common.io.Resources;
 
 public class TestIcebergScan extends BaseTestQuery {
@@ -122,24 +123,37 @@ public class TestIcebergScan extends BaseTestQuery {
   }
 
   @Test
+  public void testExtendOnSelect() throws Exception {
+
+    try {
+      setSystemOption(ENABLE_EXTEND_ON_SELECT, "true");
+      testRootPath = "/tmp/iceberg";
+      copyFromJar("iceberg/nation", testRootPath);
+      String extendOnSelectQuery = String.format("select %s, %s from dfs_hadoop.tmp.iceberg extend (%s VARCHAR, %s BIGINT) limit 2",
+        ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME,
+        ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME);
+
+      testBuilder()
+        .sqlQuery(extendOnSelectQuery)
+        .unOrdered()
+        .baselineColumns(ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME)
+        .baselineValues("file:/tmp/iceberg/data/00000-1-a9e8d979-a183-40c5-af3d-a338ab62be8b-00000.parquet", 0L)
+        .baselineValues("file:/tmp/iceberg/data/00000-1-a9e8d979-a183-40c5-af3d-a338ab62be8b-00000.parquet", 1L)
+        .build()
+        .run();
+    } finally {
+      setSystemOption(ENABLE_EXTEND_ON_SELECT, "false");
+    }
+  }
+
+  @Test
   public void testExceptionOnDeleteFile() throws Exception {
     testRootPath = "/tmp/iceberg";
     copyFromJar("iceberg/table_with_delete", testRootPath);
-
-    Exception exception = assertThrows(Exception.class, () -> {
-      testBuilder()
-        .sqlQuery("select * from dfs_hadoop.tmp.iceberg")
-        .unOrdered()
-        .baselineColumns("category")
-        .baselineValues(0)
-        .build()
-        .run();
-    });
-
-    String expectedMessage = "Iceberg V2 tables with delete files are not supported";
-    String actualMessage = exception.getMessage();
-
-    assertTrue(actualMessage.contains(expectedMessage));
+    assertThatThrownBy(() -> {
+      runSQL("alter table dfs_hadoop.tmp.iceberg refresh metadata");
+    }).isInstanceOf(Exception.class)
+      .hasMessageContaining("Iceberg V2 tables with delete files are not supported");
   }
 
   @Test

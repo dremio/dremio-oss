@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     checkIfUserHasCanAlter() {
       return true;
-    }
+    },
   });
 }

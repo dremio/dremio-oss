@@ -15,5 +15,5 @@
  */
 
 export default {
-  enableSignUp: true
+  enableSignUp: true,
 };

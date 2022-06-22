@@ -13,35 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { HelpSection } from './HelpSection';
+import { HelpSection } from "./HelpSection";
 
-describe('HelpSection', () => {
+describe("HelpSection", () => {
   let minimalProps;
   let commonProps;
-  const context = {loggedInUser:{}};
+  const context = { loggedInUser: {} };
   beforeEach(() => {
     minimalProps = {
-      jobId: '123-abc',
+      jobId: "123-abc",
       callIfChatAllowedOrWarn: sinon.stub().resolves(),
       askGnarly: sinon.stub(),
       downloadFile: sinon.stub(),
-      downloadViewState: Immutable.Map()
+      downloadViewState: Immutable.Map(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<HelpSection {...minimalProps}/>, {context});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<HelpSection {...minimalProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with commonProps props without exploding', () => {
-    const wrapper = shallow(<HelpSection {...commonProps}/>, {context});
+  it("should render with commonProps props without exploding", () => {
+    const wrapper = shallow(<HelpSection {...commonProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 });

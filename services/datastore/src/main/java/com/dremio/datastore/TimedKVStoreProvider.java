@@ -16,6 +16,8 @@
 package com.dremio.datastore;
 
 
+import java.util.Set;
+
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
@@ -26,6 +28,7 @@ import com.dremio.datastore.format.Format;
 import com.dremio.datastore.utility.StoreLoader;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Provides a TimedKVStore provider, that wraps the underlying provider &
@@ -97,6 +100,11 @@ public class TimedKVStoreProvider implements KVStoreProvider {
     public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       return TimedKVStore.TimedIndexedStore.of(delegate.buildIndexed(documentConverter));
     }
+  }
+
+  @Override
+  public Set<KVStore<?, ?>> stores() {
+    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
   }
 
   @Override

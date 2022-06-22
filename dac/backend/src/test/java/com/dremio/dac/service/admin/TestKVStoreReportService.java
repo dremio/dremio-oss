@@ -100,6 +100,7 @@ import net.minidev.json.parser.ParseException;
  * Test kv store report content.
  */
 public class TestKVStoreReportService extends BaseTestServer {
+  private static final String CATALOG_PATH = "/catalog/";
 
   private static Provider<LegacyKVStoreProvider> storeProviderProvider;
   private static KVStoreReportService service;
@@ -127,7 +128,6 @@ public class TestKVStoreReportService extends BaseTestServer {
    * prepare the env (source, datasets) for the interested kvstores to have some contents
    */
   private void createSplitReflectionEntriesInStores() {
-    final String CATALOG_PATH = "/catalog/";
     NASConf nasConf = new NASConf();
     nasConf.path = TestTools.getWorkingPath() + "/src/test/resources";
 

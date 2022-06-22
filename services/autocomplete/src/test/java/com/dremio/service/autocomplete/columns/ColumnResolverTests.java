@@ -15,153 +15,188 @@
  */
 package com.dremio.service.autocomplete.columns;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import static com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog.createCatalog;
+
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import org.apache.arrow.util.Preconditions;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.sql.parser.StringAndPos;
 import org.junit.Test;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-import com.dremio.exec.planner.sql.OperatorTable;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.service.autocomplete.DremioToken;
-import com.dremio.service.autocomplete.SqlQueryTokenizer;
-import com.dremio.service.autocomplete.catalog.mock.MockCatalog;
-import com.dremio.service.autocomplete.catalog.mock.MockDremioQueryParser;
-import com.dremio.service.autocomplete.catalog.mock.MockDremioTable;
-import com.dremio.service.autocomplete.catalog.mock.MockDremioTableFactory;
-import com.dremio.service.autocomplete.catalog.mock.MockSchemas;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.autocomplete.QueryParserFactory;
+import com.dremio.service.autocomplete.catalog.mock.MockAutocompleteSchemaProvider;
+import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
+import com.dremio.service.autocomplete.parsing.SqlNodeParser;
+import com.dremio.service.autocomplete.statements.grammar.Statement;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 /**
  * Tests for context aware auto completions.
  */
 public final class ColumnResolverTests {
-  private static final ColumnResolver COLUMN_RESOLVER = createColumnResolver(
-    new ImmutableMap.Builder<String, ImmutableList<MockSchemas.ColumnSchema>>()
-      .put("EMP", MockSchemas.EMP)
-      .put("DEPT", MockSchemas.DEPT)
-      .build());
-
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTest)
+    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
       .add(
         "SIMPLE FROM CLAUSE",
-        "FROM EMP")
+        "SELECT ^ FROM EMP")
       .add(
         "FROM CLAUSE WITH COMMAS",
-        "FROM EMP, DEPT")
+        "SELECT ^ FROM EMP, DEPT")
       .add(
         "FROM CLAUSE WITH JOINS",
-        "FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO")
+        "SELECT ^ FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO")
       .runTests();
   }
 
-  private static Map<List<String>, List<ColumnForBaseline>> executeTest(String fromClause) {
-    List<DremioToken> fromClauseTokens = SqlQueryTokenizer.tokenize(fromClause);
-    Map<List<String>, Set<Column>> columnResolution = COLUMN_RESOLVER.resolve(ImmutableList.copyOf(fromClauseTokens));
-    Map<List<String>, List<ColumnForBaseline>> baselineResult = new HashMap<>();
-    for (List<String> path : columnResolution.keySet()) {
-      List<ColumnForBaseline> columnsForBaseline = new ArrayList<>();
-      for (Column column : columnResolution.get(path)) {
-        ColumnForBaseline columnForBaseline = new ColumnForBaseline(column.getName(), column.getType().getSqlTypeName());
-        columnsForBaseline.add(columnForBaseline);
-      }
-
-      Collections.sort(columnsForBaseline, Comparator.comparing(columnForBaseline -> columnForBaseline.name));
-
-      baselineResult.put(path, columnsForBaseline);
-    }
-
-    return baselineResult;
+  @Test
+  public void aliasing() {
+    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+      .add(
+        "NO ALIAS",
+        "SELECT ^ FROM EMP")
+      .add(
+        "BASIC ALIAS",
+        "SELECT ^ FROM EMP as e")
+      .add(
+        "JOIN ALIAS COMMA",
+        "SELECT ^ FROM EMP as e, DEPT as d")
+      .add(
+        "JOIN ALIAS ON",
+        "SELECT ^ FROM EMP as e JOIN DEPT as d ON e.DEPTNO = d.DEPTNO")
+      .add(
+        "SELF JOIN",
+        "SELECT ^ FROM EMP as e1, EMP as e2")
+      .add(
+        "SUBQUERY NO ALIAS",
+        "SELECT ^ FROM (SELECT EMP.ENAME, EMP.DEPTNO FROM EMP)")
+      .add(
+        "SUBQUERY TABLE ALIAS",
+        "SELECT ^ FROM (SELECT EMP.ENAME, EMP.DEPTNO FROM EMP) as subtable")
+      .add(
+        "SUBQUERY COLUMN ALIASES",
+        "SELECT ^ FROM (SELECT EMP.ENAME as a, EMP.DEPTNO as b FROM EMP)")
+      .add(
+        "SUBQUERY COLUMN AND TABLE ALIASES",
+        "SELECT ^ FROM (SELECT EMP.ENAME as a, EMP.DEPTNO as b FROM EMP) as subtable")
+      .add(
+        "SUBQUERY WITH JOIN",
+        "SELECT ^ FROM (SELECT EMP.ENAME as a, EMP.DEPTNO as b, DEPT.DEPTNO as c FROM EMP, DEPT) as joinedTable")
+      .runTests();
   }
 
-  public static final class ColumnForBaseline {
-    private final String name;
-    private final SqlTypeName sqlTypeName;
-
-    public ColumnForBaseline(String name, SqlTypeName sqlTypeName) {
-      this.name = name;
-      this.sqlTypeName = sqlTypeName;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public SqlTypeName getSqlTypeName() {
-      return sqlTypeName;
-    }
+  @Test
+  public void aliasingWithHomeContext() {
+    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithHomeContext)
+      .add(
+        "NO ALIAS",
+        "SELECT ^ FROM \"space\".\"folder\".EMP")
+      .add(
+        "BASIC ALIAS",
+        "SELECT ^ FROM \"space\".\"folder\".EMP as e")
+      .add(
+        "JOIN ALIAS COMMA",
+        "SELECT ^ FROM \"space\".\"folder\".EMP as e, \"space\".\"folder\".DEPT as d")
+      .add(
+        "SELF JOIN",
+        "SELECT ^ FROM \"space\".\"folder\".EMP as e1, \"space\".\"folder\".EMP as e2")
+      .add(
+        "JOIN ALIAS ON",
+        "SELECT ^ FROM \"space\".\"folder\".EMP as e JOIN \"space\".\"folder\".DEPT as d ON e.DEPTNO = d.DEPTNO")
+      .runTests();
   }
 
-  public static ColumnResolver createColumnResolver(ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
-    Preconditions.checkNotNull(tableSchemas);
-
-    MockColumnReader columnReader = createColumnReader(tableSchemas);
-    DremioQueryParser queryParser = createQueryParser(tableSchemas);
-    ColumnResolver columnResolver = new ColumnResolver(columnReader, queryParser);
-
-    return columnResolver;
+  @Test
+  public void subquery() {
+    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+      .add(
+        "CURSOR IN MIDDLE QUERY",
+        "SELECT DEPTNO, (SELECT ^ , (SELECT * FROM SALGRADE) FROM EMP) FROM DEPT")
+      .add(
+        "CURSOR IN INNER QUERY",
+        "SELECT DEPTNO, (SELECT MAX(EMP.SAL), ^ FROM EMP) FROM DEPT")
+      .add(
+        "CURSOR IN OUTER QUERY",
+        "SELECT DEPTNO, ^ , (SELECT MAX(EMP.SAL) FROM EMP) FROM DEPT")
+      .add(
+        "CURSOR IN MIDDLE QUERY",
+        "SELECT DEPTNO, (SELECT ^ , (SELECT * FROM SALGRADE) FROM EMP) FROM DEPT")
+      .add(
+        "SUBQUERY AS FROM CLAUSE",
+        "SELECT * FROM (SELECT ^ FROM EMP)")
+      .runTests();
   }
 
-  private static MockColumnReader createColumnReader(ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
-    ImmutableMap.Builder<ImmutableList<String>, ImmutableSet<Column>> tables = new ImmutableMap.Builder<>();
-    for (String tableName : tableSchemas.keySet()) {
-      ImmutableSet.Builder<Column> columnBuilder = new ImmutableSet.Builder<>();
-      for (MockSchemas.ColumnSchema columnSchema : tableSchemas.get(tableName)) {
-        columnBuilder.add(Column.create(columnSchema.getName(), columnSchema.getSqlTypeName()));
-      }
-
-      tables.put(ImmutableList.of(tableName), columnBuilder.build());
-    }
-
-    return new MockColumnReader(tables.build());
+  @Test
+  public void nessie() {
+    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+      .add(
+        "BRANCH",
+        "SELECT ^ FROM EMP AT BRANCH \"Branch A\"")
+      .add(
+        "COMMIT",
+        "SELECT ^ FROM EMP AT COMMIT \"DEADBEEF\"")
+      .add(
+        "TAG",
+        "SELECT ^ FROM EMP AT TAG \"Tag A\"")
+      .add(
+        "WITH ALIAS",
+        "SELECT ^ FROM EMP AT BRANCH \"Branch A\" AS EMPATBRANCH")
+      .add(
+        "MULTIPLE ATS",
+        "SELECT ^ FROM EMP AT BRANCH \"Branch A\", DEPT AT BRANCH \"Branch B\"")
+      .add(
+        "SUBQUERY",
+        "SELECT * FROM (SELECT ^ FROM EMP AT BRANCH \"Branch A\") as subtable")
+      .runTests();
   }
 
-  private static DremioQueryParser createQueryParser(ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
-    OperatorTable operatorTable = createOperatorTable();
-    MockCatalog catalog = createCatalog(tableSchemas);
-
-    DremioQueryParser queryParser = new MockDremioQueryParser(operatorTable, catalog, "user1");
-    return queryParser;
+  @Test
+  public void nessieWithHomeContext() {
+    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithHomeContext)
+      .add(
+        "BRANCH",
+        "SELECT ^ FROM \"space\".\"folder\".EMP AT BRANCH \"Branch A\"")
+      .add(
+        "COMMIT",
+        "SELECT ^ FROM \"space\".\"folder\".EMP AT COMMIT \"DEADBEEF\"")
+      .add(
+        "TAG",
+        "SELECT ^ FROM \"space\".\"folder\".EMP AT TAG \"Tag A\"")
+      .add(
+        "WITH ALIAS",
+        "SELECT ^ FROM \"space\".\"folder\".EMP AT BRANCH \"Branch A\" AS EMPATBRANCH")
+      .add(
+        "MULTIPLE ATS",
+        "SELECT ^ FROM \"space\".\"folder\".EMP AT BRANCH \"Branch A\", \"space\".\"folder\".DEPT AT BRANCH \"Branch B\"")
+      .add(
+        "SUBQUERY",
+        "SELECT ^ FROM (SELECT * FROM \"space\".\"folder\".EMP AT Branch \"Branch A\") as subtable")
+      .runTests();
   }
 
-  private static OperatorTable createOperatorTable() {
-    SabotConfig config = SabotConfig.create();
-    ScanResult scanResult = ClassPathScanner.fromPrescan(config);
-    FunctionImplementationRegistry functionImplementationRegistry = new FunctionImplementationRegistry(
-      config,
-      scanResult);
-    OperatorTable operatorTable = new OperatorTable(functionImplementationRegistry);
-
-    return operatorTable;
+  private static Set<ColumnAndTableAlias> executeTestWithHomeContext(String query) {
+    ImmutableList<String> context = ImmutableList.of();
+    return executeTest(createCatalog(context), query);
   }
 
-  private static MockCatalog createCatalog(ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
-    ImmutableList.Builder<MockDremioTable> mockDremioTableBuilder = new ImmutableList.Builder<>();
-    for (String tableName : tableSchemas.keySet()) {
-      MockDremioTable mockDremioTable = MockDremioTableFactory.createFromSchema(
-        new NamespaceKey(tableName),
-        JavaTypeFactoryImpl.INSTANCE,
-        tableSchemas.get(tableName));
-      mockDremioTableBuilder.add(mockDremioTable);
-    }
+  private static Set<ColumnAndTableAlias> executeTestWithFolderContext(String query) {
+    ImmutableList<String> context = ImmutableList.of("space", "folder");
+    return executeTest(createCatalog(context), query);
+  }
 
-    MockCatalog catalog = new MockCatalog(JavaTypeFactoryImpl.INSTANCE, mockDremioTableBuilder.build());
-    return catalog;
+  private static Set<ColumnAndTableAlias> executeTest(MockMetadataCatalog.CatalogData data, String query) {
+    SqlNodeParser dremioQueryParser = QueryParserFactory.create(new MockMetadataCatalog(data));
+    ColumnResolver columnResolver = new ColumnResolver(
+      new MockAutocompleteSchemaProvider(data.getContext(), data.getHead()),
+      dremioQueryParser);
+
+    StringAndPos stringAndPos = SqlParserUtil.findPos(query);
+    List<Statement> statementPath = Statement.extractCurrentStatementPath(stringAndPos.sql, stringAndPos.cursor);
+
+    Set<ColumnAndTableAlias> columnAndTableAliases = columnResolver.resolve(statementPath);
+    return columnAndTableAliases;
   }
 }

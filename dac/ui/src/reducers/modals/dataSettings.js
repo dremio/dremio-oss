@@ -13,44 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/modals/dataSettings';
+import * as ActionTypes from "actions/modals/dataSettings";
 
 const initialState = Immutable.fromJS({
   acceleration: {
     historyItems: [],
-    enabled: false
+    enabled: false,
   },
-  accelerationSettings: {}
+  accelerationSettings: {},
 });
 
 export default function dataSettings(state = initialState, action) {
   switch (action.type) {
-  // todo: replace more of this with ViewStateWrapper
-  case ActionTypes.ACCELERATION_DATA_START:
-    return state.set('acceleration', Immutable.fromJS({
-      historyItems: [],
-      enabled: false
-    }));
-  case ActionTypes.ACCELERATION_DATA_SUCCESS:
-    return state.set('acceleration', Immutable.fromJS({
-      historyItems: action.payload.infosList, // todo: naming normalization (server-side?)
-      enabled: action.payload.enabled
-    }));
-  case ActionTypes.ACCELERATION_UPDATE_START:
-    return state.set('acceleration', Immutable.fromJS({
-      historyItems: state.get('acceleration').get('historyItems'),
-      enabled: state.get('acceleration').get('enabled')
-    }));
-  case ActionTypes.ACCELERATION_UPDATE_SUCCESS:
-    return state.set('acceleration', Immutable.fromJS({
-      historyItems: state.get('acceleration').get('historyItems'),
-      enabled: state.get('acceleration').get('enabled')
-    }));
-  case ActionTypes.ACCELERATION_SETTINGS_SUCCESS:
-    return state.set('accelerationSettings', Immutable.fromJS(action.payload));
-  default:
-    return state;
+    // todo: replace more of this with ViewStateWrapper
+    case ActionTypes.ACCELERATION_DATA_START:
+      return state.set(
+        "acceleration",
+        Immutable.fromJS({
+          historyItems: [],
+          enabled: false,
+        })
+      );
+    case ActionTypes.ACCELERATION_DATA_SUCCESS:
+      return state.set(
+        "acceleration",
+        Immutable.fromJS({
+          historyItems: action.payload.infosList, // todo: naming normalization (server-side?)
+          enabled: action.payload.enabled,
+        })
+      );
+    case ActionTypes.ACCELERATION_UPDATE_START:
+      return state.set(
+        "acceleration",
+        Immutable.fromJS({
+          historyItems: state.get("acceleration").get("historyItems"),
+          enabled: state.get("acceleration").get("enabled"),
+        })
+      );
+    case ActionTypes.ACCELERATION_UPDATE_SUCCESS:
+      return state.set(
+        "acceleration",
+        Immutable.fromJS({
+          historyItems: state.get("acceleration").get("historyItems"),
+          enabled: state.get("acceleration").get("enabled"),
+        })
+      );
+    case ActionTypes.ACCELERATION_SETTINGS_SUCCESS:
+      return state.set(
+        "accelerationSettings",
+        Immutable.fromJS(action.payload)
+      );
+    default:
+      return state;
   }
 }

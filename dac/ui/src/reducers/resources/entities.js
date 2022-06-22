@@ -13,27 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { get } from 'lodash/object';
+import Immutable from "immutable";
+import { get } from "lodash/object";
 
-import entityTypes from 'dyn-load/reducers/resources/entityTypes';
-import { LOAD_ENTITIES_SUCCESS } from '@app/actions/resources';
-import { CLEAR_ENTITIES } from '@app/actions/resources/entities';
-import { CLEAR_DATASET_ACCELERATION_SETTINGS } from '@app/actions/resources/datasetAccelerationSettings';
+import entityTypes from "dyn-load/reducers/resources/entityTypes";
+import { LOAD_ENTITIES_SUCCESS } from "@app/actions/resources";
+import { CLEAR_ENTITIES } from "@app/actions/resources/entities";
+import { CLEAR_DATASET_ACCELERATION_SETTINGS } from "@app/actions/resources/datasetAccelerationSettings";
 
-import * as entityReducers from './entityReducers';
+import * as entityReducers from "./entityReducers";
 
 export const cacheConfigs = {
   tableData: {
-    max: 20
-  }
+    max: 20,
+  },
 };
 
 const initEntityTypeState = (state, entityType) => {
-  return state.set(entityType, cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map());
+  return state.set(
+    entityType,
+    cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map()
+  );
 };
 
-export const initialState = entityTypes.reduce(initEntityTypeState, Immutable.Map());
+export const initialState = entityTypes.reduce(
+  initEntityTypeState,
+  Immutable.Map()
+);
 
 export function evictOldEntities(entities, max) {
   if (entities.size > max) {
@@ -46,10 +52,10 @@ export const applyEntitiesToState = (state, action) => {
   let result = state;
   // todo in long term we should migrate a util to leave only mergeEntities flag.
   // and mergeEntities=false should work as replaceEntities = true
-  const replaceEntities = get(action, 'meta.replaceEntities', false);
-  const mergeEntities = get(action, 'meta.mergeEntities', false);
-  const applyMethod = mergeEntities ? 'mergeIn' : 'setIn';
-  action.payload.get('entities').forEach((entitiesToAdd, entityType) => {
+  const replaceEntities = get(action, "meta.replaceEntities", false);
+  const mergeEntities = get(action, "meta.mergeEntities", false);
+  const applyMethod = mergeEntities ? "mergeIn" : "setIn";
+  action.payload.get("entities").forEach((entitiesToAdd, entityType) => {
     if (replaceEntities) {
       result = result.set(entityType, entitiesToAdd);
     } else {
@@ -58,7 +64,10 @@ export const applyEntitiesToState = (state, action) => {
       });
     }
     if (cacheConfigs[entityType]) {
-      result = result.set(entityType, evictOldEntities(result.get(entityType), cacheConfigs[entityType].max));
+      result = result.set(
+        entityType,
+        evictOldEntities(result.get(entityType), cacheConfigs[entityType].max)
+      );
     }
   });
   return result;
@@ -66,7 +75,9 @@ export const applyEntitiesToState = (state, action) => {
 
 const isActionWithEntities = (action) =>
   (!action.meta || !action.meta.ignoreEntities) &&
-  action.payload && action.payload.get && action.payload.get('entities');
+  action.payload &&
+  action.payload.get &&
+  action.payload.get("entities");
 
 const clearEntitiesByType = (state, types) => {
   let nextState = state;
@@ -84,29 +95,31 @@ export default function entitiesReducer(state = initialState, action) {
   let nextState = state;
 
   switch (action.type) {
-  // DX-10700 clear data that could be cached for other folders. New data would be applied below
-  case LOAD_ENTITIES_SUCCESS:
-    nextState = clearEntitiesByType(nextState, ['folder', 'file', 'fileFormat']);
-    break;
-  case CLEAR_ENTITIES:
-    // DX-13506
-    nextState = clearEntitiesByType(state, action.typeList);
-    break;
-  case CLEAR_DATASET_ACCELERATION_SETTINGS:
-    nextState = nextState.deleteIn(['datasetAccelerationSettings', action.payload]);
-    break;
-  default:
+    // DX-10700 clear data that could be cached for other folders. New data would be applied below
+    case LOAD_ENTITIES_SUCCESS:
+      nextState = clearEntitiesByType(nextState, [
+        "folder",
+        "file",
+        "fileFormat",
+      ]);
+      break;
+    case CLEAR_ENTITIES:
+      // DX-13506
+      nextState = clearEntitiesByType(state, action.typeList);
+      break;
+    case CLEAR_DATASET_ACCELERATION_SETTINGS:
+      nextState = nextState.deleteIn([
+        "datasetAccelerationSettings",
+        action.payload,
+      ]);
+      break;
+    default:
     //do nothing
   }
 
   if (action.meta) {
-
     //todo add description of setting bellow
-    const {
-      entityRemovePaths,
-      entityClears,
-      emptyEntityCache
-    } = action.meta;
+    const { entityRemovePaths, entityClears, emptyEntityCache } = action.meta;
 
     if (entityRemovePaths) {
       for (const path of entityRemovePaths) {
@@ -121,19 +134,27 @@ export default function entitiesReducer(state = initialState, action) {
     if (emptyEntityCache) {
       // Remove folders when certain entities (like source or space) are removed to avoid caching outdated data
       const root = emptyEntityCache;
-      const newFolders = nextState.get('folder').filter((folder) => {
-        return folder.get('fullPathList').get(0) !== root;
+      const newFolders = nextState.get("folder").filter((folder) => {
+        return folder.get("fullPathList").get(0) !== root;
       });
 
-      const newFiles = nextState.get('file').filter((file) => {
-        return file.get('fullPathList').get(0) !== root;
+      const newFiles = nextState.get("file").filter((file) => {
+        return file.get("fullPathList").get(0) !== root;
       });
 
-      const newFileFormats = nextState.get('fileFormat').filter((fileFormat) => {
-        return !fileFormat.get('fullPath') || fileFormat.get('fullPath').get(0) !== root;
-      });
+      const newFileFormats = nextState
+        .get("fileFormat")
+        .filter((fileFormat) => {
+          return (
+            !fileFormat.get("fullPath") ||
+            fileFormat.get("fullPath").get(0) !== root
+          );
+        });
 
-      nextState = nextState.set('folder', newFolders).set('file', newFiles).set('fileFormat', newFileFormats);
+      nextState = nextState
+        .set("folder", newFolders)
+        .set("file", newFiles)
+        .set("fileFormat", newFileFormats);
     }
   }
 
@@ -142,5 +163,8 @@ export default function entitiesReducer(state = initialState, action) {
     : nextState;
 
   // why do we apply reducer to whole state not to prevState[key]???
-  return Object.keys(entityReducers).reduce((prevState, key) => entityReducers[key](prevState, action), nextState);
+  return Object.keys(entityReducers).reduce(
+    (prevState, key) => entityReducers[key](prevState, action),
+    nextState
+  );
 }

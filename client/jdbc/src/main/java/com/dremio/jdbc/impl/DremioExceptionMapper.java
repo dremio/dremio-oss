@@ -16,7 +16,6 @@
 package com.dremio.jdbc.impl;
 
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 

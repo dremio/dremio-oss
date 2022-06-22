@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.DremioTable.UNSUPPORTED_EXTENDED_TABLE;
+
 import java.util.List;
 
 import org.apache.calcite.linq4j.tree.Expression;
@@ -51,6 +53,7 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
 
   private final Supplier<RelDataType> rowType;
   private final DremioTable table;
+  private final RelDataTypeFactory dataTypeFactory;
   private final DremioCatalogReader catalog;
 
   public DremioPrepareTable(
@@ -59,6 +62,7 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
       final DremioTable table) {
     super();
     this.catalog = catalog;
+    this.dataTypeFactory = dataTypeFactory;
     this.rowType = new Supplier<RelDataType>(){
       @Override
       public RelDataType get() {
@@ -121,7 +125,7 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
 
   @Override
   public <T> T unwrap(Class<T> paramClass) {
-    if(paramClass == DremioPrepareTable.class) {
+    if (paramClass == DremioPrepareTable.class || paramClass == SqlValidatorTable.class || paramClass == RelOptTable.class) {
       return paramClass.cast(this);
     } else if(paramClass == DremioTable.class
         || paramClass == table.getClass()
@@ -139,7 +143,13 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
 
   @Override
   public RelOptTable extend(List<RelDataTypeField> paramList) {
-    throw new UnsupportedOperationException();
+    Table extendedTable = table.extend(paramList);
+    if (!(extendedTable instanceof DremioTable)) {
+      // We only support extended tables that result in a DremioTable.
+      throw new UnsupportedOperationException(String.format(UNSUPPORTED_EXTENDED_TABLE, extendedTable.getClass().getName()));
+    }
+
+    return new DremioPrepareTable(catalog, dataTypeFactory, (DremioTable) extendedTable);
   }
 
   @Override
@@ -164,7 +174,11 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
 
   @Override
   public List<ColumnStrategy> getColumnStrategies() {
-    return ImmutableList.of();
+    // populate RelOptTable ColumnStrategies with DremioTable's Null property
+    // List<ColumnStrategy> is required not null when doing Merge query validation
+    return table.getSchema().getFields().stream()
+      .map(f -> f.getFieldType().isNullable() ? ColumnStrategy.NULLABLE : ColumnStrategy.NOT_NULLABLE)
+      .collect(ImmutableList.toImmutableList());
   }
 
   @Override
@@ -180,5 +194,4 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
   public DremioTable getTable() {
     return table;
   }
-
 }

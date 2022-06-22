@@ -13,31 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import classNames from 'classnames';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import classNames from "classnames";
+import PropTypes from "prop-types";
 
-import { stopPropagation } from '@app/utils/reactEventUtils';
-import { setEntityActiveState } from '@app/reducers/home/pinnedEntities';
-import { isEntityPinned } from '@app/selectors/home';
-import FontIcon from 'components/Icon/FontIcon';
-import { Tooltip } from 'dremio-ui-lib';
+import { stopPropagation } from "@app/utils/reactEventUtils";
+import { setEntityActiveState } from "@app/reducers/home/pinnedEntities";
+import { isEntityPinned } from "@app/selectors/home";
+import FilledSmallPin from "@app/art/FilledSmallPin.svg";
+import HollowSmallPin from "@app/art/HollowSmallPin.svg";
+import "./ResourcePin.less";
 
-
-const mapStateToProps = (state, {
-  entityId
-}) => ({
-  isPinned: isEntityPinned(state, entityId)
+const mapStateToProps = (state, { entityId }) => ({
+  isPinned: isEntityPinned(state, entityId),
 });
 
 const mapDispatchToProps = {
-  toggleActivePin: setEntityActiveState
+  toggleActivePin: setEntityActiveState,
 };
 
 //export for tests
-@Radium
 export class ResourcePin extends PureComponent {
   static propTypes = {
     //public api
@@ -46,53 +42,24 @@ export class ResourcePin extends PureComponent {
     // connected
     isPinned: PropTypes.bool.isRequired,
 
-    toggleActivePin: PropTypes.func // (entityId: string, isPinned: bool): void
+    toggleActivePin: PropTypes.func, // (entityId: string, isPinned: bool): void
   };
-
 
   onPinClick = (e) => {
     stopPropagation(e);
-    const { entityId, isPinned, toggleActivePin} = this.props;
+    const { entityId, isPinned, toggleActivePin } = this.props;
     toggleActivePin(entityId, !isPinned);
   };
 
   render() {
     const { isPinned } = this.props;
-    const pinClass = classNames('pin', {'active': isPinned});
+    const pinClass = classNames("pin", { active: isPinned });
     return (
-      <span
-        className='pin-wrap'
-        onClick={this.onPinClick}>
-        <Tooltip title={la('Pin')}>
-          <span
-            className={pinClass}
-            style={[styles.pin, isPinned ? styles.activePin : null]}
-          >
-            <FontIcon type='Pin' theme={styles.iconStyle} />
-          </span>
-        </Tooltip>
+      <span className={pinClass} onClick={this.onPinClick}>
+        {isPinned ? <FilledSmallPin /> : <HollowSmallPin />}
       </span>
     );
   }
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(ResourcePin);
-
-const styles = {
-  pin: {
-    opacity: 0.2,
-    ':hover': {
-      opacity: 0.6,
-      cursor: 'pointer'
-    }
-  },
-  activePin: {
-    opacity: 1
-  },
-  iconStyle: {
-    'Container': {
-      'display': 'inline-block',
-      'verticalAlign': 'middle'
-    }
-  }
-};

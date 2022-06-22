@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-export const UPDATE_HISTORY_WITH_JOB_STATE   = 'UPDATE_HISTORY_WITH_JOB_STATE';
+export const UPDATE_HISTORY_WITH_JOB_STATE = "UPDATE_HISTORY_WITH_JOB_STATE";
 
 export function updateHistoryWithJobState(datasetVersion, jobState) {
-  return {type: UPDATE_HISTORY_WITH_JOB_STATE, meta: { datasetVersion, jobState }};
+  return {
+    type: UPDATE_HISTORY_WITH_JOB_STATE,
+    meta: { datasetVersion, jobState },
+  };
 }

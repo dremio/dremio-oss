@@ -20,7 +20,7 @@ const disabler = (e) => {
   return false;
 };
 
-const getElOrBody = el => el || document.getElementsByTagName('body')[0];
+const getElOrBody = (el) => el || document.getElementsByTagName("body")[0];
 
 const cursorHelper = () => {
   let originalCursor = null; // null if setCursor was not called or reset method was called
@@ -30,7 +30,8 @@ const cursorHelper = () => {
     setCursor: (cursor) => {
       const body = getElOrBody();
       // if there are several calls of setCursor, we record cursor state only for first call or call after resetCusor call
-      if (originalCursor === null) { //record only first ponter
+      if (originalCursor === null) {
+        //record only first ponter
         originalCursor = body.style.cursor;
       }
       body.style.cursor = cursor;
@@ -40,41 +41,40 @@ const cursorHelper = () => {
     resetCursor: () => {
       getElOrBody().style.cursor = originalCursor;
       originalCursor = null;
-    }
+    },
   };
 };
 
 export const domUtils = {
-  disableSelection: el => {
-    getElOrBody(el).addEventListener('mousedown', disabler, false);
+  disableSelection: (el) => {
+    getElOrBody(el).addEventListener("mousedown", disabler, false);
   },
 
   enableSelection: (el) => {
-    getElOrBody(el).removeEventListener('mousedown', disabler, false);
+    getElOrBody(el).removeEventListener("mousedown", disabler, false);
   },
 
   // as safari does not support pointer events, we have to use this hook
   captureMouseEvents: (onMouseMove, onMouseUp) => {
-    if (typeof onMouseMove !== 'function' ||
-      typeof onMouseUp !== 'function') {
-      throw new Error('onMouseMove and onMouseUp must be provided');
+    if (typeof onMouseMove !== "function" || typeof onMouseUp !== "function") {
+      throw new Error("onMouseMove and onMouseUp must be provided");
     }
-    const mouseMoveHandler = e => {
+    const mouseMoveHandler = (e) => {
       onMouseMove(e);
 
       return disabler(e);
     };
-    const mouseUpHandler = e => {
+    const mouseUpHandler = (e) => {
       onMouseUp(e);
       //clear the listeners to enable default flow
-      document.removeEventListener('mousemove', mouseMoveHandler, true);
-      document.removeEventListener('mouseup', mouseUpHandler, true);
+      document.removeEventListener("mousemove", mouseMoveHandler, true);
+      document.removeEventListener("mouseup", mouseUpHandler, true);
 
       return disabler(e);
     };
-    document.addEventListener('mousemove', mouseMoveHandler, true);
-    document.addEventListener('mouseup', mouseUpHandler, true);
+    document.addEventListener("mousemove", mouseMoveHandler, true);
+    document.addEventListener("mouseup", mouseUpHandler, true);
   },
 
-  ...cursorHelper()
+  ...cursorHelper(),
 };

@@ -43,6 +43,7 @@ public class Retryer<T> implements ExponentialBackoff {
   private int maxRetries = 4; // default
   private int baseMillis = 250;
   private int maxMillis = 2_500;
+  private boolean infiniteRetries;
   private final Function<Exception, Boolean> isExceptionClassRetriable =
     (ex) -> retryableExceptionClasses.stream().anyMatch(clz -> clz.isInstance(ex));
   private Function<Exception, Boolean> isRetriable = isExceptionClassRetriable;
@@ -51,7 +52,7 @@ public class Retryer<T> implements ExponentialBackoff {
   }
 
   public T call(Callable<T> callable) {
-    for (int attemptNo = 1; attemptNo <= maxRetries; attemptNo++) {
+    for (int attemptNo = 1; infiniteRetries || (attemptNo <= maxRetries); attemptNo++) {
       try {
         return callable.call();
       } catch (Exception e) {
@@ -80,7 +81,7 @@ public class Retryer<T> implements ExponentialBackoff {
   }
 
   public void run(Runnable runnable) {
-    for (int attemptNo = 1; attemptNo <= maxRetries; attemptNo++) {
+    for (int attemptNo = 1; infiniteRetries || (attemptNo <= maxRetries); attemptNo++) {
       try {
         runnable.run();
         return;
@@ -163,6 +164,11 @@ public class Retryer<T> implements ExponentialBackoff {
 
     public Builder<T> setMaxRetries(int maxRetries) {
       retryer.maxRetries = maxRetries;
+      return this;
+    }
+
+    public Builder<T> setInfiniteRetries(boolean infiniteRetries) {
+      retryer.infiniteRetries = infiniteRetries;
       return this;
     }
 

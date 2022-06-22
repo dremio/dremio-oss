@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
+import ExploreDragArea from "pages/ExplorePage/components/ExploreDragArea";
 
-import JoinDragAreaColumn from './JoinDragAreaColumn';
+import JoinDragAreaColumn from "./JoinDragAreaColumn";
 
-const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click “Add a Join Condition”.';
+const DEFAULT_DRAG_AREA_TEXT =
+  "Drag and drop field here or click “Add a Join Condition”.";
 
-@Radium
 class JoinDragArea extends PureComponent {
   static propTypes = {
     style: PropTypes.object,
@@ -38,7 +37,7 @@ class JoinDragArea extends PureComponent {
     dragType: PropTypes.string,
     columnDragName: PropTypes.string,
     isDragInProgress: PropTypes.bool,
-    addColumn: PropTypes.func
+    addColumn: PropTypes.func,
   };
 
   constructor(props) {
@@ -47,7 +46,6 @@ class JoinDragArea extends PureComponent {
     this.handleDrop = this.handleDrop.bind(this);
   }
 
-
   handleDrop(data) {
     if (!this.isDragColumnAlreadyAdded()) {
       this.props.handleDrop(data);
@@ -55,7 +53,9 @@ class JoinDragArea extends PureComponent {
   }
 
   isDragColumnAlreadyAdded() {
-    return !!this.props.items.find(column => column.get('name') === this.props.columnDragName);
+    return !!this.props.items.find(
+      (column) => column.get("name") === this.props.columnDragName
+    );
   }
 
   renderColumnsForDragArea() {
@@ -69,7 +69,7 @@ class JoinDragArea extends PureComponent {
         rightColumns={this.props.rightColumns}
         key={i}
         index={i}
-        type='measures'
+        type="measures"
         removeColumn={this.props.removeColumn}
         moveColumn={this.props.moveColumn}
         dragType={this.props.dragType}
@@ -84,9 +84,11 @@ class JoinDragArea extends PureComponent {
       <ExploreDragArea
         dragType={this.props.dragType}
         onDrop={this.handleDrop}
-        isDragged={this.props.isDragInProgress && !this.isDragColumnAlreadyAdded()}
+        isDragged={
+          this.props.isDragInProgress && !this.isDragColumnAlreadyAdded()
+        }
         emptyDragAreaText={DEFAULT_DRAG_AREA_TEXT}
-        dragContentStyle={!isEmpty ? style.dragContent.base : undefined}
+        dragContentStyle={!isEmpty ? style.dragContent.base : {}}
       >
         {this.renderColumnsForDragArea()}
       </ExploreDragArea>
@@ -97,12 +99,12 @@ class JoinDragArea extends PureComponent {
 const style = {
   dragContent: {
     base: {
-      borderLeftWidth: '0',
-      borderRightWidth: '0',
-      borderTopWidth: '1px',
-      borderBottomWidth: '1px'
-    }
-  }
+      borderLeftWidth: "0",
+      borderRightWidth: "0",
+      borderTopWidth: "1px",
+      borderBottomWidth: "1px",
+    },
+  },
 };
 
 export default JoinDragArea;

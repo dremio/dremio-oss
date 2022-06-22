@@ -102,7 +102,7 @@ public class ParquetReaderUtility {
   }
 
   public static void checkDecimalTypeEnabled(OptionManager options) {
-    if (options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal() == false) {
+    if (!options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal()) {
       throw UserException.unsupportedError()
         .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
         .build(logger);

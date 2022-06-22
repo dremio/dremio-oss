@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
-import { connect } from 'react-redux';
-import { FormattedMessage } from 'react-intl';
+import { useState } from "react";
+import { connect } from "react-redux";
+import { FormattedMessage } from "react-intl";
 
 import {
   Button,
@@ -24,16 +24,15 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  TextField
-} from '@material-ui/core';
+  TextField,
+} from "@material-ui/core";
 
-import { setReference as setReferenceAction } from '@app/actions/nessie/nessie';
-import { NessieState } from '@app/reducers/nessie/nessie';
-import { Reference } from '@app/services/nessie/client';
-import { CustomDialogTitle } from '../NewBranchDialog/utils';
-import { useNessieContext } from '../../utils/context';
+import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
+import { Reference } from "@app/services/nessie/client";
+import { CustomDialogTitle } from "../NewBranchDialog/utils";
+import { useNessieContext } from "../../utils/context";
 
-import './RenameBranchDialog.less';
+import "./RenameBranchDialog.less";
 
 type RenameBranchDialogProps = {
   open: boolean;
@@ -43,9 +42,8 @@ type RenameBranchDialogProps = {
 };
 
 type ConnectedProps = {
-  reference: NessieState['reference'];
   setReference: typeof setReferenceAction;
-}
+};
 
 function RenameBranchDialog({
   open,
@@ -53,10 +51,13 @@ function RenameBranchDialog({
   closeDialog,
   handleNameChange,
   setReference,
-  reference
 }: RenameBranchDialogProps & ConnectedProps) {
-  const { api, stateKey } = useNessieContext();
-  const [newName, setNewName] = useState('');
+  const {
+    api,
+    stateKey,
+    state: { reference },
+  } = useNessieContext();
+  const [newName, setNewName] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
 
@@ -66,7 +67,7 @@ function RenameBranchDialog({
 
   const onCancel = () => {
     closeDialog();
-    setNewName('');
+    setNewName("");
   };
 
   const onAdd = async () => {
@@ -74,19 +75,19 @@ function RenameBranchDialog({
 
     try {
       const newReference = {
-        type: 'BRANCH',
+        type: "BRANCH",
         hash: referenceToRename.hash,
-        name: newName
+        name: newName,
       } as Reference;
 
       await api.createReference({
         sourceRefName: referenceToRename.name,
-        reference: newReference
+        reference: newReference,
       });
 
       await api.deleteBranch({
         branchName: referenceToRename.name,
-        expectedHash: referenceToRename.hash
+        expectedHash: referenceToRename.hash,
       });
 
       if (reference && referenceToRename.name === reference.name) {
@@ -97,20 +98,20 @@ function RenameBranchDialog({
 
       setErrorText(null);
       closeDialog();
-      setNewName('');
+      setNewName("");
       setIsSending(false);
     } catch (error: any) {
-      if (error.statusText === 'Bad Request') {
+      if (error.status === 400) {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.CreateBranch.Error.InvalidName' />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.InvalidName" />
         );
-      } else if (error.statusText === 'Conflict') {
+      } else if (error.status === 409) {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.CreateBranch.Error.Conflict' />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.Conflict" />
         );
       } else {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.DeleteBranch.Error' />
+          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
         );
       }
 
@@ -123,51 +124,51 @@ function RenameBranchDialog({
       <Dialog
         open={open}
         onClose={closeDialog}
-        className='rename-branch-dialog'
+        className="rename-branch-dialog"
       >
         <CustomDialogTitle
           onClose={onCancel}
-          className='rename-branch-dialog-header'
+          className="rename-branch-dialog-header"
         >
-          <span className='rename-branch-dialog-header-title'>
-            <FormattedMessage id='BranchHistory.BranchOptions.RenameBranch' />
+          <span className="rename-branch-dialog-header-title">
+            <FormattedMessage id="BranchHistory.BranchOptions.RenameBranch" />
           </span>
         </CustomDialogTitle>
-        <DialogContent className='rename-branch-dialog-body'>
+        <DialogContent className="rename-branch-dialog-body">
           <DialogContentText>
-            <FormattedMessage id='RepoView.Dialog.CreateBranch.BranchName' />
+            <FormattedMessage id="RepoView.Dialog.CreateBranch.BranchName" />
           </DialogContentText>
           <TextField
             onChange={updateInput}
             value={newName}
             onKeyDown={(e: any) => {
-              e.key === 'Enter' && onAdd();
+              e.key === "Enter" && onAdd();
             }}
             autoFocus
-            margin='normal'
-            id='name'
-            type='text'
+            margin="normal"
+            id="name"
+            type="text"
             fullWidth
-            variant='outlined'
+            variant="outlined"
             error={!!errorText}
             helperText={errorText}
-            label={errorText && <FormattedMessage id='Common.Error' />}
+            label={errorText && <FormattedMessage id="Common.Error" />}
           ></TextField>
         </DialogContent>
-        <DialogActions className='rename-branch-dialog-actions'>
+        <DialogActions className="rename-branch-dialog-actions">
           <Button
             onClick={onCancel}
             disabled={isSending}
-            className='cancel-button'
+            className="cancel-button"
           >
-            <FormattedMessage id='Common.Cancel' />
+            <FormattedMessage id="Common.Cancel" />
           </Button>
           <Button
             onClick={onAdd}
             disabled={isSending}
-            className='rename-button'
+            className="rename-button"
           >
-            <FormattedMessage id='Common.Rename' />
+            <FormattedMessage id="Common.Rename" />
           </Button>
         </DialogActions>
       </Dialog>
@@ -175,8 +176,5 @@ function RenameBranchDialog({
   );
 }
 
-const mapStateToProps = ({ nessie }: { nessie: NessieState }) => ({
-  reference: nessie.reference
-});
 const mapDispatchToProps = { setReference: setReferenceAction };
-export default connect(mapStateToProps, mapDispatchToProps)(RenameBranchDialog);
+export default connect(null, mapDispatchToProps)(RenameBranchDialog);

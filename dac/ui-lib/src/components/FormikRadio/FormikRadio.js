@@ -13,39 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import Radio from '../Radio';
+import Radio from "../Radio";
 
 const FormikRadio = ({ field, ...otherProps }) => {
-  return (
-    <Radio {...field} {...otherProps} />
-  );
+  return <Radio {...field} {...otherProps} />;
 };
 
 FormikRadio.propTypes = {
-  align: PropTypes.oneOf([
-    'row',
-    'column'
-  ]),
+  align: PropTypes.oneOf(["row", "column"]),
   defaultValue: PropTypes.string,
   field: PropTypes.object.isRequired,
   label: PropTypes.string,
   options: PropTypes.arrayOf(
     PropTypes.shape({
       label: PropTypes.string,
-      value: PropTypes.string
+      value: PropTypes.string,
     })
-  ).isRequired
+  ).isRequired,
 };
 
 FormikRadio.defaultProps = {
-  align: 'column',
-  defaultValue: '',
+  align: "column",
+  defaultValue: "",
   field: {},
-  label: null
+  label: null,
 };
-
 
 export default FormikRadio;

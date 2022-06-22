@@ -15,12 +15,10 @@
  */
 package com.dremio.plugins.elastic;
 
-import static org.junit.Assume.assumeFalse;
 
 import java.sql.Timestamp;
 
 import org.joda.time.LocalDateTime;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class ITTestDateTypeWithMultipleFormatter extends BaseTestDateTypeWithMultipleFormatter {

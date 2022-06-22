@@ -95,7 +95,7 @@ public class ConnectionSchema<T> extends CustomSchema<T> {
         throw new AssertionError("ConnectionConf#newMessage should return " + typeClass);
       }
       return new FactoryInstantiator<>(method);
-    } catch (NoSuchMethodException e) {
+    } catch (NoSuchMethodException | NoClassDefFoundError e) {
       // ignore
     }
     return new SchemaInstantiator<>(schema);

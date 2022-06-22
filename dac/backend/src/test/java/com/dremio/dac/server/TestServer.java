@@ -27,6 +27,7 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -607,6 +608,39 @@ public class TestServer extends BaseTestServer {
     assertEquals(10, (int) summary.getDescendants());
     assertEquals(0, (int) summary.getJobCount());
     assertEquals(3, summary.getFields().size());
+  }
+
+  @Test
+  public void testDatasetSummaryWithReferences() throws Exception {
+    populateInitialData();
+    doc("get dataset summary for dataset DG.dsg3 with version context in query params");
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("DG", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    WebTarget webTarget = getAPIv2().path("/datasets/summary/DG/dsg3").queryParam("refType", "BRANCH").queryParam("refValue", "branchtest");
+    DatasetSummary summary = expectSuccess(getBuilder(webTarget).buildGet(), DatasetSummary.class);
+    assertEquals(6, (int) summary.getDescendants());
+    assertEquals(0, (int)summary.getJobCount());
+    assertEquals(3, summary.getFields().size());
+
+    references = new HashMap<>();
+    references.put("DG", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    webTarget = getAPIv2().path("/datasets/summary/DG/dsg3").queryParam("refType", "TAG").queryParam("refValue", "tagtest");
+    summary = expectSuccess(getBuilder(webTarget).buildGet(), DatasetSummary.class);
+    assertEquals(6, (int) summary.getDescendants());
+    assertEquals(0, (int)summary.getJobCount());
+    assertEquals(3, summary.getFields().size());
+
+    references = new HashMap<>();
+    references.put("DG", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    webTarget = getAPIv2().path("/datasets/summary/DG/dsg3").queryParam("refType", "COMMIT").queryParam("refValue", "d0628f078890fec234b98b873f9e1f3cd140988a");
+    summary = expectSuccess(getBuilder(webTarget).buildGet(), DatasetSummary.class);
+    assertEquals(6, (int) summary.getDescendants());
+    assertEquals(0, (int)summary.getJobCount());
+    assertEquals(3, summary.getFields().size());
+    assertThat(summary.getReferences()).usingRecursiveComparison().isEqualTo(references);
+
+    webTarget = getAPIv2().path("/datasets/summary/DG/dsg3").queryParam("refType", "INVALID").queryParam("refValue", "invalid");
+    expectStatus(Status.BAD_REQUEST, getBuilder(webTarget).buildGet());
   }
 
   @Test

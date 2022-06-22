@@ -13,29 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import InternalSupportEmail from './InternalSupportEmail';
-describe('InternalSupportEmail', () => {
+import { shallow } from "enzyme";
+import InternalSupportEmail from "./InternalSupportEmail";
+describe("InternalSupportEmail", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      renderSettings: sinon.spy()
+      renderSettings: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
-      descriptionStyle: {}
+      descriptionStyle: {},
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<InternalSupportEmail {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<InternalSupportEmail {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should call renderSettings two times', () => {
-    const wrapper = shallow(<InternalSupportEmail {...commonProps}/>);
+  it("should call renderSettings two times", () => {
+    const wrapper = shallow(<InternalSupportEmail {...commonProps} />);
     expect(wrapper).to.have.length(1);
     expect(commonProps.renderSettings).to.be.calledTwice;
-    expect('support.email.addr').to.eql(commonProps.renderSettings.getCall(0).args[0]);
-    expect('support.email.jobs.subject').to.eql(commonProps.renderSettings.getCall(1).args[0]);
+    expect("support.email.addr").to.eql(
+      commonProps.renderSettings.getCall(0).args[0]
+    );
+    expect("support.email.jobs.subject").to.eql(
+      commonProps.renderSettings.getCall(1).args[0]
+    );
   });
 });

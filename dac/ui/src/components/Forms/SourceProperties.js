@@ -13,36 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import uuid from 'uuid';
-import { get, set } from 'lodash/object';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import uuid from "uuid";
+import { get, set } from "lodash/object";
 
-import FieldList, { AddButton } from 'components/Fields/FieldList';
-import Property from 'components/Forms/Property';
-import ValueListItem from 'components/Forms/ValueListItem';
-import { description } from 'uiTheme/radium/forms';
-import FormUtils from 'utils/FormUtils/FormUtils';
+import FieldList, { AddButton } from "components/Fields/FieldList";
+import Property from "components/Forms/Property";
+import ValueListItem from "components/Forms/ValueListItem";
+import { description } from "uiTheme/radium/forms";
+import FormUtils from "utils/FormUtils/FormUtils";
 
 PropertyItem.propTypes = {
   item: PropTypes.object,
   onRemove: PropTypes.func,
-  singleValue: PropTypes.bool
+  singleValue: PropTypes.bool,
 };
 
-function PropertyItem({item, onRemove, singleValue}) {
+function PropertyItem({ item, onRemove, singleValue }) {
   return (
-    <div className='property-item' style={styles.item}>
-      {!singleValue && <Property fields={item} onRemove={onRemove}/>}
-      {singleValue && <ValueListItem field={item} onRemove={onRemove}/>}
+    <div className="property-item" style={styles.item}>
+      {!singleValue && <Property fields={item} onRemove={onRemove} />}
+      {singleValue && <ValueListItem field={item} onRemove={onRemove} />}
     </div>
   );
 }
 
 function validateValueList(values, elementConfig) {
-  const enteredValues = FormUtils.getFieldByComplexPropName(values, elementConfig.propName);
+  const enteredValues = FormUtils.getFieldByComplexPropName(
+    values,
+    elementConfig.propName
+  );
   const emptyMsg = `${elementConfig.label} can not be empty`;
-  const repeatMsg = 'Values can not repeat';
+  const repeatMsg = "Values can not repeat";
 
   if (!enteredValues) {
     return {};
@@ -50,25 +53,38 @@ function validateValueList(values, elementConfig) {
 
   return enteredValues.reduce((errors, value, index) => {
     if (!value) {
-      if (elementConfig.validate === undefined || elementConfig.validate.isRequired) {
-        errors = FormUtils.addValueByComplexPropName(errors, elementConfig.propName, emptyMsg, index);
+      if (
+        elementConfig.validate === undefined ||
+        elementConfig.validate.isRequired
+      ) {
+        errors = FormUtils.addValueByComplexPropName(
+          errors,
+          elementConfig.propName,
+          emptyMsg,
+          index
+        );
       }
     } else {
-      const foundIndex = enteredValues.findIndex(val => val === value);
+      const foundIndex = enteredValues.findIndex((val) => val === value);
       if (foundIndex < index && foundIndex >= 0) {
-        errors = FormUtils.addValueByComplexPropName(errors, elementConfig.propName, repeatMsg, index);
+        errors = FormUtils.addValueByComplexPropName(
+          errors,
+          elementConfig.propName,
+          repeatMsg,
+          index
+        );
       }
     }
     return errors;
   }, {});
 }
 
-const defaultPropName = FormUtils.addFormPrefixToPropName('propertyList');
+const defaultPropName = FormUtils.addFormPrefixToPropName("propertyList");
 
 export default class SourceProperties extends Component {
   static getFields(elementConfig) {
-    const propName = (elementConfig) ? elementConfig.propName : defaultPropName;
-    return Property.getFields().map(field => `${propName}[].${field}`);
+    const propName = elementConfig ? elementConfig.propName : defaultPropName;
+    return Property.getFields().map((field) => `${propName}[].${field}`);
   }
 
   static propTypes = {
@@ -77,25 +93,31 @@ export default class SourceProperties extends Component {
     addLabel: PropTypes.string,
     description: PropTypes.string,
     elementConfig: PropTypes.object,
-    singleValue: PropTypes.bool
+    singleValue: PropTypes.bool,
   };
 
-  static defaultProps = { // todo: `la` failing to build here
-    emptyLabel: ('No properties added'),
-    addLabel: ('Add property'),
-    singleValue: false
+  static defaultProps = {
+    // todo: `la` failing to build here
+    emptyLabel: "No properties added",
+    addLabel: "Add property",
+    singleValue: false,
   };
 
   static validate() {
-    const propertyName = (this.props.elementConfig) ? this.props.elementConfig.propertyName : defaultPropName;
+    const propertyName = this.props.elementConfig
+      ? this.props.elementConfig.propertyName
+      : defaultPropName;
     const result = {};
-    set(result, propertyName, get(result, propertyName)
-      .map(property => Property.validate(property)));
+    set(
+      result,
+      propertyName,
+      get(result, propertyName).map((property) => Property.validate(property))
+    );
     return result;
   }
 
   static getValidators(elementConfig) {
-    return function(values) {
+    return function (values) {
       return validateValueList(values, elementConfig);
     };
   }
@@ -105,43 +127,66 @@ export default class SourceProperties extends Component {
   //
 
   addItem = (e) => {
-    const {fields, elementConfig, singleValue} = this.props;
-    const propertyName = (elementConfig) ? elementConfig.propertyName : defaultPropName;
+    const { fields, elementConfig, singleValue } = this.props;
+    const propertyName = elementConfig
+      ? elementConfig.propertyName
+      : defaultPropName;
     const propertyListFields = get(fields, propertyName);
-    const properties = (singleValue) ? FormUtils.getFieldByComplexPropName(this.props.fields, elementConfig.propName) : propertyListFields;
+    const properties = singleValue
+      ? FormUtils.getFieldByComplexPropName(
+          this.props.fields,
+          elementConfig.propName
+        )
+      : propertyListFields;
     e.preventDefault();
-    properties.addField({id: uuid.v4()});
+    properties.addField({ id: uuid.v4() });
   };
 
   renderTitle() {
-    const {elementConfig, singleValue} = this.props;
-    const defaultTitle = (singleValue) ? la('Value List') : la('Properties');
-    const itemListTitle = elementConfig && elementConfig.label || defaultTitle;
-    return (<div style={styles.listTitle}>{itemListTitle}</div>);
+    const { elementConfig, singleValue } = this.props;
+    const defaultTitle = singleValue ? la("Value List") : la("Properties");
+    const itemListTitle =
+      (elementConfig && elementConfig.label) || defaultTitle;
+    return <div style={styles.listTitle}>{itemListTitle}</div>;
   }
 
   render() {
-    const { fields, emptyLabel, addLabel, elementConfig, singleValue} = this.props;
-    const propertyName = (elementConfig) ? elementConfig.propertyName : defaultPropName;
+    const { fields, emptyLabel, addLabel, elementConfig, singleValue } =
+      this.props;
+    const propertyName = elementConfig
+      ? elementConfig.propertyName
+      : defaultPropName;
     const propertyListFields = get(fields, propertyName);
-    const des = this.props.description ? <div className='largerFontSize' style={description}>{this.props.description}</div> : null;
-    const properties = (singleValue) ? FormUtils.getFieldByComplexPropName(this.props.fields, elementConfig.propName) : propertyListFields;
+    const des = this.props.description ? (
+      <div className="largerFontSize" style={description}>
+        {this.props.description}
+      </div>
+    ) : null;
+    const properties = singleValue
+      ? FormUtils.getFieldByComplexPropName(
+          this.props.fields,
+          elementConfig.propName
+        )
+      : propertyListFields;
     return (
-      <div className='properties'>
+      <div className="properties">
         {this.renderTitle()}
         {des}
         <FieldList
-          className='normalWeight'
+          className="normalWeight"
           singleValue={singleValue}
           items={properties}
           itemHeight={50}
-          getKey={item => item.id.value}
+          getKey={(item) => item.id.value}
           emptyLabel={emptyLabel}
-          propName={elementConfig.propName}>
-          <PropertyItem singleValue={singleValue}/>
+          propName={elementConfig.propName}
+        >
+          <PropertyItem singleValue={singleValue} />
         </FieldList>
 
-        <AddButton addItem={this.addItem} style={styles.addButton}>{addLabel}</AddButton>
+        <AddButton addItem={this.addItem} style={styles.addButton}>
+          {addLabel}
+        </AddButton>
       </div>
     );
   }
@@ -150,17 +195,17 @@ export default class SourceProperties extends Component {
 const styles = {
   listTitle: {
     marginBottom: 8,
-    marginTop: 16
+    marginTop: 16,
   },
   item: {
-    display: 'block',
-    alignItems: 'center',
+    display: "block",
+    alignItems: "center",
     paddingRight: 14,
     marginRight: -14,
-    marginBottom: 3
+    marginBottom: 3,
   },
   addButton: {
     marginLeft: -3,
-    marginTop: -8
-  }
+    marginTop: -8,
+  },
 };

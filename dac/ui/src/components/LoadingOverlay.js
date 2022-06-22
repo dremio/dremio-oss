@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-import Spinner from '@app/components/Spinner';
-import './LoadingOverlay.less';
+import Spinner from "@app/components/Spinner";
+import "./LoadingOverlay.less";
 
 /**
  * A overlay that shows a spinner in the center of it's area.
@@ -27,22 +27,23 @@ export default class LoadingOverlay extends Component {
   static propTypes = {
     style: PropTypes.object,
     showSpinner: PropTypes.bool,
-    dataQa: PropTypes.string
+    spinnerStyle: PropTypes.object,
+    dataQa: PropTypes.string,
   };
 
   static defaultProps = {
-    showSpinner: true
+    showSpinner: true,
   };
 
   render() {
-    const {
-      showSpinner,
-      style,
-      dataQa
-    } = this.props;
+    const { showSpinner, style, dataQa, spinnerStyle } = this.props;
     return (
-      <div className='view-state-wrapper-overlay' style={style} data-qa={dataQa}>
-        {showSpinner && <Spinner />}
+      <div
+        className="view-state-wrapper-overlay"
+        style={style}
+        data-qa={dataQa}
+      >
+        {showSpinner && <Spinner style={spinnerStyle} />}
       </div>
     );
   }

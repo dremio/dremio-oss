@@ -13,36 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import Select from 'components/Fields/Select';
-import TextField from 'components/Fields/TextField';
-import FieldWithError from 'components/Fields/FieldWithError';
-import { applyValidators, isRequired } from 'utils/validation';
-import { formLabel } from 'uiTheme/radium/typography';
-import classNames from 'classnames';
+import NewFieldSection from "components/Forms/NewFieldSection";
+import Select from "components/Fields/Select";
+import TextField from "components/Fields/TextField";
+import FieldWithError from "components/Fields/FieldWithError";
+import { applyValidators, isRequired } from "utils/validation";
+import { formLabel } from "uiTheme/radium/typography";
+import classNames from "classnames";
 
-import { sectionMargin } from '@app/uiTheme/less/layout.less';
-import { fieldsHorizontalSpacing, rowMargin } from '@app/uiTheme/less/forms.less';
+import { sectionMargin } from "@app/uiTheme/less/layout.less";
+import {
+  fieldsHorizontalSpacing,
+  rowMargin,
+} from "@app/uiTheme/less/forms.less";
 
-@Radium
-export default class SplitFooter extends PureComponent {
+class SplitFooter extends PureComponent {
   static getFields() {
-    return ['position', 'index', 'maxFields', ...NewFieldSection.getFields()];
+    return ["position", "index", "maxFields", ...NewFieldSection.getFields()];
   }
 
   static validate(values) {
-    const {position} = values;
-    const validators = [isRequired('position', 'Position')];
-    if (position === 'Index') {
-      validators.push(isRequired('index', 'Index'));
+    const { position } = values;
+    const validators = [isRequired("position", "Position")];
+    if (position === "Index") {
+      validators.push(isRequired("index", "Index"));
     }
-    if (position === 'All') {
-      validators.push(isRequired('maxFields', 'All'));
+    if (position === "All") {
+      validators.push(isRequired("maxFields", "All"));
     }
     return applyValidators(values, validators);
   }
@@ -51,56 +53,50 @@ export default class SplitFooter extends PureComponent {
     columnName: PropTypes.string,
     positionSplit: PropTypes.number,
     fields: PropTypes.object,
-    handleSplitFooter: PropTypes.func
+    handleSplitFooter: PropTypes.func,
   };
 
   constructor(props) {
     super(props);
     this.options = [
       {
-        label: 'All',
-        option: 'All'
+        label: "All",
+        option: "All",
       },
       {
-        label: 'First',
-        option: 'First'
+        label: "First",
+        option: "First",
       },
       {
-        label: 'Last',
-        option: 'Last'
+        label: "Last",
+        option: "Last",
       },
       {
-        label: 'Index',
-        option: 'Index'
-      }
+        label: "Index",
+        option: "Index",
+      },
     ];
   }
 
   renderTextField() {
-    const { fields: {position, maxFields, index} } = this.props;
-    if (position.value === 'Index') {
+    const {
+      fields: { position, maxFields, index },
+    } = this.props;
+    if (position.value === "Index") {
       return (
-        <FieldWithError {...index} errorPlacement='top'>
+        <FieldWithError {...index} errorPlacement="top">
           <div style={styles.wrap}>
-            <span style={formLabel}>{la('[Index] =')}</span>
-            <TextField
-              type='number'
-              style={styles.textField}
-              {...index}
-              type='number'/>
+            <span style={formLabel}>{la("[Index] =")}</span>
+            <TextField type="number" style={styles.textField} {...index} />
           </div>
         </FieldWithError>
       );
-    } else if (position.value === 'All') {
+    } else if (position.value === "All") {
       return (
-        <FieldWithError {...maxFields} errorPlacement='top'>
+        <FieldWithError {...maxFields} errorPlacement="top">
           <div style={styles.wrap}>
-            <span style={formLabel}>{la('Max Fields')}</span>
-            <TextField
-              type='number'
-              style={styles.textField}
-              {...maxFields}
-              type='number'/>
+            <span style={formLabel}>{la("Max Fields")}</span>
+            <TextField type="number" style={styles.textField} {...maxFields} />
           </div>
         </FieldWithError>
       );
@@ -108,16 +104,22 @@ export default class SplitFooter extends PureComponent {
   }
 
   render() {
-    const { fields: { position } } = this.props;
+    const {
+      fields: { position },
+    } = this.props;
     return (
-      <div style={{display: 'flex', marginBottom: 5}} className={classNames('extract-footer', sectionMargin)}>
+      <div
+        style={{ display: "flex", marginBottom: 5 }}
+        className={classNames("extract-footer", sectionMargin)}
+      >
         <div className={fieldsHorizontalSpacing}>
-          <div style={formLabel}>{la('Position')}</div>
+          <div style={formLabel}>{la("Position")}</div>
           <Select
             items={this.options}
             className={rowMargin}
             style={styles.select}
-            {...position}/>
+            {...position}
+          />
         </div>
         {this.renderTextField()}
         <NewFieldSection fields={this.props.fields} />
@@ -129,9 +131,11 @@ export default class SplitFooter extends PureComponent {
 const styles = {
   textField: {
     width: 100,
-    height: 24
+    height: 24,
   },
   select: {
-    width: 100
-  }
+    width: 100,
+    background: "white",
+  },
 };
+export default Radium(SplitFooter);

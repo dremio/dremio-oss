@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import NavPanel from './NavPanel';
+import NavPanel from "./NavPanel";
 
-describe('NavPanel', () => {
+describe("NavPanel", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       tabs: Immutable.OrderedMap(),
       changeTab: sinon.spy(),
-      activeTab: 'tab'
+      activeTab: "tab",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<NavPanel {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<NavPanel {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

@@ -13,37 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
 export default class ProfilesContent extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map),
-    showJobProfile: PropTypes.func
+    showJobProfile: PropTypes.func,
   };
 
   renderProfiles() {
     const { jobDetails } = this.props;
     if (jobDetails && jobDetails.size) {
-      const length = jobDetails.get('attemptDetails').size;
-      return jobDetails.get('attemptDetails').reverse().map((profile, i) => {
-        const reason = profile.get('reason') ? `(${profile.get('reason')})` : '';
-        return (
-          <div style={{display: 'flex', marginBottom: 5}} key={i}>
-            <div style={{width: 200}}>{la('Attempt')} {length - i} {reason}</div>
-            <a onClick={() => this.props.showJobProfile(profile.get('profileUrl'))}>
-              {la('Profile')} »</a>
-          </div>
-        );
-      });
+      const length = jobDetails.get("attemptDetails").size;
+      return jobDetails
+        .get("attemptDetails")
+        .reverse()
+        .map((profile, i) => {
+          const reason = profile.get("reason")
+            ? `(${profile.get("reason")})`
+            : "";
+          return (
+            <div style={{ display: "flex", marginBottom: 5 }} key={i}>
+              <div style={{ width: 200 }}>
+                {la("Attempt")} {length - i} {reason}
+              </div>
+              <a
+                onClick={() =>
+                  this.props.showJobProfile(profile.get("profileUrl"))
+                }
+              >
+                {la("Profile")} »
+              </a>
+            </div>
+          );
+        });
     }
   }
 
   render() {
     return (
-      <div style={styles.base} className='profiles'>
-        <h4>{la('Attempts')}</h4>
+      <div style={styles.base} className="profiles">
+        <h4>{la("Attempts")}</h4>
         {this.renderProfiles()}
       </div>
     );
@@ -52,9 +64,9 @@ export default class ProfilesContent extends PureComponent {
 
 const styles = {
   base: {
-    display: 'flex',
-    flexDirection: 'column',
-    flexWrap: 'nowrap',
-    padding: 10
-  }
+    display: "flex",
+    flexDirection: "column",
+    flexWrap: "nowrap",
+    padding: 10,
+  },
 };

@@ -124,4 +124,3 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
       .run();
   }
 }
-

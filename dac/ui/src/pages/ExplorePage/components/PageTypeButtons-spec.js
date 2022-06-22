@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { PageTypeButtonsView } from '@app/pages/ExplorePage/components/PageTypeButtons';
-import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { PageTypeButtonsView } from "@app/pages/ExplorePage/components/PageTypeButtons";
+import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
 
-describe('PageTypeButtonsView', () => {
+describe("PageTypeButtonsView", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
@@ -26,26 +26,25 @@ describe('PageTypeButtonsView', () => {
       dataset: Immutable.Map({
         isNewQuery: false,
         apiLinks: {
-          namespaceEntity: '/home/%40dremio/dataset/testName'
-        }
+          namespaceEntity: "/home/%40dremio/dataset/testName",
+        },
       }),
       location: {
-        pathname: '/space'
-      }
+        pathname: "/space",
+      },
     };
   });
 
-  it('should render Wiki button if showWiki = true', () => {
+  it("should render Wiki button if showWiki = true", () => {
     const wrapper = shallow(<PageTypeButtonsView {...commonProps} />);
     expect(wrapper.find({ pageType: PageTypes.wiki })).to.have.length(1); // wiki button is rendered
   });
 
-
-  it('should not render wiki button if showWiki = false', () => {
+  it("should not render wiki button if showWiki = false", () => {
     // common props does not contain entity id
     const props = {
       ...commonProps,
-      showWiki: false
+      showWiki: false,
     };
     const wrapper = shallow(<PageTypeButtonsView {...props} />);
     expect(wrapper.find({ pageType: PageTypes.wiki })).to.have.length(0); // wiki button is not rendered

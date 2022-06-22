@@ -27,13 +27,15 @@ import com.dremio.exec.record.selection.SelectionVector4;
 import com.google.common.collect.Lists;
 
 /**
- * This is a tool for printing the content of record batches to screen. Used for debugging.
+ * This is a tool for printing the content of record batches to console or a logger, or both. Used for debugging.
  */
 public class BatchPrinter {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BatchPrinter.class);
 
   private static final int ROWS_TO_PRINT = 10;
 
-  private static void printBatchSV4(VectorAccessible batch, SelectionVector4 sv4) {
+  private static void printBatchSV4(VectorAccessible batch, SelectionVector4 sv4,
+                                    boolean debugPrint, boolean debugLog) {
     List<String> columns = Lists.newArrayList();
     for (VectorWrapper<?> vw : batch) {
       columns.add(vw.getValueVectors()[0].getField().getName());
@@ -41,13 +43,16 @@ public class BatchPrinter {
     int width = columns.size();
     for (int j = 0; j < sv4.getCount(); j++) {
       if (j%50 == 0) {
-        System.out.println(StringUtils.repeat("-", width * 17 + 1));
+        print(String.format(StringUtils.repeat("-", width * 17 + 1) + "%n"), debugPrint, debugLog);
+        StringBuilder columnData = new StringBuilder();
         for (String column : columns) {
-          System.out.printf("| %-15s", width <= 15 ? column : column.substring(0, 14));
+          columnData.append(String.format("| %-15s", width <= 15 ? column : column.substring(0, 14)));
         }
-        System.out.print("|\n");
-        System.out.println(StringUtils.repeat("-", width*17 + 1));
+        print(columnData.toString(), debugPrint, debugLog);
+        print(String.format("|%n"), debugPrint, debugLog);
+        print(String.format(StringUtils.repeat("-", width*17 + 1) + "%n"), debugPrint, debugLog);
       }
+      StringBuilder columnData = new StringBuilder();
       for (VectorWrapper<?> vw : batch) {
         Object o = vw.getValueVectors()[sv4.get(j) >>> 16].getObject(sv4.get(j) & 65535);
         String value;
@@ -58,30 +63,33 @@ public class BatchPrinter {
         } else {
           value = o.toString();
         }
-        System.out.printf("| %-15s",value.length() <= 15 ? value : value.substring(0,14));
+        columnData.append(String.format("| %-15s",value.length() <= 15 ? value : value.substring(0,14)));
       }
-      System.out.print("|\n");
+      print(columnData.toString(), debugPrint, debugLog);
+      print(String.format("|%n"), debugPrint, debugLog);
     }
-    System.out.print("|\n");
+    print(String.format("|%n"), debugPrint, debugLog);
   }
 
-  public static void printBatch(VectorAccessible batch) {
+  public static void printBatch(VectorAccessible batch,
+                                boolean debugPrint, boolean debugLog) {
     switch(batch.getSchema().getSelectionVectorMode()){
     case FOUR_BYTE:
-      printBatchSV4(batch, batch.getSelectionVector4());
+      printBatchSV4(batch, batch.getSelectionVector4(), debugPrint, debugLog);
       break;
     case NONE:
-      printBatchNoSV(batch);
+      printBatchNoSV(batch, debugPrint, debugLog);
       break;
     case TWO_BYTE:
-      printBatchSV2(batch, batch.getSelectionVector2());
+      printBatchSV2(batch, batch.getSelectionVector2(), debugPrint, debugLog);
       break;
     default:
       break;
 
     }
   }
-  private static void printBatchNoSV(VectorAccessible batch) {
+  private static void printBatchNoSV(VectorAccessible batch,
+                                     boolean debugPrint, boolean debugLog) {
     List<String> columns = Lists.newArrayList();
     List<ValueVector> vectors = Lists.newArrayList();
     for (VectorWrapper<?> vw : batch) {
@@ -93,13 +101,16 @@ public class BatchPrinter {
     rows = Math.min(ROWS_TO_PRINT, rows);
     for (int row = 0; row < rows; row++) {
       if (row%50 == 0) {
-        System.out.println(StringUtils.repeat("-", width * 52 + 1));
+        print(String.format(StringUtils.repeat("-", width * 52 + 1) + "%n"), debugPrint, debugLog);
+        StringBuilder columnData = new StringBuilder();
         for (String column : columns) {
-          System.out.printf("| %-50s", width <= 50 ? column : column.substring(0, Math.min(column.length(), 49)));
+          columnData.append(String.format("| %-50s", width <= 50 ? column : column.substring(0, Math.min(column.length(), 49))));
         }
-        System.out.print("|\n");
-        System.out.println(StringUtils.repeat("-", width*52 + 1));
+        print(columnData.toString(), debugPrint, debugLog);
+        print(String.format("|%n"), debugPrint, debugLog);
+        print(String.format(StringUtils.repeat("-", width*52 + 1) + "%n"), debugPrint, debugLog);
       }
+      StringBuilder columnData = new StringBuilder();
       for (ValueVector vv : vectors) {
         Object o = vv.getObject(row);
         String value;
@@ -111,13 +122,15 @@ public class BatchPrinter {
         } else {
           value = o.toString();
         }
-        System.out.printf("| %-50s",value.length() <= 50 ? value : value.substring(0, 49));
+        columnData.append(String.format("| %-50s",value.length() <= 50 ? value : value.substring(0, 49)));
       }
-      System.out.print("|\n");
+      print(columnData.toString(), debugPrint, debugLog);
+      print(String.format("|%n"), debugPrint, debugLog);
     }
   }
 
-  private static void printBatchSV2(VectorAccessible batch, SelectionVector2 sv2) {
+  private static void printBatchSV2(VectorAccessible batch, SelectionVector2 sv2,
+                                    boolean debugPrint, boolean debugLog) {
     List<String> columns = Lists.newArrayList();
     List<ValueVector> vectors = Lists.newArrayList();
     for (VectorWrapper<?> vw : batch) {
@@ -129,14 +142,17 @@ public class BatchPrinter {
     rows = Math.min(ROWS_TO_PRINT, rows);
     for (int i = 0; i < rows; i++) {
       if (i%50 == 0) {
-        System.out.println(StringUtils.repeat("-", width * 32 + 1));
+        print(String.format(StringUtils.repeat("-", width * 32 + 1) + "%n"), debugPrint, debugLog);
+        StringBuilder columnData = new StringBuilder();
         for (String column : columns) {
-          System.out.printf("| %-30s", width <= 30 ? column : column.substring(0, 29));
+          columnData.append(String.format("| %-30s", width <= 30 ? column : column.substring(0, 29)));
         }
-        System.out.print("|\n");
-        System.out.println(StringUtils.repeat("-", width*32 + 1));
+        print(columnData.toString(), debugPrint, debugLog);
+        print(String.format("|%n"), debugPrint, debugLog);
+        print(String.format(StringUtils.repeat("-", width*32 + 1) + "%n"), debugPrint, debugLog);
       }
       int row = sv2.getIndex(i);
+      StringBuilder columnData = new StringBuilder();
       for (ValueVector vv : vectors) {
         Object o = vv.getObject(row);
         String value;
@@ -148,9 +164,19 @@ public class BatchPrinter {
         } else {
           value = o.toString();
         }
-        System.out.printf("| %-30s",value.length() <= 30 ? value : value.substring(0, 29));
+        columnData.append(String.format("| %-30s",value.length() <= 30 ? value : value.substring(0, 29)));
       }
-      System.out.print("|\n");
+      print(columnData.toString(), debugPrint, debugLog);
+      print(String.format("|%n"), debugPrint, debugLog);
+    }
+  }
+
+  private static void print(String str, boolean debugPrint, boolean debugLog) {
+    if (debugLog) {
+      logger.debug(str);
+    }
+    if (debugPrint) {
+      System.out.print(str);
     }
   }
 }

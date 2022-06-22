@@ -13,38 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { shallow } from 'enzyme';
+import React from "react";
+import { shallow } from "enzyme";
 
-import Radio from '../Radio';
+import Radio from "../Radio";
 
-import FormikRadio from './FormikRadio';
+import FormikRadio from "./FormikRadio";
 
 const mockOnChange = jest.fn();
 
 const defaultProps = {
   field: {
-    name: 'sample-radio-name',
-    onChange: mockOnChange
+    name: "sample-radio-name",
+    onChange: mockOnChange,
   },
   options: [
-    { label: 'label 1', value: 'val1' },
-    { label: 'label 2', value: 'val2' }
-  ]
+    { label: "label 1", value: "val1" },
+    { label: "label 2", value: "val2" },
+  ],
 };
 
 const getShallowWrapper = (props = defaultProps) => {
   return shallow(<FormikRadio {...props} />);
 };
 
-describe('Formik Radio', () => {
+describe("Formik Radio", () => {
   const wrapper = getShallowWrapper();
-  it('has the required components with props', () => {
+  it("has the required components with props", () => {
     expect(wrapper.find(Radio).exists()).toBe(true);
-    expect(wrapper.find(Radio).props()).toEqual(expect.objectContaining({
-      ...defaultProps.field,
-      options: defaultProps.options
-    }));
+    expect(wrapper.find(Radio).props()).toEqual(
+      expect.objectContaining({
+        ...defaultProps.field,
+        options: defaultProps.options,
+      })
+    );
   });
 });
-

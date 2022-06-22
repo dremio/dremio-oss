@@ -605,7 +605,7 @@ public class DremioORCRecordUtils {
 
   // this is an implementation copied from ElasticByteBufferPool in hadoop-2,
   // which lacks a clear()/clean() operation
-  public final static class ByteBufferAllocatorPool implements HadoopShims.ByteBufferPoolShim, ByteBufferPool {
+  public static final class ByteBufferAllocatorPool implements HadoopShims.ByteBufferPoolShim, ByteBufferPool {
     private BufferAllocator allocator;
     ByteBufferAllocatorPool(BufferAllocator allocator) {
       this.allocator = allocator;

@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import ViewStateWrapper from '../ViewStateWrapper';
-import AccelerationForm from './AccelerationForm';
-import { AccelerationController } from './AccelerationController';
+import ApiUtils from "utils/apiUtils/apiUtils";
+import ViewStateWrapper from "../ViewStateWrapper";
+import AccelerationForm from "./AccelerationForm";
+import { AccelerationController } from "./AccelerationController";
 
-describe.skip('AccelerationController', () => {
+describe.skip("AccelerationController", () => {
   let minimalProps;
   let commonProps;
   let clock;
@@ -30,104 +30,116 @@ describe.skip('AccelerationController', () => {
   beforeEach(() => {
     loadResponse = {
       payload: Immutable.fromJS({
-        result: 'the-id',
+        result: "the-id",
         entities: {
           acceleration: {
-            'the-id': {
-              state: 'FAKE'
-            }
-          }
-        }
-      })
+            "the-id": {
+              state: "FAKE",
+            },
+          },
+        },
+      }),
     };
 
     minimalProps = {
-      datasetId: 'foo-id',
+      datasetId: "foo-id",
       getReflections: sinon.stub().resolves({}),
-      getDataset: sinon.stub().resolves({})
+      getDataset: sinon.stub().resolves({}),
     };
     commonProps = {
       ...minimalProps,
       onCancel: sinon.spy(),
       onDone: sinon.spy(),
       reflections: Immutable.fromJS({
-        id: 'foo-id'
+        id: "foo-id",
       }),
       viewState: Immutable.Map(),
-      resetViewState: sinon.stub()
+      resetViewState: sinon.stub(),
     };
-
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccelerationController {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AccelerationController {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AccelerationController {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<AccelerationController {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should not render AccelerationForm when acceleration is null', () => {
-    const props = {...commonProps, acceleration: null};
-    const wrapper = shallow(<AccelerationController {...props}/>);
+  it("should not render AccelerationForm when acceleration is null", () => {
+    const props = { ...commonProps, acceleration: null };
+    const wrapper = shallow(<AccelerationController {...props} />);
     expect(wrapper.find(AccelerationForm)).to.have.length(0);
   });
 
-  it('should render ViewStateWrapper when request failed', () => {
+  it("should render ViewStateWrapper when request failed", () => {
     const props = {
       ...commonProps,
-      viewState: Immutable.fromJS({isFailed: true})
+      viewState: Immutable.fromJS({ isFailed: true }),
     };
-    const wrapper = shallow(<AccelerationController {...props}/>);
+    const wrapper = shallow(<AccelerationController {...props} />);
     expect(wrapper.find(ViewStateWrapper)).to.have.length(1);
   });
 
-  it('should otherwise render AccelerationForm when acceleration is map', () => {
-    const wrapper = shallow(<AccelerationController {...commonProps}/>);
+  it("should otherwise render AccelerationForm when acceleration is map", () => {
+    const wrapper = shallow(<AccelerationController {...commonProps} />);
     expect(wrapper.find(AccelerationForm)).to.have.length(1);
   });
 
-  describe('#componentWillUnmount', function() {
-    it('stopPollingAccelerationData should be called', function() {
-      const instance = shallow(<AccelerationController {...commonProps}/>).instance();
-      sinon.stub(instance, 'stopPollingAccelerationData');
+  describe("#componentWillUnmount", function () {
+    it("stopPollingAccelerationData should be called", function () {
+      const instance = shallow(
+        <AccelerationController {...commonProps} />
+      ).instance();
+      sinon.stub(instance, "stopPollingAccelerationData");
       instance.componentWillUnmount();
       expect(instance.stopPollingAccelerationData).to.be.calledOnce;
     });
   });
 
-  describe('#componentWillMount', function() {
+  describe("#componentWillMount", function () {
     beforeEach(() => {
-      sinon.stub(AccelerationController.prototype, 'startPollingAccelerationDataWhileNew');
+      sinon.stub(
+        AccelerationController.prototype,
+        "startPollingAccelerationDataWhileNew"
+      );
     });
 
     afterEach(() => {
       AccelerationController.prototype.startPollingAccelerationDataWhileNew.restore();
     });
 
-    it('startPollingAccelerationDataWhileNew should be called if there is no #entity', function() {
-      const instance = shallow(<AccelerationController {...commonProps} entity={null}/>).instance();
+    it("startPollingAccelerationDataWhileNew should be called if there is no #entity", function () {
+      const instance = shallow(
+        <AccelerationController {...commonProps} entity={null} />
+      ).instance();
       expect(instance.startPollingAccelerationDataWhileNew).to.be.calledOnce;
       expect(commonProps.createEmptyAcceleration).to.not.have.been.called;
     });
 
-    it('createEmptyAcceleration should be called if there is an #entity', function() {
-      const instance = shallow(<AccelerationController {...commonProps}/>).instance();
+    it("createEmptyAcceleration should be called if there is an #entity", function () {
+      const instance = shallow(
+        <AccelerationController {...commonProps} />
+      ).instance();
       expect(commonProps.createEmptyAcceleration).to.be.calledOnce;
-      expect(instance.startPollingAccelerationDataWhileNew).to.not.have.been.called;
+      expect(instance.startPollingAccelerationDataWhileNew).to.not.have.been
+        .called;
 
       return commonProps.createEmptyAcceleration().then(() => {
         expect(instance.startPollingAccelerationDataWhileNew).to.be.calledOnce;
+        return null;
       });
     });
   });
 
-  describe('#submit', function() {
-    it('updateAcceleration should be called', function() {
-      sinon.spy(ApiUtils, 'attachFormSubmitHandlers');
-      const instance = shallow(<AccelerationController {...commonProps}/>).instance();
+  describe("#submit", function () {
+    it("updateAcceleration should be called", function () {
+      sinon.spy(ApiUtils, "attachFormSubmitHandlers");
+      const instance = shallow(
+        <AccelerationController {...commonProps} />
+      ).instance();
       instance.submit([]);
       expect(commonProps.updateAcceleration).to.be.calledWith([]);
       expect(ApiUtils.attachFormSubmitHandlers).to.be.calledOnce;
@@ -135,10 +147,12 @@ describe.skip('AccelerationController', () => {
     });
   });
 
-  describe('#startPollingAccelerationDataWhileNew', function() {
-    it('stopPollingAccelerationData should be called', function() {
-      const instance = shallow(<AccelerationController {...commonProps}/>).instance();
-      sinon.spy(instance, 'stopPollingAccelerationData');
+  describe("#startPollingAccelerationDataWhileNew", function () {
+    it("stopPollingAccelerationData should be called", function () {
+      const instance = shallow(
+        <AccelerationController {...commonProps} />
+      ).instance();
+      sinon.spy(instance, "stopPollingAccelerationData");
       instance.pollId = null;
       instance.startPollingAccelerationDataWhileNew();
       expect(instance.stopPollingAccelerationData).to.be.calledOnce;
@@ -146,64 +160,86 @@ describe.skip('AccelerationController', () => {
     });
   });
 
-  describe('#pollAccelerationData', function() {
-    it('acceleration record should be loaded, and stop polling if not NEW', function() {
-      const instance = shallow(<AccelerationController {...commonProps}/>).instance();
+  describe("#pollAccelerationData", function () {
+    it("acceleration record should be loaded, and stop polling if not NEW", function () {
+      const instance = shallow(
+        <AccelerationController {...commonProps} />
+      ).instance();
       const promise = instance.pollAccelerationData();
       expect(commonProps.loadAccelerationById).to.be.calledOnce;
       return promise.then(() => {
         expect(instance.pollId).to.equal(0); // does not queue another poll
+        return null;
       });
     });
 
-    it('acceleration record should be loaded, and should queue another poll only if NEW', function() {
-      loadResponse.payload = loadResponse.payload.setIn(['entities', 'acceleration', 'the-id', 'state'], 'NEW');
+    it("acceleration record should be loaded, and should queue another poll only if NEW", function () {
+      loadResponse.payload = loadResponse.payload.setIn(
+        ["entities", "acceleration", "the-id", "state"],
+        "NEW"
+      );
 
       clock = sinon.useFakeTimers();
 
-      const instance = shallow(<AccelerationController {...commonProps}/>).instance();
+      const instance = shallow(
+        <AccelerationController {...commonProps} />
+      ).instance();
       const promise = instance.pollAccelerationData();
-      sinon.stub(instance, 'pollAccelerationData');
+      sinon.stub(instance, "pollAccelerationData");
       return promise.then(() => {
         expect(instance.pollId).to.not.equal(0);
         clock.tick(1000);
         expect(instance.pollAccelerationData).to.have.been.called;
         clock.restore();
+        return null;
       });
     });
   });
 
-  describe('#loadAcceleration', () => {
+  describe("#loadAcceleration", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<AccelerationController {...commonProps} entity={null}/>);
+      wrapper = shallow(
+        <AccelerationController {...commonProps} entity={null} />
+      );
       instance = wrapper.instance();
     });
 
-    it('should call loadAccelerationById', () => {
+    it("should call loadAccelerationById", () => {
       wrapper.setProps({
-        entity: Immutable.fromJS({ }),
-        accelerationId: 'id'
+        entity: Immutable.fromJS({}),
+        accelerationId: "id",
       });
       instance.loadAcceleration();
       expect(commonProps.loadAccelerationById).to.be.called;
     });
   });
 
-  describe('#getAccelerationVersion', () => {
+  describe("#getAccelerationVersion", () => {
     let instance;
     beforeEach(() => {
-      instance = shallow(<AccelerationController {...commonProps} entity={null}/>).instance();
+      instance = shallow(
+        <AccelerationController {...commonProps} entity={null} />
+      ).instance();
     });
 
-    it('should return acceleration version when it defined and more than 0', () => {
-      expect(instance.getAccelerationVersion({ acceleration: Immutable.fromJS({ version: 1 }) })).to.be.eql(1);
+    it("should return acceleration version when it defined and more than 0", () => {
+      expect(
+        instance.getAccelerationVersion({
+          acceleration: Immutable.fromJS({ version: 1 }),
+        })
+      ).to.be.eql(1);
     });
 
-    it('should return undefined when acceleration version is not defined or 0', () => {
-      expect(instance.getAccelerationVersion({ acceleration: Immutable.Map()})).to.be.undefined;
-      expect(instance.getAccelerationVersion({ acceleration: Immutable.fromJS({ version: 0 })})).to.be.undefined;
+    it("should return undefined when acceleration version is not defined or 0", () => {
+      expect(instance.getAccelerationVersion({ acceleration: Immutable.Map() }))
+        .to.be.undefined;
+      expect(
+        instance.getAccelerationVersion({
+          acceleration: Immutable.fromJS({ version: 0 }),
+        })
+      ).to.be.undefined;
     });
   });
 });

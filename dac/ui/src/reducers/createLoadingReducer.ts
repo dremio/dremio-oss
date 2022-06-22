@@ -22,12 +22,12 @@ function matchAction(type: string) {
 //Store loading flags on a per action basis
 // E.g. { FETCH_DEFAULT_BRANCH: true/false }
 function createLoadingReducer(actionList: string[]) {
-  return function(state: any = {}, action: any) {
+  return function (state: any = {}, action: any) {
     if (!actionList.includes(action.type)) return state;
     const match = matchAction(action.type);
     if (!match) return state;
     const [, reqName, requestState] = match;
-    const isReq = requestState === 'REQUEST';
+    const isReq = requestState === "REQUEST";
     return { ...state, [isReq ? action.type : reqName]: isReq };
   };
 }

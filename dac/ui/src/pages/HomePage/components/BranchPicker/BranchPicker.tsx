@@ -13,42 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { connect } from 'react-redux';
-import { withRouter } from 'react-router';
-import { oc } from 'ts-optchain';
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { connect } from "react-redux";
+import { withRouter } from "react-router";
 import {
   usePopupState,
   bindToggle,
-  bindPopper
-} from 'material-ui-popup-state/hooks';
-import { ClickAwayListener } from '@material-ui/core';
-import Popover from '@material-ui/core/Popover';
-import { FormattedMessage } from 'react-intl';
-import DatePicker, { ReactDatePicker } from 'react-datepicker';
+  bindPopper,
+} from "material-ui-popup-state/hooks";
+import { ClickAwayListener } from "@material-ui/core";
+import Popover from "@material-ui/core/Popover";
+import { FormattedMessage } from "react-intl";
+import DatePicker, { ReactDatePicker } from "react-datepicker";
 
 import {
   fetchCommitBeforeTime as fetchCommitBeforeTimeAction,
-  setReference as setReferenceAction
-} from '@app/actions/nessie/nessie';
-import { LogEntry, Reference } from '@app/services/nessie/client';
-import Radio from '@material-ui/core/Radio';
-import RadioGroup from '@material-ui/core/RadioGroup';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import FormControl from '@material-ui/core/FormControl';
-import { SearchField } from '@app/components/Fields';
-import { useNessieContext } from '@app/pages/NessieHomePage/utils/context';
-import BranchList from './components/BranchList/BranchList';
-import CommitBrowser from './components/CommitBrowser/CommitBrowser';
-import BranchPickerTag from './components/BranchPickerTag/BranchPickerTag';
-import CommitHash from './components/CommitBrowser/components/CommitHash/CommitHash';
-import { useBranchPickerContext } from './utils';
+  setReference as setReferenceAction,
+} from "@app/actions/nessie/nessie";
+import { LogEntry, Reference } from "@app/services/nessie/client";
+import Radio from "@material-ui/core/Radio";
+import RadioGroup from "@material-ui/core/RadioGroup";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import FormControl from "@material-ui/core/FormControl";
+import { SearchField } from "@app/components/Fields";
+import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import BranchList from "./components/BranchList/BranchList";
+import CommitBrowser from "./components/CommitBrowser/CommitBrowser";
+import BranchPickerTag from "./components/BranchPickerTag/BranchPickerTag";
+import CommitHash from "./components/CommitBrowser/components/CommitHash/CommitHash";
+import { useBranchPickerContext } from "./utils";
 
-import './BranchPicker.less';
+import "./BranchPicker.less";
 
 const defaultPosition: any = {
-  anchorOrigin: { horizontal: 'right', vertical: 'bottom' },
-  transformOrigin: { horizontal: 'left', vertical: 'center' }
+  anchorOrigin: { horizontal: "right", vertical: "bottom" },
+  transformOrigin: { horizontal: "left", vertical: "center" },
 };
 
 type ConnectedProps = {
@@ -57,32 +56,34 @@ type ConnectedProps = {
 };
 
 type BranchPickerProps = {
-  redirectOnChange?: boolean;
+  redirectUrl?: string;
   anchorEl?: any;
   position?: any;
+  onClose?: () => void;
 };
 
 function BranchPicker({
   router,
-  redirectOnChange,
+  redirectUrl = "",
   setReference,
   fetchCommitBeforeTime,
   anchorEl,
-  position = defaultPosition
+  position = defaultPosition,
+  onClose = () => {},
 }: BranchPickerProps & ConnectedProps & { router?: any }) {
   const { ref } = useBranchPickerContext();
-  const { state, api, baseUrl, stateKey } = useNessieContext();
+  const { state, api, stateKey } = useNessieContext();
   const { reference, defaultReference, hash, date } = state;
   const popupState = usePopupState({
-    variant: 'popover',
-    popupId: 'branchPickerPopover'
+    variant: "popover",
+    popupId: "branchPickerPopover",
   });
   const toggleProps = bindToggle(popupState);
 
   useImperativeHandle(ref, () => popupState);
 
   function goToHome() {
-    if (redirectOnChange) router.push(baseUrl);
+    if (redirectUrl) router.push(redirectUrl);
   }
 
   function changeReference(newReference?: Reference | null) {
@@ -92,14 +93,14 @@ function BranchPicker({
   }
 
   function setHash(logEntry: LogEntry) {
-    const newHash = oc(logEntry.commitMeta).hash();
+    const newHash = logEntry?.commitMeta?.hash;
     if (newHash) {
       setReference({ reference, hash: newHash }, stateKey);
       goToHome();
     }
   }
 
-  const [formVal, setFormVal] = useState('head');
+  const [formVal, setFormVal] = useState("head");
   const pickerRef = useRef<ReactDatePicker>(null);
 
   function showPicker() {
@@ -110,19 +111,19 @@ function BranchPicker({
 
   function onFormChange(value: string) {
     setFormVal(value);
-    if (value === 'head') {
+    if (value === "head") {
       changeReference(reference);
     }
   }
 
   async function onChooseDate(newDate: any) {
     if (!newDate) return; //TODO May need this to clear value
-    fetchCommitBeforeTime(reference, newDate, stateKey, api, redirectOnChange);
+    fetchCommitBeforeTime(reference, newDate, stateKey, api, redirectUrl);
   }
 
   useEffect(() => {
     if (!popupState.isOpen) return;
-    if (!hash) setFormVal('head');
+    setFormVal(hash ? "commit" : "head");
   }, [popupState.isOpen, hash]);
 
   if (!reference) return null; //Loading
@@ -130,9 +131,10 @@ function BranchPicker({
   return (
     <>
       <div
-        className='branchPicker'
+        className="branchPicker"
         {...toggleProps}
         onClick={(e: any) => {
+          e.preventDefault();
           e.stopPropagation();
           toggleProps.onClick(e);
         }}
@@ -150,32 +152,38 @@ function BranchPicker({
           {...position}
           {...(anchorEl && popupState.isOpen && { anchorEl })}
         >
-          <ClickAwayListener onClickAway={popupState.close}>
+          <ClickAwayListener
+            onClickAway={() => {
+              onClose();
+              popupState.close();
+            }}
+          >
             <div
-              className='branchPicker-popup'
+              className="branchPicker-popup"
               onClick={(e: any) => {
                 e.stopPropagation();
-              }}>
-              <div className='branchPicker-popup-content'>
-                <div className='branchesView'>
-                  <div className='branchesView-left'>
+              }}
+            >
+              <div className="branchPicker-popup-content">
+                <div className="branchesView">
+                  <div className="branchesView-left">
                     <BranchList
                       defaultReference={defaultReference}
                       currentReference={reference}
                       onClick={changeReference}
                     />
                   </div>
-                  <div className='branchesView-right'>
-                    <div className='branchPicker-popup-header'>
+                  <div className="branchesView-right">
+                    <div className="branchPicker-popup-header">
                       <span
-                        className='branchPicker-popup-header-name text-ellipsis'
+                        className="branchPicker-popup-header-name text-ellipsis"
                         title={reference.name}
                       >
                         {reference.name}
                       </span>
                       {hash && (
-                        <span className='branchPicker-popup-header-hashWrapper'>
-                          <span className='branchPicker-popup-header-hashPrefix'>
+                        <span className="branchPicker-popup-header-hashWrapper">
+                          <span className="branchPicker-popup-header-hashPrefix">
                             @
                           </span>
                           <CommitHash
@@ -188,8 +196,8 @@ function BranchPicker({
                     </div>
                     {!!reference && (
                       <FormControl
-                        component='fieldset'
-                        className='branchesView-radios'
+                        component="fieldset"
+                        className="branchesView-radios"
                       >
                         <RadioGroup
                           value={formVal}
@@ -198,43 +206,43 @@ function BranchPicker({
                           }}
                         >
                           <FormControlLabel
-                            className='branchesView-radioLabel'
-                            value='head'
+                            className="branchesView-radioLabel"
+                            value="head"
                             control={<Radio />}
-                            label='Head'
+                            label="Head"
                           />
                           <FormControlLabel
                             onClick={showPicker}
-                            className='branchesView-radioLabel'
-                            value='date'
+                            className="branchesView-radioLabel"
+                            value="date"
                             control={<Radio />}
                             label={
-                              <div className='branchesView-datePicker'>
-                                <FormattedMessage id='BranchPicker.ChooseTime' />
+                              <div className="branchesView-datePicker">
+                                <FormattedMessage id="BranchPicker.ChooseTime" />
                                 <DatePicker
                                   ref={pickerRef}
-                                  disabled={formVal !== 'date'}
+                                  disabled={formVal !== "date"}
                                   showTimeSelect
                                   selected={date}
                                   onChange={onChooseDate}
-                                  popperPlacement='bottom-start'
+                                  popperPlacement="bottom-start"
                                   customInput={<SearchField showIcon={false} />}
-                                  dateFormat='M/d/yyyy hh:mm aa'
+                                  dateFormat="M/d/yyyy hh:mm aa"
                                 />
                               </div>
                             }
                           />
                           <FormControlLabel
-                            className='branchesView-radioLabel branchesView-commitBrowserContainer'
-                            value='commit'
+                            className="branchesView-radioLabel branchesView-commitBrowserContainer"
+                            value="commit"
                             control={<Radio />}
                             label={
                               <>
-                                <span className='branchesView-commitLabel'>
-                                  <FormattedMessage id='Common.Commit' />
+                                <span className="branchesView-commitLabel">
+                                  <FormattedMessage id="Common.Commit" />
                                 </span>
                                 <CommitBrowser
-                                  disabled={formVal !== 'commit'}
+                                  disabled={formVal !== "commit"}
                                   key={reference.name}
                                   branch={reference}
                                   onClick={setHash}
@@ -260,7 +268,7 @@ function BranchPicker({
 
 const mapDispatchToProps = {
   setReference: setReferenceAction,
-  fetchCommitBeforeTime: fetchCommitBeforeTimeAction
+  fetchCommitBeforeTime: fetchCommitBeforeTimeAction,
 };
 
 export default withRouter(

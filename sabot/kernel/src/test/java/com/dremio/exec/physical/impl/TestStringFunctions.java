@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.physical.impl;
 
+import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
+
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestFunction;
@@ -340,6 +342,33 @@ public class TestStringFunctions extends BaseTestFunction {
       {"byte_substr(c0, -3, 2)", "alpha".getBytes(), "ph".getBytes()}
       // {"substring(c0, -3, 2)", "alphabeta", "ph"} (Invalid since we follow Postgres)
 
+    });
+  }
+  @Test
+  public void concatws(){
+    testFunctions(new Object[][]{
+      {"concat_ws(c0, c1, c2)", "हकुना", "john", "doe",  "johnहकुनाdoe"},
+      {"concat_ws(c0, c1, c2)", "-", "john", "doe",  "john-doe"},
+      {"concat_ws(c0, c1, c2)", "<>", "hello", "world",  "hello<>world"},
+      {"concat_ws(c0, c1, c2)", "jllkjsdhfg", "P18582D", "|",  "P18582Djllkjsdhfg|"},
+      {"concat_ws(c0, c1, c2)", "uiuikjk", NULL_VARCHAR, "|",  "|"},
+      {"concat_ws(c0, c1, c2)", NULL_VARCHAR, NULL_VARCHAR, "",  NULL_VARCHAR},
+      {"concat_ws(c0, c1, c2)", "", NULL_VARCHAR, "",  ""},
+      {"concat_ws(c0, c1, c2)", "-", NULL_VARCHAR, NULL_VARCHAR, ""},
+      {"concat_ws(c0, c1, c2)", "-", "", "hello",  "-hello"},
+      {"concat_ws(c0, c1, c2)","-", "hey", "hello", "hey-hello"},
+      {"concat_ws(c0, c1, c2)", "-", "", "hello", "-hello"},
+      {"concat_ws(c0, c1, c2)", NULL_VARCHAR, "hey", "hello", NULL_VARCHAR},
+      {"concat_ws(c0, c1, c2)", "-", NULL_VARCHAR,   "hello", "hello"},
+      {"concat_ws(c0, c1, c2)", "-", "hey", NULL_VARCHAR, "hey"},
+      {"concat_ws(c0, c1, c2, c3)", "#", "hey", "hello", "wow", "hey#hello#wow"},
+      {"concat_ws(c0, c1, c2, c3)", "#", "", NULL_VARCHAR, "wow", "#wow"},
+      {"concat_ws(c0, c1, c2, c3)", NULL_VARCHAR, "hey", "hello", "wow", NULL_VARCHAR},
+      {"concat_ws(c0, c1, c2, c3)", "#", NULL_VARCHAR, "hello", "wow", "hello#wow"},
+      {"concat_ws(c0, c1, c2, c3)", "#", "hey", NULL_VARCHAR, "wow", "hey#wow"},
+      {"concat_ws(c0, c1, c2, c3)", "#", NULL_VARCHAR, NULL_VARCHAR, "wow", "wow"},
+      {"concat_ws(c0, c1, c2, c3, c4)", "=", "hey", "hello","wow", "awesome", "hey=hello=wow=awesome"},
+      {"concat_ws(c0, c1, c2, c3, c4, c5)", "&&", "hey", "hello", "wow", "awesome", "super", "hey&&hello&&wow&&awesome&&super"},
     });
   }
 

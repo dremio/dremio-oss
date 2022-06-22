@@ -24,13 +24,16 @@ import java.util.stream.Collectors;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 
-import org.projectnessie.client.rest.NessieBadRequestException;
 import org.projectnessie.error.BaseNessieClientServerException;
 import org.projectnessie.error.ErrorCode;
 import org.projectnessie.error.ImmutableNessieError;
+import org.projectnessie.error.NessieBadRequestException;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieContentNotFoundException;
 import org.projectnessie.error.NessieError;
+import org.projectnessie.error.NessieNamespaceAlreadyExistsException;
+import org.projectnessie.error.NessieNamespaceNotEmptyException;
+import org.projectnessie.error.NessieNamespaceNotFoundException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.error.NessieRefLogNotFoundException;
 import org.projectnessie.error.NessieReferenceAlreadyExistsException;
@@ -57,19 +60,11 @@ public final class GrpcExceptionMapper {
    */
   public static StatusRuntimeException toProto(Exception ex) {
     if (ex instanceof BaseNessieClientServerException) {
-      ErrorCode errorCode = ((BaseNessieClientServerException) ex).getErrorCode();
-      Status status;
-      if (ex instanceof NessieNotFoundException) {
-        status = Status.NOT_FOUND;
-      } else if (ex instanceof NessieConflictException) {
-        status = Status.ALREADY_EXISTS;
-      } else {
-        status = Status.INVALID_ARGUMENT;
-      }
-      return status.withDescription((errorCode != null ? errorCode : ErrorCode.UNKNOWN).name())
-        .augmentDescription(ex.getMessage())
-        .withCause(ex)
-        .asRuntimeException();
+      return statusRuntimeExFromNessieEx(ex);
+    }
+    if (ex.getCause() instanceof BaseNessieClientServerException) {
+      StatusRuntimeException exception = statusRuntimeExFromNessieEx(ex.getCause());
+      return exception;
     }
     if (ex instanceof IllegalArgumentException) {
       return Status.INVALID_ARGUMENT
@@ -94,6 +89,22 @@ public final class GrpcExceptionMapper {
           .asRuntimeException();
     }
     return Status.INTERNAL.withDescription(ex.getMessage()).withCause(ex).asRuntimeException();
+  }
+
+  private static StatusRuntimeException statusRuntimeExFromNessieEx(Throwable ex) {
+    ErrorCode errorCode = ((BaseNessieClientServerException) ex).getErrorCode();
+    Status status;
+    if (ex instanceof NessieNotFoundException) {
+      status = Status.NOT_FOUND;
+    } else if (ex instanceof NessieConflictException) {
+      status = Status.ALREADY_EXISTS;
+    } else {
+      status = Status.INVALID_ARGUMENT;
+    }
+    return status.withDescription((errorCode != null ? errorCode : ErrorCode.UNKNOWN).name())
+      .augmentDescription(ex.getMessage())
+      .withCause(ex)
+      .asRuntimeException();
   }
 
   /**
@@ -180,6 +191,110 @@ public final class GrpcExceptionMapper {
     }
   }
 
+  /**
+   * Executes the given callable and performs additional exception handling/conversion.
+   *
+   * @param callable The callable to call
+   * @param <T> The type of the callable.
+   * @return The result of the callable
+   * @throws NessieNamespaceNotFoundException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieNamespaceNotFoundException}
+   * @throws NessieReferenceNotFoundException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieReferenceNotFoundException}
+   * @throws StatusRuntimeException If the underlying exception couldn't be converted to the
+   *     mentioned Nessie-specific exceptions, then a {@link StatusRuntimeException} with {@link
+   *     Status#UNKNOWN} is thrown.
+   */
+  public static <T> T handleNamespaceRetrieval(Callable<T> callable)
+    throws NessieNamespaceNotFoundException, NessieReferenceNotFoundException {
+    try {
+      return callable.call();
+    } catch (Exception e) {
+      if (e instanceof StatusRuntimeException) {
+        StatusRuntimeException sre = (StatusRuntimeException) e;
+        if (isNamespaceNotFound(sre)) {
+          throw GrpcExceptionMapper.toNessieNamespaceNotFoundException(sre);
+        }
+        if (isReferenceNotFound(sre)) {
+          throw GrpcExceptionMapper.toNessieReferenceNotFoundException(sre);
+        }
+        throw sre;
+      }
+      throw Status.UNKNOWN.withCause(e).asRuntimeException();
+    }
+  }
+
+  /**
+   * Executes the given callable and performs additional exception handling/conversion.
+   *
+   * @param callable The callable to call
+   * @param <T> The type of the callable.
+   * @return The result of the callable
+   * @throws NessieNamespaceAlreadyExistsException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieNamespaceAlreadyExistsException}
+   * @throws NessieReferenceNotFoundException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieReferenceNotFoundException}
+   * @throws StatusRuntimeException If the underlying exception couldn't be converted to the
+   *     mentioned Nessie-specific exceptions, then a {@link StatusRuntimeException} with {@link
+   *     Status#UNKNOWN} is thrown.
+   */
+  public static <T> T handleNamespaceCreation(Callable<T> callable)
+    throws NessieNamespaceAlreadyExistsException, NessieReferenceNotFoundException {
+    try {
+      return callable.call();
+    } catch (Exception e) {
+      if (e instanceof StatusRuntimeException) {
+        StatusRuntimeException sre = (StatusRuntimeException) e;
+        if (isNamespaceAlreadyExists(sre)) {
+          throw GrpcExceptionMapper.toNessieNamespaceAlreadyExistsException(sre);
+        }
+        if (isReferenceNotFound(sre)) {
+          throw GrpcExceptionMapper.toNessieReferenceNotFoundException(sre);
+        }
+        throw sre;
+      }
+      throw Status.UNKNOWN.withCause(e).asRuntimeException();
+    }
+  }
+
+  /**
+   * Executes the given callable and performs additional exception handling/conversion.
+   *
+   * @param callable The callable to call
+   * @param <T> The type of the callable.
+   * @return The result of the callable
+   * @throws NessieNamespaceNotFoundException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieNamespaceNotFoundException}
+   * @throws NessieNamespaceNotEmptyException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieNamespaceNotEmptyException}
+   * @throws NessieReferenceNotFoundException If the callable threw a gRPC exception, where the status
+   *     matches a {@link NessieReferenceNotFoundException}
+   * @throws StatusRuntimeException If the underlying exception couldn't be converted to the
+   *     mentioned Nessie-specific exceptions, then a {@link StatusRuntimeException} with {@link
+   *     Status#UNKNOWN} is thrown.
+   */
+  public static <T> T handleNamespaceDeletion(Callable<T> callable)
+    throws NessieNamespaceNotFoundException, NessieNamespaceNotEmptyException, NessieReferenceNotFoundException {
+    try {
+      return callable.call();
+    } catch (Exception e) {
+      if (e instanceof StatusRuntimeException) {
+        StatusRuntimeException sre = (StatusRuntimeException) e;
+        if (isNamespaceNotFound(sre)) {
+          throw GrpcExceptionMapper.toNessieNamespaceNotFoundException(sre);
+        }
+        if (isNamespaceNotEmpty(sre)) {
+          throw GrpcExceptionMapper.toNessieNamespaceNotEmptyException(sre);
+        }
+        if (isReferenceNotFound(sre)) {
+          throw GrpcExceptionMapper.toNessieReferenceNotFoundException(sre);
+        }
+        throw sre;
+      }
+      throw Status.UNKNOWN.withCause(e).asRuntimeException();
+    }
+  }
+
   private static boolean isInvalidArgument(StatusRuntimeException sre) {
     return Status.INVALID_ARGUMENT.getCode() == sre.getStatus().getCode();
   }
@@ -190,6 +305,30 @@ public final class GrpcExceptionMapper {
 
   private static boolean isAlreadyExists(StatusRuntimeException sre) {
     return Status.ALREADY_EXISTS.getCode() == sre.getStatus().getCode();
+  }
+
+  private static boolean isNamespaceNotFound(StatusRuntimeException sre) {
+    // cause might not be set, so we need to examine the description
+    return isNotFound(sre) && null != sre.getStatus().getDescription() &&
+      sre.getStatus().getDescription().contains(ErrorCode.NAMESPACE_NOT_FOUND.name());
+  }
+
+  private static boolean isNamespaceAlreadyExists(StatusRuntimeException sre) {
+    // cause might not be set, so we need to examine the description
+    return isAlreadyExists(sre) && null != sre.getStatus().getDescription() &&
+      sre.getStatus().getDescription().contains(ErrorCode.NAMESPACE_ALREADY_EXISTS.name());
+  }
+
+  private static boolean isNamespaceNotEmpty(StatusRuntimeException sre) {
+    // cause might not be set, so we need to examine the description
+    return isAlreadyExists(sre) && null != sre.getStatus().getDescription() &&
+      sre.getStatus().getDescription().contains(ErrorCode.NAMESPACE_NOT_EMPTY.name());
+  }
+
+  private static boolean isReferenceNotFound(StatusRuntimeException sre) {
+    // cause might not be set, so we need to examine the description
+    return isNotFound(sre) && null != sre.getStatus().getDescription() &&
+      sre.getStatus().getDescription().contains(ErrorCode.REFERENCE_NOT_FOUND.name());
   }
 
   private static BaseNessieClientServerException toNessieException(StatusRuntimeException e, ImmutableNessieError.Builder nessieError, Function<NessieError, BaseNessieClientServerException> fallback) {
@@ -212,6 +351,12 @@ public final class GrpcExceptionMapper {
             return new NessieReferenceNotFoundException(nessieError.build());
           case REFLOG_NOT_FOUND:
             return new NessieRefLogNotFoundException(nessieError.build());
+          case NAMESPACE_ALREADY_EXISTS:
+            return new NessieNamespaceAlreadyExistsException(nessieError.build());
+          case NAMESPACE_NOT_EMPTY:
+            return new NessieNamespaceNotEmptyException(nessieError.build());
+          case NAMESPACE_NOT_FOUND:
+            return new NessieNamespaceNotFoundException(nessieError.build());
           default:
             break; // fall through
         }
@@ -232,6 +377,13 @@ public final class GrpcExceptionMapper {
       NessieNotFoundException::new);
   }
 
+  private static NessieReferenceNotFoundException toNessieReferenceNotFoundException(StatusRuntimeException e) {
+    return (NessieReferenceNotFoundException) toNessieException(e, ImmutableNessieError.builder()
+        .message("Reference not found")
+        .status(404),
+      NessieReferenceNotFoundException::new);
+  }
+
   private static NessieConflictException toNessieConflictException(StatusRuntimeException e) {
     return (NessieConflictException) toNessieException(e, ImmutableNessieError.builder()
         .message("Conflict")
@@ -248,7 +400,32 @@ public final class GrpcExceptionMapper {
     ImmutableNessieError.Builder nessieError = ImmutableNessieError.builder()
       .message(msg)
       .status(400)
+      .errorCode(ErrorCode.BAD_REQUEST)
       .reason("Bad Request");
     return new NessieBadRequestException(nessieError.build());
+  }
+
+  private static NessieNamespaceNotFoundException toNessieNamespaceNotFoundException(StatusRuntimeException e) {
+    return (NessieNamespaceNotFoundException) toNessieException(e, ImmutableNessieError.builder()
+        .message("Namespace not found")
+        .status(ErrorCode.NAMESPACE_NOT_FOUND.httpStatus())
+        .errorCode(ErrorCode.NAMESPACE_NOT_FOUND),
+      NessieNamespaceNotFoundException::new);
+  }
+
+  private static NessieNamespaceNotEmptyException toNessieNamespaceNotEmptyException(StatusRuntimeException e) {
+    return (NessieNamespaceNotEmptyException) toNessieException(e, ImmutableNessieError.builder()
+        .message("Namespace not empty")
+        .status(ErrorCode.NAMESPACE_NOT_EMPTY.httpStatus())
+        .errorCode(ErrorCode.NAMESPACE_NOT_EMPTY),
+      NessieNamespaceNotEmptyException::new);
+  }
+
+  private static NessieNamespaceAlreadyExistsException toNessieNamespaceAlreadyExistsException(StatusRuntimeException e) {
+    return (NessieNamespaceAlreadyExistsException) toNessieException(e, ImmutableNessieError.builder()
+        .message("Namespace already exists")
+        .status(ErrorCode.NAMESPACE_ALREADY_EXISTS.httpStatus())
+        .errorCode(ErrorCode.NAMESPACE_ALREADY_EXISTS),
+      NessieNamespaceAlreadyExistsException::new);
   }
 }

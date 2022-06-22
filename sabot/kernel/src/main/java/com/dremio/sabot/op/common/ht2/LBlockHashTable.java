@@ -17,34 +17,25 @@ package com.dremio.sabot.op.common.ht2;
 
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
-import static org.apache.arrow.util.Preconditions.checkNotNull;
-import static org.apache.arrow.util.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.common.util.CloseableIterator;
 import com.dremio.common.util.Numbers;
-import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.LBlockHashTableKeyReader;
-import com.dremio.exec.util.ValueListFilter;
-import com.dremio.exec.util.ValueListFilterBuilder;
 import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -70,8 +61,6 @@ import io.netty.util.internal.PlatformDependent;
  */
 public final class LBlockHashTable implements HashTable, AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LBlockHashTable.class);
-  private static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
-  private static final int MAX_VAL_LIST_FILTER_KEY_SIZE = 17;
   private static final int SKIP = -1;
 
   public static final int CONTROL_WIDTH = 8;
@@ -160,7 +149,6 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
                          final int maxHashTableBatchSize,
                          NullComparator nullComparator) {
     this.pivot = pivot;
-    this.allocator = parentAllocator.newChildAllocator("hashtable", 0, parentAllocator.getLimit());
     this.nullComparator = nullComparator;
     this.config = new HashConfigWrapper(config);
     this.fixedOnly = pivot.getVariableCount() == 0;
@@ -180,7 +168,15 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     this.unusedForFixedBlocks = 0;
     this.unusedForVarBlocks = 0;
     this.maxOrdinalBeforeExpand = 0;
-    internalInit(LHashCapacities.capacity(this.config, initialSize, false));
+    try (RollbackCloseable rc = new RollbackCloseable(true)) {
+      this.allocator = rc.add(parentAllocator.newChildAllocator("lblock-hashtable", 0, parentAllocator.getLimit()));
+      internalInit(LHashCapacities.capacity(this.config, initialSize, false));
+      rc.commit();
+    } catch (RuntimeException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
 
     logger.debug("initialized hashtable, maxSize:{}, capacity:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}",
       maxSize, capacity, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
@@ -204,6 +200,15 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
 
   public int getVariableBlockMaxLength() {
     return variableBlockMaxLength;
+  }
+
+  @Override
+  public long[] getDataPageAddresses() {
+    long[] dataAddresses = new long[tableFixedAddresses.length];
+    for (int i = 0; i < tableFixedAddresses.length; i++) {
+      dataAddresses[i] = tableFixedAddresses[i];
+    }
+    return dataAddresses;
   }
 
   // Compute the direct memory required for one pivoted variable block.
@@ -242,14 +247,25 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    * @param hashVectorAddr8B   starting address of 8-byte hash vector block
    * @param outputAddr         starting address of output vector block
    */
-  /* XXX: Assumes, for now, that it add does not fail with OOM */
   @Override
-  public final void add(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long outputAddr) {
-    for (int keyIndex = 0; keyIndex < numRecords; keyIndex++, outputAddr += 4, hashVectorAddr8B += 8) {
-      final int keyHash = (int)PlatformDependent.getLong(hashVectorAddr8B);
-      PlatformDependent.putInt(outputAddr,
-        add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+  public final int add(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long outputAddr) {
+    int keyIndex = 0;
+
+    try {
+      for (keyIndex = 0; keyIndex < numRecords; keyIndex++, outputAddr += 4, hashVectorAddr8B += 8) {
+        final int keyHash = (int) PlatformDependent.getLong(hashVectorAddr8B);
+
+        PlatformDependent.putInt(outputAddr, add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+      }
+    } catch (OutOfMemoryException | HashTableMaxCapacityReachedException ex) {
+      logger.debug(String.format("%s when trying to insert %d records (%d records were successfully inserted)",
+        ex.getClass().getSimpleName(), numRecords, keyIndex));
+    } catch (Exception ex) {
+      logger.error(String.format("An unexpected error was thrown when trying to insert %d records (%d records were successfully inserted)",
+        numRecords, keyIndex), ex);
     }
+
+    return keyIndex;
   }
 
   /**
@@ -264,14 +280,25 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    */
   /* XXX: Assumes, for now, that it add does not fail with OOM */
   @Override
-  public final void addSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long tableHashAddr4B, long outputAddr) {
-    for (int index = 0 ; index < numRecords; index++, outputAddr += 4) {
-      final int keyIndex = SV2UnsignedUtil.read(sv2Addr, index);
-      final int keyHash = PlatformDependent.getInt(tableHashAddr4B + keyIndex * 4);
+  public final int addSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long tableHashAddr4B, long outputAddr) {
+    int index = 0;
 
-      PlatformDependent.putInt(outputAddr,
-        add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+    try {
+      for (index = 0 ; index < numRecords; index++, outputAddr += 4) {
+        final int keyIndex = SV2UnsignedUtil.read(sv2Addr, index);
+        final int keyHash = PlatformDependent.getInt(tableHashAddr4B + keyIndex * 4);
+
+        PlatformDependent.putInt(outputAddr, add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
+      }
+    } catch (OutOfMemoryException | HashTableMaxCapacityReachedException ex) {
+      logger.debug(String.format("%s when trying to insert %d records (%d records were successfully inserted)",
+        ex.getClass().getSimpleName(), numRecords, index));
+    } catch (Exception ex) {
+      logger.error(String.format("An unexpected error was thrown when trying to insert %d records (%d records were successfully inserted)",
+        numRecords, index), ex);
     }
+
+    return index;
   }
 
   /**
@@ -589,15 +616,38 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
 
       for (; keyVectorAddr < maxKeyVectorAddr; keyVectorAddr += ORDINAL_SIZE) {
         final int ordinal = PlatformDependent.getInt(keyVectorAddr);
-        final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
-        final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
-        final long tableVarOffsetAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth) + blockWidth - VAR_OFFSET_SIZE;
-        final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
-        // VAR_LENGTH_SIZE is not added to varLen when pivot it in pivotVariableLengths method, so we need to add it here
-        size += PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
+        size += getVarKeyLengthForOrdinal(ordinal);
       }
       return size;
     }
+  }
+
+  @Override
+  public void getVarKeyLengths(long keyVectorAddr, int numRecords, long outAddr) {
+    if (fixedOnly) {
+      for (int i = 0; i < numRecords; ++i) {
+        PlatformDependent.putInt(outAddr + (i * VAR_LENGTH_SIZE), 0);
+      }
+    } else {
+      long maxKeyVectorAddr = keyVectorAddr + ORDINAL_SIZE * numRecords;
+      long curOutAddr = outAddr;
+
+      for (; keyVectorAddr < maxKeyVectorAddr; keyVectorAddr += ORDINAL_SIZE, curOutAddr += VAR_LENGTH_SIZE) {
+        final int ordinal = PlatformDependent.getInt(keyVectorAddr);
+        final int size = getVarKeyLengthForOrdinal(ordinal);
+        PlatformDependent.putInt(curOutAddr, size);
+      }
+    }
+  }
+
+  private int getVarKeyLengthForOrdinal(int ordinal) {
+    final int blockWidth = pivot.getBlockWidth();
+    final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+    final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
+    final long tableVarOffsetAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth) + blockWidth - VAR_OFFSET_SIZE;
+    final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
+    // VAR_LENGTH_SIZE is not added to varLen when pivot it in pivotVariableLengths method, so we need to add it here
+    return PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
   }
 
   /* Copy the keys of the records specified in keyOffsetAddr to destination memory
@@ -862,7 +912,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    * buffers run paralelly (not in terms of length) but in terms of rows (pivoted records)
    * they store.
    *
-   * A row in fixed block buffer is equal to block width <validity, all fixed columns, var offset)
+   * A row in fixed block buffer is equal to block width (validity, all fixed columns, var offset)
    * and upon insertion of every new entry into hash table, we bump the writer index
    * in both blocks. So readableBytes in buffer along with block width gives the exact
    * count of records inserted in a particular hash table batch.
@@ -1298,6 +1348,56 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
       recordsInBatches);
   }
 
+  @Override
+  public CloseableIterator<HashTableKeyAddress> keyIterator() {
+    return new HashTableKeyIterator();
+  }
+
+  private class HashTableKeyIterator implements CloseableIterator<HashTableKeyAddress> {
+    private int scanOrdinal = 0;
+
+    HashTableKeyIterator() {
+      /*
+       * Travese over the ordinals is done only by hashjoin, in which case, we make sure no gaps
+       * in ordinals (and no enforceVarWidthBufferLimit, i.e variable buffer will be extended in
+       * case original size does not fit for the entire batch)
+       *
+       * XXX: This need to be fixed if we ever need to traverse the oridinal with gaps (i.e for
+       * HashAgg)
+       */
+      Preconditions.checkState(MAX_VALUES_PER_BATCH == ACTUAL_VALUES_PER_BATCH);
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (scanOrdinal >= currentOrdinal) {
+        return false;
+      }
+      return true;
+    }
+
+    @Override
+    public HashTableKeyAddress next() {
+      Preconditions.checkState(scanOrdinal < currentOrdinal);
+
+      int dataChunkIndex = scanOrdinal >> BITS_IN_CHUNK;
+      int offsetInChunk = scanOrdinal & CHUNK_OFFSET_MASK;
+      long fixedKeyAddress = tableFixedAddresses[dataChunkIndex] + offsetInChunk * pivot.getBlockWidth();
+      long varKeyAddress = 0;
+
+      if (!fixedOnly) {
+        varKeyAddress = initVariableAddresses[dataChunkIndex] +
+          PlatformDependent.getInt(fixedKeyAddress + pivot.getBlockWidth() - VAR_OFFSET_SIZE);
+      }
+      scanOrdinal++;
+      return new HashTableKeyAddress(fixedKeyAddress, varKeyAddress);
+    }
+
+    @Override
+    public void close() {
+    }
+  }
+
   // Tracing support
   // When tracing is started, the hashtable allocates an ArrowBuf that will contain the following information:
   // 1. hashtable state before the insertion (recorded at {@link #traceStartInsert()})
@@ -1558,123 +1658,6 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   }
 
   /**
-   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
-   * the consumer. Instead, they get an empty optional.
-   * @param fieldNames
-   * @param sizeDynamically Size the filter according to the number of entries in table.
-   * @return
-   */
-  @Override
-  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    if (CollectionUtils.isEmpty(fieldNames)) {
-      return Optional.empty();
-    }
-
-    // Not dropping the filter even if expected size is more than max possible size since there could be repeated keys.
-    long bloomFilterSize = sizeDynamically ? Math.min(BloomFilter.getOptimalSize(size()),
-            BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
-
-    final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
-    try (RollbackCloseable closeOnError = new RollbackCloseable();
-         LBlockHashTableKeyReader keyReader = getKeyReaderBuilder(fieldNames)
-                 .setMaxKeySize(maxKeySize)
-                 .build()) {
-      closeOnError.add(bloomFilter);
-      bloomFilter.setup();
-      final ArrowBuf keyHolder = keyReader.getKeyHolder();
-      while(keyReader.loadNextKey()) {
-        bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
-      }
-      checkState(!bloomFilter.isCrossingMaxFPP(), "Bloom filter overflown over its capacity.");
-      closeOnError.commit();
-      return Optional.of(bloomFilter);
-    } catch (Exception e) {
-      logger.warn("Unable to prepare bloomfilter for " + fieldNames, e);
-      return Optional.empty();
-    }
-  }
-
-  @Override
-  public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    if (StringUtils.isEmpty(fieldName)) {
-      return Optional.empty();
-    }
-    final boolean isBooleanField = isBoolField(fieldName);
-    final LBlockHashTableKeyReader.Builder keyReaderBuilder = getKeyReaderBuilder(ImmutableList.of(fieldName))
-            .setSetVarFieldLenInFirstByte(true) // Set length at first byte, to avoid comparison issues for different size values.
-            .setMaxKeySize(MAX_VAL_LIST_FILTER_KEY_SIZE); // Max key size 16, excluding one byte for validity bits.
-    try (LBlockHashTableKeyReader keyReader = keyReaderBuilder.build();
-         ValueListFilterBuilder filterBuilder =
-                 new ValueListFilterBuilder(allocator, maxElements, isBooleanField ? 0 : keyReader.getEffectiveKeySize(), isBooleanField)) {
-      filterBuilder.setup();
-      filterBuilder.setFieldName(fieldName);
-      filterBuilder.setName(Thread.currentThread().getName());
-      setFieldType(filterBuilder, fieldName);
-      final ArrowBuf key = keyReader.getKeyValBuf();
-      while (keyReader.loadNextKey()) {
-        if (keyReader.areAllValuesNull()) {
-          filterBuilder.insertNull();
-        } else if (isBooleanField) {
-          filterBuilder.insertBooleanVal(readBoolean(keyReader.getKeyHolder()));
-        } else {
-          filterBuilder.insert(key);
-        }
-      }
-      return Optional.of(filterBuilder.build());
-    } catch (Exception e) {
-      logger.info("Unable to prepare value list filter for {} because {}", fieldName, e.getMessage());
-      return Optional.empty();
-    }
-  }
-
-  private boolean readBoolean(final ArrowBuf key) {
-    // reads the first column
-    return (key.getByte(0) & (1L << 1)) != 0;
-  }
-
-  private void setFieldType(final ValueListFilterBuilder filterBuilder, final String fieldName) {
-    // Check fixed and variable width vectorPivotDefs one by one
-    ArrowType fieldType = getFieldType(pivot.getFixedPivots(), fieldName);
-    byte precision = 0;
-    byte scale = 0;
-    if (fieldType == null) {
-      fieldType = getFieldType(pivot.getVariablePivots(), fieldName);
-      filterBuilder.setFixedWidth(false);
-    }
-    checkNotNull(fieldType, "Not able to find %s in build pivot", fieldName);
-    if (fieldType instanceof ArrowType.Decimal) {
-      precision = (byte) ((ArrowType.Decimal) fieldType).getPrecision();
-      scale = (byte) ((ArrowType.Decimal) fieldType).getScale();
-    }
-
-    filterBuilder.setFieldType(Types.getMinorTypeForArrowType(fieldType), precision, scale);
-  }
-
-  private ArrowType getFieldType(final List<VectorPivotDef> vectorPivotDefs, final String fieldName) {
-    return vectorPivotDefs.stream()
-            .map(p -> p.getIncomingVector().getField())
-            .filter(f -> f.getName().equalsIgnoreCase(fieldName))
-            .map(f -> f.getType())
-            .findAny().orElse(null);
-  }
-
-  private boolean isBoolField(final String fieldName) {
-    return pivot.getBitPivots().stream().anyMatch(p -> p.getIncomingVector().getField().getName()
-            .equalsIgnoreCase(fieldName));
-  }
-
-  private LBlockHashTableKeyReader.Builder getKeyReaderBuilder(List<String> fieldNames) {
-    return new LBlockHashTableKeyReader.Builder()
-            .setBufferAllocator(this.allocator)
-            .setFieldsToRead(fieldNames)
-            .setPivot(pivot)
-            .setMaxValuesPerBatch(MAX_VALUES_PER_BATCH)
-            .setTableFixedAddresses(tableFixedAddresses)
-            .setTableVarAddresses(initVariableAddresses)
-            .setTotalNumOfRecords(size());
-  }
-
-  /**
    * A branch free copier of FIXED keys from source batch to target.
    * @param batchIndex source batch
    * @param sourceStartOrdinal start ordinal of the source
@@ -1687,7 +1670,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
   private int copyWithFixedKeyOnly(final int batchIndex, final int sourceStartOrdinal,
                                    final int sourceStartIndex, final int sourceEndIndex,
                                    final int newCurrentOrdinal, final long seed) {
-    Preconditions.checkState(fixedOnly == true);
+    Preconditions.checkState(fixedOnly);
 
     final int dstChunkIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
     long dstFixedAddr = tableFixedAddresses[dstChunkIndex];
@@ -1741,7 +1724,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    */
   private int copyWithVarKey(final int batchIndex, final int sourceStartOrdinal, final int sourceStartIndex,
                              final int sourceEndIndex, final int newCurrentOrdinal, final long seed) {
-    Preconditions.checkArgument(fixedOnly == false);
+    Preconditions.checkState(!fixedOnly);
 
     final int dstChunkIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
     Preconditions.checkArgument((newCurrentOrdinal & CHUNK_OFFSET_MASK) == 0);

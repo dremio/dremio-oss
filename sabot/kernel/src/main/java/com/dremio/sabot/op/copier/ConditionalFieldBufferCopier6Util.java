@@ -48,7 +48,7 @@ public final class ConditionalFieldBufferCopier6Util {
 
   private ConditionalFieldBufferCopier6Util(){};
 
-  static abstract class FixedWidthCopier implements FieldBufferCopier {
+  abstract static class FixedWidthCopier implements FieldBufferCopier {
     protected final FieldVector[] source;
     protected final FieldVector target;
     protected final FixedWidthVector targetAlt;

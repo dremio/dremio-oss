@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
@@ -34,6 +35,7 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzSessionC
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveMetastoreClientFactory;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveOperationType;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivObjectActionType;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivilegeObjectType;
 import org.apache.hadoop.hive.ql.session.SessionState;
 
@@ -98,7 +100,7 @@ public class HiveAuthorizationHelper {
    * Check authorization for "SHOW DATABASES" command. A {@link HiveAccessControlException} is thrown
    * for illegal access.
    */
-  public void authorizeShowDatabases() throws HiveAccessControlException {
+  public void authorizeShowDatabases() throws HiveAccessControlException, HiveAuthzPluginException {
     if (!isAuthEnabled()) {
       return;
     }
@@ -106,12 +108,39 @@ public class HiveAuthorizationHelper {
     authorize(HiveOperationType.SHOWDATABASES, Collections.<HivePrivilegeObject> emptyList(), Collections.<HivePrivilegeObject> emptyList(), "SHOW DATABASES");
   }
 
+
+  /**
+   * Check authorization for "CREATE TABLE" command. A {@link HiveAccessControlException} is thrown
+   * for illegal access.
+   */
+  public void authorizeCreateTable(final String dbName, final String tableName) throws HiveAccessControlException, HiveAuthzPluginException {
+    if (!isAuthEnabled()) {
+      return;
+    }
+
+    HivePrivilegeObject toCreate = new HivePrivilegeObject(HivePrivilegeObjectType.TABLE_OR_VIEW, dbName, tableName);
+    authorize(HiveOperationType.CREATETABLE, Collections.<HivePrivilegeObject>emptyList(), ImmutableList.of(toCreate), "CREATE TABLE");
+  }
+
+  /**
+   * Check authorization for "DROP TABLE" command. A {@link HiveAccessControlException} is thrown
+   * for illegal access.
+   */
+  public void authorizeDropTable(final String dbName, final String tableName) throws HiveAccessControlException, HiveAuthzPluginException {
+    if (!isAuthEnabled()) {
+      return;
+    }
+
+    HivePrivilegeObject toDrop = new HivePrivilegeObject(HivePrivilegeObjectType.TABLE_OR_VIEW, dbName, tableName);
+    authorize(HiveOperationType.DROPTABLE, ImmutableList.of(toDrop), Collections.<HivePrivilegeObject>emptyList(), "DROP TABLE");
+  }
+
   /**
    * Check authorization for "SHOW TABLES" command in given Hive db. A {@link HiveAccessControlException} is thrown
    * for illegal access.
    * @param dbName
    */
-  public void authorizeShowTables(final String dbName) throws HiveAccessControlException {
+  public void authorizeShowTables(final String dbName) throws HiveAccessControlException, HiveAuthzPluginException {
     if (!isAuthEnabled()) {
       return;
     }
@@ -127,7 +156,7 @@ public class HiveAuthorizationHelper {
    * @param dbName
    * @param tableName
    */
-  public void authorizeReadTable(final String dbName, final String tableName) throws HiveAccessControlException {
+  public void authorizeReadTable(final String dbName, final String tableName) throws HiveAccessControlException, HiveAuthzPluginException {
     if (!isAuthEnabled()) {
       return;
     }
@@ -136,17 +165,53 @@ public class HiveAuthorizationHelper {
     authorize(HiveOperationType.QUERY, ImmutableList.of(toRead), Collections.<HivePrivilegeObject> emptyList(), "READ TABLE");
   }
 
+  public void authorizeDml(String dbName, String tableName, List<HivePrivObjectActionType> actionTypes)
+      throws HiveAccessControlException, HiveAuthzPluginException {
+    if (!isAuthEnabled()) {
+      return;
+    }
+
+    List<HivePrivilegeObject> input = ImmutableList.of(
+        new HivePrivilegeObject(HivePrivilegeObjectType.TABLE_OR_VIEW, dbName, tableName));
+    List<HivePrivilegeObject> output = actionTypes.stream()
+        .map(type -> new HivePrivilegeObject(HivePrivilegeObjectType.TABLE_OR_VIEW, dbName, tableName, type))
+        .collect(Collectors.toList());
+    // LOAD is used here as there are no HiveOperationTypes for SQL DML... and LOAD will map to a table update
+    authorize(HiveOperationType.LOAD, input, output, "LOAD");
+  }
+
+  public void authorizeTruncateTable(String dbName, String tableName)
+      throws HiveAccessControlException, HiveAuthzPluginException {
+    if (!isAuthEnabled()) {
+      return;
+    }
+
+    HivePrivilegeObject toTruncate = new HivePrivilegeObject(HivePrivilegeObjectType.TABLE_OR_VIEW, dbName, tableName);
+    authorize(HiveOperationType.TRUNCATETABLE, Collections.emptyList(), ImmutableList.of(toTruncate), "TRUNCATE TABLE");
+  }
+
+  public void authorizeAlterTable(String dbName, String tableName)
+    throws HiveAccessControlException, HiveAuthzPluginException {
+    if (!isAuthEnabled()) {
+      return;
+    }
+
+    HivePrivilegeObject toAlter = new HivePrivilegeObject(HivePrivilegeObjectType.TABLE_OR_VIEW, dbName, tableName);
+    // Hive has multiple ALTERTABLE operation types - just map to one of them for simplicity
+    authorize(HiveOperationType.ALTERTABLE_ADDCOLS, Collections.emptyList(), ImmutableList.of(toAlter), "ALTER TABLE");
+  }
+
   @VisibleForTesting
   /* Helper method to check privileges */
   void authorize(final HiveOperationType hiveOpType, final List<HivePrivilegeObject> toRead,
-      final List<HivePrivilegeObject> toWrite, final String cmd) throws HiveAccessControlException {
+      final List<HivePrivilegeObject> toWrite, final String cmd) throws HiveAccessControlException, HiveAuthzPluginException {
     try {
       HiveAuthzContext.Builder authzContextBuilder = new HiveAuthzContext.Builder();
       authzContextBuilder.setUserIpAddress("Not available");
       authzContextBuilder.setCommandString(cmd);
 
       authorizerV2.checkPrivileges(hiveOpType, toRead, toWrite, authzContextBuilder.build());
-    } catch (final HiveAccessControlException e) {
+    } catch (final HiveAccessControlException | HiveAuthzPluginException e) {
       throw e;
     } catch (final Exception e) {
       Throwables.propagateIfPossible(e);

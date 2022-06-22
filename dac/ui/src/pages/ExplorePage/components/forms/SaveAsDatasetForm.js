@@ -13,26 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
-import { FieldWithError, TextField } from 'components/Fields';
-import { applyValidators, isRequired } from 'utils/validation';
-import { getInitialResourceLocation, constructFullPath } from 'utils/pathUtils';
-import ResourceTreeController from 'components/Tree/ResourceTreeController';
-import DependantDatasetsWarning from 'components/Modals/components/DependantDatasetsWarning';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import Message from 'components/Message';
-import { formRow, label } from 'uiTheme/radium/forms';
+import { ModalForm, FormBody, modalFormProps } from "components/Forms";
+import { FieldWithError, TextField } from "components/Fields";
+import { applyValidators, isRequired } from "utils/validation";
+import { getInitialResourceLocation, constructFullPath } from "utils/pathUtils";
+import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
+import DependantDatasetsWarning from "components/Modals/components/DependantDatasetsWarning";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import Message from "components/Message";
+import { formRow, label } from "uiTheme/radium/forms";
 
-export const FIELDS = ['name', 'location', 'reapply'];
+export const FIELDS = ["name", "location", "reapply"];
 
 function validate(values) {
-  return applyValidators(values, [
-    isRequired('name'),
-    isRequired('location')]);
+  return applyValidators(values, [isRequired("name"), isRequired("location")]);
 }
 
 const locationType = PropTypes.string;
@@ -40,9 +39,10 @@ const locationType = PropTypes.string;
 // as inconsistency in these 2 parameters, cause redux-form treat a form as dirty.
 // I created this as function, not as standalone object, to avoid eslint errors that requires to
 // document the rest of redux-form properties: onChange, error, touched
-const getLocationPropType = () => PropTypes.shape({
-  value: locationType
-});
+const getLocationPropType = () =>
+  PropTypes.shape({
+    value: locationType,
+  });
 
 export class SaveAsDatasetForm extends Component {
   static propTypes = {
@@ -57,32 +57,48 @@ export class SaveAsDatasetForm extends Component {
 
     // redux-form
     initialValues: PropTypes.shape({
-      location: locationType
+      location: locationType,
     }),
     fields: PropTypes.shape({
       location: getLocationPropType(),
-      name: PropTypes.object
-    })
+      name: PropTypes.object,
+    }),
   };
 
   static contextTypes = {
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   handleChangeSelectedNode = (nodeId, node) => {
-    this.props.fields.location.onChange(node && constructFullPath(node.get('fullPath').toJS()) || nodeId);
+    const { onChange } = this.props.fields.location;
+    if (!nodeId && !node) {
+      onChange(undefined); //Clears selection
+    } else {
+      onChange(
+        (node && constructFullPath(node.get("fullPath").toJS())) || nodeId
+      );
+    }
   };
 
   renderWarning() {
     const { dependentDatasets } = this.props;
 
     if (dependentDatasets && dependentDatasets.length > 0) {
+      const messageObj = new Immutable.Map({
+        message: la(
+          `Changing the name of this dataset will disconnect ${dependentDatasets.length} dependent datasets. Make a copy to preserve these connections.`
+        ),
+        moreInfo: (
+          <DependantDatasetsWarning dependantDatasets={dependentDatasets} />
+        ),
+      });
+
       return (
-        <DependantDatasetsWarning
-          text={`Changing the name of this dataset
-              will disconnect ${dependentDatasets.length} dependent
-              datasets. Make a copy to preserve these connections.`}
-          dependantDatasets={dependentDatasets}
+        <Message
+          messageType="warning"
+          message={messageObj}
+          detailsStyle={{ padding: "2px 38px 0px 38px" }}
+          isDismissable={false}
         />
       );
     }
@@ -94,9 +110,10 @@ export class SaveAsDatasetForm extends Component {
     const { version, tipVersion } = this.context.location.query;
     if (tipVersion && tipVersion !== version) {
       return (
-        <DependantDatasetsWarning
-          text={la('You may lose your previous changes.')}
-          dependantDatasets={[]}
+        <Message
+          messageType="warning"
+          message={la("You may lose your previous changes.")}
+          isDismissable={false}
         />
       );
     }
@@ -105,29 +122,42 @@ export class SaveAsDatasetForm extends Component {
   }
 
   render() {
-    const { fields: { name, location }, handleSubmit, onFormSubmit, message } = this.props;
+    const {
+      fields: { name, location },
+      handleSubmit,
+      onFormSubmit,
+      message,
+    } = this.props;
     return (
-      <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
+      <ModalForm
+        {...modalFormProps(this.props)}
+        {...(!location.value && { canSubmit: false })}
+        onSubmit={handleSubmit(onFormSubmit)}
+      >
         {this.renderWarning()}
         {this.renderHistoryWarning()}
         <FormBody>
-          { message && <div style={formRow}>{message}</div>}
+          {message && <div style={formRow}>{message}</div>}
           <div style={formRow}>
-            <FieldWithError label='Name' {...name}>
-              <TextField initialFocus {...name}/>
+            <FieldWithError label="Name" {...name}>
+              <TextField initialFocus {...name} />
             </FieldWithError>
           </div>
           <div style={formRow}>
             <label style={label}>Location</label>
-            <ResourceTreeController
-              isDatasetsDisabled
+            <ResourceTreeContainer
+              stopAtDatasets
               onChange={this.handleChangeSelectedNode}
               preselectedNodeId={location.initialValue}
-              showFolders/>
-            {
-              this.props.fields.location.error && this.props.fields.location.touched &&
-                <Message messageType='error' message={this.props.fields.location.error} />
-            }
+              fromModal
+            />
+            {this.props.fields.location.error &&
+              this.props.fields.location.touched && (
+                <Message
+                  messageType="error"
+                  message={this.props.fields.location.error}
+                />
+              )}
           </div>
         </FormBody>
       </ModalForm>
@@ -137,12 +167,21 @@ export class SaveAsDatasetForm extends Component {
 
 const mapStateToProps = (state, props) => ({
   initialValues: {
-    location: getInitialResourceLocation(props.fullPath, props.datasetType, state.account.getIn(['user', 'userName']))
-  }
+    location: getInitialResourceLocation(
+      props.fullPath,
+      props.datasetType,
+      state.account.getIn(["user", "userName"])
+    ),
+  },
 });
 
-export default connectComplexForm({
-  form: 'saveAsDataset',
-  fields: FIELDS,
-  validate
-}, [], mapStateToProps, null)(SaveAsDatasetForm);
+export default connectComplexForm(
+  {
+    form: "saveAsDataset",
+    fields: FIELDS,
+    validate,
+  },
+  [],
+  mapStateToProps,
+  null
+)(SaveAsDatasetForm);

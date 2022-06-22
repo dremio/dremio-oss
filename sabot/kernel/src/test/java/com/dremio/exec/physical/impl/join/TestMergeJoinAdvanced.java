@@ -42,7 +42,7 @@ import com.google.common.io.Files;
 
 public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
 
   // Have to disable hash join to test merge join in this class
   @BeforeClass

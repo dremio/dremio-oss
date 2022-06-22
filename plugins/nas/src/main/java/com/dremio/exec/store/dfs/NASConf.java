@@ -21,6 +21,7 @@ import javax.inject.Provider;
 import javax.validation.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -50,6 +51,12 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
 
   @Tag(3)
   public List<Property> propertyList;
+
+
+  @Tag(4)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
   @Override
   public Path getPath() {
@@ -81,5 +88,7 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
     return new NASFileSystem(this, context, name, pluginIdProvider);
   }
 
-
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
+  }
 }

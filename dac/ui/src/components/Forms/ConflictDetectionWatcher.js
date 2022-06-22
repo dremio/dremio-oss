@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { showConflictConfirmationDialog } from 'actions/confirmation';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { showConflictConfirmationDialog } from "actions/confirmation";
 
 /**
  * Returns specified Form component wrapped into component which tracks and warn user about lost data
@@ -43,8 +43,8 @@ export function wrapConflictDetectionForm(Form) {
       getConflictedValues: PropTypes.func,
       showConflictConfirmationDialog: PropTypes.func,
       submitting: PropTypes.bool,
-      values: PropTypes.object
-    }
+      values: PropTypes.object,
+    };
 
     componentWillReceiveProps(nextProps) {
       if (!nextProps.getConflictedValues || nextProps.submitting) {
@@ -80,5 +80,7 @@ export function wrapConflictDetectionForm(Form) {
 }
 
 export default function ConflictDetectionWatcher(Form) {
-  return connect(null, { showConflictConfirmationDialog })(wrapConflictDetectionForm(Form));
+  return connect(null, { showConflictConfirmationDialog })(
+    wrapConflictDetectionForm(Form)
+  );
 }

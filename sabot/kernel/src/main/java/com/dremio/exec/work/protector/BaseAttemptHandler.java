@@ -81,7 +81,7 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
              * and if that happens then instead of reattempting with StreamingAgg, we should report the problem back
              * to user so that query can be re-issued with potentially more memory.
              */
-            logger.info("{}: couldn't recover from an out of memory failure in vectorized hash agg");
+            logger.info("{}: couldn't recover from an out of memory failure in vectorized hash agg", attemptId);
             return AttemptReason.NONE;
           }
         }

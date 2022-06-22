@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 @font-face {
-  font-family: 'DremioIcons';
-  src: url('../dremioFonts/DremioIcons.woff2?otwrev') format('woff2'),
-    url('../dremioFonts/DremioIcons.woff?otwrev') format('woff');
+  font-family: "DremioIcons";
+  src: url("../dremioFonts/DremioIcons.woff2?otwrev") format("woff2"),
+    url("../dremioFonts/DremioIcons.woff?otwrev") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: block;
 }
 
-[class^="dremioIcon-"], [class*=" dremioIcon-"] {
+[class^="dremioIcon-"],
+[class*=" dremioIcon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: 'DremioIcons' !important;
+  font-family: "DremioIcons" !important;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
@@ -34,10 +35,6 @@
   /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-.dremioIcon-HeaderHelp:before {
-  content: "\e905";
 }
 
 .dremioIcon-External-link:before {

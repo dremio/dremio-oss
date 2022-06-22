@@ -13,55 +13,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
-import PropTypes from 'prop-types';
-import invariant from 'invariant';
-import { noop } from 'lodash';
-import { reduxForm, propTypes as formPropTypes } from 'redux-form';
-import flatten from 'lodash/flatten';
-import { merge } from 'lodash/object';
-import hoistNonReactStatic from 'hoist-non-react-statics';
+import React, { Component } from "react";
+import PropTypes from "prop-types";
+import invariant from "invariant";
+import { noop } from "lodash";
+import { reduxForm, propTypes as formPropTypes } from "redux-form";
+import flatten from "lodash/flatten";
+import { merge } from "lodash/object";
+import hoistNonReactStatic from "hoist-non-react-statics";
 
-import Message from 'components/Message';
+import Message from "components/Message";
 
-import FormDirtyStateWatcher from './FormDirtyStateWatcher';
-import ConflictDetectionWatcher from './ConflictDetectionWatcher';
-import wrapSubmitValueMutator from './wrapSubmitValueMutator';
+import FormDirtyStateWatcher from "./FormDirtyStateWatcher";
+import ConflictDetectionWatcher from "./ConflictDetectionWatcher";
+import wrapSubmitValueMutator from "./wrapSubmitValueMutator";
 
 export class InnerComplexForm extends Component {
   static propTypes = {
     onSubmit: PropTypes.func,
-    ...formPropTypes
+    ...formPropTypes,
   };
 
   render() {
-    const {fields, error, children, handleSubmit, onSubmit, settingId} = this.props;
+    const { fields, error, children, handleSubmit, onSubmit, settingId } =
+      this.props;
 
     // declare POST so that in case something goes terribly wrong and the browser handles the form
     // we don't put the params in the user-visible URL (e.g. the password when logging in)
     // (chris saw this once!)
     return (
       <form
-        method='POST'
+        method="POST"
         onSubmit={onSubmit ? handleSubmit(onSubmit) : null}
-        style={{...styles.innerForm, ...this.props.style}}
+        style={{ ...styles.innerForm, ...this.props.style }}
         data-qa={settingId}
-        ref='form'>
-        {error && <Message messageType='error'
-          message={error.message}
-          messageId={error.id}/>}
+      >
+        {error && (
+          <Message
+            messageType="error"
+            message={error.message}
+            messageId={error.id}
+          />
+        )}
 
         {React.Children.map(children, (child) => {
           // will throw an error, if error has unsupported type for a component
           // I step in that case with FieldWithError component, that expect string as error, not an
           // object
-          return React.cloneElement(child, { fields, handleSubmit, error });
+          if (child) {
+            return React.cloneElement(child, { fields, handleSubmit, error });
+          }
         })}
       </form>
     );
   }
 }
-
 
 /**
  * Redux-form section that works with {@see connectComplexForm}
@@ -103,55 +109,71 @@ export class InnerComplexForm extends Component {
  * @param {*} mapDispatchToProps
  * @returns
  */
-export function connectComplexForm(reduxFormParams = {}, sections = [], mapStateToProps, mapDispatchToProps) {
+export function connectComplexForm(
+  reduxFormParams = {},
+  sections = [],
+  mapStateToProps,
+  mapDispatchToProps
+) {
   const reduxFormDefaults = {
     // prevents validation call after losing focus on field
-    touchOnBlur: false
+    touchOnBlur: false,
   };
   const formParams = {
     ...reduxFormDefaults,
-    ...reduxFormParams
+    ...reduxFormParams,
   };
   const {
     getFields,
     getInitialValues,
     validate,
     formMapStateToProps: complexMapStateToProps,
-    mutateSubmitValues
-  } = mergeFormSections({ formMapStateToProps: mapStateToProps, ...formParams }, ...sections);
-
-  const fields = (formParams.fields ? formParams.fields : []).concat(getFields());
-
-  const initialValues = merge({},
-    formParams.initialValues,
-    getInitialValues()
+    mutateSubmitValues,
+  } = mergeFormSections(
+    { formMapStateToProps: mapStateToProps, ...formParams },
+    ...sections
   );
 
-  const mapStateToPropsForDirtyWatcher = function(state, ownProps) {
+  const fields = (formParams.fields ? formParams.fields : []).concat(
+    getFields()
+  );
+
+  const initialValues = merge({}, formParams.initialValues, getInitialValues());
+
+  const mapStateToPropsForDirtyWatcher = function (state, ownProps) {
     let propsInitialValues = ownProps.initialValues;
     const props = complexMapStateToProps(...arguments) || {};
     // a part of initial values could be static for the form,
     // and other part could come from complexMapStateToProps
-    propsInitialValues = props.initialValues ?
-      merge({}, propsInitialValues, props.initialValues)
+    propsInitialValues = props.initialValues
+      ? merge({}, propsInitialValues, props.initialValues)
       : propsInitialValues;
     const finalProps = {
       ...props,
-      initialValues: propsInitialValues
+      initialValues: propsInitialValues,
     };
     finalProps.initialValuesForDirtyStateWatcher = propsInitialValues;
     return finalProps;
   };
 
   const complexForm = (component) => {
-    return reduxForm({
-      ...formParams, fields, validate, initialValues
-    }, mapStateToPropsForDirtyWatcher, mapDispatchToProps)(wrapSubmitValueMutator(mutateSubmitValues, component));
+    return reduxForm(
+      {
+        ...formParams,
+        fields,
+        validate,
+        initialValues,
+      },
+      mapStateToPropsForDirtyWatcher,
+      mapDispatchToProps
+    )(wrapSubmitValueMutator(mutateSubmitValues, component));
   };
 
   return (component) => {
     const conflictDetectionComponent = ConflictDetectionWatcher(component);
-    const dirtyWatchedComponent = FormDirtyStateWatcher(conflictDetectionComponent);
+    const dirtyWatchedComponent = FormDirtyStateWatcher(
+      conflictDetectionComponent
+    );
     return hoistNonReactStatic(complexForm(dirtyWatchedComponent), component);
   };
 }
@@ -164,20 +186,31 @@ export function connectComplexForm(reduxFormParams = {}, sections = [], mapState
  */
 // export for tests
 export const mergeFormSections = (...sections) => {
-  const getFields = () => [].concat(flatten(sections.map(section =>
-    section.getFields ? section.getFields() : []))
-  );
+  const getFields = () =>
+    [].concat(
+      flatten(
+        sections.map((section) =>
+          section.getFields ? section.getFields() : []
+        )
+      )
+    );
 
-  const getInitialValues = mergeFormSectionFunc(sections, 'getInitialValues');
-  const validate = mergeFormSectionFunc(sections, 'validate');
-  const formMapStateToProps = mergeFormSectionFunc(sections, 'formMapStateToProps');
-  const mutateSubmitValues = mergeFormSectionFunc(sections, 'mutateSubmitValues');
+  const getInitialValues = mergeFormSectionFunc(sections, "getInitialValues");
+  const validate = mergeFormSectionFunc(sections, "validate");
+  const formMapStateToProps = mergeFormSectionFunc(
+    sections,
+    "formMapStateToProps"
+  );
+  const mutateSubmitValues = mergeFormSectionFunc(
+    sections,
+    "mutateSubmitValues"
+  );
   return {
     getFields,
     getInitialValues,
     validate,
     formMapStateToProps,
-    mutateSubmitValues
+    mutateSubmitValues,
   };
 };
 
@@ -188,15 +221,15 @@ export const mergeFormSections = (...sections) => {
  * @returns {function: object} a deeply merged result
  */
 // exported for testing
-export const mergeFormSectionFunc = (sections, funcName) =>  {
-  invariant(sections, 'section must be defined');
-  invariant(funcName, 'funcName must be defined');
+export const mergeFormSectionFunc = (sections, funcName) => {
+  invariant(sections, "section must be defined");
+  invariant(funcName, "funcName must be defined");
 
   if (sections.length === 0) {
     return noop;
   }
 
-  return function() {
+  return function () {
     return sections.reduce((obj, section) => {
       if (!section[funcName]) {
         return obj;
@@ -218,26 +251,31 @@ const FormSectionApiKeys = Object.keys(mergeFormSections());
  * A returned object is a new object that contains all FormSection api methods
  * @param {FormSection} section
  */
-const extractFormSectionInterface = section => FormSectionApiKeys.reduce((formSectionApi, apiKey) => {
-  formSectionApi[apiKey] = section[apiKey];
-  return formSectionApi;
-}, {});
+const extractFormSectionInterface = (section) =>
+  FormSectionApiKeys.reduce((formSectionApi, apiKey) => {
+    formSectionApi[apiKey] = section[apiKey];
+    return formSectionApi;
+  }, {});
 
 /**
  * A decorator that merges current component FormSection interface with child sections
  * @param {...FormSection} childSections that current component contains
  */
-export const sectionsContainer = (...childSections) => targetComponent => {
-  // We should not pass original {@see targetComponent} to avoid infinite recursion. So extract
-  // FormSection interface from targetComponent
-  const formSection = extractFormSectionInterface(targetComponent);
-  return Object.assign(targetComponent, mergeFormSections(formSection, ...childSections)); // eslint-disable-line no-restricted-properties
-};
+export const sectionsContainer =
+  (...childSections) =>
+  (targetComponent) => {
+    // We should not pass original {@see targetComponent} to avoid infinite recursion. So extract
+    // FormSection interface from targetComponent
+    const formSection = extractFormSectionInterface(targetComponent);
+    return Object.assign(
+      targetComponent,
+      mergeFormSections(formSection, ...childSections)
+    ); // eslint-disable-line no-restricted-properties
+  };
 
 const styles = {
   innerForm: {
-    display: 'flex',
-    flexWrap: 'wrap'
-  }
+    display: "flex",
+    flexWrap: "wrap",
+  },
 };
-

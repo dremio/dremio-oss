@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable  from 'immutable';
+import Immutable from "immutable";
 
 const initialState = Immutable.fromJS({
   isInProgress: false,
-  isFailed: false
+  isFailed: false,
 });
 
 export default function config(state = initialState, action) {
   switch (action.type) {
-
-  default:
-    return state;
+    default:
+      return state;
   }
 }

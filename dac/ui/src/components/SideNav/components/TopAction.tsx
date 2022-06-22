@@ -15,10 +15,10 @@
  */
 
 // @ts-ignore
-import { Link } from 'react-router';
-import Art from '@app/components/Art';
+import { Link } from "react-router";
+import Art from "@app/components/Art";
 // @ts-ignore
-import { Tooltip } from 'dremio-ui-lib';
+import { Tooltip } from "dremio-ui-lib";
 
 type TopActionProps = {
   active?: string;
@@ -30,31 +30,30 @@ type TopActionProps = {
   socketIsOpen?: boolean;
   tooltipProps?: {};
   tooltip?: boolean;
-}
-
+};
 
 export const TopAction = (props: TopActionProps) => {
   const {
-    active = '',
+    active = "",
     url,
     icon,
     alt,
-    dataqa = 'data-qa',
+    dataqa = "data-qa",
     logo = false,
     socketIsOpen = true,
     tooltipProps = {},
-    tooltip = true
+    tooltip = true,
   } = props;
 
-  const shouldHover = logo ? '' : 'item__hover';
-  const isSocketOpen = socketIsOpen ? '' : 'socket__notOpen';
+  const shouldHover = logo ? "" : "item__hover";
+  const isSocketOpen = socketIsOpen ? "" : "socket__notOpen";
 
   const content = () => {
     return (
       <div className={`${isSocketOpen} sideNav-item ${shouldHover}`}>
         <Link to={url} data-qa={dataqa}>
           <div className={`sideNav-item__link ${active}`}>
-            <div className={logo ? 'sideNav-item__logo' : 'sideNav-item__icon'}>
+            <div className={logo ? "sideNav-item__logo" : "sideNav-item__icon"}>
               <Art src={icon} alt={alt} />
             </div>
           </div>
@@ -65,7 +64,7 @@ export const TopAction = (props: TopActionProps) => {
 
   if (tooltip) {
     return (
-      <Tooltip title={alt} {...tooltipProps} >
+      <Tooltip title={alt} {...tooltipProps}>
         {content()}
       </Tooltip>
     );
@@ -73,4 +72,3 @@ export const TopAction = (props: TopActionProps) => {
 
   return content();
 };
-

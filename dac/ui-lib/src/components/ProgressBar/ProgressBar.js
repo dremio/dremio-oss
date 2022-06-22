@@ -14,30 +14,22 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-
-import './progressBar.scss';
+import "./progressBar.scss";
 
 const ProgressBar = (props) => {
-  const {
-    value,
-    max,
-    color
-  } = props;
+  const { value, max, color } = props;
 
   return (
     <div
-      className='progressBar'
+      className="progressBar"
       style={{
-        width: `${Math.floor(value / max * 100)}%`
+        width: `${Math.floor((value / max) * 100)}%`,
       }}
     >
-      <div
-        style={{ backgroundColor: color }}
-        className='progressBar__value'
-      />
+      <div style={{ backgroundColor: color }} className="progressBar__value" />
     </div>
   );
 };
@@ -45,11 +37,11 @@ const ProgressBar = (props) => {
 ProgressBar.propTypes = {
   value: PropTypes.number.isRequired,
   max: PropTypes.number.isRequired,
-  color: PropTypes.string
+  color: PropTypes.string,
 };
 
 ProgressBar.defaultProps = {
-  color: ''
+  color: "",
 };
 
 export default ProgressBar;

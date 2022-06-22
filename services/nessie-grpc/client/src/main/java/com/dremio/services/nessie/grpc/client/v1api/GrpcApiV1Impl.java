@@ -21,19 +21,24 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleN
 import org.projectnessie.client.api.AssignBranchBuilder;
 import org.projectnessie.client.api.AssignTagBuilder;
 import org.projectnessie.client.api.CommitMultipleOperationsBuilder;
+import org.projectnessie.client.api.CreateNamespaceBuilder;
 import org.projectnessie.client.api.CreateReferenceBuilder;
 import org.projectnessie.client.api.DeleteBranchBuilder;
+import org.projectnessie.client.api.DeleteNamespaceBuilder;
 import org.projectnessie.client.api.DeleteTagBuilder;
 import org.projectnessie.client.api.GetAllReferencesBuilder;
 import org.projectnessie.client.api.GetCommitLogBuilder;
 import org.projectnessie.client.api.GetContentBuilder;
 import org.projectnessie.client.api.GetDiffBuilder;
 import org.projectnessie.client.api.GetEntriesBuilder;
+import org.projectnessie.client.api.GetMultipleNamespacesBuilder;
+import org.projectnessie.client.api.GetNamespaceBuilder;
 import org.projectnessie.client.api.GetRefLogBuilder;
 import org.projectnessie.client.api.GetReferenceBuilder;
 import org.projectnessie.client.api.MergeReferenceBuilder;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.TransplantCommitsBuilder;
+import org.projectnessie.client.api.UpdateNamespaceBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.NessieConfiguration;
@@ -45,6 +50,8 @@ import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceBloc
 import com.dremio.services.nessie.grpc.api.DiffServiceGrpc;
 import com.dremio.services.nessie.grpc.api.DiffServiceGrpc.DiffServiceBlockingStub;
 import com.dremio.services.nessie.grpc.api.Empty;
+import com.dremio.services.nessie.grpc.api.NamespaceServiceGrpc;
+import com.dremio.services.nessie.grpc.api.NamespaceServiceGrpc.NamespaceServiceBlockingStub;
 import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc;
 import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceBlockingStub;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc;
@@ -65,6 +72,7 @@ public class GrpcApiV1Impl implements NessieApiV1 {
   private final ContentServiceBlockingStub contentServiceBlockingStub;
   private final DiffServiceBlockingStub diffServiceBlockingStub;
   private final RefLogServiceBlockingStub refLogServiceBlockingStub;
+  private final NamespaceServiceBlockingStub namespaceServiceBlockingStub;
 
   public GrpcApiV1Impl(ManagedChannel channel, boolean shutdownChannel) {
     this(channel, shutdownChannel, new ClientInterceptor[0]);
@@ -78,6 +86,7 @@ public class GrpcApiV1Impl implements NessieApiV1 {
     this.treeServiceBlockingStub = TreeServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
     this.diffServiceBlockingStub = DiffServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
     this.refLogServiceBlockingStub = RefLogServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
+    this.namespaceServiceBlockingStub = NamespaceServiceGrpc.newBlockingStub(channel).withInterceptors(clientInterceptors);
   }
 
   @Override
@@ -173,5 +182,31 @@ public class GrpcApiV1Impl implements NessieApiV1 {
   @Override
   public GetRefLogBuilder getRefLog() {
     return new GrpcGetRefLog(refLogServiceBlockingStub);
+  }
+
+
+  @Override
+  public GetNamespaceBuilder getNamespace() {
+    return new GrpcGetNamespace(namespaceServiceBlockingStub);
+  }
+
+  @Override
+  public GetMultipleNamespacesBuilder getMultipleNamespaces() {
+    return new GrpcGetMultipleNamespaces(namespaceServiceBlockingStub);
+  }
+
+  @Override
+  public CreateNamespaceBuilder createNamespace() {
+    return new GrpcCreateNamespace(namespaceServiceBlockingStub);
+  }
+
+  @Override
+  public DeleteNamespaceBuilder deleteNamespace() {
+    return new GrpcDeleteNamespace(namespaceServiceBlockingStub);
+  }
+
+  @Override
+  public UpdateNamespaceBuilder updateProperties() {
+    return new GrpcUpdateNamespace(namespaceServiceBlockingStub);
   }
 }

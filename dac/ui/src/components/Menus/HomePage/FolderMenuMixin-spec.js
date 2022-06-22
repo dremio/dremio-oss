@@ -13,39 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { findMenuItemLinkByText, findMenuItemByText } from 'testUtil';
-import {FolderMenu as FolderMenuBase} from 'components/Menus/HomePage/FolderMenu';
-import FolderMenuMixin from './FolderMenuMixin';
+import { findMenuItemLinkByText, findMenuItemByText } from "testUtil";
+import { FolderMenu as FolderMenuBase } from "components/Menus/HomePage/FolderMenu";
+import FolderMenuMixin from "./FolderMenuMixin";
 
 @FolderMenuMixin
 class FolderMenu extends FolderMenuBase {}
 
-describe('FolderMenuMixin', () => {
+describe("FolderMenuMixin", () => {
   let minimalProps;
   let commonProps;
 
-  const context = {context: {location: {bar: 2, state: {foo: 1}}}};
+  const context = { context: { location: { bar: 2, state: { foo: 1 } } } };
   beforeEach(() => {
     minimalProps = {
       folder: Immutable.fromJS({
         links: {
-          self: '/asd'
-        }
+          self: "/asd",
+        },
       }),
       closeMenu: sinon.stub(),
       removeSpaceFolder: sinon.stub(),
-      showConfirmationDialog: sinon.stub()
+      showConfirmationDialog: sinon.stub(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render menu items', () => {
+  it("should render menu items", () => {
     const wrapper = shallow(<FolderMenu {...commonProps} />, context);
-    expect(findMenuItemLinkByText(wrapper, 'Browse Contents')).to.have.length(1);
-    expect(findMenuItemByText(wrapper, 'Remove Folder')).to.have.length(1);
+    expect(findMenuItemLinkByText(wrapper, "Browse Contents")).to.have.length(
+      1
+    );
+    expect(findMenuItemByText(wrapper, "Remove Folder")).to.have.length(1);
   });
 });

@@ -84,7 +84,7 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("USE");
     writer.keyword("BRANCH");
-    unparseRef(writer, leftPrec, rightPrec);
+    unparseRef(writer, leftPrec, rightPrec, "AT");
     unparseSourceName(writer, leftPrec, rightPrec);
   }
 
@@ -108,4 +108,3 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
   }
 
 }
-

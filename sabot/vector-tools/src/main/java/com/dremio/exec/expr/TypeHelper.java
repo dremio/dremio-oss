@@ -337,7 +337,7 @@ public class TypeHelper extends BasicTypeHelper {
     case UNION: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
       final List<SerializedField> unionChilds = serializedField.getChild(1).getChildList();
-      final int typeIds[] = new int[unionChilds.size()];
+      final int[] typeIds = new int[unionChilds.size()];
       for (int i = 0; i < unionChilds.size(); i++) {
         final Field childField = getFieldForSerializedField(unionChilds.get(i));
         builder.add(childField);

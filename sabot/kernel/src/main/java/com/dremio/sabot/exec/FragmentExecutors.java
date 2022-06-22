@@ -60,6 +60,7 @@ import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
+import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.TaskPool;
 import com.google.common.annotations.VisibleForTesting;
@@ -90,20 +91,22 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private final long evictionDelayMillis;
   private final MaestroProxy maestroProxy;
   private final int warnMaxTime;
-  private boolean useWeightBasedScheduling = false;
+  private final OptionManager options;
+  private final MemoryArbiter memoryArbiter;
 
   public FragmentExecutors(
     final MaestroProxy maestroProxy,
     final ExitCallback callback,
     final TaskPool pool,
-    final OptionManager options) {
+    final OptionManager options,
+    final MemoryArbiter memoryArbiter) {
     this.maestroProxy = maestroProxy;
     this.callback = callback;
     this.pool = pool;
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
-    this.useWeightBasedScheduling = options.getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
 
+    this.memoryArbiter = memoryArbiter;
     this.handlers = new LoadingCacheWithExpiry<>("fragment-handler",
       new CacheLoader<FragmentHandle, FragmentHandler>() {
         @Override
@@ -123,6 +126,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       null, evictionDelayMillis);
 
     this.warnMaxTime = (int) options.getOption(ExecConstants.SLICING_WARN_MAX_RUNTIME_MS);
+    this.options = options;
   }
 
   @VisibleForTesting
@@ -317,7 +321,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
       @Override
       public void onError(Throwable throwable) {
-        logger.error("Unable to execute query due to {}", throwable);
+        logger.error("Unable to execute query", throwable);
       }
 
       @Override
@@ -348,6 +352,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     final SchedulingInfo schedulingInfo;
     final CachedFragmentReader fragmentReader;
     final List<PlanFragmentFull> fullFragments;
+    final boolean useWeightBasedScheduling;
+    final boolean useMemoryArbiter;
 
     QueryStarterImpl(final InitializeFragments initializeFragments, final FragmentExecutorBuilder builder,
                      final StreamObserver<Empty> sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
@@ -376,6 +382,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
           fragmentFulls.add(new PlanFragmentFull(major, minor));
         });
       this.fullFragments = Collections.unmodifiableList(fragmentFulls);
+      this.useWeightBasedScheduling = options.getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
+      this.useMemoryArbiter = options.getOption(ExecConstants.MEMORY_ARBITER_ENABLED);
     }
 
     public PlanFragmentFull getFirstFragment() {
@@ -506,7 +514,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
       try {
         final EventProvider eventProvider = getEventProvider(fragment.getHandle());
-        return builder.build(queryTicket, fragment, schedulingWeight, eventProvider, schedulingInfo, fragmentReader);
+        return builder.build(queryTicket, fragment, schedulingWeight, useMemoryArbiter ? memoryArbiter : null, eventProvider, schedulingInfo, fragmentReader);
       } catch (final Exception e) {
         throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
       } catch (final OutOfMemoryError t) {

@@ -40,6 +40,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
+
 /**
  * Test functionality of the FlightClient communicating to the Flight endpoint.
  */
@@ -150,7 +152,7 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   @Test
   public void testDataRetrievalFor10kRows() throws Exception {
     // Act
-    final List<String> actualStringResults = executeQueryWithStringResults(SELECT_QUERY_10K);
+    final List<String> actualStringResults = executeQueryWithStringResults(getFlightClientWrapper(), SELECT_QUERY_10K);
 
     // Assert
     assertEquals(TOTAL_ROWS_SELECT_QUERY_10K, actualStringResults.size());
@@ -159,7 +161,7 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   @Test
   public void testDirectCommandWithExplainPlanRetrieval() throws Exception {
     // Act
-    final List<String> actualStringResults = executeQueryWithStringResults("EXPLAIN PLAN FOR " + SELECT_QUERY);
+    final List<String> actualStringResults = executeQueryWithStringResults(getFlightClientWrapper(), "EXPLAIN PLAN FOR " + SELECT_QUERY);
 
     // Assert
     assertEquals(actualStringResults.size(), 1);
@@ -176,14 +178,14 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     Assert.assertEquals(schema.getSchema().getFields().size(), 1);
   }
 
-  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) throws SQLException {
+  private FlightStream executeQuery(FlightClientWrapper flightClientWrapper, String query) throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
-    Ticket ticket = getFlightInfo(query).getEndpoints().get(0).getTicket();
-    return wrapper.getClient().getStream(ticket, getCallOptions());
+    Ticket ticket = getFlightInfo(flightClientWrapper, query).getEndpoints().get(0).getTicket();
+    return flightClientWrapper.getSqlClient().getStream(ticket, flightClientWrapper.getOptions());
   }
 
   public SchemaResult getSchema(FlightDescriptor descriptor) {
-    FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+    FlightClientWrapper wrapper = getFlightClientWrapper();
 
     return wrapper.getClient().getSchema(descriptor, getCallOptions());
   }
@@ -193,8 +195,8 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     return executeQuery(getFlightClientWrapper(), query);
   }
 
-  protected List<String> executeQueryWithStringResults(String query) throws Exception {
-    try (final FlightStream stream = executeQuery(query)) {
+  protected List<String> executeQueryWithStringResults(FlightClientWrapper flightClientWrapper, String query) throws Exception {
+    try (final FlightStream stream = executeQuery(flightClientWrapper, query)) {
       final List<String> actualStringResults = new ArrayList<>();
 
       while (stream.next()) {
@@ -223,10 +225,8 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   /**
    * Returns a FlightInfo for executing given query.
    */
-  public FlightInfo getFlightInfo(String query) throws SQLException {
-    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
-
+  public FlightInfo getFlightInfo(FlightClientWrapper flightClientWrapper, String query) throws SQLException {
     final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-    return wrapper.getClient().getInfo(command, getCallOptions());
+    return flightClientWrapper.getClient().getInfo(command, flightClientWrapper.getOptions());
   }
 }

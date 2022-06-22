@@ -22,11 +22,11 @@ package com.dremio.exec.store.dfs;
  * @param <P>
  */
 public abstract class MayBeDistFileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends FileSystemConf<C, P> {
-  abstract public String getAccessKey();
+  public abstract String getAccessKey();
 
-  abstract public String getSecretKey();
+  public abstract String getSecretKey();
 
-  abstract public String getIamRole();
+  public abstract String getIamRole();
 
-  abstract public String getExternalId();
+  public abstract String getExternalId();
 }

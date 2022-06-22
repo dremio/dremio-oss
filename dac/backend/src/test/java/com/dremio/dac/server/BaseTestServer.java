@@ -123,6 +123,7 @@ import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
@@ -1048,7 +1049,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   protected JobId submitJobAndWaitUntilCompletion(JobRequest request, JobStatusListener listener) {
-    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request, listener);
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request, listener).getJobId();
   }
 
   protected boolean submitJobAndCancelOnTimeOut(JobRequest request, long timeOutInMillis) throws Exception {
@@ -1057,6 +1058,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected JobId submitJobAndWaitUntilCompletion(JobRequest request) {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request);
+  }
+
+  protected JobSubmission getJobSubmissionAfterJobCompletion(JobRequest request) {
+    return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request, JobStatusListener.NO_OP);
   }
 
   protected void runQuery(JobsService jobsService, String name, int rows, int columns, FolderPath parent, BufferAllocator allocator) throws JobNotFoundException {

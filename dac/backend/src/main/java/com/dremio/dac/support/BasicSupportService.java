@@ -516,7 +516,7 @@ public class BasicSupportService implements SupportService {
           if (response.getStatus() == Status.OK.getStatusCode()) {
             return new SupportResponse(true, includesLogs, target.getUri().toString());
           } else {
-            logger.error("Failure while uploading file.", response.toString());
+            logger.error("Failure while uploading file: {}", response);
             return new SupportResponse(false, false, "Unable to upload diagnostics, available locally at: " + path.toString());
           }
         }
@@ -655,7 +655,6 @@ public class BasicSupportService implements SupportService {
       final CompletionListener completionListener = new CompletionListener();
 
       jobsService.get().submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INTERNAL_RUN).build(), completionListener);
-
 
       try {
         completionListener.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);

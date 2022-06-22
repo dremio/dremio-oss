@@ -79,7 +79,7 @@ public class TestExceptionInjection extends BaseTestQuery {
       // ... code ...
     }
 
-    public final static String THROWS_IOEXCEPTION = "<<throwsIOException>>";
+    public static final String THROWS_IOEXCEPTION = "<<throwsIOException>>";
 
     /**
      * Method that injects an IOException with a site description of THROWS_IOEXCEPTION.

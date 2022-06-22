@@ -26,8 +26,8 @@ import org.apache.calcite.schema.TranslatableTable;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.MaterializedDatasetTableProvider;
 import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.exec.store.MaterializedDatasetTableProvider;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.TableInstance;

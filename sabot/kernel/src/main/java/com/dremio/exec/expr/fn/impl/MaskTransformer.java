@@ -18,15 +18,15 @@ package com.dremio.exec.expr.fn.impl;
 import org.joda.time.MutableDateTime;
 
 public class MaskTransformer {
-  public final static int MASKED_UPPERCASE           = 'X';
-  public final static int MASKED_LOWERCASE           = 'x';
-  public final static int MASKED_DIGIT               = 'n';
-  public final static int MASKED_OTHER_CHAR          = -1;
-  public final static int MASKED_NUMBER              = 1;
-  public final static int MASKED_DAY_COMPONENT_VAL   = 1;
-  public final static int MASKED_MONTH_COMPONENT_VAL = 0;
-  public final static int MASKED_YEAR_COMPONENT_VAL  = 0;
-  public final static int UNMASKED_VAL               = -1;
+  public static final int MASKED_UPPERCASE           = 'X';
+  public static final int MASKED_LOWERCASE           = 'x';
+  public static final int MASKED_DIGIT               = 'n';
+  public static final int MASKED_OTHER_CHAR          = -1;
+  public static final int MASKED_NUMBER              = 1;
+  public static final int MASKED_DAY_COMPONENT_VAL   = 1;
+  public static final int MASKED_MONTH_COMPONENT_VAL = 0;
+  public static final int MASKED_YEAR_COMPONENT_VAL  = 0;
+  public static final int UNMASKED_VAL               = -1;
 
   int maskedUpperChar  = MASKED_UPPERCASE;
   int maskedLowerChar  = MASKED_LOWERCASE;

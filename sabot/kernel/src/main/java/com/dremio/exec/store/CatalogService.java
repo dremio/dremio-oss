@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -27,6 +28,8 @@ import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.proto.CatalogRPC;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -166,4 +169,15 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
   boolean isComplexTypeSupport();
 
   ManagedStoragePlugin getManagedSource(String name);
-}
+
+  /**
+   * Communicate change to executors
+   *
+   * @param nodeEndpointList
+   * @param config
+   * @param rpcType
+   * @return
+   */
+  void communicateChangeToExecutors(List<CoordinationProtos.NodeEndpoint> nodeEndpointList, SourceConfig config, CatalogRPC.RpcType rpcType);
+
+  }

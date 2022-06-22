@@ -32,7 +32,7 @@ import io.netty.buffer.ByteBuf;
  * Decorator over AsyncByteReader with timeout.
  */
 public class AsyncByteReaderWithTimeout extends ReusableAsyncByteReader {
-  static private ScheduledThreadPoolExecutor delayer;
+  private static ScheduledThreadPoolExecutor delayer;
   private AsyncByteReader inner;
   private long timeoutInMillis;
 

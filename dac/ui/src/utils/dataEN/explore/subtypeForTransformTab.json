@@ -22,6 +22,15 @@
   {
     "name": "Custom Condition",
     "id": "custom",
-    "types": ["TEXT", "INTEGER", "GEO", "FLOAT", "DECIMAL", "DATETIME", "TIME", "DATE"]
+    "types": [
+      "TEXT",
+      "INTEGER",
+      "GEO",
+      "FLOAT",
+      "DECIMAL",
+      "DATETIME",
+      "TIME",
+      "DATE"
+    ]
   }
 ]

@@ -49,32 +49,25 @@ public abstract class EnhancedFilterJoinRule extends RelOptRule {
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    Filter filterRel;
-    Join joinRel;
-    if (call.rels.length == 1) {
-      filterRel = null;
-      joinRel = call.rel(0);
-    } else {
-      filterRel = call.rel(0);
-      joinRel = call.rel(1);
-    }
-    RelNode rewrite = doMatch(filterRel, joinRel, call.builder());
+    RelNode rewrite = doMatch(call);
     if (rewrite != null) {
       call.transformTo(rewrite.accept(new RelShuttleImpl() {
         @Override
         public RelNode visit(LogicalJoin join) {
           DremioJoinPushTransitivePredicatesRule instance = new DremioJoinPushTransitivePredicatesRule();
-          CompositeFilterJoinRule.TransformCollectingCall c2 = new CompositeFilterJoinRule.TransformCollectingCall(call.getPlanner(), instance.getOperand(), new RelNode[]{join}, null);
-          instance.onMatch(c2);
-          if (c2.outcome.isEmpty()) {
+          MoreRelOptUtil.TransformCollectingCall c = new MoreRelOptUtil.TransformCollectingCall(call.getPlanner(), instance.getOperand(), new RelNode[]{join}, null);
+          instance.onMatch(c);
+          if (!c.isTransformed()) {
             return join;
           } else {
-            return c2.outcome.get(0);
+            return c.getTransformedRel();
           }
         }
       }));
     }
   }
+
+  protected abstract RelNode doMatch(RelOptRuleCall call);
 
   protected RelNode doMatch(Filter filterRel, Join joinRel, RelBuilder relBuilder) {
     // Extract the join condition and pushdown predicates, also simplify the remaining filter
@@ -145,12 +138,25 @@ public abstract class EnhancedFilterJoinRule extends RelOptRule {
       super(RelOptRule.operand(LogicalFilter.class,
         RelOptRule.operand(LogicalJoin.class, RelOptRule.any())), "EnhancedFilterJoinRule:filter");
     }
+
+    @Override
+    protected RelNode doMatch(RelOptRuleCall call) {
+      Filter filter = call.rel(0);
+      Join join = call.rel(1);
+      return super.doMatch(filter, join, call.builder());
+    }
   }
 
   private static class NoFilter extends EnhancedFilterJoinRule {
     private NoFilter() {
       super(RelOptRule.operand(LogicalJoin.class, RelOptRule.any()),
         "EnhancedFilterJoinRule:no-filter");
+    }
+
+    @Override
+    protected RelNode doMatch(RelOptRuleCall call) {
+      Join join = call.rel(0);
+      return super.doMatch(null, join, call.builder());
     }
   }
 }

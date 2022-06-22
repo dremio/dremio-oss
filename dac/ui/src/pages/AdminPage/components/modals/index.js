@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import EditUserModal from './EditUserModal';
-import AddProvisionModal from './AddProvisionModal';
-import MoreInfoProvisionModal from './MoreInfoProvisionModal';
-import AccelerationModal from './AccelerationModal';
-import AdjustWorkersModal from './AdjustWorkersModal';
+import EditUserModal from "./EditUserModal";
+import AddProvisionModal from "./AddProvisionModal";
+import MoreInfoProvisionModal from "./MoreInfoProvisionModal";
+import AccelerationModal from "./AccelerationModal";
+import AdjustWorkersModal from "./AdjustWorkersModal";
 
 export {
   EditUserModal,
   AddProvisionModal,
   MoreInfoProvisionModal,
   AccelerationModal,
-  AdjustWorkersModal
+  AdjustWorkersModal,
 };

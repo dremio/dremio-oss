@@ -37,12 +37,10 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
-import com.dremio.exec.store.SampleMutator;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -57,7 +55,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
   protected final BatchSchema tableSchema;
   protected final ParquetScanProjectedColumns projectedColumns;
   protected final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
-  protected final List<ParquetFilterCondition> filterConditions;
+  protected final ParquetFilters filters;
   protected final ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry;
   protected final FileSystem fs;
   protected final MutableParquetMetadata footer;
@@ -77,7 +75,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     BatchSchema tableSchema,
     ParquetScanProjectedColumns projectedColumns,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    List<ParquetFilterCondition> filterConditions,
+    ParquetFilters filters,
     ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
     FileSystem fs,
     MutableParquetMetadata footer,
@@ -93,7 +91,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     this.tableSchema = tableSchema;
     this.projectedColumns = projectedColumns;
     this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
-    this.filterConditions = filterConditions;
+    this.filters = filters;
     this.readEntry = readEntry;
     this.fs = fs;
     this.footer = footer;
@@ -106,14 +104,45 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
   }
 
-  public TransactionalTableParquetReader(OperatorContext context, ParquetReaderFactory readerFactory, BatchSchema tableSchema, ParquetScanProjectedColumns projectedColumns, Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap, List<ParquetFilterCondition> filterConditions, ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry, FileSystem fs, MutableParquetMetadata footer, GlobalDictionaries dictionaries, SchemaDerivationHelper schemaHelper, boolean vectorize, boolean enableDetailedTracing, boolean supportsColocatedReads, InputStreamProvider inputStreamProvider) {
-  this(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filterConditions, readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads, inputStreamProvider, true);
+  public TransactionalTableParquetReader(
+    OperatorContext context,
+    ParquetReaderFactory readerFactory,
+    BatchSchema tableSchema,
+    ParquetScanProjectedColumns projectedColumns,
+    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
+    ParquetFilters filters,
+    ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
+    FileSystem fs,
+    MutableParquetMetadata footer,
+    GlobalDictionaries dictionaries,
+    SchemaDerivationHelper schemaHelper,
+    boolean vectorize,
+    boolean enableDetailedTracing,
+    boolean supportsColocatedReads,
+    InputStreamProvider inputStreamProvider) {
+
+    this(
+      context,
+      readerFactory,
+      tableSchema,
+      projectedColumns,
+      globalDictionaryFieldInfoMap,
+      filters,
+      readEntry,
+      fs,
+      footer,
+      dictionaries,
+      schemaHelper,
+      vectorize,
+      enableDetailedTracing,
+      supportsColocatedReads,
+      inputStreamProvider,
+      true);
   }
 
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
     ParquetColumnResolver columnResolver = projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
 
     Schema arrowSchema;
@@ -156,7 +185,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
         }
       }
     }
-    ((SampleMutator)output).getContainer().buildSchema();
+    output.getContainer().buildSchema();
     output.getAndResetSchemaChanged();
     setupCurrentReader(output);
   }
@@ -168,7 +197,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
             this.tableSchema,
             projectedColumns,
             this.globalDictionaryFieldInfoMap,
-            this.filterConditions,
+            filters,
             readerFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
             ParquetDictionaryConvertor.DEFAULT,
             this.readEntry,

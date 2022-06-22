@@ -15,24 +15,25 @@
  */
 @import "~@app/uiTheme/less/color-schema.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .menu-item-inner {
     background: #fff;
     overflow: hidden;
     width: 100%;
 
-    &.disabled{
+    &.disabled {
       background: #fff !important;
-      color: #999 !important;
+      color: @FIGMA_TEXT_DISABLED !important;
       position: relative;
       * {
-        color: #999 !important;
+        color: @FIGMA_TEXT_DISABLED !important;
       }
     }
 
     &.disabled::after {
-      content: '';
+      content: "";
       position: absolute;
       width: 100%;
       height: 100%;
@@ -41,9 +42,17 @@
       cursor: default;
       z-index: 10;
     }
-    
-    &:hover, &.--selected {
-      background: @MENU-HOVER;
+
+    &:hover {
+      background: @FIGMA_PRIMARY_100;
+    }
+
+    &.--selected {
+      background: @FIGMA_PRIMARY_150;
+
+      &:hover {
+        background: @FIGMA_PRIMARY_200;
+      }
     }
   }
 }

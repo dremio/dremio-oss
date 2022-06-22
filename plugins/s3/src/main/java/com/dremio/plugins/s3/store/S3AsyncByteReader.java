@@ -60,10 +60,11 @@ class S3AsyncByteReader extends ReusableAsyncByteReader {
   private static final int MAX_RETRIES = 10;
   private final boolean ssecEnabled;
   private final String ssecKey;
+  private final boolean shouldCheckTimestamp;
 
   public S3AsyncByteReader(S3AsyncClient client, String bucket, String path,
                            String version, boolean requesterPays,
-                           boolean ssecUsed, String sseCustomerKey) {
+                           boolean ssecUsed, String sseCustomerKey, boolean shouldCheckTimestamp) {
     super();
     this.client = client;
     this.bucket = bucket;
@@ -74,6 +75,7 @@ class S3AsyncByteReader extends ReusableAsyncByteReader {
     this.threadName = Thread.currentThread().getName();
     this.ssecEnabled = ssecUsed;
     this.ssecKey = sseCustomerKey;
+    this.shouldCheckTimestamp = shouldCheckTimestamp;
   }
 
   @Override
@@ -93,7 +95,7 @@ class S3AsyncByteReader extends ReusableAsyncByteReader {
             .bucket(bucket)
             .key(path)
             .range(range(offset, len));
-    if (instant != null) {
+    if (instant != null && shouldCheckTimestamp) {
       requestBuilder.ifUnmodifiedSince(instant);
     }
     if (requesterPays) {

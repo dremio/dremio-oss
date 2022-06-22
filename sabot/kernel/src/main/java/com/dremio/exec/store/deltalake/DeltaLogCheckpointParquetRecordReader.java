@@ -58,7 +58,6 @@ import com.dremio.exec.store.parquet.ParquetSubScan;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.SimpleProjector;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Preconditions;
 
 /**
@@ -74,7 +73,7 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
   private SampleMutator innerReaderOutput;
   private final ParquetSubScan scanConfig;
   private final List<TransferPair> transferPairs = new ArrayList<>();
-  private ScanOperator.ScanMutator outputMutator;
+  private OutputMutator outputMutator;
   private final Map<String, Integer> partitionColumnIndexMap = new HashMap<>();
   private final Set<String> partitionColNames;
   private String mapNameInPartitionValues;
@@ -94,7 +93,7 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
 
-    this.outputMutator = (ScanOperator.ScanMutator) output;
+    this.outputMutator = output;
 
     // create and set up mutator
     this.innerReaderOutput = new SampleMutator(context.getAllocator());

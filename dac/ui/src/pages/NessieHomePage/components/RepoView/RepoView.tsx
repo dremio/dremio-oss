@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { createContext, useEffect } from 'react';
+import { createContext, useEffect } from "react";
 
-import { Reference } from '@app/services/nessie/client';
-import { isDefaultReferenceLoading } from '@app/selectors/nessie/nessie';
-import { useNessieContext } from '../../utils/context';
-import RepoViewHeader from './components/RepoViewHeader/RepoViewHeader';
-import RepoViewBody from './components/RepoViewBody/RepoViewBody';
+import { Reference } from "@app/services/nessie/client";
+import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import { useNessieContext } from "../../utils/context";
+import RepoViewHeader from "./components/RepoViewHeader/RepoViewHeader";
+import RepoViewBody from "./components/RepoViewBody/RepoViewBody";
 
-import { RepoViewContextType, useRepoViewContext } from './utils';
+import { RepoViewContextType, useRepoViewContext } from "./utils";
 
-import './RepoView.less';
+import "./RepoView.less";
 
 export const RepoViewContext = createContext({} as RepoViewContextType);
 
@@ -37,20 +37,20 @@ function RepoView() {
   useEffect(() => {
     state.defaultReference && !defaultReferenceLoading
       ? setDefaultRef({
-        type: 'BRANCH',
-        name: state.defaultReference.name,
-        hash: state.defaultReference.hash
-      } as Reference)
+          type: "BRANCH",
+          name: state.defaultReference.name,
+          hash: state.defaultReference.hash,
+        } as Reference)
       : setDefaultRef({} as Reference);
   }, [state.defaultReference, defaultReferenceLoading, setDefaultRef]);
 
   return (
     <RepoViewContext.Provider value={repoViewContext}>
-      <div className='repo-view'>
-        <div className='repo-view-header-div'>
+      <div className="repo-view">
+        <div className="repo-view-header-div">
           <RepoViewHeader reference={state.reference} />
         </div>
-        <div className='repo-view-body-div'>
+        <div className="repo-view-body-div">
           <RepoViewBody />
         </div>
       </div>

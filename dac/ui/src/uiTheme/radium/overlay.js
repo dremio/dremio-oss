@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 export const overlay = {
-  position: 'absolute',
-  width: '100%',
-  height: '100%',
-  backgroundColor: 'rgba(255,255,255,0.5)',
+  position: "absolute",
+  width: "100%",
+  height: "100%",
+  backgroundColor: "rgba(255,255,255,0.5)",
   left: 0,
   top: 0,
-  zIndex: 1000
+  zIndex: 1000,
 };
-
 
 export const triangleTop = {
   width: 0,
   height: 0,
-  borderStyle: 'solid',
-  borderWidth: '0 4px 6px 4px',
-  borderColor: 'transparent transparent #fff transparent',
-  position: 'absolute',
-  top: -6
+  borderStyle: "solid",
+  borderWidth: "0 4px 6px 4px",
+  borderColor: "transparent transparent #fff transparent",
+  position: "absolute",
+  top: -6,
 };

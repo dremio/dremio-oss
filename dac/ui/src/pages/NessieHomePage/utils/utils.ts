@@ -13,44 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Type } from '@app/services/nessie/client';
+import { Type } from "@app/services/nessie/client";
 //@ts-ignore
-import { useProjectContext } from '@inject/utils/storageUtils/localStorageUtils';
-import { oc } from 'ts-optchain';
+import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
 
 export function getIconByType(type?: string | null, elements?: string[]) {
   switch (type) {
-  case Type.IcebergTable:
-  case Type.DeltaLakeTable:
-    return { type: 'PhysicalDataset', id: `Nessie.${type}` };
-  case Type.View:
-    return { type: 'VirtualDataset', id: `Nessie.${type}` };
-  default:
-    return {
-      type: elements && elements.length > 1 ? 'Folder' : 'Space',
-      id: 'Nessie.Namespace'
-    };
+    case Type.IcebergTable:
+    case Type.DeltaLakeTable:
+      return { type: "PhysicalDataset", id: `Nessie.${type}` };
+    case Type.View:
+      return { type: "VirtualDataset", id: `Nessie.${type}` };
+    default:
+      return {
+        type: elements && elements.length > 1 ? "Folder" : "Space",
+        id: "Nessie.Namespace",
+      };
   }
 }
 
 export function getUrlByType(type: string | null, fullPath: string) {
   switch (type) {
-  case Type.IcebergTable:
-  case Type.DeltaLakeTable:
-    return `/table/${fullPath}`;
-  case Type.View:
-    return '/'; //TODO, View is not in current MVP
-  default:
-    return `/namespace/${fullPath}`;
+    case Type.IcebergTable:
+    case Type.DeltaLakeTable:
+      return `/table/${fullPath}`;
+    case Type.View:
+      return "/"; //TODO, View is not in current MVP
+    default:
+      return `/namespace/${fullPath}`;
   }
 }
 
-export function useProjectInfo(): { id: string, name: string } {
+export function useProjectInfo(): { id: string; name: string } {
   const ctx = useProjectContext();
-  const ctxWrapped = oc(ctx as unknown as any);
   return {
-    id: ctxWrapped.id(),
-    //@ts-ignore
-    name: ctxWrapped.name()
+    id: ctx?.id,
+    name: ctx?.name,
   };
 }

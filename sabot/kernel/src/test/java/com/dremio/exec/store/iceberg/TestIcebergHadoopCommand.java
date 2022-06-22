@@ -48,7 +48,7 @@ public class TestIcebergHadoopCommand {
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter(
             tableName, icebergHadoopModel.getTableIdentifier(Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString()),
       schema,
-      null, null);
+      null, null, null);
     createTableCommitter.commit();
 
     File tableFolder = new File(tempDir.getRoot(), tableName);

@@ -14,19 +14,23 @@
  * limitations under the License.
  */
 
-import { useContext, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { useContext, useState } from "react";
+import { FormattedMessage } from "react-intl";
 
-import { NessieState } from '@app/reducers/nessie/nessie';
-import FontIcon from '@app/components/Icon/FontIcon';
-import NewBranchDialog from '../../../NewBranchDialog/NewBranchDialog';
-import BranchButton from '../../../BranchButton/BranchButton';
+import { NessieState } from "@app/reducers/nessie/nessie";
+import FontIcon from "@app/components/Icon/FontIcon";
+import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
+import BranchButton from "../../../BranchButton/BranchButton";
 
-import { RepoViewContext } from '../../RepoView';
+import { RepoViewContext } from "../../RepoView";
 
-import './RepoViewHeader.less';
+import "./RepoViewHeader.less";
 
-function RepoViewHeader({ reference }: { reference: NessieState['reference'] }): JSX.Element {
+function RepoViewHeader({
+  reference,
+}: {
+  reference: NessieState["reference"];
+}): JSX.Element {
   const { allRefs, setAllRefs } = useContext(RepoViewContext);
   const [open, setOpen] = useState(false);
 
@@ -39,15 +43,15 @@ function RepoViewHeader({ reference }: { reference: NessieState['reference'] }):
   };
 
   return (
-    <div className='repo-view-header'>
-      <span className='repo-view-header-git-branch'>
+    <div className="repo-view-header">
+      <span className="repo-view-header-git-branch">
         <FontIcon
-          type={'GitBranch'}
-          theme={{ Icon: { width: '19px', height: '20px' } }}
+          type={"GitBranch"}
+          theme={{ Icon: { width: "19px", height: "20px" } }}
         />
       </span>
-      <span className='repo-view-header-name'>
-        <FormattedMessage id='RepoView.AllBranches' />
+      <span className="repo-view-header-name">
+        <FormattedMessage id="RepoView.AllBranches" />
       </span>
       {reference && (
         <>

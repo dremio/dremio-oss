@@ -13,75 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const SET_SQL_EDITOR_SIZE = 'SET_SQL_EDITOR_SIZE';
+export const SET_SQL_EDITOR_SIZE = "SET_SQL_EDITOR_SIZE";
 
 export function updateSqlPartSize(size) {
   return { type: SET_SQL_EDITOR_SIZE, size };
 }
 
-export const  TOGGLE_EXPLORE_SQL = 'TOGGLE_EXPLORE_SQL';
+export const TOGGLE_EXPLORE_SQL = "TOGGLE_EXPLORE_SQL";
 
 export function toggleExploreSql() {
-  return {type: TOGGLE_EXPLORE_SQL};
+  return { type: TOGGLE_EXPLORE_SQL };
 }
 
-export const COLLAPSE_EXPLORE_SQL = 'COLLAPSE_EXPLORE_SQL';
+export const COLLAPSE_EXPLORE_SQL = "COLLAPSE_EXPLORE_SQL";
 
 export const collapseExploreSql = () => {
-  return {type: COLLAPSE_EXPLORE_SQL};
+  return { type: COLLAPSE_EXPLORE_SQL };
 };
 
-export const  EXPAND_EXPLORE_SQL = 'EXPAND_EXPLORE_SQL';
+export const EXPAND_EXPLORE_SQL = "EXPAND_EXPLORE_SQL";
 
 export function expandExploreSql() {
-  return {type: EXPAND_EXPLORE_SQL};
+  return { type: EXPAND_EXPLORE_SQL };
 }
 
-export const  RESIZE_PROGRESS_STATE = 'RESIZE_PROGRESS_STATE';
+export const RESIZE_PROGRESS_STATE = "RESIZE_PROGRESS_STATE";
 
 export function setResizeProgressState(state) {
-  return {type: RESIZE_PROGRESS_STATE, state};
+  return { type: RESIZE_PROGRESS_STATE, state };
 }
 
-export const SHOW_QLIK_ERROR = 'SHOW_QLIK_ERROR';
-export const HIDE_QLIK_ERROR = 'HIDE_QLIK_ERROR';
+export const SHOW_QLIK_ERROR = "SHOW_QLIK_ERROR";
+export const HIDE_QLIK_ERROR = "HIDE_QLIK_ERROR";
 
 export function showQlikError(error) {
   return {
     type: SHOW_QLIK_ERROR,
     payload: {
-      error
-    }
+      error,
+    },
   };
 }
 
 export function hideQlikError() {
-  return {type: HIDE_QLIK_ERROR};
+  return { type: HIDE_QLIK_ERROR };
 }
 
-export const SHOW_QLIK_MODAL = 'SHOW_QLIK_MODAL';
-export const HIDE_QLIK_MODAL = 'HIDE_QLIK_MODAL';
+export const SHOW_QLIK_MODAL = "SHOW_QLIK_MODAL";
+export const HIDE_QLIK_MODAL = "HIDE_QLIK_MODAL";
 
 export function showQlikModal(dataset) {
   return {
     type: SHOW_QLIK_MODAL,
-    dataset
+    dataset,
   };
 }
 
 export function hideQlikModal() {
   return {
-    type: HIDE_QLIK_MODAL
+    type: HIDE_QLIK_MODAL,
   };
 }
 
-export const SHOW_QLIK_PROGRESS = 'SHOW_QLIK_PROGRESS';
-export const HIDE_QLIK_PROGRESS = 'HIDE_QLIK_PROGRESS';
+export const SHOW_QLIK_PROGRESS = "SHOW_QLIK_PROGRESS";
+export const HIDE_QLIK_PROGRESS = "HIDE_QLIK_PROGRESS";
 
 export function showQlikProgress() {
-  return {type: SHOW_QLIK_PROGRESS};
+  return { type: SHOW_QLIK_PROGRESS };
 }
 
 export function hideQlikProgress() {
-  return {type: HIDE_QLIK_PROGRESS};
+  return { type: HIDE_QLIK_PROGRESS };
 }

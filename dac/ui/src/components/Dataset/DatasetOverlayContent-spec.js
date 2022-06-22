@@ -13,56 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { DatasetOverlayContent } from './DatasetOverlayContent';
+import { DatasetOverlayContent } from "./DatasetOverlayContent";
 
-describe('DatasetOverlayContent', () => {
-
+describe("DatasetOverlayContent", () => {
   let commonProps;
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
-      fullPath: Immutable.List(['Prod-sample', 'ds1']),
+      fullPath: Immutable.List(["Prod-sample", "ds1"]),
       loadSummaryDataset: sinon.spy(),
-      typeIcon: 'VirtualDataset',
+      typeIcon: "VirtualDataset",
       summaryDataset: Immutable.fromJS({
-        fullPath: ['Prod-sample', 'ds2'],
+        fullPath: ["Prod-sample", "ds2"],
         jobCount: 0,
         descendants: 1,
         links: {
-          jobs: '/jobs/dataset/%22Sales-Sample%22.ds4',
-          edit: '/datasets/new_untitled?parentDataset=%22Sales-Sample%22.ds',
-          run: '/dataset/%22Sales-Sample%22.ds4/version/010a36aec7d443b3/'
+          jobs: "/jobs/dataset/%22Sales-Sample%22.ds4",
+          edit: "/datasets/new_untitled?parentDataset=%22Sales-Sample%22.ds",
+          run: "/dataset/%22Sales-Sample%22.ds4/version/010a36aec7d443b3/",
         },
-        datasetType: 'PHYSICAL_DATASET',
-        fields : [
+        datasetType: "PHYSICAL_DATASET",
+        fields: [
           {
-            name: 'A',
-            type: 'INTEGER'
+            name: "A",
+            type: "INTEGER",
           },
           {
-            name: 'B',
-            type: 'INTEGER'
-          }
-        ]
-      })
+            name: "B",
+            type: "INTEGER",
+          },
+        ],
+      }),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DatasetOverlayContent {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DatasetOverlayContent {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render dataset-label-overlay, ColumnMenuItem', () => {
-    const wrapper = shallow(<DatasetOverlayContent {...commonProps}/>);
-    expect(wrapper.find('.dataset-label-overlay')).to.have.length(1);
-    expect(wrapper.find('ColumnMenuItem')).to.have.length(2);
-    expect(wrapper.find('BreadCrumbs')).to.have.length(0);
+  it("should render dataset-label-overlay, ColumnMenuItem", () => {
+    const wrapper = shallow(<DatasetOverlayContent {...commonProps} />);
+    expect(wrapper.find(".dataset-label-overlay")).to.have.length(1);
+    expect(wrapper.find("ColumnMenuItem")).to.have.length(2);
+    expect(wrapper.find("BreadCrumbs")).to.have.length(0);
   });
 });

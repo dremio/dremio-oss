@@ -13,68 +13,68 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { DatasetOverlayContent as DatasetOverlayContentBase } from 'components/Dataset/DatasetOverlayContent';
-import DatasetOverlayContentMixin from './DatasetOverlayContentMixin';
+import { DatasetOverlayContent as DatasetOverlayContentBase } from "components/Dataset/DatasetOverlayContent";
+import DatasetOverlayContentMixin from "./DatasetOverlayContentMixin";
 
 @DatasetOverlayContentMixin
 class DatasetOverlayContent extends DatasetOverlayContentBase {}
 
-describe('DatasetOverlayContentMixin', () => {
-
+describe("DatasetOverlayContentMixin", () => {
   let commonProps;
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
-      fullPath: Immutable.List(['Prod-sample', 'ds1']),
+      fullPath: Immutable.List(["Prod-sample", "ds1"]),
       loadSummaryDataset: sinon.spy(),
-      typeIcon: 'VirtualDataset',
+      typeIcon: "VirtualDataset",
       summaryDataset: Immutable.fromJS({
-        fullPath: ['Prod-sample', 'ds2'],
+        fullPath: ["Prod-sample", "ds2"],
         jobCount: 0,
         descendants: 1,
         links: {
-          jobs: '/jobs/dataset/%22Sales-Sample%22.ds4',
-          edit: '/datasets/new_untitled?parentDataset=%22Sales-Sample%22.ds',
-          run: '/dataset/%22Sales-Sample%22.ds4/version/010a36aec7d443b3/'
+          jobs: "/jobs/dataset/%22Sales-Sample%22.ds4",
+          edit: "/datasets/new_untitled?parentDataset=%22Sales-Sample%22.ds",
+          run: "/dataset/%22Sales-Sample%22.ds4/version/010a36aec7d443b3/",
         },
-        datasetType: 'VIRTUAL_DATASET',
-        fields : [
+        datasetType: "VIRTUAL_DATASET",
+        fields: [
           {
-            name: 'A',
-            type: 'INTEGER'
+            name: "A",
+            type: "INTEGER",
           },
           {
-            name: 'B',
-            type: 'INTEGER'
-          }
-        ]
-      })
+            name: "B",
+            type: "INTEGER",
+          },
+        ],
+      }),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  describe.skip('renderPencil', () => {
-    it('should render pencil if canEdit', () => {
-      const wrapper = shallow(<DatasetOverlayContent {...commonProps}/>);
-      expect(wrapper.find('Link')).to.have.length(3);
+  describe.skip("renderPencil", () => {
+    it("should render pencil if canEdit", () => {
+      const wrapper = shallow(<DatasetOverlayContent {...commonProps} />);
+      expect(wrapper.find("Link")).to.have.length(3);
     });
 
-    it('should not render pencil if not canEdit', () => {
-      const wrapper = shallow(<DatasetOverlayContent {...commonProps}/>);
-      const dsTypes = 'PHYSICAL_DATASET PHYSICAL_DATASET_SOURCE_FILE PHYSICAL_DATASET_SOURCE_FOLDER PHYSICAL_DATASET_HOME_FILE'.split(' '); // eslint-disable-line max-len
+    it("should not render pencil if not canEdit", () => {
+      const wrapper = shallow(<DatasetOverlayContent {...commonProps} />);
+      const dsTypes =
+        "PHYSICAL_DATASET PHYSICAL_DATASET_SOURCE_FILE PHYSICAL_DATASET_SOURCE_FOLDER PHYSICAL_DATASET_HOME_FILE".split(
+          " "
+        ); // eslint-disable-line max-len
       for (const dsType of dsTypes) {
         wrapper.setProps({
-          summaryDataset: commonProps.summaryDataset.set('datasetType', dsType)
+          summaryDataset: commonProps.summaryDataset.set("datasetType", dsType),
         });
-        expect(wrapper.find('Link')).to.have.length(2);
+        expect(wrapper.find("Link")).to.have.length(2);
       }
     });
   });
 });
-
-

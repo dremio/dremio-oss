@@ -13,26 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
+import React from "react";
 
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Label from './Label';
+import Label from "./Label";
 
 const defaultProps = {
-  value: 'Default Label',
-  className: 'label-test-class',
-  styles: { color: 'red' }
+  value: "Default Label",
+  className: "label-test-class",
+  styles: { color: "red" },
 };
 
 const getShallowWrapper = (props = defaultProps) => {
   return shallow(<Label {...props} />);
 };
 
-describe('Label', () => {
-  it('renders reqired components', () => {
+describe("Label", () => {
+  it("renders reqired components", () => {
     const wrapper = getShallowWrapper();
-    expect(wrapper.find('div.label').exists()).toBe(true);
-    expect(wrapper.find('div.label').text()).toEqual(defaultProps.value);
+    expect(wrapper.find("div.label").exists()).toBe(true);
+    expect(wrapper.find("div.label").text()).toEqual(defaultProps.value);
   });
 });

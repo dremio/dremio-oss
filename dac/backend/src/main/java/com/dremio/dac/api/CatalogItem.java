@@ -21,6 +21,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
@@ -43,7 +44,7 @@ public class CatalogItem {
   /**
    * Catalog Container Sub Type
    */
-  public enum ContainerSubType { SPACE, SOURCE, FOLDER, HOME }
+  public enum ContainerSubType { SPACE, SOURCE, FOLDER, HOME, FUNCTION }
 
   /**
    * Catalog Dataset Sub Type
@@ -119,6 +120,18 @@ public class CatalogItem {
       .setContainerType(ContainerSubType.SPACE)
       .setTags(tags)
       .setCreatedAt(spaceConfig.getCtime())
+      .build();
+  }
+
+  private static CatalogItem fromFunctionConfig(FunctionConfig functionConfig, CollaborationTag tags) {
+    return new Builder()
+      .setId(functionConfig.getId().getId())
+      .setPath(Lists.newArrayList(functionConfig.getName()))
+      .setTag(String.valueOf(functionConfig.getTag()))
+      .setType(CatalogItemType.CONTAINER)
+      .setContainerType(ContainerSubType.FUNCTION)
+      .setTags(tags)
+      .setCreatedAt(functionConfig.getCreatedAt())
       .build();
   }
 
@@ -221,6 +234,11 @@ public class CatalogItem {
       case FOLDER: {
         item = Optional.of(CatalogItem.fromFolderConfig(container.getFolder()));
         break;
+      }
+
+      case FUNCTION:{
+         item = Optional.of(CatalogItem.fromFunctionConfig(container.getFunction(), tags));
+         break;
       }
 
       default:

@@ -16,6 +16,7 @@
 package com.dremio.connector.metadata.extensions;
 
 import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetStats;
 
 /**
  * Implemented as an extension to {@link com.dremio.connector.metadata.DatasetMetadata} to
@@ -43,4 +44,25 @@ public interface SupportsIcebergMetadata {
    * @return serialized partition specs
    */
   BytesOutput getPartitionSpecs();
+
+  /**
+   * Provides a String version of Iceberg Schema.
+   *
+   * @return serialized partition specs
+   */
+  String getIcebergSchema();
+
+  /**
+   * Provides statistics for number of position/equality delete records.
+   *
+   * @return a DatasetStats instance with the count of delete records.
+   */
+  DatasetStats getDeleteStats();
+
+  /**
+   * Provides statistics for number of delete files.
+   *
+   * @return a DatasetStats instance with the count of delete files.
+   */
+  DatasetStats getDeleteManifestStats();
 }

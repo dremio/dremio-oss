@@ -48,7 +48,7 @@ public final class FieldBufferCopier2Util {
 
   private FieldBufferCopier2Util() {};
 
-  static abstract class FixedWidthCopier implements FieldBufferCopier {
+  abstract static class FixedWidthCopier implements FieldBufferCopier {
     protected final FieldVector source;
     protected final FieldVector target;
     protected final FixedWidthVector targetAlt;
@@ -304,6 +304,10 @@ public final class FieldBufferCopier2Util {
 
     @Override
     public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      if (source.getValueCount() == 0) {
+        return;
+      }
+
       final Reallocator realloc = this.realloc;
       // make sure vectors are internally consistent
       VariableLengthValidator.validateVariable(source, source.getValueCount());
@@ -370,13 +374,15 @@ public final class FieldBufferCopier2Util {
     private final FixedWidthVector targetAlt;
     private final int bufferOrdinal;
     private final boolean allocateAsFixed;
+    private final boolean isTargetVectorZeroedOut;
 
-    public BitCopier(FieldVector source, FieldVector target, int bufferOrdinal, boolean allocateAsFixed){
+    public BitCopier(FieldVector source, FieldVector target, int bufferOrdinal, boolean allocateAsFixed, boolean isTargetVectorZeroedOut){
       this.source = source;
       this.target = target;
       this.targetAlt = allocateAsFixed ? (FixedWidthVector) target : null;
       this.allocateAsFixed = allocateAsFixed;
       this.bufferOrdinal = bufferOrdinal;
+      this.isTargetVectorZeroedOut = isTargetVectorZeroedOut;
     }
 
     private void seekAndCopy(long offsetAddr, int count, int seekTo) {
@@ -397,12 +403,24 @@ public final class FieldBufferCopier2Util {
 
       final long maxAddr = offsetAddr + count * STEP_SIZE;
       int targetIndex = seekTo;
-      for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
-        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
-        final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
-        final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
-        final long addr = dstAddr + (targetIndex >>> 3);
-        PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
+      if (isTargetVectorZeroedOut) {
+        for (; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++) {
+          final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+          final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
+          final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
+          final long addr = dstAddr + (targetIndex >>> 3);
+          PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
+        }
+      }
+      else {
+        for (; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++) {
+          final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+          final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
+          final int bitVal1 = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
+          final int bitVal2 = ~(bitVal1 ^ (1 << (targetIndex & 7)));
+          final long addr = dstAddr + (targetIndex >>> 3);
+          PlatformDependent.putByte(addr, (byte) ((PlatformDependent.getByte(addr) | bitVal1) & bitVal2));
+        }
       }
     }
 
@@ -444,12 +462,24 @@ public final class FieldBufferCopier2Util {
 
       final long maxAddr = offsetAddr + count * STEP_SIZE;
       int targetIndex = seekTo;
-      for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
-        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
-        final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
-        final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
-        final long addr = dstAddr + (targetIndex >>> 3);
-        PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
+      if (isTargetVectorZeroedOut) {
+        for (; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++) {
+          final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+          final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
+          final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
+          final long addr = dstAddr + (targetIndex >>> 3);
+          PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
+        }
+      }
+      else {
+        for (; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++) {
+          final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+          final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
+          final int bitVal1 = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
+          final int bitVal2 = ~(bitVal1 ^ (1 << (targetIndex & 7)));
+          final long addr = dstAddr + (targetIndex >>> 3);
+          PlatformDependent.putByte(addr, (byte) ((PlatformDependent.getByte(addr) | bitVal1) & bitVal2));
+        }
       }
 
       // Set the validity to 0 for all records in nullAddr after copy validity data
@@ -569,10 +599,10 @@ public final class FieldBufferCopier2Util {
     private final FieldVector target;
     private final List<FieldBufferCopier> childCopiers;
 
-    public StructCopier(FieldVector source, FieldVector target, OptionManager optionManager) {
+    public StructCopier(FieldVector source, FieldVector target, OptionManager optionManager, boolean isTargetVectorZeroedOut) {
       this.source = source;
       this.target = target;
-      childCopiers = new FieldBufferCopierFactory(optionManager).getTwoByteCopiers(source.getChildrenFromFields(), target.getChildrenFromFields());
+      childCopiers = new FieldBufferCopierFactory(optionManager).getTwoByteCopiers(source.getChildrenFromFields(), target.getChildrenFromFields(), isTargetVectorZeroedOut);
     }
 
     private void seekAndCopy(long offsetAddr, int count, Cursor cursor) {
@@ -636,10 +666,10 @@ public final class FieldBufferCopier2Util {
     private final FieldVector target;
     private final List<FieldBufferCopier> childCopiers;
 
-    public ListCopier(FieldVector source, FieldVector target, OptionManager optionManager) {
+    public ListCopier(FieldVector source, FieldVector target, OptionManager optionManager, boolean isTargetVectorZeroedOut) {
       this.source = source;
       this.target = target;
-      this.childCopiers = new FieldBufferCopierFactory(optionManager).getTwoByteCopiers(source.getChildrenFromFields(), target.getChildrenFromFields());
+      this.childCopiers = new FieldBufferCopierFactory(optionManager).getTwoByteCopiers(source.getChildrenFromFields(), target.getChildrenFromFields(), isTargetVectorZeroedOut);
     }
 
     @Override
@@ -778,12 +808,14 @@ public final class FieldBufferCopier2Util {
     private final FieldVector dst;
     private final FieldVector src;
     private final OptionManager optionManager;
+    private final boolean isTargetVectorZeroedOut;
 
-    public GenericCopier(FieldVector source, FieldVector dst, OptionManager optionManager){
+    public GenericCopier(FieldVector source, FieldVector dst, OptionManager optionManager, boolean isTargetVectorZeroedOut){
       this.transfer = source.makeTransferPair(dst);
       this.dst = dst;
       this.src = source;
       this.optionManager = optionManager;
+      this.isTargetVectorZeroedOut = isTargetVectorZeroedOut;
     }
 
     private void seekAndCopy(long offsetAddr, int count, int seekTo) {
@@ -810,7 +842,7 @@ public final class FieldBufferCopier2Util {
     @Override
     public void copy(long offsetAddr, int count, Cursor cursor) {
       int targetIndex = cursor.getTargetIndex();
-      if (targetIndex == 0) {
+      if (targetIndex == 0 && isTargetVectorZeroedOut) {
         dst.allocateNew();
       }
       seekAndCopy(offsetAddr, count, targetIndex);
@@ -861,7 +893,7 @@ public final class FieldBufferCopier2Util {
     }
   }
 
-  public static void addValueCopier(FieldVector source, FieldVector target, ImmutableList.Builder<FieldBufferCopier> copiers, OptionManager optionManager) {
+  public static void addValueCopier(FieldVector source, FieldVector target, ImmutableList.Builder<FieldBufferCopier> copiers, OptionManager optionManager, boolean isTargetVectorZeroedOut) {
     Preconditions.checkArgument(source.getClass() == target.getClass(), "Input and output vectors must be same type.");
     switch (CompleteType.fromField(source.getField()).toMinorType()) {
 
@@ -871,12 +903,12 @@ public final class FieldBufferCopier2Util {
       case INTERVALDAY:
       case DATE:
         copiers.add(new FieldBufferCopier2Util.EightByteCopier(source, target));
-        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         break;
 
       case BIT:
-        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, true));
-        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, VALUE_BUFFER_ORDINAL, false));
+        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, true, isTargetVectorZeroedOut));
+        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, VALUE_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         break;
 
       case TIME:
@@ -884,40 +916,40 @@ public final class FieldBufferCopier2Util {
       case INT:
       case INTERVALYEAR:
         copiers.add(new FieldBufferCopier2Util.FourByteCopier(source, target));
-        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         break;
 
       case VARBINARY:
       case VARCHAR:
         copiers.add(new FieldBufferCopier2Util.VariableCopier(source, target));
-        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         break;
 
       case DECIMAL:
         copiers.add(new FieldBufferCopier2Util.SixteenByteCopier(source, target));
-        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+        copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         break;
 
       case STRUCT:
         if (optionManager.getOption(ExecConstants.ENABLE_VECTORIZED_COMPLEX_COPIER)) {
-          copiers.add(new FieldBufferCopier2Util.StructCopier(source, target, optionManager));
-          copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+          copiers.add(new FieldBufferCopier2Util.StructCopier(source, target, optionManager, isTargetVectorZeroedOut));
+          copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         } else {
-          copiers.add(new FieldBufferCopier2Util.GenericCopier(source, target, optionManager));
+          copiers.add(new FieldBufferCopier2Util.GenericCopier(source, target, optionManager, isTargetVectorZeroedOut));
         }
         break;
 
       case LIST:
         if (optionManager.getOption(ExecConstants.ENABLE_VECTORIZED_COMPLEX_COPIER)) {
-          copiers.add(new FieldBufferCopier2Util.ListCopier(source, target, optionManager));
-          copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+          copiers.add(new FieldBufferCopier2Util.ListCopier(source, target, optionManager, isTargetVectorZeroedOut));
+          copiers.add(new FieldBufferCopier2Util.BitCopier(source, target, NULL_BUFFER_ORDINAL, false, isTargetVectorZeroedOut));
         } else {
-          copiers.add(new FieldBufferCopier2Util.GenericCopier(source, target, optionManager));
+          copiers.add(new FieldBufferCopier2Util.GenericCopier(source, target, optionManager, isTargetVectorZeroedOut));
         }
         break;
 
       case UNION:
-        copiers.add(new FieldBufferCopier2Util.GenericCopier(source, target, optionManager));
+        copiers.add(new FieldBufferCopier2Util.GenericCopier(source, target, optionManager, isTargetVectorZeroedOut));
         break;
 
       case NULL:

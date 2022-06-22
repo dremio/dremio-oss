@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql;
 
 import static org.apache.iceberg.expressions.Expressions.greaterThanOrEqual;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -39,14 +40,18 @@ import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.types.Types;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.test.TemporarySystemProperties;
 import com.dremio.test.UserExceptionAssert;
@@ -72,10 +77,103 @@ public class TestInsertIntoTable extends BaseTestQuery {
     Assert.assertEquals("tblName", sqlInsertTable.getTblName().toString());
   }
 
+  @Before
+  public void before() throws Exception {
+    test(String.format("USE %s", TEMP_SCHEMA_HADOOP));
+  }
+
   @Test
   public void testSimpleInsertCommand() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       simpleInsertCommandTest();
+    }
+  }
+
+  @Test
+  @Ignore("DX-50441")
+  public void testSimpleCaseInsenstiveInsertCommand() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testInsertCaseInsensesitive("invalid_Path_test", TEMP_SCHEMA_HADOOP);
+    }
+  }
+
+  private void testInsertCaseInsensesitive(String tblName, String schema) throws Exception {
+    try {
+      final String tableLowerCreate = String.format("CREATE TABLE %s.%s(id int, code int) partition by (code)",
+        schema, tblName);
+      test(tableLowerCreate);
+
+      Thread.sleep(1001);
+
+      final String insertUpperIntoLower = String.format("INSERT INTO %s.%s SELECT n_nationkey id, n_regionkey CODE " +
+          "from cp.\"tpch/nation.parquet\"",
+        schema, tblName.toUpperCase());
+      test(insertUpperIntoLower);
+
+      testBuilder()
+        .sqlQuery(String.format("select ID, CODE from %s.%s", schema, tblName))
+        .unOrdered()
+        .sqlBaselineQuery("SELECT n_nationkey ID, n_regionkey CODE from cp.\"tpch/nation.parquet\"")
+        .build()
+        .run();
+    }
+    finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
+    }
+  }
+
+  private void testInsertCommandWithContext(String tblName, String path, String schema) throws Exception {
+    try {
+      final String createTableQuery = String.format("CREATE TABLE %s.%s.%s(id INT, data VARCHAR)", schema, path, tblName);
+      test(createTableQuery);
+
+      test(String.format("USE %s", schema));
+
+      final String insertQuery = String.format("INSERT INTO %s.%s VALUES(1, 'one')", path, tblName);
+      test(insertQuery);
+
+      testBuilder()
+        .sqlQuery(String.format("SELECT id, data FROM %s.%s.%s", schema, path, tblName))
+        .unOrdered()
+        .baselineColumns("id", "data")
+        .baselineValues(1, "one")
+        .build()
+        .run();
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
+    }
+  }
+
+  @Ignore("DX-49941")
+  @Test
+  public void testInsertCommandWithContext() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testInsertCommandWithContext("with_context", "path", TEMP_SCHEMA_HADOOP);
+    }
+  }
+
+  private void testInsertCommandWithBadContext(String tblName, String path, String schema) throws Exception {
+    try {
+      final String createTableQuery = String.format("CREATE TABLE %s.%s.%s(id INT, data VARCHAR)", schema, path, tblName);
+      test(createTableQuery);
+
+      test(String.format("USE %s", schema));
+
+      final String insertQuery = String.format("INSERT INTO %s VALUES(1, 'one')", tblName);
+      assertThatThrownBy(() ->
+        test(insertQuery))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining(String.format("Table [%s] not found", tblName));
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
+    }
+  }
+
+  @Ignore("DX-49941")
+  @Test
+  public void testInsertCommandWithBadContext() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testInsertCommandWithBadContext("with_bad_context", "path", TEMP_SCHEMA_HADOOP);
     }
   }
 
@@ -100,10 +198,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testInsertCommandInvalidPath() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertCommandInvalidPath("invalid_path_test", TEMP_SCHEMA_HADOOP);
-      testInsertCommandInvalidPath("invalid_path_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -111,7 +209,11 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertIntoSysTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String insertQuery = "INSERT INTO INFORMATION_SCHEMA.CATALOGS VALUES('A', 'A', 'A')";
-      errorMsgTestHelper(insertQuery, "[INFORMATION_SCHEMA.CATALOGS] is a SYSTEM_TABLE");
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
+        .isInstanceOf(UserException.class)
+        // DX-49941
+        // .hasMessageContaining("VALIDATION ERROR: [INFORMATION_SCHEMA.CATALOGS] is a SYSTEM_TABLE");
+        .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: INSERT clause is not supported in the query for this source");
     }
   }
 
@@ -139,7 +241,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertIntoView() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertIntoView("sysverview", TEMP_SCHEMA_HADOOP);
-      testInsertIntoView("sysverview_v2", TEMP_SCHEMA);
     }
   }
 
@@ -172,7 +273,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertDuplicateColumnsInSelect() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertDuplicateColumnsInSelect("dupColsInSelect", TEMP_SCHEMA_HADOOP);
-      testInsertDuplicateColumnsInSelect("dupColsInSelect_v2", TEMP_SCHEMA);
     }
   }
 
@@ -205,7 +305,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertColumnNameCaseMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertColumnNameCaseMismatch("tableLower", TEMP_SCHEMA_HADOOP);
-      testInsertColumnNameCaseMismatch("tableLower_v2", TEMP_SCHEMA);
     }
   }
 
@@ -277,8 +376,37 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testInsertIntoPartitionedTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testInsertIntoPartitionedTable("table1", "table2", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       testInsertIntoPartitionedTable("table1_v2", "table2_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
+    }
+  }
+
+  @Test
+  public void testInsertIntoPartitionTransformation() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      String schema = TEMP_SCHEMA_HADOOP;
+      String tableName = "tablePartitionTransformation";
+      IcebergCatalogType catalogType = IcebergCatalogType.HADOOP;
+
+      final String table1Create = String.format("CREATE TABLE %s.%s(id bigint, ts timestamp) PARTITION BY (day(ts))",
+              schema, tableName);
+      test(table1Create);
+
+      String insertIntoTable1 = String.format("INSERT INTO %s.%s VALUES (4, cast('2022-03-23 09:04:56' as timestamp)), (5, cast('2022-03-23 07:04:56' as timestamp))",
+              schema, tableName);
+      test(insertIntoTable1);
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
+      Table icebergTable = getIcebergTable(tableFolder, catalogType);
+      Iterable<DataFile> dataFiles = icebergTable.currentSnapshot().addedFiles();
+      Assert.assertEquals(1, Iterables.size(dataFiles));
+      DataFile dataFile = dataFiles.iterator().next();
+      Assert.assertEquals(19074, dataFile.partition().get(0, Integer.class).intValue());
+
+      insertIntoTable1 = String.format("INSERT INTO %s.%s VALUES (4, cast('2022-03-23 09:04:56' as timestamp)), (5, cast('2022-03-24 09:04:56' as timestamp))",
+              schema, tableName);
+      test(insertIntoTable1);
+      icebergTable.refresh();
+      dataFiles = icebergTable.currentSnapshot().addedFiles();
+      Assert.assertEquals(2, Iterables.size(dataFiles));
     }
   }
 
@@ -320,7 +448,45 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertUsingValues() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertUsingValues("insert_values_test", TEMP_SCHEMA_HADOOP);
-      testInsertUsingValues("insert_values_test_v2", TEMP_SCHEMA);
+    }
+  }
+
+  private void testOutputColumnsForInsertUsingValues(String insert_values_test, String schema) throws Exception {
+    try {
+      String createCommandSql = "create table " + schema + "." + insert_values_test +
+        "(PolicyID bigint, statecode varchar, county varchar, " +
+        "eq_site_limit double, hu_site_limit double, fl_site_limit double, " +
+        "fr_site_limit double, tiv_2011 double, tiv_2012 double, " +
+        "eq_site_deductible varchar, hu_site_deductible varchar, " +
+        "fl_site_deductible varchar, fr_site_dedu varchar)";
+      test(createCommandSql);
+      Thread.sleep(1001);
+      String insertCommandSql = "insert into " + schema + "." + insert_values_test +
+        " SELECT * FROM (VALUES(" +
+        "cast(1 as bigint), " +
+        "cast('CT' as varchar), " +
+        "cast('Conn' as varchar), " +
+        "cast(0 as double), " +
+        "cast(0 as double), cast(0 as double), cast(0 as double), " +
+        "cast(0 as double), cast(0 as double), cast('0' as varchar), " +
+        "cast('0' as varchar), cast('0' as varchar), cast('0' as varchar)  ))";
+      testBuilder()
+        .sqlQuery(insertCommandSql)
+        .unOrdered()
+        .baselineColumns(RecordWriter.RECORDS_COLUMN)
+        .baselineValues(1L)
+        .build()
+        .run();
+    }
+    finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), insert_values_test));
+    }
+  }
+
+  @Test
+  public void testOutputColumnsForInsertUsingValues() throws Exception {
+    try (AutoCloseable c = enableIcebergTables()) {
+      testOutputColumnsForInsertUsingValues("output_columns_insert_values_test", TEMP_SCHEMA_HADOOP);
     }
   }
 
@@ -358,7 +524,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertUsingValuesWithSchemaMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertUsingValuesWithSchemaMismatch("insert_values_test_mismatch", TEMP_SCHEMA_HADOOP);
-      testInsertUsingValuesWithSchemaMismatch("insert_values_test_mismatch_v2", TEMP_SCHEMA);
     }
   }
 
@@ -377,10 +542,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testIncomptibleStringToInt() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testIncomptibleStringToInt("insert_incompatible_test", TEMP_SCHEMA_HADOOP);
-      testIncomptibleStringToInt("insert_incompatible_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -421,7 +586,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testUpPromotableInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testUpPromotableInsert("insert_uppromotable_test", TEMP_SCHEMA_HADOOP);
-      testUpPromotableInsert("insert_uppromotable_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -465,7 +629,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testListComplexInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testListComplexInsert("insert_list_test", "dfs", TEMP_SCHEMA);
       testListComplexInsert("insert_list_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
     }
   }
@@ -503,9 +666,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testListComplexInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testListComplexInsertFailure("insert_list_failure_test", "dfs", TEMP_SCHEMA);
       testListComplexInsertFailure("insert_list_failure_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
     }
   }
@@ -550,7 +713,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testStructComplexInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testStructComplexInsert("insert_struct_test", "dfs", TEMP_SCHEMA);
       testStructComplexInsert("insert_struct_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
     }
   }
@@ -588,9 +750,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testStructComplexInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testStructComplexInsertFailure("insert_struct_failure_test", "dfs", TEMP_SCHEMA);
       testStructComplexInsertFailure("insert_struct_failure_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
     }
   }
@@ -628,9 +790,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testComplexInsertIncompatibleFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testComplexInsertIncompatibleFailure("insert_struct_incompatible_test", "dfs", TEMP_SCHEMA);
       testComplexInsertIncompatibleFailure("insert_struct_incompatible_test_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP);
     }
   }
@@ -674,7 +836,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testUpPromotablePartitionInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testUpPromotablePartitionInsert("insert_uppromotable_partition_test", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       testUpPromotablePartitionInsert("insert_uppromotable_partition_test_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -723,9 +884,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testUpPromotablePartitionWithStarInsert() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testUpPromotablePartitionWithStarInsert("insert_uppromotable_partition_withstar_test", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       testUpPromotablePartitionWithStarInsert("insert_uppromotable_partition_withstar_test_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -765,7 +926,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testDecimalInsertMorePrecisionEqualScale() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalInsertMorePrecisionEqualScale("insert_decimal_more_precision_test", TEMP_SCHEMA_HADOOP);
-      testDecimalInsertMorePrecisionEqualScale("insert_decimal_more_precision_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -795,10 +955,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testDecimalInsertMorePrecisionUnequalScale() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalInsertMorePrecisionUnequalScale("insert_decimal_more_precision_unequal_scale_test", TEMP_SCHEMA_HADOOP);
-      testDecimalInsertMorePrecisionUnequalScale("insert_decimal_more_precision_unequal_scale_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -828,10 +988,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testDecimalInsertLessPrecision() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalInsertLessPrecision("insert_decimal_less_precision_test", TEMP_SCHEMA_HADOOP);
-      testDecimalInsertLessPrecision("insert_decimal_less_precision_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -873,10 +1033,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testDoubleToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDoubleToDecimalInsertFailure("insert_double_decimal_failure_test", TEMP_SCHEMA_HADOOP);
-      testDoubleToDecimalInsertFailure("insert_double_decimal_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -916,10 +1076,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testFloatToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testFloatToDecimalInsertFailure("insert_float_decimal_failure_test", TEMP_SCHEMA_HADOOP);
-      testFloatToDecimalInsertFailure("insert_float_decimal_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -964,10 +1124,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testBigIntToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testBigIntToDecimalInsertFailure("insert_bigint_decimal_failure_test", TEMP_SCHEMA_HADOOP);
-      testBigIntToDecimalInsertFailure("insert_bigint_decimal_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1012,10 +1172,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testIntToDecimalInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testIntToDecimalInsertFailure("insert_int_decimal_failure_test", TEMP_SCHEMA_HADOOP);
-      testIntToDecimalInsertFailure("insert_int_decimal_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1072,7 +1232,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testDecimalToDoubleInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalToDoubleInsertFailure("insert_decimal_double_failure_test", TEMP_SCHEMA_HADOOP);
-      testDecimalToDoubleInsertFailure("insert_decimal_double_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1129,7 +1288,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testDecimalToFloatInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDecimalToFloatInsertFailure("insert_decimal_float_failure_test", TEMP_SCHEMA_HADOOP);
-      testDecimalToFloatInsertFailure("insert_decimal_float_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1159,10 +1317,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testBigIntToIntInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testBigIntToIntInsertFailure("insert_bigint_int_failure_test", TEMP_SCHEMA_HADOOP);
-      testBigIntToIntInsertFailure("insert_bigint_int_failure_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1192,10 +1350,10 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testDoubleToFloatInsertFailure() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDoubleToFloatInsertFailure("insert_double_float_failure_test", TEMP_SCHEMA_HADOOP);
-      testDoubleToFloatInsertFailure("insert_double_float_failure_test", TEMP_SCHEMA);
     }
   }
 
@@ -1229,7 +1387,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testInsertValuesMatchingTypes() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testInsertValuesMatchingTypes("insertTable1", TEMP_SCHEMA_HADOOP);
-      testInsertValuesMatchingTypes("insertTable1_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1269,7 +1426,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void testUpPromotableInsertValues() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testUpPromotableInsertValues("insertvalues_uppromotable_test", TEMP_SCHEMA_HADOOP);
-      testUpPromotableInsertValues("insertvalues_uppromotable_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1319,7 +1475,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testWriteMinMaxAndVerifyPruning() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testWriteMinMaxAndVerifyPruning("testWriteMinMaxAndVerifyPruning", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       testWriteMinMaxAndVerifyPruning("testWriteMinMaxAndVerifyPruning_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -1375,7 +1530,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testInsertValuesPartitionedTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testInsertValuesPartitionedTable("insertTable2", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       testInsertValuesPartitionedTable("insertTable2_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -1406,7 +1560,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void insertIntoFewCols() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       insertIntoFewCols("insert_select_cols1", TEMP_SCHEMA_HADOOP);
-      insertIntoFewCols("insert_select_cols1_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1427,7 +1580,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void insertIntoFewColsDuplicate() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       insertIntoFewColsDuplicate("insert_select_cols2", TEMP_SCHEMA_HADOOP);
-      insertIntoFewColsDuplicate("insert_select_cols2_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1447,7 +1599,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void insertIntoFewColsTypeSpecified() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       insertIntoFewColsTypeSpecified("insert_select_cols2002", TEMP_SCHEMA_HADOOP);
-      insertIntoFewColsTypeSpecified("insert_select_cols2002_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1468,7 +1619,6 @@ public class TestInsertIntoTable extends BaseTestQuery {
   public void insertIntoFewColsNonExistingCol() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       insertIntoFewColsNonExistingCol("insert_select_cols3", TEMP_SCHEMA_HADOOP);
-      insertIntoFewColsNonExistingCol("insert_select_cols3_v2", TEMP_SCHEMA);
     }
   }
 
@@ -1486,6 +1636,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void insertIntoFewColsSchemaMismatch() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       insertIntoFewColsSchemaMismatch("insert_select_cols4", TEMP_SCHEMA_HADOOP);
@@ -1622,5 +1773,49 @@ public class TestInsertIntoTable extends BaseTestQuery {
 
   private Set<String> pathSet(Iterable<DataFile> files) {
     return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
+
+  @Test
+  public void testInsertIntoWithNullValue() throws Exception {
+    String table1 = "insert_null_test";
+    try {
+      final String table1Create = String.format("CREATE TABLE %s.%s(id int, code varchar)",
+              TEMP_SCHEMA_HADOOP, table1);
+      test(table1Create);
+
+      final String insertQuery1 = String.format("INSERT INTO %s.%s values(null, null)",
+              TEMP_SCHEMA_HADOOP, table1);
+      test(insertQuery1);
+      Thread.sleep(1001);
+
+      final String insertQuery2 = String.format("INSERT INTO %s.%s values(1,'2')",
+              TEMP_SCHEMA_HADOOP, table1);
+      test(insertQuery2);
+      Thread.sleep(1001);
+
+      final String insertQuery3 = String.format("INSERT INTO %s.%s values(2, null)",
+              TEMP_SCHEMA_HADOOP, table1);
+      test(insertQuery3);
+      Thread.sleep(1001);
+
+      final String insertQuery4 = String.format("INSERT INTO %s.%s values(null,'3')",
+              TEMP_SCHEMA_HADOOP, table1);
+      test(insertQuery4);
+      Thread.sleep(1001);
+
+      // same data in table1 and table2
+      testBuilder()
+              .sqlQuery(String.format("select id, code from %s.%s", TEMP_SCHEMA_HADOOP, table1))
+              .unOrdered()
+              .baselineColumns("id", "code")
+              .baselineValues(null, null)
+              .baselineValues(1,"2")
+              .baselineValues(2,null)
+              .baselineValues(null,"3")
+              .build()
+              .run();
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
+    }
   }
 }

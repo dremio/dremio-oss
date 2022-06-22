@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { useContext, useMemo } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { useContext, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 
-import { useNessieContext } from '@app/pages/NessieHomePage/utils/context';
-import StatefulTableViewer from '@app/components/StatefulTableViewer';
-import { getViewStateFromReq } from '@app/utils/smartPromise';
+import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import { getViewStateFromReq } from "@app/utils/smartPromise";
 
-import { BranchHistoryContext } from '../../BranchHistory';
-import { columns, createTableData } from './utils';
+import { BranchHistoryContext } from "../../BranchHistory";
+import { columns, createTableData } from "./utils";
 
-import './BranchHistoryCommits.less';
+import "./BranchHistoryCommits.less";
 
 function BranchHistoryCommits() {
   const {
@@ -32,7 +32,7 @@ function BranchHistoryCommits() {
     currentRef,
     setCommitLog,
     commitHistoryStatus: status,
-    commitHistoryErr: err
+    commitHistoryErr: err,
   } = useContext(BranchHistoryContext);
   const { api } = useNessieContext();
 
@@ -42,11 +42,11 @@ function BranchHistoryCommits() {
   );
 
   return (
-    <div className='branch-history-commits'>
-      <div className='branch-history-commits-header'>
-        <FormattedMessage id='Common.History' />
+    <div className="branch-history-commits">
+      <div className="branch-history-commits-header">
+        <FormattedMessage id="Common.History" />
       </div>
-      <div className='branch-history-commits'>
+      <div className="branch-history-commits">
         <StatefulTableViewer
           virtualized
           disableZebraStripes

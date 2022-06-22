@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/variables.less";
- @import "~@app/uiTheme/less/color-schema.less";
- @import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
- @horizontal-padding: 8px; // should be >= @_margin value below
- @vertical-padding: 8px;
- @_margin: 5px;
- @cursor-width: 1px;
- @border-width: 1px;
+@horizontal-padding: 8px; // should be >= @_margin value below
+@vertical-padding: 8px;
+@_margin: 5px;
+@cursor-width: 1px;
+@border-width: 1px;
 
 .common {
-  composes: border-radius-default from '~@app/uiTheme/less/layout.less';
+  composes: border-radius-default from "~@app/uiTheme/less/layout.less";
 
   border: @border-width solid @TABLE_BORDER;
   min-height: @form-row-height-default;
@@ -51,7 +51,7 @@
 }
 
 .cursor-placeholder {
-  composes: row-of-inputs from '~@app/uiTheme/less/forms.less';
+  composes: row-of-inputs from "~@app/uiTheme/less/forms.less";
   width: @_margin;
   justify-content: center;
 
@@ -61,7 +61,7 @@
 
 .tag-wrapper {
   composes: item;
-  composes: row-of-inputs from '~@app/uiTheme/less/forms.less';
+  composes: row-of-inputs from "~@app/uiTheme/less/forms.less";
   display: inline-flex;
 }
 
@@ -70,7 +70,7 @@
 }
 
 .cursor:before {
-  content: '';
+  content: "";
   display: block;
   @adjusted-margin: (@_margin - @cursor-width) / 2;
 
@@ -85,7 +85,7 @@
 }
 
 .input {
-  composes: form-default from '~@app/uiTheme/less/typography.less';
+  composes: form-default from "~@app/uiTheme/less/typography.less";
   composes: item;
   padding-left: @_margin; // this is neede to be applied here to put cusor into input, when an user click between tag and input field
   border: none;
@@ -94,19 +94,21 @@
   background: transparent; // should inherit a backgrounf of container
   min-width: 50px;
 
-  line-height: @form-row-height-default - 2 * (@vertical-padding + @border-width);
+  line-height: @form-row-height-default - 2 *
+    (@vertical-padding + @border-width);
 
   &:focus {
     outline: none;
   }
 
   &::placeholder {
-  .unavailable-font();
+    .unavailable-font();
   }
 }
 
 @keyframes blink {
-  from, to {
+  from,
+  to {
     opacity: 0;
   }
   50% {

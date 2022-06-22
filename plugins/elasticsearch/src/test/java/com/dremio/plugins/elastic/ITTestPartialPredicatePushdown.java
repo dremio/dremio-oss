@@ -51,6 +51,7 @@ public class ITTestPartialPredicatePushdown extends ElasticPredicatePushdownBase
       "        \"fuzzy_transpositions\" : false,\n" +
       "        \"lenient\" : false,\n" +
       "        \"zero_terms_query\" : \"NONE\",\n" +
+      "        \"auto_generate_synonyms_phrase_query\": true,\n" +
       "        \"boost\" : 1.0\n" +
       "      }\n" +
       "    }\n" +

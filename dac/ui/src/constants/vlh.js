@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-const VLHF_DETAIL = require('customData/vlhfDetail');
+const VLHF_DETAIL = require("customData/vlhfDetail");
 
 export const DEFAULT_VLHF_DETAIL = VLHF_DETAIL;
-
-

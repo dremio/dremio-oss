@@ -13,39 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { FieldWithError, TextField, Select } from './';
+import { FieldWithError, TextField, Select } from "./";
 
 // todo: loc
 
 export default class FormatField extends PureComponent {
-
   static propTypes = {
     label: PropTypes.string,
     onChange: PropTypes.func,
     touched: PropTypes.bool,
     error: PropTypes.string,
-    options: PropTypes.array
+    options: PropTypes.array,
   };
 
   onSelectChange = (value) => {
-    this.props.onChange(value || '');
-  }
+    this.props.onChange(value || "");
+  };
 
   getSelectedItemValueForSelect(value) {
     const result = this.props.options.find((item) => item.option === value);
     if (result) {
       return value;
     }
-    return ''; // it's custom
+    return ""; // it's custom
   }
 
   render() {
-    const {options, ...props} = this.props;
-    const items = options.concat([{label: 'Custom…', option: ''}]);
+    const { options, ...props } = this.props;
+    const items = options.concat([{ label: "Custom…", option: "" }]);
 
     return (
       <FieldWithError {...props}>
@@ -55,8 +54,9 @@ export default class FormatField extends PureComponent {
             value={this.getSelectedItemValueForSelect(props.value)}
             onChange={this.onSelectChange}
             items={items}
-            style={styles.menu}/>
-          <TextField {...props} style={styles.textField}/>
+            style={styles.menu}
+          />
+          <TextField {...props} style={styles.textField} />
         </div>
       </FieldWithError>
     );
@@ -65,14 +65,14 @@ export default class FormatField extends PureComponent {
 
 const styles = {
   wrapper: {
-    display: 'flex'
+    display: "flex",
   },
   menu: {
     marginLeft: 0,
-    flex: 1
+    flex: 1,
   },
   textField: {
     marginLeft: 10,
-    width: 50
-  }
+    width: 50,
+  },
 };

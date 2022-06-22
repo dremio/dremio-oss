@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import SQLEditor from 'components/SQLEditor';
-import FieldWithError from 'components/Fields/FieldWithError';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import SQLEditor from "components/SQLEditor";
+import FieldWithError from "components/Fields/FieldWithError";
 
-import { flexContainer, fieldWithError, sqlBody } from './FormWrappers.less';
+import { flexContainer, fieldWithError, sqlBody } from "./FormWrappers.less";
 
 export default class SqlWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
     field: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
   };
 
   // interlnal ref to SQLEditor
@@ -43,24 +43,28 @@ export default class SqlWrapper extends Component {
   };
 
   render() {
-    const {elementConfig, field, disabled} = this.props;
+    const { elementConfig, field, disabled } = this.props;
     const initialValue = field && field.initialValue;
     return (
       <div className={flexContainer}>
-        <FieldWithError {...field}
+        <FieldWithError
+          {...field}
           label={elementConfig.getConfig().label}
           name={elementConfig.getPropName()}
-          errorPlacement='top'
-          className={fieldWithError}>
+          errorPlacement="top"
+          className={fieldWithError}
+        >
           <div className={sqlBody}>
             <SQLEditor
               height={elementConfig.getConfig().height}
-              ref={(ref) => this.sqlEditor = ref}
+              ref={(ref) => (this.sqlEditor = ref)}
               defaultValue={initialValue}
               onChange={this.handleChange}
               readOnly={disabled}
               errors={this.errors}
-              autoCompleteEnabled={elementConfig.getConfig().autoCompleteEnabled}
+              autoCompleteEnabled={
+                elementConfig.getConfig().autoCompleteEnabled
+              }
             />
           </div>
         </FieldWithError>
@@ -68,4 +72,3 @@ export default class SqlWrapper extends Component {
     );
   }
 }
-

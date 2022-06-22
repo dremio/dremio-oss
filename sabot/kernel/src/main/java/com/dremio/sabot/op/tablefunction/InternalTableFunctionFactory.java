@@ -20,6 +20,11 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.store.dfs.SplitAssignmentTableFunction;
 import com.dremio.exec.store.dfs.SplitGenTableFunction;
+import com.dremio.exec.store.iceberg.DeletedDataFilesMetadataTableFunction;
+import com.dremio.exec.store.iceberg.IcebergDeleteFileAggTableFunction;
+import com.dremio.exec.store.iceberg.IcebergDmlMergeDuplicateCheckTableFunction;
+import com.dremio.exec.store.iceberg.IcebergPartitionTransformTableFunction;
+import com.dremio.exec.store.iceberg.IcebergSplitGenTableFunction;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.ManifestFileProcessor;
 import com.dremio.exec.store.iceberg.ManifestScanTableFunction;
@@ -42,8 +47,9 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
       case DATA_FILE_SCAN:
         SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, functionConfig.getFunctionContext().getPluginId());
         return plugin.createScanTableFunction(fec, context, props, functionConfig);
-      case METADATA_REFRESH_MANIFEST_SCAN:
       case SPLIT_GEN_MANIFEST_SCAN:
+      case METADATA_MANIFEST_FILE_SCAN:
+      case ICEBERG_MANIFEST_SCAN:
         ManifestFileProcessor manifestFileProcessor = new ManifestFileProcessor(fec, context, props, functionConfig);
         return new ManifestScanTableFunction(context, functionConfig, manifestFileProcessor);
       case SPLIT_GENERATION:
@@ -57,6 +63,16 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
         return new SplitAssignmentTableFunction(fec, context, props, functionConfig);
       case BOOST_TABLE_FUNCTION:
         return new BoostTableFunction(fec, context, props, functionConfig);
+      case ICEBERG_PARTITION_TRANSFORM:
+        return new IcebergPartitionTransformTableFunction(context, functionConfig);
+      case DELETED_DATA_FILES_METADATA:
+        return new DeletedDataFilesMetadataTableFunction(context, functionConfig);
+      case ICEBERG_SPLIT_GEN:
+        return new IcebergSplitGenTableFunction(fec, context, functionConfig);
+      case ICEBERG_DELETE_FILE_AGG:
+        return new IcebergDeleteFileAggTableFunction(context, functionConfig);
+      case ICEBERG_DML_MERGE_DUPLICATE_CHECK:
+        return new IcebergDmlMergeDuplicateCheckTableFunction(context, functionConfig);
       case UNKNOWN:
       default:
         throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());

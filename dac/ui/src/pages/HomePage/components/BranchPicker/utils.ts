@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createContext, useContext, useRef } from 'react';
-import { InjectedProps as PopupState } from 'material-ui-popup-state';
+import { createContext, useContext, useRef } from "react";
+import { InjectedProps as PopupState } from "material-ui-popup-state";
 
 type BranchPickerContextType = {
   ref: React.Ref<PopupState | null>;
@@ -31,6 +31,6 @@ export function useBranchPickerContext(): BranchPickerContextType {
 // Putting this here so consumption doesn't require importing PopupState
 export function useContextValue() {
   return {
-    ref: useRef<PopupState>(null)
+    ref: useRef<PopupState>(null),
   };
 }

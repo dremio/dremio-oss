@@ -21,7 +21,8 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.io.file.Path;
 
-public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P> implements AsyncStreamConf {
+public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>
+  implements AsyncStreamConf, MutablePluginConf {
   public abstract Path getPath();
 
   public abstract boolean isImpersonationEnabled();

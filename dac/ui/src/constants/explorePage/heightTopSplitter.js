@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
 const DEFAULT_HEIGHT_SQL = 206; // 11 lines of text
 const NEW_QUERY_DEFAULT_SQL_HEIGHT = 466; // 25 lines
@@ -27,8 +27,10 @@ const HEIGHT_CLEAN_MIXED = 436;
 const JOIN = 330;
 
 export const hashHeightTopSplitter = {
-  getDefaultSqlHeight: () => localStorageUtils.getDefaultSqlHeight() || DEFAULT_HEIGHT_SQL,
-  getNewQueryDefaultSqlHeight: () => localStorageUtils.getDefaultSqlHeight() || NEW_QUERY_DEFAULT_SQL_HEIGHT,
+  getDefaultSqlHeight: () =>
+    localStorageUtils.getDefaultSqlHeight() || DEFAULT_HEIGHT_SQL,
+  getNewQueryDefaultSqlHeight: () =>
+    localStorageUtils.getDefaultSqlHeight() || NEW_QUERY_DEFAULT_SQL_HEIGHT,
   transformCards: LARGE_HEIGHT_SUBPAGE,
   transform: LARGE_HEIGHT_SUBPAGE,
   MULTIPLE: DEFAULT_HEIGHT_SORT,
@@ -37,5 +39,5 @@ export const hashHeightTopSplitter = {
   CONVERT_CASE,
   SINGLE_DATA_TYPE: HEIGHT_CLEAN_MIXED,
   JOIN,
-  SPLIT_BY_DATA_TYPE: HEIGHT_CLEAN_MIXED
+  SPLIT_BY_DATA_TYPE: HEIGHT_CLEAN_MIXED,
 };

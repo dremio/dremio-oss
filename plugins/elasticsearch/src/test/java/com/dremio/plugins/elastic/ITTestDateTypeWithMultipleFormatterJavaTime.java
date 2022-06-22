@@ -28,7 +28,7 @@ import com.dremio.common.util.TestTools;
 public class ITTestDateTypeWithMultipleFormatterJavaTime extends BaseTestDateTypeWithMultipleFormatter {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public final void runTestWithDefaultFormatter() throws Exception {

@@ -50,7 +50,7 @@ public class ElasticActions {
     return parser.parse(string).getAsJsonObject();
   }
 
-  public static abstract class ElasticAction {
+  public abstract static class ElasticAction {
     /**
      * Interface for the connection pool to generate request.
      * @param target
@@ -59,7 +59,7 @@ public class ElasticActions {
     abstract Result getResult(WebTarget target);
   }
 
-  public static abstract class Result {
+  public abstract static class Result {
     public JsonObject getAsJsonObject() {
       throw new UnsupportedOperationException();
     }
@@ -174,7 +174,7 @@ public class ElasticActions {
     }
   }
 
-  public static abstract class Search<T> extends ElasticAction2<T> {
+  public abstract static class Search<T> extends ElasticAction2<T> {
     private String query;
     private String resource;
     private Map<String,String> parameters = new HashMap<>();

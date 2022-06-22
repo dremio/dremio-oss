@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
 export default function stub(state = Immutable.Map()) {
   return state;

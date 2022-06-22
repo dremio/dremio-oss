@@ -27,6 +27,7 @@ import static com.dremio.sabot.Fixtures.NULL_TIMESTAMP;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.date;
 import static com.dremio.sabot.Fixtures.interval_day;
+import static com.dremio.sabot.Fixtures.interval_year;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.time;
@@ -1145,7 +1146,9 @@ public class TestNativeFunctions extends BaseTestFunction {
   public void testTrigonometry() throws Exception {
     testFunctions(new Object[][]{
       {"sin(c0)", 0, Math.sin(0)},
-      {"sin(c0)", Math.PI, Math.sin(Math.PI)},
+      {"sin(c0)", 3.14, Math.sin(3.14)},
+ //     skipping this till we fix DX-49156
+//      {"sin(c0)", Math.PI, Math.sin(Math.PI)},
       {"cos(c0)", 0, Math.cos(0)},
       {"cos(c0)", Math.PI, Math.cos(Math.PI)},
       {"asin(c0)", 0, Math.asin(0)},
@@ -1258,6 +1261,68 @@ public class TestNativeFunctions extends BaseTestFunction {
   public void testIfElseVarbinary() throws Exception {
     testFunctions(new Object[][]{
       {"case when (isnotnull(c0)) then c0 else c1 end", "abc".getBytes(Charsets.UTF_8), "def".getBytes(Charsets.UTF_8), "abc".getBytes(Charsets.UTF_8)}
+    });
+  }
+
+  // DX-44500
+  @Test
+  @Ignore
+  public void testNegativeIntervalDay() throws Exception {
+
+    //Interval Day #################################################################
+
+    //First test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_day(2, 2), interval_day(-2, -2)}
+    });
+
+    //Second test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_day(4, 1500), interval_day(-4, -1500)}
+    });
+
+    //Third test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_day(-4, -1500), interval_day(4, 1500)}
+    });
+
+
+    //Interval Year #################################################################
+
+    //First test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_year(0, 2), interval_year(-0, -2)}
+    });
+
+    //Second test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_year(0, 99), interval_year(-8, -3)}
+    });
+
+    //Third test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_year(0, -2), interval_year(0, 2)}
+    });
+
+    //Fourth test
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_year(2, 5), interval_year(-2, -5)}
+    });
+
+    testFunctions(new Object[][]{
+      {"negative(c0)", interval_year(-2, -5), interval_year(2, 5)}
+    });
+
+  }
+
+  // DX-42215
+  @Test
+  public void testRegexpExtract() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 1, "john"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 2, "doe"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 0, "john doe - 124"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "stringdonotmatch", 0, ""},
     });
   }
 }

@@ -28,6 +28,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -52,7 +53,7 @@ public class TestSortOp extends BaseTestOperator {
   private ClassProducer producer;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
 
   @Before
   public void prepare() {
@@ -68,6 +69,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testQuickSorterSpillSortWithUserException1() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
@@ -83,6 +85,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testQuickSorterSpillSortWithUserException1WithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
          AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
@@ -99,6 +102,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testQuickSorterSpillSortWithUserException1WithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
          AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
@@ -162,6 +166,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testQuickSorterSpillSort() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
@@ -172,6 +177,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testQuickSorterSpillSortWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
          AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
@@ -183,6 +189,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testQuickSorterSpillSortWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, false);
          AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
@@ -194,6 +201,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillBatches() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
@@ -234,6 +242,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillBatchesWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
          AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
@@ -275,6 +284,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillBatchesWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
          AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
@@ -316,6 +326,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillBatchesWithGeneratedCopier() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
          AutoCloseable generatedCopier = with(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER, false)) {
@@ -357,6 +368,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillDisabled() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
@@ -397,6 +409,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillDisabledWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false);
          AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
@@ -438,6 +451,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillDisabledWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false);
          AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {
@@ -479,6 +493,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testMicroSpillDisabledWithGeneratedCopier() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false);
          AutoCloseable generatedCopier = with(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER, false)) {
@@ -520,6 +535,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testSplayTreeSpillSortWithUserException1() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
@@ -535,6 +551,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testSplayTreeSpillSortWithUserException1WithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
          AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
@@ -614,6 +631,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testSplayTreeSpillSort() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
@@ -624,6 +642,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testSplayTreeSpillSortWithDirectWriteOff() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
          AutoCloseable directWriteOff = with(ExecConstants.EXTERNAL_SORT_DIRECT_WRITE, false)) {
@@ -635,6 +654,7 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void testSplayTreeSpillSortWithLegacyEncoding() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true);
          AutoCloseable legacyEncoding = with(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING, false)) {

@@ -13,50 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import {
-  UPDATE_JOB_STATE
-} from 'actions/jobs/jobs';
+import { UPDATE_JOB_STATE } from "actions/jobs/jobs";
 
-import jobsReducer from './jobs';
+import jobsReducer from "./jobs";
 
-describe('jobs reducer', () => {
-  const initialState =  Immutable.fromJS({
+describe("jobs reducer", () => {
+  const initialState = Immutable.fromJS({
     jobDetails: {
-      outputRecords: 10
+      outputRecords: 10,
     },
     jobs: [
       {
-        id: 'a-b-c-d',
-        datasetVersion: '123',
-        state: 'RUNNING',
-        datasetPathList: ['myspace', 'foo'],
-        datasetType: 'VIRTUAL_DATASET'
-      }
-    ]
+        id: "a-b-c-d",
+        datasetVersion: "123",
+        state: "RUNNING",
+        datasetPathList: ["myspace", "foo"],
+        datasetType: "VIRTUAL_DATASET",
+      },
+    ],
   });
 
-  it('returns unaltered state by default', () => {
-    const result = jobsReducer(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = jobsReducer(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  describe('UPDATE_JOB_STATE', () => {
-    it('should job state in jobs list, but keep datasetPathList and datasetType', () => {
+  describe("UPDATE_JOB_STATE", () => {
+    it("should job state in jobs list, but keep datasetPathList and datasetType", () => {
       const result = jobsReducer(initialState, {
         type: UPDATE_JOB_STATE,
-        jobId: 'a-b-c-d',
+        jobId: "a-b-c-d",
         payload: {
-          id: 'a-b-c-d',
-          state: 'COMPLETED',
-          isComplete: false
-        }
+          id: "a-b-c-d",
+          state: "COMPLETED",
+          isComplete: false,
+        },
       });
-      expect(result.getIn(['jobs', 0, 'state'])).to.eql('COMPLETED');
-      expect(result.getIn(['jobs', 0, 'isComplete'])).to.eql(false);
-      expect(result.getIn(['jobs', 0, 'datasetPathList'])).to.eql(initialState.getIn(['jobs', 0, 'datasetPathList']));
-      expect(result.getIn(['jobs', 0, 'datasetType'])).to.eql(initialState.getIn(['jobs', 0, 'datasetType']));
+      expect(result.getIn(["jobs", 0, "state"])).to.eql("COMPLETED");
+      expect(result.getIn(["jobs", 0, "isComplete"])).to.eql(false);
+      expect(result.getIn(["jobs", 0, "datasetPathList"])).to.eql(
+        initialState.getIn(["jobs", 0, "datasetPathList"])
+      );
+      expect(result.getIn(["jobs", 0, "datasetType"])).to.eql(
+        initialState.getIn(["jobs", 0, "datasetType"])
+      );
     });
   });
 });

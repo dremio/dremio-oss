@@ -13,68 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useMemo } from 'react';
-import { useIntl } from 'react-intl';
-import { oc } from 'ts-optchain';
+import { useMemo } from "react";
+import { useIntl } from "react-intl";
 
-//@ts-ignore
-import { getViewStateFromReq } from '@app/utils/smartPromise';
-import StatefulTableViewer from '@app/components/StatefulTableViewer';
-import useNamespaceList from '../../utils/useNamespaceList';
-import NamespaceItem from '../NamespaceItem/NamespaceItem';
-import PageBreadcrumbHeader from '../PageBreadcrumbHeader/PageBreadcrumbHeader';
-import { useNessieContext } from '../../utils/context';
+import { getViewStateFromReq } from "@app/utils/smartPromise";
+import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import useNamespaceList from "../../utils/useNamespaceList";
+import NamespaceItem from "../NamespaceItem/NamespaceItem";
+import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
+import { useNessieContext } from "../../utils/context";
+import NessieLink from "../NessieLink/NessieLink";
 
-import './NamespaceTable.less';
-import NessieLink from '../NessieLink/NessieLink';
+import "./NamespaceTable.less";
+import { parseNamespaceUrl } from "@app/utils/nessieUtils";
 
-function NamespaceTable({ params }: { params: any }) {
-  const { state: { hash, reference } } = useNessieContext();
+function NamespaceTable({ location }: { location: any }) {
+  const {
+    state: { hash, reference },
+  } = useNessieContext();
   const intl = useIntl();
   const columns = [
     {
-      key: 'name',
-      label: intl.formatMessage({ id: 'Common.Name' }),
-      flexGrow: 1
-    }
+      key: "name",
+      label: intl.formatMessage({ id: "Common.Name" }),
+      flexGrow: 1,
+    },
   ];
   const path = useMemo(() => {
-    const cur = oc(params).id('');
-    return cur ? cur.split('.') : undefined;
-  }, [params]);
+    return parseNamespaceUrl(location.pathname, "namespace");
+  }, [location]);
 
   const [err, data, status] = useNamespaceList({
-    reference: reference ? reference.name : '',
+    reference: reference ? reference.name : "",
     hash,
-    path
+    path,
   });
   const tableData = useMemo(() => {
-    return oc(data)
-      .entries([])
-      .flatMap((entry, i) => {
-        return {
-          id: i,
-          rowClassName: 'row' + i,
-          data: {
-            name: {
-              node: () => <NamespaceItem entry={entry} />
-            }
-          }
-        };
-      });
+    return (data?.entries || []).flatMap((entry, i) => {
+      return {
+        id: i,
+        rowClassName: "row" + i,
+        data: {
+          name: {
+            node: () => <NamespaceItem entry={entry} />,
+          },
+        },
+      };
+    });
   }, [data]);
 
   return (
-    <div className='namespaceTable'>
+    <div className="namespaceTable">
       <PageBreadcrumbHeader
         path={path}
         rightContent={
-          <NessieLink to='/branches'>
-            {intl.formatMessage({ id: 'Nessie.ViewAllBranches' })}
+          <NessieLink to="/branches">
+            {intl.formatMessage({ id: "Nessie.ViewAllBranches" })}
           </NessieLink>
         }
       />
-      <div className='namespaceTable-container'>
+      <div className="namespaceTable-container">
         <StatefulTableViewer
           virtualized
           disableZebraStripes

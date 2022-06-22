@@ -73,7 +73,7 @@ public class WorkloadTicket extends TicketWithChildren {
       if (v == null) {
         final BufferAllocator queryAllocator = makeQueryAllocator(getAllocator(), queryId, maxAllocation);
         final QueryTicket qTicket = new QueryTicket(this, queryId, queryAllocator, foreman, assignment, 0L,
-          false, queryStarter.getApproximateQuerySize());
+          queryStarter.useWeightBasedScheduling(), queryStarter.getApproximateQuerySize());
         this.reserve();
         return qTicket;
       } else {

@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,28 +29,45 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.Lists;
 
 /**
  * Sql parse tree node to represent statement:
- * SHOW TABLES [{FROM | IN} db_name] [LIKE 'pattern']
+ * SHOW TABLES
+ * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * [ ( FROM | IN ) source]
+ * [ LIKE 'pattern']
  */
-public class SqlShowTables extends SqlCall {
+public class SqlShowTables extends SqlVersionSourceRefBase {
 
-  private final SqlIdentifier db;
   private final SqlNode likePattern;
 
   public static final SqlSpecialOperator OPERATOR =
     new SqlSpecialOperator("SHOW_TABLES", SqlKind.OTHER) {
     @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlShowTables(pos, (SqlIdentifier) operands[0], operands[1]);
+    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos,
+                              SqlNode... operands) {
+      return new SqlShowTables(pos,
+        operands[0] != null ? ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class) : null,
+        (SqlIdentifier) operands[1],
+        (SqlIdentifier) operands[2],
+        operands[3]);
     }
   };
 
-  public SqlShowTables(SqlParserPos pos, SqlIdentifier db, SqlNode likePattern) {
-    super(pos);
-    this.db = db;
+  public SqlShowTables(SqlParserPos pos,
+                       ReferenceType refType,
+                       SqlIdentifier refValue,
+                       SqlIdentifier source,
+                       SqlNode likePattern) {
+    super(pos, source, refType, refValue);
     this.likePattern = likePattern;
   }
 
@@ -60,7 +79,13 @@ public class SqlShowTables extends SqlCall {
   @Override
   public List<SqlNode> getOperandList() {
     List<SqlNode> opList = Lists.newArrayList();
-    opList.add(db);
+    SqlLiteral refTypeSqlLiteral = null;
+    if(getRefType() != null) { // SqlLiteral.createSymbol has asserts preventing null parameters.
+      refTypeSqlLiteral = SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO);
+    }
+    opList.add(refTypeSqlLiteral);
+    opList.add(getRefValue());
+    opList.add(getSourceName());
     opList.add(likePattern);
     return opList;
   }
@@ -69,17 +94,42 @@ public class SqlShowTables extends SqlCall {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("SHOW");
     writer.keyword("TABLES");
-    if (db != null) {
-      db.unparse(writer, leftPrec, rightPrec);
-    }
+
+    unparseRef(writer, leftPrec, rightPrec, "AT");
+    unparseSourceName(writer, leftPrec, rightPrec);
+
     if (likePattern != null) {
       writer.keyword("LIKE");
       likePattern.unparse(writer, leftPrec, rightPrec);
     }
   }
 
-  public SqlIdentifier getDb() { return db; }
   public SqlNode getLikePattern() { return likePattern; }
 
+  public Optional<NamespaceKey> getSourcePath() {
+    return (getSourceName() != null) ?
+      Optional.of(new NamespaceKey(getSourceName().names)) :
+      Optional.empty();
+  }
 
+  @Override
+  public SqlDirectHandler<?> toDirectHandler(QueryContext context) {
+    try {
+      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.direct.ShowTablesHandler");
+      final Constructor<?> ctor = cl.getConstructor(
+        Catalog.class,
+        OptionResolver.class,
+        UserSession.class);
+      return (SqlDirectHandler<?>) ctor.newInstance(
+        context.getCatalog(),
+        context.getOptions(),
+        context.getSession());
+    } catch (ClassNotFoundException e) {
+      throw UserException.unsupportedError(e)
+        .message("SHOW TABLES action is not supported.")
+        .buildSilently();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
 }

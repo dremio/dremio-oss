@@ -32,6 +32,7 @@ import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.DataMode;
@@ -48,6 +49,7 @@ import io.netty.buffer.NettyArrowBuf;
  * batch format, this encoder is added to the Netty pipeline.
  */
 class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandler {
+  private static final Logger logger = LoggerFactory.getLogger(DrillBackwardsCompatibilityHandler.class);
 
   /* format for DECIMAL38_SPARSE in Drill */
   public static final int NUMBER_DECIMAL_DIGITS = 6;
@@ -99,7 +101,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           throw new IllegalStateException("bit vector should be called $bits$ and have type REQUIRED BIT." +
               " Found field: " + field.build());
         }
-        NettyArrowBuf newBuf = convertBitsToBytes(allocator, bitsField, bitsBuffer);
+        NettyArrowBuf newBuf = convertBitsToBytes(getAllocator(), bitsField, bitsBuffer);
         buffers[bufferStart + bitsIndex] = newBuf;
         changed = true;
 
@@ -117,7 +119,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
               || decimalField.getMajorType().getMode() != REQUIRED) {
             throw new IllegalStateException("Found incorrect decimal field: " + field.build());
           }
-          final ByteBuf newBuffer = patchDecimal(allocator, decimalBuffer, field, decimalField);
+          final ByteBuf newBuffer = patchDecimal(getAllocator(), decimalBuffer, field, decimalField);
           buffers[bufferStart + decimalBufferIndex] = newBuffer;
         }
       }
@@ -126,7 +128,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
         // IntervalDay in Drill as an extra unused 4 bytes
         // type width is wrong in ValueVectorTypes.tdd
         // padding each value
-        NettyArrowBuf newBuf = padValues(allocator, field, buffers[bufferStart], 8, 12);
+        NettyArrowBuf newBuf = padValues(getAllocator(), field, buffers[bufferStart], 8, 12);
         buffers[bufferStart] = newBuf;
       }
     }
@@ -258,10 +260,5 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     dataBuffer.release();
 
     return drillBuffer;
-  }
-
-  @Override
-  public Logger getLogger() {
-    return logger;
   }
 }

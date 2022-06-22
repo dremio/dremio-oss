@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import enableFatalPropTypes from 'enableFatalPropTypes';
+import enableFatalPropTypes from "enableFatalPropTypes";
 enableFatalPropTypes();
 
-// make expect and sinon global
-import 'polyfills/polyfills.base';
-
-import chai, { assert, expect } from 'chai';
-import chaiAsPromised from 'chai-as-promised';
-import chaiString from 'chai-string';
-import sinonChai from 'sinon-chai';
-import chaiImmutable from 'chai-immutable';
-import sinon from 'sinon';
-import Immutable from 'immutable';
-import React from 'react';
-import { WebSocket } from 'mock-socket';
+import chai, { assert, expect } from "chai";
+import chaiAsPromised from "chai-as-promised";
+import chaiString from "chai-string";
+import sinonChai from "sinon-chai";
+import chaiImmutable from "chai-immutable";
+import sinon from "sinon";
+import Immutable from "immutable";
+import React from "react";
+import { WebSocket } from "mock-socket";
+import "isomorphic-fetch";
 
 chai.use(chaiAsPromised);
 chai.use(chaiString);

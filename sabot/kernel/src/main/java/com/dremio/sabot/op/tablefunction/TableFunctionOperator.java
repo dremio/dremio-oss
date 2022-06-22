@@ -89,6 +89,8 @@ public class TableFunctionOperator implements SingleInputOperator {
       return 0;
     }
 
+    tableFunction.startBatch(records);
+
     if (currentrow == -1) {
       currentrow++;
       tableFunction.startRow(currentrow);

@@ -13,22 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .main-content {
     width: 100%;
     margin: 0 10px;
+    display: flex;
+    flex-direction: column;
   }
 
   #account-page {
     .separator {
-      border-bottom: 1px solid #D6D6D6;
+      border-bottom: 1px solid #d6d6d6;
       clear: both;
       margin: 5px 0;
     }
 
-    .action{
-      color: #0095FF;
+    .action {
+      color: #0095ff;
       cursor: pointer;
     }
 
@@ -39,7 +42,7 @@
       }
 
       input {
-        border: 1px solid #A3E2FF;
+        border: 1px solid #a3e2ff;
         border-radius: 3px;
         display: block;
         height: 30px;
@@ -49,7 +52,8 @@
       }
     }
 
-    .blue-button, .grey-button {
+    .blue-button,
+    .grey-button {
       width: 150px;
       padding: 7px;
       font-size: 15px;
@@ -59,21 +63,21 @@
     }
 
     .blue-button {
-      background-color: #0096FF;
+      background-color: #0096ff;
       border: none;
       color: white;
     }
 
     .grey-button {
-      background-color: #F5F5F5;
-      border: 1px solid #E0E0E0;
+      background-color: #f5f5f5;
+      border: 1px solid #e0e0e0;
     }
 
     .buttons {
       margin-top: 8px;
     }
 
-    .description{
+    .description {
       margin: 4px 0;
     }
   }

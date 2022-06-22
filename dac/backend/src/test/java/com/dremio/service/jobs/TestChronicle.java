@@ -60,7 +60,7 @@ public class TestChronicle extends BaseTestServer {
     server = InProcessServerBuilder.forName(name)
       .directExecutor()
       .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
-      .addService(new Chronicle(p(LocalJobsService.class)))
+      .addService(new Chronicle(p(LocalJobsService.class), () -> getSabotContext().getExecutorService()))
       .build();
     server.start();
 
@@ -93,7 +93,7 @@ public class TestChronicle extends BaseTestServer {
       .addAllContext(Collections.<String>emptyList())
       .build();
     asyncStub.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(sqlQuery).build(),adapter);
-    final JobId jobId = adapter.getJobId();
+    final JobId jobId = adapter.getJobSubmission().getJobId();
     completionListener.awaitUnchecked();
 
     JobSummary jobSummary = chronicleStub.getJobSummary(JobSummaryRequest.newBuilder()

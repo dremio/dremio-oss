@@ -76,7 +76,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   private final boolean supportsColocatedReads;
   private final boolean trimRowGroups;
   private final boolean vectorize;
-  private final List<ParquetFilterCondition> conditions;
+  private final ParquetFilters filters;
   private final List<SchemaPath> columns;
   private final BatchSchema fullSchema;
   private final FileConfig formatSettings;
@@ -107,7 +107,6 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   public ParquetSplitReaderCreator(boolean autoCorrectCorruptDates,
                                    OperatorContext context,
                                    boolean enableDetailedTracing,
-                                   InputStreamProviderFactory factory,
                                    FileSystem fs,
                                    GlobalDictionaries globalDictionaries,
                                    Map<String, GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
@@ -122,10 +121,9 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                                    boolean vectorize,
                                    SplitAndPartitionInfo splitInfo,
                                    List<List<String>> tablePath,
-                                   List<ParquetFilterCondition> conditions,
+                                   ParquetFilters filters,
                                    List<SchemaPath> columns,
                                    BatchSchema fullSchema,
-                                   boolean arrowCachingEnabled,
                                    FileConfig formatSettings,
                                    List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields,
                                    Map<String, Set<Integer>> pathToRowGroupsMap,
@@ -165,7 +163,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.supportsColocatedReads = supportsColocatedReads;
     this.trimRowGroups = trimRowGroups;
     this.vectorize = vectorize;
-    this.conditions = conditions;
+    this.filters = filters;
     this.columns = columns;
     this.fullSchema = fullSchema;
     this.formatSettings = formatSettings;
@@ -265,7 +263,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                   fullSchema,
                   projectedColumns,
                   globalDictionaryEncodedColumns,
-                  conditions,
+                  new IcebergParquetFilters(filters),
                   splitXAttr,
                   fs,
                   footer,
@@ -281,7 +279,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
           fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
           RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
             projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema,
-            new FileTypeCoercion(fieldsByName), conditions);
+            new FileTypeCoercion(fieldsByName), filters);
           inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
         } else if (DatasetHelper.isDeltaLake(formatSettings)) {
           DeltaLakeParquetReader innerDeltaParquetReader = new DeltaLakeParquetReader(
@@ -290,7 +288,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                   fullSchema,
                   projectedColumns,
                   globalDictionaryEncodedColumns,
-                  conditions,
+                  new DeltaLakeParquetFilters(filters),
                   splitXAttr,
                   fs,
                   footer,
@@ -311,7 +309,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                     fullSchema,
                     projectedColumns,
                     globalDictionaryEncodedColumns,
-                    conditions,
+                    filters,
                     splitXAttr,
                     fs,
                     footer,
@@ -329,7 +327,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
             fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
             RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
                     projectedColumns.getBatchSchemaProjectedColumns(), innerParquetReader, fullSchema,
-                    new FileTypeCoercion(fieldsByName), conditions);
+                    new FileTypeCoercion(fieldsByName), filters);
             return readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
         }
         return inner;

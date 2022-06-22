@@ -13,57 +13,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/resources/sourceDetails';
-import * as AllSourcesActionTypes from 'actions/resources/sources';
-import homeMapper from 'utils/mappers/homeMapper';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import * as ActionTypes from "actions/resources/sourceDetails";
+import * as AllSourcesActionTypes from "actions/resources/sources";
+import homeMapper from "utils/mappers/homeMapper";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
-export const CREATED_SOURCE_NAME = '`createdSource`'; // todo: this is also used for source *editting*?
-const ENTITY_NAME = 'sources';
+export const CREATED_SOURCE_NAME = "`createdSource`"; // todo: this is also used for source *editting*?
+const ENTITY_NAME = "sources";
 
 function getInitialState() {
   return Immutable.fromJS({
     sources: [],
-    sourcesById: {...localStorageUtils.getPinnedItems()[ENTITY_NAME]}
+    sourcesById: { ...localStorageUtils.getPinnedItems()[ENTITY_NAME] },
   });
 }
 
 export default function sourceList(state = getInitialState(), action) {
   switch (action.type) {
-  case AllSourcesActionTypes.GET_CREATED_SOURCE_START:
-    return state.set(CREATED_SOURCE_NAME, Immutable.Map({isInProgress: true}));
-  case AllSourcesActionTypes.GET_CREATED_SOURCE_SUCCESS: {
-    const decoratedSource = homeMapper.decorateSource(Immutable.fromJS(action.payload));
-    const source = state.get(CREATED_SOURCE_NAME).merge(decoratedSource);
-    return state.set(CREATED_SOURCE_NAME, source);
-  }
-  case AllSourcesActionTypes.SOURCES_LIST_LOAD_START: {
-    return state.set('isInProgress', true);
-  }
-  case AllSourcesActionTypes.REMOVE_SOURCE_START: {
-    return state.delete(action.meta.name);
-  }
-  case AllSourcesActionTypes.REMOVE_SOURCE_SUCCESS: {
-    const newSpaces = state.get('sources').filter((value) => {
-      return value !== action.meta.id;
-    });
-
-    return state.set('sources', newSpaces);
-  }
-  case AllSourcesActionTypes.SOURCES_LIST_LOAD_SUCCESS: {
-    const sources = action.payload ? action.payload.getIn(['result', 'sources']) : new Immutable.List();
-    return state.set('sources', sources)
-      .set('isInProgress', false);
-  }
-  case ActionTypes.LOAD_SOURCE_STARTED: {
-    if (state.get(action.meta.resourceId)) {
-      return state.setIn([action.meta.resourceId, 'isInProgress'], true);
+    case AllSourcesActionTypes.GET_CREATED_SOURCE_START:
+      return state.set(
+        CREATED_SOURCE_NAME,
+        Immutable.Map({ isInProgress: true })
+      );
+    case AllSourcesActionTypes.GET_CREATED_SOURCE_SUCCESS: {
+      const decoratedSource = homeMapper.decorateSource(
+        Immutable.fromJS(action.payload)
+      );
+      const source = state.get(CREATED_SOURCE_NAME).merge(decoratedSource);
+      return state.set(CREATED_SOURCE_NAME, source);
     }
-    return state;
-  }
-  default:
-    return state;
+    case AllSourcesActionTypes.SOURCES_LIST_LOAD_START: {
+      return state.set("isInProgress", true);
+    }
+    case AllSourcesActionTypes.REMOVE_SOURCE_START: {
+      return state.delete(action.meta.name);
+    }
+    case AllSourcesActionTypes.REMOVE_SOURCE_SUCCESS: {
+      const newSpaces = state.get("sources").filter((value) => {
+        return value !== action.meta.id;
+      });
+
+      return state.set("sources", newSpaces);
+    }
+    case AllSourcesActionTypes.SOURCES_LIST_LOAD_SUCCESS: {
+      const sources = action.payload
+        ? action.payload.getIn(["result", "sources"])
+        : new Immutable.List();
+      return state.set("sources", sources).set("isInProgress", false);
+    }
+    case ActionTypes.LOAD_SOURCE_STARTED: {
+      if (state.get(action.meta.resourceId)) {
+        return state.setIn([action.meta.resourceId, "isInProgress"], true);
+      }
+      return state;
+    }
+    default:
+      return state;
   }
 }

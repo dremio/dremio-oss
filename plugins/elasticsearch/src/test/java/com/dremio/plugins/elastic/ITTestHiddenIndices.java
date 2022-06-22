@@ -50,7 +50,7 @@ public class ITTestHiddenIndices extends ElasticBaseTestQuery {
   }
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testHiddenIndex() throws Exception {

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import DragTarget from 'components/DragComponents/DragTarget';
+import DragTarget from "components/DragComponents/DragTarget";
 
-import ExploreDragArea from './ExploreDragArea';
+import ExploreDragArea from "./ExploreDragArea";
 
-describe('ExploreDragArea', () => {
+describe("ExploreDragArea", () => {
   let minimalProps;
   let commonProps;
 
@@ -27,28 +27,30 @@ describe('ExploreDragArea', () => {
     minimalProps = {
       handleDrop: sinon.spy(),
       getColumnsForDragArea: sinon.spy(),
-      dragType: 'test',
-      emptyDragAreaText: 'DragTarget TEXT',
-      isDragged: false
+      dragType: "test",
+      emptyDragAreaText: "DragTarget TEXT",
+      isDragged: false,
     };
     commonProps = {
       ...minimalProps,
-      children: [<div>foo</div>]
+      children: [<div key="foo">foo</div>],
     };
   });
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<ExploreDragArea {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render emptyDragAreaText if no children', () => {
+  it("should render emptyDragAreaText if no children", () => {
     const wrapper = shallow(<ExploreDragArea {...minimalProps} />);
-    expect(wrapper.find('.empty-text').text()).to.eql(minimalProps.emptyDragAreaText);
+    expect(wrapper.find(".empty-text").text()).to.eql(
+      minimalProps.emptyDragAreaText
+    );
   });
-  it('should not render emptyDragAreaText if there are children', () => {
+  it("should not render emptyDragAreaText if there are children", () => {
     const wrapper = shallow(<ExploreDragArea {...commonProps} />);
-    expect(wrapper.find('.empty-text')).to.have.length(0);
+    expect(wrapper.find(".empty-text")).to.have.length(0);
   });
-  it('should render DragTarget component', () => {
+  it("should render DragTarget component", () => {
     const wrapper = shallow(<ExploreDragArea {...commonProps} />);
     expect(wrapper.find(DragTarget)).to.have.length(1);
   });

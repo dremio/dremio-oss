@@ -26,6 +26,13 @@ import com.dremio.service.Service;
 public interface TokenManager extends Service {
 
   /**
+   * Generate a securely random token.
+   *
+   * @return a token string
+   */
+  String newToken();
+
+  /**
    * Create a token for the session, and return details about the token.
    *
    * @param username user name
@@ -33,6 +40,22 @@ public interface TokenManager extends Service {
    * @return token details
    */
   TokenDetails createToken(String username, String clientAddress);
+
+  /**
+   * Create access tokens for third party application.
+   * TODO DX-48722: Create Token type.
+   *
+   * @param username username of the user that grants access to the third party application.
+   * @param clientAddress TODO noop
+   * @param clientID client_id of the third party application (OAuth application)
+   * @param scopes scopes of the accessible resource
+   * @return token details
+   */
+  TokenDetails createThirdPartyToken(final String username,
+                                     final String clientAddress,
+                                     final String clientID,
+                                     final List<String> scopes,
+                                     final long durationMillis);
 
   /**
    * Create a temporary token for certain API requests that require ui to make

@@ -13,35 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Fragment, PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { DateRange } from 'react-date-range';
-import moment from 'moment';
+import { Fragment, PureComponent } from "react";
+import PropTypes from "prop-types";
+import moment from "@app/utils/dayjs";
+import classNames from "classnames";
 
-import { SelectView } from '@app/components/Fields/SelectView';
-import FontIcon from 'components/Icon/FontIcon';
+import { SelectView } from "@app/components/Fields/SelectView";
+import FontIcon from "components/Icon/FontIcon";
 
-import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { dateTypeToFormat, TIME, DATE } from '@app/constants/DataTypes';
+import { dateTypeToFormat, TIME, DATE } from "@app/constants/DataTypes";
 
-import TimePicker from './TimePicker';
+import TimePicker from "./TimePicker";
+import DateRangePicker from "../DateRangePicker/DateRangePicker";
 
-@Radium
+import * as classes from "./DateInput.module.less";
+
 export default class DateInput extends PureComponent {
-
   static propTypes = {
     onChange: PropTypes.func,
     value: PropTypes.string,
     disabled: PropTypes.bool,
     type: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   static mergeDateWithTime(dateMoment, timeMoment, type) {
-    const newMoment = dateMoment.clone().startOf('day');
-    const justTime = timeMoment.diff(timeMoment.clone().startOf('day'));
-    newMoment.add(justTime, 'milliseconds');
+    const newMoment = dateMoment.clone().startOf("day");
+    const justTime = timeMoment.diff(timeMoment.clone().startOf("day"));
+
+    //Adding NaN in dayJS results in Invalid Date
+    if (!isNaN(justTime)) {
+      newMoment.add(justTime, "milliseconds");
+    }
+
     return newMoment.format(dateTypeToFormat[type]);
   }
 
@@ -49,13 +53,13 @@ export default class DateInput extends PureComponent {
     super(props);
 
     this.state = {
-      value: props.value
+      value: props.value,
     };
   }
 
   componentWillReceiveProps(nextProps) {
     const { value } = nextProps;
-    if (value !== '') {
+    if (value !== "") {
       this.setState({ value });
     }
   }
@@ -63,35 +67,37 @@ export default class DateInput extends PureComponent {
   getPopoverStyle() {
     const { type } = this.props;
     switch (type) {
-    case TIME:
-      return styles.timePopover;
-    case DATE:
-      return styles.datePopover;
-    default:
-      return styles.dateTimePopover;
+      case TIME:
+        return styles.timePopover;
+      case DATE:
+        return styles.datePopover;
+      default:
+        return styles.dateTimePopover;
     }
   }
   handleCalendarSelect = (closeDD, date) => {
     const { onChange, value, type } = this.props;
 
-    const dateMoment = date.startDate;
+    const dateMoment = moment(date.startDate);
     const newValue = dateMoment.format(dateTypeToFormat[type]);
     if (onChange && newValue !== value) {
       const currentMoment = moment(value, dateTypeToFormat[type]);
       onChange(DateInput.mergeDateWithTime(dateMoment, currentMoment, type));
       closeDD();
     }
-  }
+  };
   handleTimeChange = (timeMoment) => {
     const { onChange, value, type } = this.props;
     if (onChange) {
-      const dateMoment = !value ? moment().startOf('day') : moment(value, dateTypeToFormat[type]);
+      const dateMoment = !value
+        ? moment().startOf("day")
+        : moment(value, dateTypeToFormat[type]);
       onChange(DateInput.mergeDateWithTime(dateMoment, timeMoment, type));
     }
-  }
+  };
   handleInputChange = (e) => {
     this.setState({ value: e.target.value });
-  }
+  };
   handleInputBlur = () => {
     const { value } = this.state;
     const { onChange, type } = this.props;
@@ -99,33 +105,33 @@ export default class DateInput extends PureComponent {
     if (valueMoment.isValid()) {
       onChange(value);
     }
-  }
+  };
   renderCalendar(closeDD) {
     const { value, type } = this.props;
     const showTimePicker = type !== DATE;
     const showCalendar = type !== TIME;
-    const date = !value ? moment().startOf('day') : moment(value);
-    const time = value || moment().format('hh:mm:ss');
+    const date = !value ? moment().startOf("day") : moment(value);
+    const time = value || moment().format("hh:mm:ss");
 
     return (
-      <div>
-        {showTimePicker
-          ? <TimePicker key='time-picker' columnType={type} value={time} onBlur={this.handleTimeChange} />
-          : null}
-        {showCalendar
-          ? <DateRange
-            key='date-range'
-            calendars='3'
-            linkedCalendars
-            format={dateTypeToFormat[type]}
-            theme={calendarTheme}
-            classNames={{ dayToday: 'today' }}
-            onChange={this.handleCalendarSelect.bind(this, closeDD)}
-            startDate={date}
-            endDate={date}
+      <>
+        {showTimePicker ? (
+          <TimePicker
+            key="time-picker"
+            columnType={type}
+            value={time}
+            onBlur={this.handleTimeChange}
           />
-          : null}
-      </div>
+        ) : null}
+        {showCalendar ? (
+          <DateRangePicker
+            months={1}
+            onChange={this.handleCalendarSelect.bind(this, closeDD)}
+            startDate={date.toDate()}
+            endDate={date.toDate()}
+          />
+        ) : null}
+      </>
     );
   }
 
@@ -138,141 +144,47 @@ export default class DateInput extends PureComponent {
         content={
           <Fragment>
             <input
-              key='date-input'
-              ref='input'
-              style={[styles.input, props.style]}
-              type='text'
+              key="date-input"
+              className={classes["dremio-date-input__input"]}
+              style={props.style}
+              type="text"
               value={state.value}
               onChange={this.handleInputChange}
               onBlur={this.handleInputBlur}
             />
-            <FontIcon
-              key='date-icon'
-              type='TypeDateTime'
-              theme={styles.icon}
-            />
+            <FontIcon key="date-icon" type="TypeDateTime" theme={styles.icon} />
           </Fragment>
         }
         hideExpandIcon
-        className='field'
+        className={classNames("field", classes["dremio-date-input"])}
         style={styles.base}
         useLayerForClickAway={false}
       >
-        {
-          ({ closeDD }) => (
-            <div style={popoverStyle}>
-              {this.renderCalendar(closeDD)}
-            </div>
-          )
-        }
+        {({ closeDD }) => (
+          <div style={popoverStyle}>{this.renderCalendar(closeDD)}</div>
+        )}
       </SelectView>
     );
   }
 }
 
-const calendarTheme = {
-  'DateRange': {
-    'background': 'inherit',
-    'margin': '4px auto 4px auto',
-    'width': 430
-  },
-  'Calendar': {
-    'background': 'inherit',
-    'boxSizing': 'content-box',
-    'width': '140',
-    'padding': '0'
-  },
-
-  'MonthAndYear': {
-    'padding': 0,
-    'color': '#949494',
-    'height': 20
-  },
-  'MonthButton': {
-    'margin': 0,
-    'background': 'inherit'
-  },
-  'MonthArrow': {
-    'border': '6px solid transparent'
-  },
-  'MonthArrowPrev': {
-    'borderRightColor': '#a4a4a4'
-  },
-  'MonthArrowNext': {
-    'borderLeftColor': '#a4a4a4'
-  },
-  'Weekday': {
-    'lineHeight': '16px',
-    'letterSpacing': 'none',
-    'height': 17,
-    'color': '#707070',
-    'fontWeight': 0,
-    'fontSize': 11,
-    'width': 19,
-    'marginBottom': 1
-  },
-  'DayInRange': {
-    'background': PALE_NAVY,
-    'color': '#333'
-  },
-  'DayStartEdge': {
-    'background': PALE_NAVY,
-    'borderRadius': '15px 0 0 15px',
-    'color': '#333'
-  },
-  'DayEndEdge': {
-    'background': PALE_NAVY,
-    'borderRadius': '0 15px 15px 0',
-    'color': '#333'
-  },
-  'Day': {
-    'width': 19,
-    'marginBottom': 1,
-    'borderBottom': '1px solid rgba(0,0,0,.1)',
-    'color': '#333'
-  },
-  'DayHover': {
-    'color': '#f4f4f4'
-  }
-};
-
 const styles = {
-  base: {
-    width: 310,
-    display: 'flex',
-    height: 24,
-    position: 'relative'
-  },
-  dateTimePopover: {
-    height: 220
-  },
+  dateTimePopover: {},
   timePopover: {
-    height: 33
+    height: 40,
   },
   datePopover: {
-    height: 180
-  },
-  input: {
-    width: 300,
-    height: 24,
-    fontSize: 13,
-    border: '1px solid #ccc',
-    borderRadius: 3,
-    outline: 'none',
-    marginLeft: 10,
-    float: 'left',
-    padding: 2
+    height: "auto",
   },
   icon: {
     Container: {
-      position: 'relative',
-      width: 34,
+      position: "relative",
       right: 40,
-      cursor: 'pointer'
+      cursor: "pointer",
     },
     Icon: {
-      width: 30,
-      height: 24
-    }
-  }
+      width: 24,
+      height: 24,
+    },
+  },
 };

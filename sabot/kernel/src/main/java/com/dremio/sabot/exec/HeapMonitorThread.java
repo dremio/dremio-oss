@@ -43,6 +43,9 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
   // threshold at which notifications should be received.
   private final long thresholdPercentage;
 
+  // delay after which the heap monitor acts on the threshold exceeded notification
+  private final long heapMonitorDelayMillis;
+
   // map from pool name to collection-threshold-exceeded count.
   private Map<String, Long> monitoredPools = new HashMap<>();
 
@@ -51,12 +54,13 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
 
   private boolean shutdown = false;
 
-  public HeapMonitorThread(HeapClawBackStrategy strategy, long thresholdPercentage, Role role) {
+  public HeapMonitorThread(HeapClawBackStrategy strategy, long thresholdPercentage, long heapMonitorDelayMillis, Role role) {
     super();
     setDaemon(true);
     setName("heap-monitoring-thread-"+ role.name().toLowerCase());
     this.strategy = strategy;
     this.thresholdPercentage = thresholdPercentage;
+    this.heapMonitorDelayMillis = heapMonitorDelayMillis;
   }
 
   private class LowMemListener implements javax.management.NotificationListener {
@@ -140,6 +144,10 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
       if (monitoredPools.get(pool.getName()) < thresholdExceededCount) {
         monitoredPools.put(pool.getName(), thresholdExceededCount);
 
+        // Wait for specified time for a short GC to happen, if any
+        logger.info("Threshold exceeded notification. HeapMonitor paused for "+ heapMonitorDelayMillis+"ms");
+        Thread.sleep(heapMonitorDelayMillis);
+
         // Check actual usage
         if (pool.getUsage().getUsed() >= pool.getCollectionUsageThreshold()) {
           exceeded = true;
@@ -147,6 +155,7 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
             " in pool " + pool.getName() +
             " exceeded threshold " + pool.getCollectionUsageThreshold() +
             " threshold_cnt " + pool.getCollectionUsageThresholdCount());
+          break;
         }
       }
     }

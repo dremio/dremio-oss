@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getViewStateFromReq } from '@app/utils/smartPromise';
-import ViewStateWrapper from '../ViewStateWrapper';
+import { getViewStateFromReq } from "@app/utils/smartPromise";
+import ViewStateWrapper from "../ViewStateWrapper";
 
-function PromiseViewState({ error, status }: { error: any, status: any }) {
+function PromiseViewState({ error, status }: { error: any; status: any }) {
   const viewState = getViewStateFromReq(error, status);
   if (!viewState) return null;
-  const style = !viewState.get('isInProgress') ? { height: 'auto' } : { position: 'relative' };
+  const style = !viewState.get("isInProgress")
+    ? { height: "auto" }
+    : { position: "relative" };
   return <ViewStateWrapper style={style} viewState={viewState} />;
 }
 

@@ -13,39 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { TopPanel } from './TopPanel';
+import { shallow } from "enzyme";
+import { TopPanel } from "./TopPanel";
 
-describe('TopPanel', () => {
-
+describe("TopPanel", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       changePages: sinon.spy(),
-      jobId: '456',
-      jobStatus:'',
+      jobId: "456",
+      jobStatus: "",
       router: {},
       location: {},
       jobDetails: Immutable.fromJS({
-        attemptDetails: [{
-          profileUrl: ''
-        }],
-        queriedDatasets: [{datasetPathsList: []}]
-      })
+        attemptDetails: [
+          {
+            profileUrl: "",
+          },
+        ],
+        queriedDatasets: [{ datasetPathsList: [] }],
+      }),
     };
   });
 
-  xit('should render with minimal props without exploding', () => {
+  xit("should render with minimal props without exploding", () => {
     const wrapper = shallow(<TopPanel {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  xit('should render jobid', () => {
+  xit("should render jobid", () => {
     const props = {
       ...minimalProps,
-      jobId: '293'
+      jobId: "293",
     };
     const wrapper = shallow(<TopPanel {...props} />);
     const element = wrapper.find('[data-qa="top-panel-jobId"]');
-    expect(element.text()).to.equal('293');
+    expect(element.text()).to.equal("293");
   });
 });

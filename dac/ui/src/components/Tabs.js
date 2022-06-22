@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-
+import React, { PureComponent } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
 export default class Tabs extends PureComponent {
-
   static propTypes = {
     children: PropTypes.node.isRequired,
     activeTab: PropTypes.string,
     className: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   render() {
     const { children, activeTab, style, className } = this.props;
     return (
-      <div className={classNames('tab-wrapper', className)} style={style}>
+      <div className={classNames("tab-wrapper", className)} style={style}>
         {React.Children.map(children, (item) => {
           if (activeTab === item.props.tabId) {
             return item;

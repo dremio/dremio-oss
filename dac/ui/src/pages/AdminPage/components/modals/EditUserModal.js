@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-import Modal from 'components/Modals/Modal';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
+import Modal from "components/Modals/Modal";
+import ApiUtils from "utils/apiUtils/apiUtils";
+import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
 
-import EditUserForm from '../forms/EditUserForm';
-import './Modal.less';
+import EditUserForm from "../forms/EditUserForm";
+import "./Modal.less";
 
 export class EditUserModal extends Component {
-
   static propTypes = {
     userId: PropTypes.string,
     isOpen: PropTypes.bool,
@@ -32,30 +31,29 @@ export class EditUserModal extends Component {
     loadUser: PropTypes.func,
     editUser: PropTypes.func,
     query: PropTypes.object,
-    updateFormDirtyState: PropTypes.func
+    updateFormDirtyState: PropTypes.func,
   };
 
   submit = (submitPromise) => {
-    return ApiUtils.attachFormSubmitHandlers(
-      submitPromise
-    ).then(() => {
+    return ApiUtils.attachFormSubmitHandlers(submitPromise).then(() => {
       this.onHide(null, true);
+      return null;
     });
-  }
+  };
 
   onHide = (...args) => {
     const { hide } = this.props;
     hide(...args);
-  }
+  };
 
   render() {
     const { userId, isOpen, updateFormDirtyState } = this.props;
     return (
       <Modal
-        title={userId ? la('Edit User') : la('Add User')}
-        size='small'
+        title={userId ? la("Edit User") : la("Add User")}
+        size="small"
         isOpen={isOpen}
-        classQa='add-user-modal'
+        classQa="add-user-modal"
         hide={this.onHide}
       >
         <EditUserForm
@@ -72,5 +70,3 @@ export class EditUserModal extends Component {
 }
 
 export default FormUnsavedWarningHOC(EditUserModal);
-
-

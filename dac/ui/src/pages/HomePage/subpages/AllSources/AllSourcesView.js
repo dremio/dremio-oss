@@ -13,104 +13,123 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import moment from 'moment';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import moment from "@app/utils/dayjs";
+import PropTypes from "prop-types";
+import Radium from "radium";
+import { injectIntl } from "react-intl";
 
-import EntityLink from '@app/pages/HomePage/components/EntityLink';
-import EllipsedText from 'components/EllipsedText';
+import EntityLink from "@app/pages/HomePage/components/EntityLink";
+import EllipsedText from "components/EllipsedText";
 
-import LinkButton from 'components/Buttons/LinkButton';
-import ResourcePin from 'components/ResourcePin';
-import AllSourcesMenu from 'components/Menus/HomePage/AllSourcesMenu';
-import FontIcon from 'components/Icon/FontIcon';
+import LinkButton from "components/Buttons/LinkButton";
+import ResourcePin from "components/ResourcePin";
+import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
+import FontIcon from "components/Icon/FontIcon";
 
-import SettingsBtn from 'components/Buttons/SettingsBtn';
-import { SortDirection } from 'components/VirtualizedTableViewer';
-import { getIconStatusDatabase } from 'utils/iconUtils';
+import SettingsBtn from "components/Buttons/SettingsBtn";
+import { SortDirection } from "components/VirtualizedTableViewer";
+import { getIconStatusDatabase } from "utils/iconUtils";
 
-import * as allSpacesAndAllSources from 'uiTheme/radium/allSpacesAndAllSources';
-import BrowseTable from '../../components/BrowseTable';
-import { tableStyles } from '../../tableStyles';
+import * as allSpacesAndAllSources from "uiTheme/radium/allSpacesAndAllSources";
+import BrowseTable from "../../components/BrowseTable";
+import { tableStyles } from "../../tableStyles";
 
-@injectIntl
-@Radium
-export default class AllSourcesView extends PureComponent {
+class AllSourcesView extends PureComponent {
   static propTypes = {
     sources: PropTypes.object,
     intl: PropTypes.object.isRequired,
     title: PropTypes.string.isRequired,
     isExternalSource: PropTypes.bool,
-    isDataPlaneSource: PropTypes.bool
-  }
+    isDataPlaneSource: PropTypes.bool,
+  };
 
   static contextTypes = {
     location: PropTypes.object.isRequired,
-    loggedInUser: PropTypes.object.isRequired
-  }
+    loggedInUser: PropTypes.object.isRequired,
+  };
 
   getTableData() {
-    const [ name, datasets, created, action ] = this.getTableColumns();
-    return this.props.sources.toList().sort((a, b) => b.get('isActivePin') - a.get('isActivePin')).map((item) => {
-      const icon = <FontIcon type={getIconStatusDatabase(item.getIn(['state', 'status']))}/>;
-      return { // todo: loc
-        rowClassName: item.get('name'),
-        data: {
-          [name.key]: {
-            node: () => (
-              <div style={allSpacesAndAllSources.listItem}>
-                {icon}
-                <EntityLink entityId={item.get('id')}>
-                  <EllipsedText text={item.get('name')} />
-                </EntityLink>
-                <ResourcePin entityId={item.get('id')} />
-              </div>
-            ),
-            value(sortDirection = null) { // todo: DRY
-              if (!sortDirection) return item.get('name');
-              const activePrefix = sortDirection === SortDirection.ASC ? 'a' : 'z';
-              const inactivePrefix = sortDirection === SortDirection.ASC ? 'z' : 'a';
-              return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
-            }
+    const [name, datasets, created, action] = this.getTableColumns();
+    return this.props.sources
+      .toList()
+      .sort((a, b) => b.get("isActivePin") - a.get("isActivePin"))
+      .map((item) => {
+        const icon = (
+          <FontIcon
+            type={getIconStatusDatabase(
+              item.getIn(["state", "status"]),
+              item.get("type")
+            )}
+          />
+        );
+        return {
+          // todo: loc
+          rowClassName: item.get("name"),
+          data: {
+            [name.key]: {
+              node: () => (
+                <div style={allSpacesAndAllSources.listItem}>
+                  {icon}
+                  <EntityLink entityId={item.get("id")}>
+                    <EllipsedText text={item.get("name")} />
+                  </EntityLink>
+                  <ResourcePin entityId={item.get("id")} />
+                </div>
+              ),
+              value(sortDirection = null) {
+                // todo: DRY
+                if (!sortDirection) return item.get("name");
+                const activePrefix =
+                  sortDirection === SortDirection.ASC ? "a" : "z";
+                const inactivePrefix =
+                  sortDirection === SortDirection.ASC ? "z" : "a";
+                return (
+                  (item.get("isActivePin") ? activePrefix : inactivePrefix) +
+                  item.get("name")
+                );
+              },
+            },
+            [datasets.key]: {
+              node: () => item.get("numberOfDatasets"),
+            },
+            [created.key]: {
+              node: () => moment(item.get("ctime")).format("MM/DD/YYYY"),
+              value: new Date(item.get("ctime")),
+            },
+            [action.key]: {
+              node: () => (
+                <span className="action-wrap">
+                  <SettingsBtn
+                    routeParams={this.context.location.query}
+                    menu={<AllSourcesMenu item={item} />}
+                    dataQa={item.get("name")}
+                  />
+                </span>
+              ),
+            },
           },
-          [datasets.key]: {
-            node: () => item.get('numberOfDatasets')
-          },
-          [created.key]: {
-            node: () => moment(item.get('ctime')).format('MM/DD/YYYY'),
-            value: new Date(item.get('ctime'))
-          },
-          [action.key]: {
-            node: () => (
-              <span className='action-wrap'>
-                <SettingsBtn
-                  routeParams={this.context.location.query}
-                  menu={<AllSourcesMenu item={item}/>}
-                  dataQa={item.get('name')}
-                />
-              </span>
-            )
-          }
-        }
-      };
-    });
+        };
+      });
   }
 
   getTableColumns() {
     const { intl } = this.props;
     return [
-      { key: 'name', label: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1 },
-      { key: 'datasets', label: intl.formatMessage({ id: 'Common.Datasets' }) },
-      { key: 'created', label: intl.formatMessage({ id: 'Common.Created' }) },
       {
-        key: 'action',
-        label: intl.formatMessage({ id: 'Common.Action' }),
+        key: "name",
+        label: intl.formatMessage({ id: "Common.Name" }),
+        flexGrow: 1,
+      },
+      { key: "datasets", label: intl.formatMessage({ id: "Common.Datasets" }) },
+      { key: "created", label: intl.formatMessage({ id: "Common.Created" }) },
+      {
+        key: "action",
+        label: intl.formatMessage({ id: "Common.Action" }),
         style: tableStyles.actionColumn,
         disableSort: true,
-        width: 60
-      }
+        width: 60,
+      },
     ];
   }
 
@@ -118,19 +137,31 @@ export default class AllSourcesView extends PureComponent {
     const { isExternalSource, isDataPlaneSource } = this.props;
 
     /*eslint no-nested-ternary: "off"*/
-    const headerId = isExternalSource ? 'Source.AddExternalSource' :
-      isDataPlaneSource ? 'Source.AddDataPlane' : 'Source.AddDataLake';
+    const headerId = isExternalSource
+      ? "Source.AddExternalSource"
+      : isDataPlaneSource
+      ? "Source.AddDataPlane"
+      : "Source.AddDataLake";
 
     return (
-      this.context.loggedInUser.admin && <LinkButton
-        buttonStyle='primary'
-        to={{ ...this.context.location, state: { modal: 'AddSourceModal', isExternalSource, isDataPlaneSource }}}
-        style={allSpacesAndAllSources.addButton}>
-        {this.props.intl.formatMessage({ id: headerId })}
-      </LinkButton>
+      this.context.loggedInUser.admin && (
+        <LinkButton
+          buttonStyle="primary"
+          to={{
+            ...this.context.location,
+            state: {
+              modal: "AddSourceModal",
+              isExternalSource,
+              isDataPlaneSource,
+            },
+          }}
+          style={allSpacesAndAllSources.addButton}
+        >
+          {this.props.intl.formatMessage({ id: headerId })}
+        </LinkButton>
+      )
     );
   }
-
 
   render() {
     const { sources, title } = this.props;
@@ -145,3 +176,4 @@ export default class AllSourcesView extends PureComponent {
     );
   }
 }
+export default injectIntl(Radium(AllSourcesView));

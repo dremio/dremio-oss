@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-  #admin-user{
-      
-    .add-users{
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  #admin-user {
+    .add-users {
       background: #eee;
       border: 1px solid #c2c2c2;
       width: 150px;
@@ -29,6 +29,7 @@
     }
 
     .actions-wrap{
+      opacity: 0;
       .grey-button{
         background: #eee;
         border: 1px solid #c2c2c2;
@@ -41,16 +42,16 @@
       }
     }
 
-    .group-count{
+    .group-count {
       color: #232aff;
       cursor: pointer;
-    }   
+    }
 
-    h2{
+    h2 {
       float: left;
     }
   }
-  .tooltip-group{
+  .tooltip-group {
     text-align: left;
   }
 }

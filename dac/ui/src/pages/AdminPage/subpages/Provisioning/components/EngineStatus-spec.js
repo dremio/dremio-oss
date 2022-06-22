@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import EngineStatus from './EngineStatus';
+import EngineStatus from "./EngineStatus";
 
-describe('EngineStatus', () => {
+describe("EngineStatus", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      engine: Immutable.fromJS({})
+      engine: Immutable.fromJS({}),
     };
     commonProps = {
-      engine: Immutable.fromJS({currentState: 'RUNNING'})
+      engine: Immutable.fromJS({ currentState: "RUNNING" }),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<EngineStatus {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<EngineStatus {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<EngineStatus {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<EngineStatus {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
-
 });

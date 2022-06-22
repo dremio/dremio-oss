@@ -180,9 +180,14 @@ public class Unpivots {
 
   public static void unpivotToAllocedOutput(PivotDef pivot, final FixedBlockVector fixedVector,
                                             final VariableBlockVector variableVector, final int start, final int count, final int seekInOutput) {
-    final int blockWidth = pivot.getBlockWidth();
     final long fixedAddr = fixedVector.getMemoryAddress();
     final long variableAddr = variableVector.getMemoryAddress();
+    unpivotToAllocedOutput(pivot, fixedAddr, variableAddr, start, count, seekInOutput);
+  }
+
+  public static void unpivotToAllocedOutput(PivotDef pivot, final long fixedAddr, final long variableAddr,
+                                            final int start, final int count, final int seekInOutput) {
+    final int blockWidth = pivot.getBlockWidth();
 
     // unpivots bit arrays
     for(VectorPivotDef v : pivot.getVectorPivots()){

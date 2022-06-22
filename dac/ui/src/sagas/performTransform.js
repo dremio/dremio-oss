@@ -13,126 +13,421 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { all, put, call, takeEvery, spawn, select, take, fork} from 'redux-saga/effects';
-import invariant from 'invariant';
-import { newUntitledSql, newUntitledSqlAndRun } from 'actions/explore/dataset/new';
-import { PERFORM_TRANSFORM, runTableTransform } from 'actions/explore/dataset/transform';
-import { resetViewState } from 'actions/resources';
-import { initializeExploreJobProgress } from '@app/actions/explore/dataset/data';
+import {
+  all,
+  put,
+  call,
+  takeEvery,
+  select,
+  take,
+  fork,
+} from "redux-saga/effects";
+import invariant from "invariant";
+import { cloneDeep } from "lodash";
+import { intl } from "@app/utils/intl";
+import {
+  newUntitledSql,
+  newUntitledSqlAndRun,
+} from "actions/explore/dataset/new";
+import {
+  PERFORM_TRANSFORM,
+  runTableTransform,
+} from "actions/explore/dataset/transform";
+import { resetViewState } from "actions/resources";
+import { initializeExploreJobProgress } from "@app/actions/explore/dataset/data";
+import { SQLEditor } from "@app/components/SQLEditor";
+import openPopupNotification from "@app/components/PopupNotification/PopupNotification";
 import {
   PERFORM_TRANSFORM_AND_RUN,
   runDataset,
   transformAndRunDataset,
-  RUN_DATASET_SQL
-} from 'actions/explore/dataset/run';
-import { expandExploreSql } from 'actions/explore/ui';
+  RUN_DATASET_SQL,
+} from "actions/explore/dataset/run";
 
-import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
-
-import { loadTableData, cancelDataLoad, loadDataset, focusSqlEditorSaga } from '@app/sagas/performLoadDataset';
-import { transformHistoryCheck } from 'sagas/transformHistoryCheck';
-import { getExploreState, getExplorePageDataset } from 'selectors/explore';
-import { getExploreViewState } from 'selectors/resources';
-import { updateTransformData } from '@inject/actions/explore/dataset/updateLocation';
-
-import apiUtils from 'utils/apiUtils/apiUtils';
-import { needsTransform } from 'sagas/utils';
+import { EXPLORE_TABLE_ID } from "reducers/explore/view";
 
 import {
-  transformThenNavigate, TransformFailedError, TransformCanceledError, TransformCanceledByLocationChangeError
-} from './transformWatcher';
-import { getNessieReferences } from './nessie';
+  loadTableData,
+  cancelDataLoad,
+  loadDataset,
+} from "@app/sagas/performLoadDataset";
+import { transformHistoryCheck } from "sagas/transformHistoryCheck";
+import { getExploreState, getExplorePageDataset } from "selectors/explore";
+import { getExploreViewState } from "selectors/resources";
+import { updateTransformData } from "@inject/actions/explore/dataset/updateLocation";
+import {
+  setQuerySelections,
+  setQueryStatuses,
+  setPreviousMultiSql,
+  setSelectedSql,
+  setIsMultiQueryRunning,
+  setPreviousAndCurrentSql,
+} from "actions/explore/view";
+
+import apiUtils from "utils/apiUtils/apiUtils";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { needsTransform } from "sagas/utils";
+import { SqlStringUtils } from "utils/SqlStringUtils/SqlStringUtils";
+import { showConfirmationDialog } from "actions/confirmation";
+
+import { getReferenceListForTransform } from "@app/utils/nessieUtils";
+import { hasReferencesChanged } from "@app/utils/datasetUtils";
+import exploreUtils from "@app/utils/explore/exploreUtils";
+import {
+  transformThenNavigate,
+  TransformFailedError,
+  TransformCanceledError,
+  TransformCanceledByLocationChangeError,
+} from "./transformWatcher";
+import { getNessieReferences } from "./nessie";
+import {
+  fetchFilteredJobsList,
+  resetFilteredJobsList,
+} from "@app/actions/joblist/jobList";
 
 export default function* watchPerformTransform() {
   yield all([
     takeEvery(PERFORM_TRANSFORM, handlePerformTransform),
     takeEvery(PERFORM_TRANSFORM_AND_RUN, handlePerformTransformAndRun),
-    fork(processRunDatasetSql)
+    fork(processRunDatasetSql),
   ]);
 }
 
 function* processRunDatasetSql() {
-  while (true) { // eslint-disable-line no-constant-condition
+  while (true) {
+    // eslint-disable-line no-constant-condition
     const action = yield take(RUN_DATASET_SQL);
     yield call(handleRunDatasetSql, action);
   }
 }
 
 export function* handlePerformTransformAndRun({ payload }) {
-  yield* performTransform({...payload, isRun: true});
+  yield* performTransform({ ...payload, isRun: true });
 }
 
 export function* handlePerformTransform({ payload }) {
   yield* performTransform(payload);
 }
 
-// callback = function(didTransform, dataset)
-export function* performTransform({
-  dataset, currentSql, queryContext, viewId, nextTable, isRun, transformData,
-  callback, // function(didTransform, dataset)
-  forceDataLoad // a boolean flag that forces a preview reload, when nothing is changed
-}) {
+// wrapper for multiple queries
+export function* performTransform(payload) {
   try {
-    const { apiAction, navigateOptions } = yield call(getFetchDatasetMetaAction, {
-      dataset, currentSql, queryContext, viewId, nextTable, isRun, transformData,
-      forceDataLoad
-    });
+    const {
+      runningSql,
+      currentSql,
+      callback,
+      indexToModify,
+      isSaveViewAs,
+      isRun,
+    } = payload;
+    yield put(setIsMultiQueryRunning({ running: true }));
+
+    let queryStatuses = [];
+    const [queries, selections] = SqlStringUtils(runningSql || currentSql);
+    queries.forEach((query) =>
+      queryStatuses.push({ sqlStatement: query, cancelled: false })
+    );
+
+    // callback is passed in when clicking on actions
+    if (!callback && indexToModify == undefined) {
+      yield put(resetFilteredJobsList());
+      yield put(setQueryStatuses({ statuses: queryStatuses }));
+      yield put(setQuerySelections({ selections }));
+      yield put(setPreviousMultiSql({ sql: currentSql }));
+    }
+
+    let sessionId = "";
+    let shouldBreak;
+    for (let i = 0; i < queries.length; i++) {
+      let exploreState = yield select(getExploreState);
+      if (!exploreState || (isSaveViewAs && i)) {
+        shouldBreak = true;
+        break;
+      }
+
+      const preUpdatedQueryStatuses = exploreState
+        ? exploreState.view.queryStatuses
+        : queryStatuses;
+      if (
+        preUpdatedQueryStatuses.length &&
+        preUpdatedQueryStatuses[i].cancelled
+      ) {
+        continue;
+      }
+
+      // handle API call (Temp solution, waiting on backend to provide a fix)
+      const isLastQuery = i === queryStatuses.length - 1;
+      const [response, newVersion] = yield call(
+        performTransformSingle,
+        { ...payload, sessionId },
+        queryStatuses[i]
+      );
+
+      exploreState = yield select(getExploreState);
+      if (!exploreState) {
+        shouldBreak = true;
+        break;
+      }
+      const updatedQueryStatuses = cloneDeep(
+        exploreState.view && exploreState.view.queryStatuses
+      );
+      const mostRecentStatuses = updatedQueryStatuses.length
+        ? updatedQueryStatuses
+        : cloneDeep(queryStatuses);
+
+      // handle success
+      if (response && response.payload) {
+        [sessionId] = yield call(handlePerformTransformSuccess, {
+          response,
+          queryStatuses: mostRecentStatuses,
+          curIndex: i,
+          indexToModify,
+          callback,
+        });
+
+        const resultDataset = apiUtils.getEntityFromResponse(
+          "datasetUI",
+          response
+        );
+        const [, jobId] = apiUtils.getFromResponse(response);
+
+        if (!isSaveViewAs) {
+          // add job definition to jobs table
+          yield put(
+            fetchFilteredJobsList(jobId, "JOB_PAGE_NEW_VIEW_ID", indexToModify)
+          );
+          // we successfully loaded a dataset metadata. We need load table data for it
+          yield call(loadTableData, resultDataset.get("datasetVersion"), isRun);
+        }
+      }
+
+      // handle failure
+      let willProceed = true;
+      if (response && (!response.payload || response.error)) {
+        willProceed = yield call(handlePerformTransformFailure, {
+          response,
+          queryStatuses: mostRecentStatuses,
+          curIndex: i,
+          newVersion,
+          isSaveViewAs,
+        });
+      }
+
+      if (shouldBreak) {
+        return;
+      }
+
+      // if user cancels the other jobs, or its the last time
+      if (!callback && (!willProceed || (isLastQuery && !response.payload))) {
+        for (let idx = i + 1; idx < mostRecentStatuses.length; idx++) {
+          mostRecentStatuses[idx].cancelled = true;
+        }
+        yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+        break;
+      }
+      // eslint-disable-next-line require-atomic-updates
+      queryStatuses = mostRecentStatuses;
+    }
+  } catch (e) {
+    // do nothing for api errors. view state handles them.
+    if (handlePerformTransformError(e)) {
+      throw e;
+    }
+  } finally {
+    yield put(setIsMultiQueryRunning({ running: false }));
+  }
+}
+
+// handle the performTransform logic for a single query
+export function* performTransformSingle(payload, query) {
+  try {
+    const {
+      dataset,
+      currentSql,
+      queryContext,
+      viewId,
+      nextTable,
+      isRun,
+      transformData,
+      runningSql,
+      callback, // function(didTransform, dataset)
+      forceDataLoad, // a boolean flag that forces a preview reload, when nothing is changed
+      isSaveViewAs, // if saving a query, a multi-sql statement should not be parsed
+      sessionId,
+    } = payload;
+    const { apiAction, navigateOptions, newVersion } = yield call(
+      getFetchDatasetMetaAction,
+      {
+        dataset,
+        currentSql: !isSaveViewAs
+          ? query.sqlStatement
+          : runningSql || currentSql,
+        queryContext,
+        viewId,
+        nextTable,
+        isRun,
+        transformData,
+        forceDataLoad,
+        sessionId,
+        noUpdate: true,
+      }
+    );
 
     let resultDataset = dataset;
     const didTransform = !!apiAction;
+    let response;
     if (apiAction) {
       yield call(cancelDataLoad);
-      yield put(initializeExploreJobProgress(isRun, resultDataset.get('datasetVersion')));
+      yield put(
+        initializeExploreJobProgress(isRun, resultDataset.get("datasetVersion"))
+      );
       // response will be not empty. See transformThenNavigate
-      const response = yield call(transformThenNavigate, apiAction, viewId, navigateOptions);
+      response = yield call(
+        transformThenNavigate,
+        apiAction,
+        viewId,
+        navigateOptions
+      );
       if (!response || response.error) {
-        throw new Error('transformThenNavigate must return not empty response without error');
+        throw new Error(
+          "transformThenNavigate must return not empty response without error"
+        );
       }
-      resultDataset = apiUtils.getEntityFromResponse('datasetUI', response);
-
-      // we successfully loaded a dataset metadata. We need load table data for it
-      // 'spawn' means async data loading. 'call' - sync data loading
-      yield spawn(loadTableData, resultDataset.get('datasetVersion'), isRun);
-      // at this moment top part of an editor should be already enabled so we could focus the editor
-      yield call(focusSqlEditorSaga); // DX-9819 focus sql editor when transform is done
+      resultDataset = apiUtils.getEntityFromResponse("datasetUI", response);
     }
 
     if (callback) {
       yield call(callback, didTransform, resultDataset);
     }
 
-    if (dataset.get('isNewQuery')) {
-      // Expand the sql box state after executing New Query
-      yield put(expandExploreSql());
-    }
-
+    return [response, newVersion];
   } catch (e) {
-    // do nothing for api errors. view state handles them.
-    if (
-      !apiUtils.isApiError(e) &&
-      !(e instanceof TransformFailedError) &&
-      !(e instanceof TransformCanceledError) &&
-      !(e instanceof TransformCanceledByLocationChangeError)
-    ) {
-      throw e;
-    }
+    return [e];
   }
 }
 
-export function* handleRunDatasetSql({ isPreview }) {
+export function* handlePerformTransformSuccess({
+  response,
+  queryStatuses,
+  curIndex,
+  indexToModify,
+  callback,
+}) {
+  const mostRecentStatuses = queryStatuses;
+  const [sqlStatement, jobId, sessionId, version] =
+    apiUtils.getFromResponse(response);
+
+  const index = indexToModify != null ? indexToModify : curIndex;
+  mostRecentStatuses[index].jobId = jobId;
+  mostRecentStatuses[index].version = version;
+  mostRecentStatuses[index].sqlStatement = sqlStatement;
+
+  queryStatuses = mostRecentStatuses;
+  if (queryStatuses[curIndex].cancelled) {
+    queryStatuses[curIndex].cancelled = false;
+  }
+
+  // store queryStatuses in redux store after a job succeeds
+  // this results in the job query also having the jobId
+  if (!callback) {
+    yield put(setQueryStatuses({ statuses: queryStatuses }));
+
+    if (indexToModify != null) {
+      let newSql = "";
+
+      for (const status of queryStatuses) {
+        newSql += status.sqlStatement + ";\n";
+      }
+
+      const [, newSelections] = SqlStringUtils(newSql);
+
+      yield put(setPreviousAndCurrentSql({ sql: newSql }));
+      yield put(setQuerySelections({ selections: newSelections }));
+    }
+  }
+
+  return [sessionId];
+}
+
+export function* handlePerformTransformFailure({
+  response,
+  queryStatuses,
+  curIndex,
+  newVersion,
+  isSaveViewAs,
+}) {
+  const mostRecentStatuses = queryStatuses;
+
+  const error = response?.response?.payload?.response ?? {};
+  const isLastQuery = mostRecentStatuses.length - 1 === curIndex;
+  let willProceed = true;
+  if (error.code === "INVALID_QUERY" && !isSaveViewAs && !isLastQuery) {
+    willProceed = yield call(
+      showFailedJobDialog,
+      curIndex,
+      mostRecentStatuses[curIndex].sqlStatement
+    );
+  } else if (handlePerformTransformError(response) || isSaveViewAs) {
+    willProceed = false;
+    openPopupNotification({
+      message: apiUtils.getThrownErrorException(response),
+      type: "error",
+      autoClose: 10000,
+    });
+  }
+
+  if (!isSaveViewAs) {
+    mostRecentStatuses[curIndex].error = new Immutable.Map(response);
+    const jobIdObj = error?.details?.jobId ?? {};
+    if (error.code === "INVALID_QUERY" || !jobIdObj.id) {
+      mostRecentStatuses[curIndex].cancelled = true;
+    }
+
+    const entity =
+      response.response &&
+      response.response.meta &&
+      response.response.meta.entity;
+    const errorVersion =
+      entity && entity.get("tipVersion")
+        ? entity.get("tipVersion")
+        : newVersion;
+    mostRecentStatuses[curIndex].jobId = jobIdObj.id;
+    mostRecentStatuses[curIndex].version = errorVersion;
+    yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+
+    if (jobIdObj.id) {
+      yield put(fetchFilteredJobsList(jobIdObj.id, "JOB_PAGE_NEW_VIEW_ID"));
+    }
+  }
+
+  return willProceed;
+}
+
+function handlePerformTransformError(e) {
+  return (
+    !apiUtils.isApiError(e) &&
+    !(e instanceof TransformFailedError) &&
+    !(e instanceof TransformCanceledError) &&
+    !(e instanceof TransformCanceledByLocationChangeError)
+  );
+}
+
+export function* handleRunDatasetSql({ isPreview, selectedSql }) {
   const dataset = yield select(getExplorePageDataset);
   const exploreViewState = yield select(getExploreViewState);
   const exploreState = yield select(getExploreState);
-  const viewId = exploreViewState.get('viewId');
+  const viewId = exploreViewState.get("viewId");
   const currentSql = exploreState.view.currentSql;
+  const runningSql = selectedSql != null ? selectedSql : currentSql;
   const queryContext = exploreState.view.queryContext;
 
-  if (yield call(proceedWithDataLoad, dataset, queryContext, currentSql)) {
+  if (yield call(proceedWithDataLoad, dataset, queryContext, runningSql)) {
     const performTransformParam = {
       dataset,
       currentSql,
+      runningSql,
       queryContext,
-      viewId
+      viewId,
     };
 
     if (isPreview) {
@@ -141,10 +436,10 @@ export function* handleRunDatasetSql({ isPreview }) {
       performTransformParam.isRun = true;
     }
 
+    yield put(setSelectedSql({ sql: selectedSql }));
     yield call(performTransform, performTransformParam);
   }
 }
-
 
 /*
  * Helpers
@@ -162,30 +457,62 @@ export function* getFetchDatasetMetaAction(props) {
     nextTable,
     isRun,
     transformData,
-    forceDataLoad
+    forceDataLoad,
+    sessionId = "",
+    noUpdate = false,
   } = props;
 
   const references = yield getNessieReferences();
-  const sql = currentSql || dataset.get('sql');
-  invariant(!queryContext || queryContext instanceof Immutable.List, 'queryContext must be Immutable.List');
-  const finalTransformData = yield call(getTransformData, dataset, sql, queryContext, transformData);
+  const sql = currentSql || dataset.get("sql");
+  const isNotDataset =
+    !dataset.get("datasetVersion") ||
+    (!dataset.get("datasetType") && !dataset.get("sql"));
+  invariant(
+    !queryContext || queryContext instanceof Immutable.List,
+    "queryContext must be Immutable.List"
+  );
+  const finalTransformData = yield call(
+    getTransformData,
+    dataset,
+    sql,
+    queryContext,
+    transformData,
+    references
+  );
   let apiAction;
   let navigateOptions;
+  let newVersion;
 
   if (isRun) {
-    if (!dataset.get('datasetVersion')) {
+    if (isNotDataset) {
       // dataset is not created. Create with sql and run.
-      apiAction = yield call(newUntitledSqlAndRun, sql, queryContext, viewId, references);
+      newVersion = exploreUtils.getNewDatasetVersion();
+      apiAction = yield call(
+        newUntitledSqlAndRun,
+        sql,
+        queryContext,
+        viewId,
+        references,
+        sessionId,
+        newVersion,
+        noUpdate
+      );
       navigateOptions = { changePathname: true }; //changePathname to navigate to newUntitled
     } else if (finalTransformData) {
       updateTransformData(finalTransformData);
 
       // transform is requested. Transform and run.
       yield put(resetViewState(EXPLORE_TABLE_ID)); // Clear error from previous query run
-      apiAction = yield call(transformAndRunDataset, dataset, finalTransformData, viewId);
+      apiAction = yield call(
+        transformAndRunDataset,
+        dataset,
+        finalTransformData,
+        viewId,
+        sessionId
+      );
     } else {
       // just run
-      apiAction = yield call(runDataset, dataset, viewId);
+      apiAction = yield call(runDataset, dataset, viewId, sessionId);
       navigateOptions = { replaceNav: true, preserveTip: true };
     }
   } else {
@@ -201,49 +528,95 @@ export function* getFetchDatasetMetaAction(props) {
     // and a user will try to alter a query, until we receive a current version of VDS. But it is
     // unlikely as we block the UI until VDS info would be loaded.
     // I will throw an exception in case if the assumption would be invalid
-    if (!dataset.get('datasetVersion') && finalTransformData) {
-      throw new Error('this case is not supported. Code is built in assumption, that this case will never happen. We need investigate this case');
+    if (!dataset.get("datasetVersion") && finalTransformData) {
+      throw new Error(
+        "this case is not supported. Code is built in assumption, that this case will never happen. We need investigate this case"
+      );
     }
     // ----------------------------------------------------------------------------
 
-    if (!dataset.get('datasetVersion')) {
-      apiAction = yield call(newUntitledSql, sql, queryContext && queryContext.toJS(), viewId, references);
+    if (isNotDataset) {
+      newVersion = exploreUtils.getNewDatasetVersion();
+      apiAction = yield call(
+        newUntitledSql,
+        sql,
+        queryContext && queryContext.toJS(),
+        viewId,
+        references,
+        sessionId,
+        newVersion,
+        noUpdate
+      );
       navigateOptions = { changePathname: true }; //changePathname to navigate to newUntitled
     } else if (finalTransformData) {
-      apiAction = yield call(runTableTransform, dataset, finalTransformData, viewId, nextTable);
+      apiAction = yield call(
+        runTableTransform,
+        dataset,
+        finalTransformData,
+        viewId,
+        nextTable,
+        sessionId
+      );
     } else {
       // preview existing dataset
       if (forceDataLoad) {
-        apiAction = yield call(loadDataset, dataset, viewId, forceDataLoad);
+        apiAction = yield call(
+          loadDataset,
+          dataset,
+          viewId,
+          forceDataLoad,
+          sessionId
+        );
       }
       navigateOptions = { replaceNav: true, preserveTip: true };
     }
   }
 
-
   // api action could be empty only for this case, when there is an existent dataset without changes
   // and data reload was not enforced
-  if (!apiAction && !(dataset.get('datasetVersion') && !finalTransformData && !forceDataLoad)) {
-    throw new Error('we should not appear here');
+  if (
+    !apiAction &&
+    !(dataset.get("datasetVersion") && !finalTransformData && !forceDataLoad)
+  ) {
+    throw new Error("we should not appear here");
   }
   return {
     apiAction,
-    navigateOptions
+    navigateOptions,
+    newVersion,
   };
 }
 
 /**
  * Returns updateSQL transforms if there isn't already transformData, and dataset is not new.
  */
-export const getTransformData = (dataset, sql, queryContext, transformData) => {
-  if (dataset.get('isNewQuery') || transformData) {
+export const getTransformData = (
+  dataset,
+  sql,
+  queryContext,
+  transformData,
+  references
+) => {
+  if (!dataset) return;
+
+  if (dataset.get("isNewQuery") || transformData) {
     return transformData;
   }
 
-  const savedSql = (dataset && dataset.get('sql')) || '';
-  const savedContext = dataset && dataset.get('context') || Immutable.List();
-  if ((sql !== null && savedSql !== sql) || !savedContext.equals(queryContext || Immutable.List())) {
-    return { type: 'updateSQL', sql, sqlContextList: queryContext && queryContext.toJS() };
+  const savedSql = dataset.get("sql") || "";
+  const savedContext = dataset.get("context") || Immutable.List();
+  const savedReferences = (dataset.get("references") || Immutable.Map()).toJS();
+  if (
+    (sql !== null && savedSql !== sql) ||
+    !savedContext.equals(queryContext || Immutable.List()) ||
+    hasReferencesChanged(references, savedReferences)
+  ) {
+    return {
+      type: "updateSQL",
+      sql,
+      sqlContextList: queryContext && queryContext.toJS(),
+      referencesList: getReferenceListForTransform(references),
+    };
   }
 };
 
@@ -269,8 +642,83 @@ export function* proceedWithDataLoad(dataset, queryContext, currentSql) {
   const sqlOrContextChanged = needsTransform(dataset, queryContext, currentSql);
 
   if (sqlOrContextChanged) {
-    return (yield call(transformHistoryCheck, dataset));
+    return yield call(transformHistoryCheck, dataset);
   }
   // nothing is changed. We should allow to load data
   return true;
+}
+
+export function* showFailedJobDialog(i, sql) {
+  const options = {
+    selectOnLineNumbers: false,
+    disableLayerHinting: true,
+    wordWrap: "on",
+    overviewRulerBorder: false,
+    lineNumbers: "on",
+    readOnly: true,
+    minimap: {
+      enabled: false,
+    },
+  };
+
+  // monaco-editor does not support having multiple editors on the same page with different themes
+  // current solution is to apply the same theme to the popup as the main editor
+  // refer to: https://github.com/microsoft/monaco-editor/issues/338
+  let action;
+  const isContrast = localStorageUtils.getSqlThemeContrast();
+
+  const confirmPromise = new Promise((resolve) => {
+    action = showConfirmationDialog({
+      title: intl.formatMessage({ id: "NewQuery.FailedTitle" }),
+      confirmText: intl.formatMessage({ id: "Common.Proceed" }),
+      cancelText: intl.formatMessage({ id: "NewQuery.StopExecution" }),
+      text: (
+        <div className="failedJobDialog__body">
+          <div className="failedJobDialog__message">
+            {intl.formatMessage(
+              { id: "NewQuery.FailedMessageState" },
+              {
+                queryIndex: (
+                  <b>{`${intl.formatMessage({
+                    id: "NewQuery.LowercaseQuery",
+                  })} ${i + 1}`}</b>
+                ),
+              }
+            )}
+          </div>
+          <div className="failedJobDialog__editor">
+            <SQLEditor
+              readOnly
+              value={sql}
+              fitHeightToContent
+              maxHeight={190}
+              contextMenu={false}
+              theme={isContrast ? "vs-dark" : "vs"}
+              background={isContrast ? "#333333" : "#FFFFFF"}
+              customTheme
+              customOptions={{ ...options }}
+            />
+          </div>
+          <div className="failedJobDialog__message">
+            {intl.formatMessage({ id: "NewQuery.FailedMessageConfirm" })}
+          </div>
+        </div>
+      ),
+      size: "small",
+      confirm: () => resolve(true),
+      cancel: () => resolve(false),
+      closeButtonType: "XBig",
+      className: "failedJobDialog --newModalStyles",
+      headerIcon: (
+        <dremio-icon
+          name="interface/warning"
+          alt="Warning"
+          class="failedJobDialog__icon"
+        />
+      ),
+    });
+  });
+
+  yield put(action);
+  return yield confirmPromise;
 }

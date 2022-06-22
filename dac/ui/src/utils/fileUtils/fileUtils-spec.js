@@ -13,34 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FileUtils from './fileUtils';
+import FileUtils from "./fileUtils";
 
-describe('#FileUtils', () => {
-
-  describe('#convertFileSize', () => {
-
-    it('should return kb when size less then 1 kb', function() {
-      expect(FileUtils.convertFileSize(1023)).to.be.equal('1.0KB');
+describe("#FileUtils", () => {
+  describe("#convertFileSize", () => {
+    it("should return kb when size less then 1 kb", function () {
+      expect(FileUtils.convertFileSize(1023)).to.be.equal("1.0KB");
     });
 
-    it('should return 1kb when size is 1024 bytes', function() {
-      expect(FileUtils.convertFileSize(1024)).to.be.equal('1.0KB');
+    it("should return 1kb when size is 1024 bytes", function () {
+      expect(FileUtils.convertFileSize(1024)).to.be.equal("1.0KB");
     });
 
-    it('should return kb when size less then 1 mb', function() {
-      expect(FileUtils.convertFileSize(1024 * 1023)).to.be.equal('1023.0KB');
+    it("should return kb when size less then 1 mb", function () {
+      expect(FileUtils.convertFileSize(1024 * 1023)).to.be.equal("1023.0KB");
     });
 
-    it('should return 1mb when size is 1024kb', function() {
-      expect(FileUtils.convertFileSize(1024 * 1024)).to.be.equal('1.0MB');
+    it("should return 1mb when size is 1024kb", function () {
+      expect(FileUtils.convertFileSize(1024 * 1024)).to.be.equal("1.0MB");
     });
 
-    it('should return mb when size less then 1 gb', function() {
-      expect(FileUtils.convertFileSize(1024 * 1024 * 1023)).to.be.equal('1023.0MB');
+    it("should return mb when size less then 1 gb", function () {
+      expect(FileUtils.convertFileSize(1024 * 1024 * 1023)).to.be.equal(
+        "1023.0MB"
+      );
     });
 
-    it('should return gb when size more then 1 gb', function() {
-      expect(FileUtils.convertFileSize(1025 * 1024 * 1024)).to.be.equal('1.0GB');
+    it("should return gb when size more then 1 gb", function () {
+      expect(FileUtils.convertFileSize(1025 * 1024 * 1024)).to.be.equal(
+        "1.0GB"
+      );
     });
   });
 });

@@ -13,70 +13,69 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import DragMeasureColumn from './DragMeasureColumn';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import DragMeasureColumn from "./DragMeasureColumn";
 
-describe('DragMeasureColumn', () => {
-
+describe("DragMeasureColumn", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      dragType: 'dimension',
+      dragType: "dimension",
       field: {
         column: {
-          value: '',
-          onChange: sinon.spy()
+          value: "",
+          onChange: sinon.spy(),
         },
         measure: {
-          value: '',
-          onChange: sinon.spy()
-        }
-      }
+          value: "",
+          onChange: sinon.spy(),
+        },
+      },
     };
     commonProps = {
       ...minimalProps,
-      dragType: 'groupBy',
+      dragType: "groupBy",
       item: Immutable.Map({ id: 1, empty: true }),
       field: {
         measure: {
-          value: 'Sum'
+          value: "Sum",
         },
         column: {
-          value: 2
-        }
+          value: 2,
+        },
       },
       allColumns: Immutable.fromJS([
-        { name: 'item1', type: 'FLOAT' },
-        { name: 'item2', type: 'DATE' },
-        { name: 'item3' }
-      ])
+        { name: "item1", type: "FLOAT" },
+        { name: "item2", type: "DATE" },
+        { name: "item3" },
+      ]),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DragMeasureColumn {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DragMeasureColumn {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
   //DX-28985
-  xit('should render Select, DragAreaColumn', () => {
-    const wrapper = shallow(<DragMeasureColumn {...commonProps}/>);
-    expect(wrapper.find('Select')).to.have.length(1);
-    expect(wrapper.find('DragAreaColumn')).to.have.length(1);
+  xit("should render Select, DragAreaColumn", () => {
+    const wrapper = shallow(<DragMeasureColumn {...commonProps} />);
+    expect(wrapper.find("Select")).to.have.length(1);
+    expect(wrapper.find("DragAreaColumn")).to.have.length(1);
   });
 
-  describe('#canSelectColumn', () => {
+  describe("#canSelectColumn", () => {
     let instance;
     beforeEach(() => {
-      instance = shallow(<DragMeasureColumn {...commonProps}/>).instance();
+      instance = shallow(<DragMeasureColumn {...commonProps} />).instance();
     });
-    it('should return true if type is valid for measure', () => {
-      expect(instance.canSelectColumn('item1')).to.be.true;
+    it("should return true if type is valid for measure", () => {
+      expect(instance.canSelectColumn("item1")).to.be.true;
     });
-    it('should return false if type is invalid for measure', () => {
-      expect(instance.canSelectColumn('item2')).to.be.false;
+    it("should return false if type is invalid for measure", () => {
+      expect(instance.canSelectColumn("item2")).to.be.false;
     });
   });
 });

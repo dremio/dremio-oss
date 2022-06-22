@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { DropTarget } from 'react-dnd';
-import { findDOMNode } from 'react-dom';
-import classNames from 'classnames';
-import { base } from '@app/uiTheme/less/DragComponents/DragTarget.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { DropTarget } from "react-dnd";
+import { findDOMNode } from "react-dom";
+import classNames from "classnames";
+import { base } from "@app/uiTheme/less/DragComponents/DragTarget.less";
 
-const DEFAULT_TYPE = 'groupBy';
+const DEFAULT_TYPE = "groupBy";
 
 const target = {
   drop(props, monitor) {
@@ -50,14 +50,14 @@ const target = {
       props.moveColumn(dragIndex, hoverIndex);
       monitor.getItem().index = hoverIndex;
     }
-  }
+  },
 };
 
-@DropTarget(props => props.dragType, target, (connect, monitor) => {
+@DropTarget((props) => props.dragType, target, (connect, monitor) => {
   return {
     connectDropTarget: connect.dropTarget(),
     isOver: monitor.isOver(),
-    canDrop: monitor.canDrop()
+    canDrop: monitor.canDrop(),
   };
 })
 export default class DragTargetWrap extends Component {
@@ -73,16 +73,17 @@ export default class DragTargetWrap extends Component {
     children: PropTypes.node,
     canDropOnChild: PropTypes.bool,
     isOver: PropTypes.bool,
-    className: PropTypes.string
+    className: PropTypes.string,
+    dragTargetHoverCls: PropTypes.string,
   };
 
   static defaultProps = {
     canDropOnChild: false,
     dragType: DEFAULT_TYPE,
-    isOver: false
+    isOver: false,
   };
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (this.props.isOver !== nextProps.isOver) {
       if (nextProps.isOver && this.props.onEnter) this.props.onEnter();
       if (!nextProps.isOver && this.props.onLeave) this.props.onLeave();
@@ -90,11 +91,12 @@ export default class DragTargetWrap extends Component {
   }
 
   render() {
-    const {
-      className
-    } = this.props;
+    const { className, isOver, dragTargetHoverCls = "" } = this.props;
+    const classname = classNames(base, className, {
+      [dragTargetHoverCls]: isOver,
+    });
     return this.props.connectDropTarget(
-      <div onDragOver={this.props.onDragOver} className={classNames([base, className])}>
+      <div onDragOver={this.props.onDragOver} className={classname}>
         {this.props.children}
       </div>
     );

@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import { CREATED_SOURCE_NAME } from 'reducers/resources/sourceList';
+import { CREATED_SOURCE_NAME } from "reducers/resources/sourceList";
 
-import entities from './mocks/entities.json';
-import space from './mocks/spaceList.json';
-import source from './mocks/sourceList.json';
+import entities from "./mocks/entities.json";
+import space from "./mocks/spaceList.json";
+import source from "./mocks/sourceList.json";
 
-import spacesAfterSort1 from './mocks/spacesAfterSort1.json';
-import spacesAfterSort10 from './mocks/spacesAfterSort10.json';
-import sourcesAfterSort1 from './mocks/sourcesAfterSort1.json';
-import sourcesAfterSort10 from './mocks/sourcesAfterSort10.json';
+import spacesAfterSort1 from "./mocks/spacesAfterSort1.json";
+import spacesAfterSort10 from "./mocks/spacesAfterSort10.json";
+import sourcesAfterSort1 from "./mocks/sourcesAfterSort1.json";
+import sourcesAfterSort10 from "./mocks/sourcesAfterSort10.json";
 
 import {
   getSortedSpaces,
@@ -32,99 +32,119 @@ import {
   getCreatedSource,
   getEntity,
   getViewState,
-  searchEntity
-} from './resources';
+  searchEntity,
+} from "./resources";
 
-
-describe('datasets selectors', () => {
+describe("datasets selectors", () => {
   const state = {
     resources: {
       entities: Immutable.fromJS(entities),
       view: {
         source: Immutable.fromJS(source),
-        space: Immutable.fromJS(space)
-      }
-    }
+        space: Immutable.fromJS(space),
+      },
+    },
   };
 
-  describe('getSortedSpaces selector', () => {
-    xit('should return tree', () => {
-      expect(getSortedSpaces(state.view.space).toJS()).to.eql({spacesAfterSort1});
+  describe("getSortedSpaces selector", () => {
+    xit("should return tree", () => {
+      expect(getSortedSpaces(state.view.space).toJS()).to.eql({
+        spacesAfterSort1,
+      });
       const setPinState = {
         resources: {
           entities: Immutable.fromJS(entities),
           view: {
             source: Immutable.fromJS(source),
-            space: Immutable.fromJS(space).set('xcxcx').set('isActivePin', true)
-          }
-        }
+            space: Immutable.fromJS(space)
+              .set("xcxcx")
+              .set("isActivePin", true),
+          },
+        },
       };
       expect(getSortedSpaces(setPinState).toJS()).to.eql(spacesAfterSort10);
     });
   });
-  describe('getSortedSources selector', () => {
-    xit('should return tree', () => {
+  describe("getSortedSources selector", () => {
+    xit("should return tree", () => {
       expect(getSortedSources(state).toJS()).to.eql(sourcesAfterSort1);
       const setPinState = {
         resources: {
-          sources: state.resources.sources.setIn(['sources', 'LocalFS2', 'isActivePin'], true)
-        }
+          sources: state.resources.sources.setIn(
+            ["sources", "LocalFS2", "isActivePin"],
+            true
+          ),
+        },
       };
       expect(getSortedSources(setPinState).toJS()).to.eql(sourcesAfterSort10);
     });
   });
-  describe('getCreatedSource selector', () => {
-    xit('should return tree', () => {
+  describe("getCreatedSource selector", () => {
+    xit("should return tree", () => {
       expect(getCreatedSource(state)).to.eql(undefined);
       const createdSourceState = {
         resources: {
-          sources: state.resources.sources.setIn([CREATED_SOURCE_NAME], Immutable.Map({name: 1}))
-        }
+          sources: state.resources.sources.setIn(
+            [CREATED_SOURCE_NAME],
+            Immutable.Map({ name: 1 })
+          ),
+        },
       };
-      expect(getCreatedSource(createdSourceState).toJS()).to.eql({name: 1});
+      expect(getCreatedSource(createdSourceState).toJS()).to.eql({ name: 1 });
     });
   });
-  describe('searchEntity', () => {
-    it('should search and return entity', () => {
-      expect(searchEntity(state, 'folder', 'folderConfig', 'LocalFS2.Library')).to.eql(state.resources.entities.getIn(['folder', '/source/LocalFS2/folder/LocalFS2.Library']));
+  describe("searchEntity", () => {
+    it("should search and return entity", () => {
+      expect(
+        searchEntity(state, "folder", "folderConfig", "LocalFS2.Library")
+      ).to.eql(
+        state.resources.entities.getIn([
+          "folder",
+          "/source/LocalFS2/folder/LocalFS2.Library",
+        ])
+      );
     });
   });
 });
 
-describe('entity selectors', () => {
-  const homeId = 'uuid';
+describe("entity selectors", () => {
+  const homeId = "uuid";
   const homeSpace = Immutable.fromJS({
     id: homeId,
-    resourcePath: '/home/@foo'
+    resourcePath: "/home/@foo",
   });
   const state = {
     account: Immutable.fromJS({
-      user: {userName: 'foo'}
+      user: { userName: "foo" },
     }),
     resources: {
       entities: Immutable.fromJS({
         home: {
-          [homeId]: homeSpace
-        }
-      })
-    }
+          [homeId]: homeSpace,
+        },
+      }),
+    },
   };
-  describe('getEntity', () => {
-    it('should return entity', () => {
-      expect(getEntity(state, homeId, 'home')).to.eql(state.resources.entities.getIn(['home', homeId]));
+  describe("getEntity", () => {
+    it("should return entity", () => {
+      expect(getEntity(state, homeId, "home")).to.eql(
+        state.resources.entities.getIn(["home", homeId])
+      );
     });
   });
 
-  describe('getViewState', () => {
-    it('should return view state if available', () => {
-      const ret = getViewState({resources: {view: new Immutable.Map({id: 'foo'})}}, 'id');
-      expect(ret).to.equal('foo');
+  describe("getViewState", () => {
+    it("should return view state if available", () => {
+      const ret = getViewState(
+        { resources: { view: new Immutable.Map({ id: "foo" }) } },
+        "id"
+      );
+      expect(ret).to.equal("foo");
     });
 
-    it('should return (cached) fallback', () => {
-      expect(getViewState({}, 'foo')).to.equal(getViewState({}, 'foo'));
-      expect(getViewState({}, 'foo')).to.not.equal(getViewState({}, 'bar'));
+    it("should return (cached) fallback", () => {
+      expect(getViewState({}, "foo")).to.equal(getViewState({}, "foo"));
+      expect(getViewState({}, "foo")).to.not.equal(getViewState({}, "bar"));
     });
   });
-
 });

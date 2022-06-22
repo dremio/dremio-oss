@@ -13,35 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { select, put, call, takeEvery, race, fork, take, spawn } from 'redux-saga/effects';
-import { goBack } from 'react-router-redux';
-import { PERFORM_LOAD_DATASET } from 'actions/explore/dataset/get';
-import { newUntitled } from 'actions/explore/dataset/new';
-import { loadExistingDataset } from 'actions/explore/dataset/edit';
-import { updateViewState } from 'actions/resources';
-import { handleResumeRunDataset, DataLoadError, explorePageChanged, jobUpdateWatchers } from 'sagas/runDataset';
-import { REAPPLY_DATASET_SUCCESS, navigateAfterReapply } from 'actions/explore/dataset/reapply';
-import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
-import { focusSqlEditor } from '@app/actions/explore/view';
-import { getViewStateFromAction } from '@app/reducers/resources/view';
-import {getFullDataset, getDatasetVersionFromLocation, getExploreJobId} from '@app/selectors/explore';
-import { getLocation } from 'selectors/routing';
-import { TRANSFORM_PEEK_START } from '@app/actions/explore/dataset/peek';
-import { EXPLORE_PAGE_LISTENER_START,
+import {
+  select,
+  put,
+  call,
+  takeEvery,
+  race,
+  fork,
+  take,
+  spawn,
+} from "redux-saga/effects";
+import { goBack } from "react-router-redux";
+import { PERFORM_LOAD_DATASET } from "actions/explore/dataset/get";
+import { newUntitled } from "actions/explore/dataset/new";
+import { loadExistingDataset } from "actions/explore/dataset/edit";
+import { updateViewState } from "actions/resources";
+import {
+  handleResumeRunDataset,
+  DataLoadError,
+  explorePageChanged,
+  jobUpdateWatchers,
+} from "sagas/runDataset";
+import {
+  REAPPLY_DATASET_SUCCESS,
+  navigateAfterReapply,
+} from "actions/explore/dataset/reapply";
+import { EXPLORE_TABLE_ID } from "reducers/explore/view";
+import { focusSqlEditor, resetQueryState } from "@app/actions/explore/view";
+import { getViewStateFromAction } from "@app/reducers/resources/view";
+import {
+  getFullDataset,
+  getDatasetVersionFromLocation,
+  getExploreJobId,
+  getExploreState,
+} from "@app/selectors/explore";
+import { getLocation } from "selectors/routing";
+import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
+import {
+  EXPLORE_PAGE_LISTENER_START,
   EXPLORE_PAGE_LISTENER_STOP,
   EXPLORE_PAGE_EXIT,
   initializeExploreJobProgress,
-  setExploreJobIdInProgress
-} from '@app/actions/explore/dataset/data';
-import { log } from '@app/utils/logger';
+  setExploreJobIdInProgress,
+} from "@app/actions/explore/dataset/data";
+import sendEventToIntercom from "@inject/sagas/utils/sendEventToIntercom";
+import INTERCOM_EVENTS from "@inject/constants/intercomEvents";
+import * as VersionUtils from "@app/utils/versionUtils";
+import { log } from "@app/utils/logger";
 
-import apiUtils from 'utils/apiUtils/apiUtils';
-import { constructFullPath } from 'utils/pathUtils';
+import apiUtils from "utils/apiUtils/apiUtils";
+import { constructFullPath } from "utils/pathUtils";
 
+import { setRefs } from "@app/actions/nessie/nessie";
 import {
-  transformThenNavigate, TransformCanceledError, TransformCanceledByLocationChangeError,
-  TransformFailedError
-} from './transformWatcher';
+  transformThenNavigate,
+  TransformCanceledError,
+  TransformCanceledByLocationChangeError,
+  TransformFailedError,
+} from "./transformWatcher";
 
 export default function* watchLoadDataset() {
   yield takeEvery(PERFORM_LOAD_DATASET, handlePerformLoadDataset);
@@ -57,19 +86,31 @@ export function* handlePerformLoadDataset({ meta }) {
     const apiAction = yield call(loadDataset, dataset, viewId);
     const response = yield call(transformThenNavigate, apiAction, viewId, {
       replaceNav: true,
-      preserveTip: true
+      preserveTip: true,
     });
 
-    const nextFullDataset = apiUtils.getEntityFromResponse('fullDataset', response);
+    const nextFullDataset = apiUtils.getEntityFromResponse(
+      "fullDataset",
+      response
+    );
+    const datasetUI = apiUtils.getEntityFromResponse("datasetUI", response);
+    if (datasetUI && datasetUI.get("references")) {
+      yield put(setRefs(datasetUI.get("references").toJS()));
+    }
+
     yield call(focusSqlEditorSaga); // DX-9819 focus sql editor when metadata is loaded
     if (nextFullDataset) {
-      if (nextFullDataset.get('error')) {
-        yield put(updateViewState(viewId, {
-          isFailed: true,
-          error: { message: nextFullDataset.getIn(['error', 'errorMessage']) }
-        }));
+      if (nextFullDataset.get("error")) {
+        yield put(
+          updateViewState(viewId, {
+            isFailed: true,
+            error: {
+              message: nextFullDataset.getIn(["error", "errorMessage"]),
+            },
+          })
+        );
       } else {
-        const version = nextFullDataset.get('version');
+        const version = nextFullDataset.get("version");
         yield put(initializeExploreJobProgress(false, version)); // Sets if the initial dataset load is a `Run`
         yield call(loadTableData, version);
       }
@@ -77,9 +118,11 @@ export function* handlePerformLoadDataset({ meta }) {
   } catch (e) {
     if (e instanceof TransformCanceledError) {
       yield put(goBack());
-    } else if (!(e instanceof TransformCanceledByLocationChangeError) &&
+    } else if (
+      !(e instanceof TransformCanceledByLocationChangeError) &&
       !(e instanceof DataLoadError) &&
-      !(e instanceof TransformFailedError) ) {
+      !(e instanceof TransformFailedError)
+    ) {
       throw e;
     }
   }
@@ -93,12 +136,20 @@ function* handleReapply(response) {
   const { payload, error } = response;
   if (error) return;
 
+  // since multi queries can exist, we reset the dataset and remove other queries from page
+  const exploreState = yield select(getExploreState);
+  const curQueries =
+    exploreState && exploreState.view && exploreState.view.queryStatuses;
+  if (curQueries) {
+    yield put(resetQueryState());
+  }
+
   yield put(navigateAfterReapply(response, true));
-  yield call(loadTableData, payload.get('result'));
+  yield call(loadTableData, payload.get("result"));
 }
 
 //export for testing
-export const CANCEL_TABLE_DATA_LOAD = 'CANCEL_TABLE_DATA_LOAD';
+export const CANCEL_TABLE_DATA_LOAD = "CANCEL_TABLE_DATA_LOAD";
 export function* cancelDataLoad() {
   yield put({ type: CANCEL_TABLE_DATA_LOAD });
 }
@@ -116,6 +167,7 @@ export function* cancelDataLoad() {
  * @throws DataLoadError
  */
 export function* loadTableData(datasetVersion, forceReload) {
+  const edition = VersionUtils.getEditionFromConfig();
   log(`prerequisites check; forceReload=${!!forceReload}`);
   let resetViewState = true;
   // we should cancel a previous data load request in any case
@@ -123,37 +175,51 @@ export function* loadTableData(datasetVersion, forceReload) {
 
   //#region check if metadata is loaded --------------------
 
+  // Tracks all preview queries
+  if (!forceReload && datasetVersion && edition === "DCS") {
+    sendEventToIntercom(INTERCOM_EVENTS.JOB_PREVIEW);
+  }
+
   if (!datasetVersion) return;
 
   const dataset = yield select(getFullDataset, datasetVersion);
   if (!dataset) return; // do not load a data if metadata is not loaded
 
   const jobId = yield select(getExploreJobId);
-  const paginationUrl = dataset.get('paginationUrl');
+  const paginationUrl = dataset.get("paginationUrl");
   if (!paginationUrl || !jobId) return;
 
   //#endregion ---------------------------------------------
 
-  log('loading is about to start');
+  log("loading is about to start");
 
   try {
     yield put(setExploreJobIdInProgress(jobId, datasetVersion));
     yield spawn(jobUpdateWatchers, jobId); // start listening for job status updates including record counts
-    yield put(updateViewState(EXPLORE_TABLE_ID, {
-      isInProgress: true,
-      isFailed: false,
-      error: null
-    }));
+    yield put(
+      updateViewState(EXPLORE_TABLE_ID, {
+        isInProgress: true,
+        isFailed: false,
+        error: null,
+      })
+    );
 
     // load first page for a table
     const raceResult = yield race({
-      dataLoaded: call(handleResumeRunDataset, datasetVersion, jobId, forceReload, paginationUrl),
+      dataLoaded: call(
+        handleResumeRunDataset,
+        datasetVersion,
+        jobId,
+        forceReload,
+        paginationUrl
+      ),
       isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]), // cancel previous data load
-      locationChange: call(resetTableViewStateOnPageLeave)
+      locationChange: call(resetTableViewStateOnPageLeave),
     });
 
-    log('race result', raceResult);
-  } catch (e) { // handleResumeRunDataset will throw an error in case data load errors
+    log("race result", raceResult);
+  } catch (e) {
+    // handleResumeRunDataset will throw an error in case data load errors
     if (!(e instanceof DataLoadError)) {
       throw e;
     }
@@ -170,23 +236,23 @@ export function* loadTableData(datasetVersion, forceReload) {
 const defaultViewState = {
   isInProgress: false,
   isFailed: false,
-  error: null
+  error: null,
 };
 
 function* explorePageDataChecker() {
   // use infinite loop to listen start/stop actions
-  while (true) { // eslint-disable-line no-constant-condition
+  while (true) {
+    // eslint-disable-line no-constant-condition
     const { doInitialLoad } = yield take(EXPLORE_PAGE_LISTENER_START);
-    log('explore page listener is started');
+    log("explore page listener is started");
 
     yield race({
       stop: take(EXPLORE_PAGE_LISTENER_STOP, EXPLORE_PAGE_EXIT),
-      infiniteProcess: call(pageChangeListener, doInitialLoad)
+      infiniteProcess: call(pageChangeListener, doInitialLoad),
     });
-    log('explore page listener is stopped');
+    log("explore page listener is stopped");
   }
 }
-
 
 /**
  * An infinite listener for explore page change event
@@ -194,14 +260,15 @@ function* explorePageDataChecker() {
 function* pageChangeListener(doInitialLoad) {
   // we should start initial data load immediately, when listener is started
   if (doInitialLoad) {
-    log('initial data load is started');
+    log("initial data load is started");
     yield spawn(loadDataForCurrentPage);
   }
 
   // use infinite loop for a listener
-  while (true) { // eslint-disable-line no-constant-condition
+  while (true) {
+    // eslint-disable-line no-constant-condition
     yield call(explorePageChanged);
-    log('listener starts data load');
+    log("listener starts data load");
     // spawn non-blocking effect and start listen for next page change action immediately
     yield spawn(loadDataForCurrentPage);
   }
@@ -225,20 +292,30 @@ export function* hideTableSpinner() {
 export function* resetTableViewStateOnPageLeave() {
   // wait for page leave event once
   yield call(explorePageChanged);
-  log('table spinner reset is called');
+  log("table spinner reset is called");
   // reset view state, that may contains an error message for previous page
   yield call(hideTableSpinner);
 }
 
-export function* loadDataset(dataset, viewId, forceDataLoad) {
+export function* loadDataset(dataset, viewId, forceDataLoad, sessionId) {
   const location = yield select(getLocation);
   const { mode, tipVersion } = location.query || {};
   let apiAction;
-  if (mode === 'edit' || dataset.get('datasetVersion')) {
-    apiAction = yield call(loadExistingDataset, dataset, viewId, tipVersion, forceDataLoad);
+  if (mode === "edit" || dataset.get("datasetVersion")) {
+    //Set references after this actions is completed
+    apiAction = yield call(
+      loadExistingDataset,
+      dataset,
+      viewId,
+      tipVersion,
+      forceDataLoad,
+      sessionId
+    );
   } else {
-    const pathnameParts = location.pathname.split('/');
-    const parentFullPath = decodeURIComponent(constructFullPath([pathnameParts[2]]) + '.' + pathnameParts[3]);
+    const pathnameParts = location.pathname.split("/");
+    const parentFullPath = decodeURIComponent(
+      constructFullPath([pathnameParts[2]]) + "." + pathnameParts[3]
+    );
     apiAction = yield call(newUntitled, dataset, parentFullPath, viewId);
   }
 

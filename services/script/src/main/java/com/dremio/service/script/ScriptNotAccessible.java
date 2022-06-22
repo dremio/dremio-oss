@@ -23,4 +23,10 @@ public class ScriptNotAccessible extends Exception {
   public ScriptNotAccessible() {
     super("You are not authorized to perform this action on Script.");
   }
+
+  public ScriptNotAccessible(String scriptId, String userId) {
+    super(String.format("User : %s not authorized to perform this action on Script : %s.",
+                        userId,
+                        scriptId));
+  }
 }

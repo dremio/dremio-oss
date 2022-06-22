@@ -18,7 +18,7 @@
 // import ProvisionInfoTable from './ProvisionInfoTable';
 
 // This will be corrected in thr future
-describe('ProvisionInfoTable', () => {
+describe("ProvisionInfoTable", () => {
   // let minimalProps;
   // let commonProps;
   // beforeEach(() => {
@@ -55,12 +55,12 @@ describe('ProvisionInfoTable', () => {
   //     })
   //   };
   // });
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     // const wrapper = shallow(<ProvisionInfoTable {...minimalProps}/>);
     // expect(wrapper).to.have.length(1);
   });
 
-  it('should render StatefulTableViewer with tableData based on runningList', () => {
+  it("should render StatefulTableViewer with tableData based on runningList", () => {
     // const wrapper = shallow(<ProvisionInfoTable {...commonProps}/>);
     // const tableViewerWrapper = wrapper.find('TableViewer');
     // expect(tableViewerWrapper).to.have.length(1);

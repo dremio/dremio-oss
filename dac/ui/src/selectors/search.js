@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export const getSearchText = state => state.search.get('searchText');
+export const getSearchText = (state) => state.search.get("searchText");

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable  from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import './DropDownHints.less';
+import "./DropDownHints.less";
 
 class DropDownHints extends PureComponent {
   static propTypes = {
@@ -26,59 +26,61 @@ class DropDownHints extends PureComponent {
     line: PropTypes.number.isRequired,
     char: PropTypes.number.isRequired,
     items: PropTypes.object,
-    info: PropTypes.instanceOf(Immutable.Map)
-  }
+    info: PropTypes.instanceOf(Immutable.Map),
+  };
 
   constructor(props) {
     super(props);
   }
 
   renderHints() {
-    return this.props.items.map((item) => {
-      return (
-        <div
-          className='hint'
-          key={item.get('text')}
-          onClick={this.props.insertIntoCode.bind(this, item.get('text'))}>
-          <div className='hint-title' >
-            {item.get('text')}
+    return this.props.items
+      .map((item) => {
+        return (
+          <div
+            className="hint"
+            key={item.get("text")}
+            onClick={this.props.insertIntoCode.bind(this, item.get("text"))}
+          >
+            <div className="hint-title">{item.get("text")}</div>
           </div>
-        </div>);
-    }).toList();
+        );
+      })
+      .toList();
   }
 
   render() {
-    const {line, char} = this.props;
+    const { line, char } = this.props;
     const top = 65 + line * 20;
     const left = 25 + char * 8.43;
     const style = {
       left: `${left}px`,
-      top: `${top}px`
+      top: `${top}px`,
     };
     const hintList = this.renderHints();
-    const block = this.props.info.get('header')
-      ? <div>
-        <div className='name-header'>
-          {this.props.info && this.props.info.get('header')}
+    const block = this.props.info.get("header") ? (
+      <div>
+        <div className="name-header">
+          {this.props.info && this.props.info.get("header")}
         </div>
-        <div className='name-type'>
-          {this.props.info && this.props.info.get('type')}
+        <div className="name-type">
+          {this.props.info && this.props.info.get("type")}
         </div>
-        <div className='name-description'>
-          {this.props.info && this.props.info.get('description')}
+        <div className="name-description">
+          {this.props.info && this.props.info.get("description")}
         </div>
-        <div className='name-text'>
-          {this.props.info && this.props.info.get('text')}
+        <div className="name-text">
+          {this.props.info && this.props.info.get("text")}
         </div>
       </div>
-      : null;
+    ) : null;
     return (
-      <div className='drop-down-hints' style={style}>
+      <div className="drop-down-hints" style={style}>
         {block}
         {hintList}
-      </div>);
+      </div>
+    );
   }
-
 }
 
 export default DropDownHints;

@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import SearchItem from '@app/components/HeaderItemsTypes/SearchItem';
+import SearchItem from "@app/components/HeaderItemsTypes/SearchItem";
 
-import './HomePageTop.less';
+import "./HomePageTop.less";
 
 export const HomePageTop = () => {
   return (
-    <div className='c-homePageTop'>
-      <div className='c-homePageTop__search'>
+    <div className="c-homePageTop">
+      <div className="c-homePageTop__search">
         <SearchItem />
       </div>
     </div>

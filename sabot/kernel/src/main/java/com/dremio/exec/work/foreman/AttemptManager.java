@@ -16,6 +16,7 @@
 package com.dremio.exec.work.foreman;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 
@@ -75,6 +76,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
+import io.grpc.Context;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.OutOfDirectMemoryError;
 
@@ -164,6 +166,7 @@ public class AttemptManager implements Runnable {
   private final CommandPool commandPool;
   private CommandRunner<?> command;
   private Optional<Runnable> committer = Optional.empty();
+  private Optional<Runnable> queryCleaner = Optional.empty();
 
   /**
    * if set to true, query is not going to be scheduled on a separate thread
@@ -245,10 +248,11 @@ public class AttemptManager implements Runnable {
     return queryContext;
   }
 
-  public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) {
-    if(data != null){
+  public void dataFromScreenArrived(QueryData header, ResponseSender sender, ByteBuf... data) {
+    if(data != null && data.length > 0 &&
+      Arrays.stream(data).filter(d -> d != null).count() > 0) {
       // we're going to send this some place, we need increment to ensure this is around long enough to send.
-      data.retain();
+      Arrays.stream(data).filter(d -> d != null).forEach(d->d.retain());
       observer.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header, data));
     } else {
       observer.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header));
@@ -396,6 +400,7 @@ public class AttemptManager implements Runnable {
       if (command.getCommandType() == CommandType.ASYNC_QUERY) {
         AsyncCommand asyncCommand = (AsyncCommand) command;
         committer = asyncCommand.getPhysicalPlan().getCommitter();
+        queryCleaner =  asyncCommand.getPhysicalPlan().getCleaner();
 
         moveToState(QueryState.STARTING, null);
         maestroService.executeQuery(queryId, queryContext, asyncCommand.getPhysicalPlan(), runInSameThread,
@@ -634,6 +639,7 @@ public class AttemptManager implements Runnable {
         // callback from maestro.
         return;
       }
+
       Preconditions.checkState(resultState != null);
       final Thread currentThread = Thread.currentThread();
       final String originalName = currentThread.getName();
@@ -645,7 +651,10 @@ public class AttemptManager implements Runnable {
           injector.injectChecked(queryContext.getExecutionControls(), "commit-failure", UnsupportedOperationException.class);
 
           if (resultState == QueryState.COMPLETED) {
-            committer.ifPresent(x -> x.run());
+            // The commit handler can internally invoke other grpcs. So, forking the context here.
+            Context.current().fork().run(() -> committer.ifPresent(Runnable::run));
+          } else if (resultState == QueryState.CANCELED || resultState ==  QueryState.FAILED) {
+            Context.current().fork().run(() -> queryCleaner.ifPresent(Runnable::run));
           }
         } catch (Exception e) {
           addException(e);
@@ -959,5 +968,3 @@ public class AttemptManager implements Runnable {
     }
   }
 }
-
-

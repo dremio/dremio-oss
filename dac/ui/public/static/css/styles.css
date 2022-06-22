@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-html, body {
+html,
+body {
   font-family: Roboto, "Helvetica Neue", Arial;
 }
 
@@ -107,7 +108,7 @@ h3 {
   overflow: auto;
 }
 
-.panel-default>.panel-heading {
+.panel-default > .panel-heading {
   padding: 0;
   background: transparent;
   border-radius: 0;
@@ -118,11 +119,11 @@ pre {
   border-radius: 2px;
 }
 
-table.table>thead>tr>th {
+table.table > thead > tr > th {
   text-align: right;
 }
 
-.table>tbody>tr>td {
+.table > tbody > tr > td {
   white-space: nowrap;
 }
 

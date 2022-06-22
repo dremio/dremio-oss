@@ -14,4 +14,5 @@
  * limitations under the License.
  */
 
-export const DEFAULT_ERR_MSG = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
+export const DEFAULT_ERR_MSG =
+  "Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html";

@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,12 +27,10 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.SampleMutator;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Preconditions;
 
 /**
  * Parquet reader for DeltaLake datasets. This will be an inner reader of a
@@ -47,7 +44,7 @@ public class DeltaLakeParquetReader extends TransactionalTableParquetReader {
     BatchSchema tableSchema,
     ParquetScanProjectedColumns projectedColumns,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    List<ParquetFilterCondition> filterConditions,
+    DeltaLakeParquetFilters filters,
     ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
     FileSystem fs,
     MutableParquetMetadata footer,
@@ -57,14 +54,13 @@ public class DeltaLakeParquetReader extends TransactionalTableParquetReader {
     boolean enableDetailedTracing,
     boolean supportsColocatedReads,
     InputStreamProvider inputStreamProvider) {
-    super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filterConditions,
+    super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filters,
             readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads,
             inputStreamProvider);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
     ParquetColumnResolver columnResolver = projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
 
     // create output vector based on schema in parquet file
@@ -83,7 +79,7 @@ public class DeltaLakeParquetReader extends TransactionalTableParquetReader {
         break;
       }
     }
-    ((SampleMutator) output).getContainer().buildSchema();
+    output.getContainer().buildSchema();
     output.getAndResetSchemaChanged();
     setupCurrentReader(output);
   }

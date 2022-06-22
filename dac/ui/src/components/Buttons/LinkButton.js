@@ -13,36 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { Link } from 'react-router';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import { Link } from "react-router";
+import Radium from "radium";
 
-import invariant from 'invariant';
+import invariant from "invariant";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import * as buttonStyles from 'uiTheme/radium/buttons';
+import * as buttonStyles from "uiTheme/radium/buttons";
+
+//TODO Remove radium
+const RadiumLink = Radium(Link);
 
 export default class LinkButton extends PureComponent {
-
   static propTypes = {
     buttonStyle: PropTypes.string,
     style: PropTypes.object,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   static defaultProps = {
-    buttonStyle: 'secondary'
+    buttonStyle: "secondary",
   };
 
   render() {
-    const {buttonStyle, ...linkProps} = this.props;
-    const {style, children} = linkProps;
-    invariant(buttonStyles[buttonStyle] !== undefined, `Unknown button style: "${buttonStyle}"`);
+    const { buttonStyle, ...linkProps } = this.props;
+    const { style, children } = linkProps;
+    invariant(
+      buttonStyles[buttonStyle] !== undefined,
+      `Unknown button style: "${buttonStyle}"`
+    );
 
-    const RadiumLink = Radium(Link);
     return (
-      <RadiumLink {...linkProps} style={[styles.base, buttonStyles[buttonStyle], style]}>
+      <RadiumLink
+        {...linkProps}
+        style={[styles.base, buttonStyles[buttonStyle], style]}
+      >
         {children}
       </RadiumLink>
     );
@@ -51,7 +58,7 @@ export default class LinkButton extends PureComponent {
 
 const styles = {
   base: {
-    lineHeight: '27px',
-    textDecoration: 'none'
-  }
+    lineHeight: "27px",
+    textDecoration: "none",
+  },
 };

@@ -13,41 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import {title, contextCard, cardTitle } from 'uiTheme/radium/rightContext';
+import { title, contextCard, cardTitle } from "uiTheme/radium/rightContext";
 
-@Radium
-export default class Folder extends PureComponent {
-
+class HomeContext extends PureComponent {
   static propTypes = {
-    entity: PropTypes.instanceOf(Immutable.Map)
+    entity: PropTypes.instanceOf(Immutable.Map),
   };
 
   static contextTypes = {
-    username: PropTypes.string
-  }
+    username: PropTypes.string,
+  };
 
   constructor(props) {
     super(props);
   }
 
   render() {
-    const {entity} = this.props;
+    const { entity } = this.props;
 
-    return <div className='home-context'>
-      <h4 style={title}>About Home</h4>
-      <div style={contextCard}>
-        <div style={cardTitle}>Details</div>
-        <div className='description'>
-          {entity.get('description')}
+    return (
+      <div className="home-context">
+        <h4 style={title}>About Home</h4>
+        <div style={contextCard}>
+          <div style={cardTitle}>Details</div>
+          <div className="description">{entity.get("description")}</div>
         </div>
       </div>
-
-    </div>;
+    );
   }
 }
+export default Radium(HomeContext);

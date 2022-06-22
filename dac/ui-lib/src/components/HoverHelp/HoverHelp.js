@@ -13,42 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import Tooltip from '@material-ui/core/Tooltip';
+import Tooltip from "@material-ui/core/Tooltip";
 
-import { ReactComponent as InfoCircleSvg } from '../../art/InfoCircle.svg';
-import { ReactComponent as InfoCircleSolid } from '../../art/InfoCircleSolid.svg';
+import { ReactComponent as InfoCircleSvg } from "../../art/InfoCircle.svg";
 
-import './HoverHelp.scss';
+import "./HoverHelp.scss";
 
 const HoverHelp = (props) => {
-  const [hover, setHover] = useState(false);
+  const { arrow, content, placement } = props;
 
-  const {
-    arrow,
-    content,
-    placement
-  } = props;
-
-  const onMouseEnter = () => {
-    setHover(true);
-  };
-  const onMouseLeave = () => {
-    setHover(false);
-  };
-
-  const Icon = hover ? InfoCircleSolid : InfoCircleSvg;
   return (
-    <div className='hoverHelp margin-left--half'>
-      <Tooltip
-        arrow={arrow}
-        placement={placement}
-        title={content}
-      >
-        <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-          <Icon alt='info'/>
+    <div className="margin-left--half">
+      <Tooltip arrow={arrow} placement={placement} title={content}>
+        <div className="iconContainer">
+          <InfoCircleSvg alt="info" />
         </div>
       </Tooltip>
     </div>
@@ -56,13 +37,13 @@ const HoverHelp = (props) => {
 };
 
 HoverHelp.defaultProps = {
-  placement: 'bottom'
+  placement: "bottom",
 };
 
 HoverHelp.propTypes = {
   content: PropTypes.string.isRequired,
   placement: PropTypes.string,
-  arrow: PropTypes.bool
+  arrow: PropTypes.bool,
 };
 
 export default HoverHelp;

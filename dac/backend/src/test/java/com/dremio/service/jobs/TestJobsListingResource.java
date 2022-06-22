@@ -48,6 +48,7 @@ import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
@@ -161,7 +162,7 @@ public class TestJobsListingResource extends BaseTestServer {
         .setState(state)
         .setInfo(jobInfo);
 
-    return new Job(jobId, jobAttempt);
+    return new Job(jobId, jobAttempt, new SessionId());
   }
 
   private static JobInfo newJobInfo(final JobInfo templateJobInfo, long start, long end, String failureInfo) {

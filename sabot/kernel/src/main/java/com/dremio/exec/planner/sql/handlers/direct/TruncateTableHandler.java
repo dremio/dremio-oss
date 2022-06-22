@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ResolvedVersionContext;
@@ -28,9 +29,11 @@ import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.annotations.VisibleForTesting;
 
 public class TruncateTableHandler extends SimpleDirectHandler {
 
@@ -46,6 +49,8 @@ public class TruncateTableHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlTruncateTable truncateTableNode = SqlNodeUtil.unwrap(sqlNode, SqlTruncateTable.class);
     NamespaceKey path = catalog.resolveSingle(truncateTableNode.getPath());
+    validateDmlRequest(catalog, path, truncateTableNode.getOperator().getName());
+    catalog.validatePrivilege(path, Privilege.TRUNCATE);
 
     Optional<SimpleCommandResult> result = IcebergUtils.checkTableExistenceAndMutability(catalog,
       config, path, truncateTableNode.checkTableExistence());
@@ -66,5 +71,14 @@ public class TruncateTableHandler extends SimpleDirectHandler {
     }
 
     return Collections.singletonList(SimpleCommandResult.successful("Table [%s] truncated", path));
+  }
+
+  @VisibleForTesting
+  public static void validateDmlRequest(Catalog catalog, NamespaceKey path, String operatorName) {
+    if (!IcebergUtils.validatePluginSupportForIceberg(catalog, path)) {
+      throw UserException.unsupportedError()
+        .message(String.format("%s clause is not supported in the query for this source", operatorName))
+        .buildSilently();
+    }
   }
 }

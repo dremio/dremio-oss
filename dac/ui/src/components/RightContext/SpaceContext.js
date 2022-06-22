@@ -13,46 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import {title, contextCard, cardTitle, contextAttrs, attrLabel, attrValue} from 'uiTheme/radium/rightContext';
+import {
+  title,
+  contextCard,
+  cardTitle,
+  contextAttrs,
+  attrLabel,
+  attrValue,
+} from "uiTheme/radium/rightContext";
 
-@Radium
-export default class Folder extends PureComponent {
-
+class SpaceContext extends PureComponent {
   static propTypes = {
-    entity: PropTypes.instanceOf(Immutable.Map)
+    entity: PropTypes.instanceOf(Immutable.Map),
   };
 
   static contextTypes = {
-    username: PropTypes.string
-  }
+    username: PropTypes.string,
+  };
 
   constructor(props) {
     super(props);
   }
 
   render() {
-    const {entity} = this.props;
-    return <div>
-      <h4 style={title}>About this Space</h4>
-      <div style={contextCard}>
-        <div style={cardTitle}>Details</div>
-        <ul style={contextAttrs}>
-          <li style={entity.get('ctime') ? {display: 'block'} : {display: 'none'}}>
-            <span style={attrLabel}>Created At:</span>
-            <span style={attrValue}>{entity.get('ctime')}</span>
-          </li>
-        </ul>
-        <div className='description'>
-          {entity.get('description')}
+    const { entity } = this.props;
+    return (
+      <div>
+        <h4 style={title}>About this Space</h4>
+        <div style={contextCard}>
+          <div style={cardTitle}>Details</div>
+          <ul style={contextAttrs}>
+            <li
+              style={
+                entity.get("ctime") ? { display: "block" } : { display: "none" }
+              }
+            >
+              <span style={attrLabel}>Created At:</span>
+              <span style={attrValue}>{entity.get("ctime")}</span>
+            </li>
+          </ul>
+          <div className="description">{entity.get("description")}</div>
         </div>
       </div>
-
-    </div>;
+    );
   }
 }
+export default Radium(SpaceContext);

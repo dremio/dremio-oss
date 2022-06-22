@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
- @import '~@app/uiTheme/less/variables.less';
- @import '~@app/uiTheme/less/color-schema.less';
+@import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .grid-acceleration {
     padding: 10px;
     border-left: 1px solid @BORDER_TABLE;
@@ -38,11 +39,16 @@
     }
 
     .fixedDataTableRowLayout_main.public_fixedDataTableRow_main.fixedDataTableLayout_header.public_fixedDataTable_header
-      .fixedDataTableCellGroupLayout_cellGroupWrapper:nth-child(2) .fixedDataTableCellGroupLayout_cellGroup {
+      .fixedDataTableCellGroupLayout_cellGroupWrapper:nth-child(2)
+      .fixedDataTableCellGroupLayout_cellGroup {
       border-bottom: 1px solid @BORDER_TABLE;
     }
 
-    .fixedDataTableLayout_rowsContainer, .public_fixedDataTable_header, .public_fixedDataTable_header, .public_fixedDataTableCell_main, .fixedDataTableCellGroupLayout_cellGroupWrapper {
+    .fixedDataTableLayout_rowsContainer,
+    .public_fixedDataTable_header,
+    .public_fixedDataTable_header,
+    .public_fixedDataTableCell_main,
+    .fixedDataTableCellGroupLayout_cellGroupWrapper {
       background: transparent; // hide the content sliding underneath
     }
 
@@ -54,7 +60,7 @@
       z-index: 0 !important;
 
       input::placeholder {
-        color:#bbc0c6 !important;
+        color: #bbc0c6 !important;
       }
     }
 
@@ -72,6 +78,12 @@
     .fixedDataTableRowLayout_fixedColumnsDivider {
       border-width: 0;
     }
+
+    // DX-48112 - Fix to remove column shadows overlap in Raw Reflections
+    .fixedDataTableLayout_header > div:nth-child(1) > div:nth-child(3) {
+      top: 28px;
+      position: relative;
+    }
   }
 
   .AccelerationGrid {
@@ -88,11 +100,6 @@
       width: 100%;
       border-bottom: 1px solid @BORDER_TABLE;
       border-right: 1px solid @BORDER_TABLE;
-    }
-
-    &__checkRow {
-      display: flex;
-      margin-top: 10px;
     }
 
     &__column {
@@ -133,7 +140,7 @@
 
     &__input {
       border-radius: 0;
-      border: 1px solid @BORDER_TABLE
+      border: 1px solid @BORDER_TABLE;
     }
 
     &__lastCell {
@@ -151,14 +158,16 @@
       border-bottom: 1px solid @BORDER_TABLE;
     }
 
-    &__layoutHeaderDeleteIcon { // todo: ax; hover
+    &__layoutHeaderDeleteIcon {
+      // todo: ax; hover
       flex-grow: 0;
       flex-shrink: 0;
       cursor: pointer;
       height: 26px;
     }
 
-    &__layoutHeaderSettingsIcon { // todo: ax; hover
+    &__layoutHeaderSettingsIcon {
+      // todo: ax; hover
       flex-grow: 0;
       flex-shrink: 0;
       cursor: pointer;
@@ -173,7 +182,7 @@
       color: @font-color2;
       width: 100%;
       flex-grow: 1;
-      padding: 0 5px
+      padding: 0 5px;
     }
 
     &__leftCell {
@@ -194,7 +203,7 @@
       height: 100%;
       display: flex;
       flex-direction: column;
-      justify-content: flex-end
+      justify-content: flex-end;
     }
 
     &__message {
@@ -245,4 +254,3 @@
     }
   }
 }
-

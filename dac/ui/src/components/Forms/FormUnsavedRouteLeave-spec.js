@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Component } from 'react';
+import { shallow } from "enzyme";
+import { Component } from "react";
 
-import { wrapUnsavedChangesWithWrappedForm } from './FormUnsavedRouteLeave';
+import { wrapUnsavedChangesWithWrappedForm } from "./FormUnsavedRouteLeave";
 
-describe('FormUnsavedRouteLeave', () => {
-
+describe("FormUnsavedRouteLeave", () => {
   const MockControllerComponent = class extends Component {
     render() {
-      return (<div>Fake Controller</div>);
+      return <div>Fake Controller</div>;
     }
   };
 
@@ -34,10 +33,12 @@ describe('FormUnsavedRouteLeave', () => {
     isActive: sinon.spy(),
     goBack: sinon.spy(),
     goForward: sinon.spy(),
-    replace: sinon.spy()
+    replace: sinon.spy(),
   };
 
-  const TestComponent = wrapUnsavedChangesWithWrappedForm(MockControllerComponent);
+  const TestComponent = wrapUnsavedChangesWithWrappedForm(
+    MockControllerComponent
+  );
 
   let minimalProps;
   beforeEach(() => {
@@ -45,73 +46,72 @@ describe('FormUnsavedRouteLeave', () => {
       route: {},
       routes: [],
       router: routerMock,
-      showUnsavedChangesConfirmDialog: sinon.spy()
+      showUnsavedChangesConfirmDialog: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#updateFormDirtyState', () => {
-
-    it('should set state', () => {
-      const instance = shallow(<TestComponent {...minimalProps}/>).instance();
+  describe("#updateFormDirtyState", () => {
+    it("should set state", () => {
+      const instance = shallow(<TestComponent {...minimalProps} />).instance();
 
       instance.updateFormDirtyState(true);
       expect(instance.state.isFormDirty).to.be.true;
     });
   });
 
-  describe('#routeWillLeave', () => {
+  describe("#routeWillLeave", () => {
     let instance;
 
     beforeEach(() => {
-      instance = shallow(<TestComponent {...minimalProps}/>).instance();
+      instance = shallow(<TestComponent {...minimalProps} />).instance();
     });
 
-    it('should return true when form not dirty', () => {
+    it("should return true when form not dirty", () => {
       expect(instance.routeWillLeave()).to.be.true;
     });
 
-    it('should call hide when form dirty and submitted', () => {
-      instance.setState({isFormDirty: true});
+    it("should call hide when form dirty and submitted", () => {
+      instance.setState({ isFormDirty: true });
       expect(instance.routeWillLeave()).to.be.false;
     });
 
-    it('should call showUnsavedChangesConfirmDialog when form is dirty', () => {
-      instance.setState({isFormDirty: true});
+    it("should call showUnsavedChangesConfirmDialog when form is dirty", () => {
+      instance.setState({ isFormDirty: true });
       instance.routeWillLeave();
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.calledOnce;
     });
 
-    it('should not call showUnsavedChangesConfirmDialog when redirect reason is unauthorized', () => {
-      instance.setState({isFormDirty: true});
-      instance.routeWillLeave({search: 'abc&reason=401'});
+    it("should not call showUnsavedChangesConfirmDialog when redirect reason is unauthorized", () => {
+      instance.setState({ isFormDirty: true });
+      instance.routeWillLeave({ search: "abc&reason=401" });
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.not.called;
     });
   });
 
-  describe('#leaveConfirmed', () => {
+  describe("#leaveConfirmed", () => {
     let instance;
     let clock;
 
     beforeEach(() => {
       clock = sinon.useFakeTimers();
-      instance = shallow(<TestComponent {...minimalProps}/>).instance();
+      instance = shallow(<TestComponent {...minimalProps} />).instance();
     });
 
     afterEach(() => {
       clock.restore();
     });
 
-    it('ignoreUnsavedChanges should be true when modal confirmed', () => {
+    it("ignoreUnsavedChanges should be true when modal confirmed", () => {
       instance.leaveConfirmed();
       expect(instance.state.ignoreUnsavedChanges).to.be.true;
     });
 
-    it('should call router.push when modal confirmed', () => {
+    it("should call router.push when modal confirmed", () => {
       minimalProps.router.push = sinon.spy(); // get fresh mock
       instance.leaveConfirmed();
       clock.tick(0);
@@ -119,24 +119,30 @@ describe('FormUnsavedRouteLeave', () => {
     });
   });
 
-  describe('#setChildDirtyState', () => {
-    it('should update overall form state as pristine when all child forms are pristine', () => {
+  describe("#setChildDirtyState", () => {
+    it("should update overall form state as pristine when all child forms are pristine", () => {
       const instance = shallow(<TestComponent {...minimalProps} />).instance();
-      sinon.spy(instance, 'updateFormDirtyState');
-      instance.setChildDirtyState('form1')(false);
-      instance.setChildDirtyState('form2')(false);
+      sinon.spy(instance, "updateFormDirtyState");
+      instance.setChildDirtyState("form1")(false);
+      instance.setChildDirtyState("form2")(false);
       expect(instance.updateFormDirtyState).to.have.been.calledWith(false);
-      expect(instance.childDirtyStates).to.be.eql({ form1: false, form2: false});
+      expect(instance.childDirtyStates).to.be.eql({
+        form1: false,
+        form2: false,
+      });
       expect(instance.state.isFormDirty).to.be.false;
     });
 
-    it('should update overall form state as dirty when some child form is dirty', () => {
+    it("should update overall form state as dirty when some child form is dirty", () => {
       const instance = shallow(<TestComponent {...minimalProps} />).instance();
-      sinon.spy(instance, 'updateFormDirtyState');
-      instance.setChildDirtyState('form1')(true);
-      instance.setChildDirtyState('form2')(false);
+      sinon.spy(instance, "updateFormDirtyState");
+      instance.setChildDirtyState("form1")(true);
+      instance.setChildDirtyState("form2")(false);
       expect(instance.updateFormDirtyState).to.have.been.calledWith(true);
-      expect(instance.childDirtyStates).to.be.eql({ form1: true, form2: false});
+      expect(instance.childDirtyStates).to.be.eql({
+        form1: true,
+        form2: false,
+      });
       expect(instance.state.isFormDirty).to.be.true;
     });
   });

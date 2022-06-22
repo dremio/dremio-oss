@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isEmptyValue } from 'utils/validation';
-import transformRules from './transformRules';
+import { isEmptyValue } from "utils/validation";
+import transformRules from "./transformRules";
 
 class FieldsMappers {
-
   getCommonValues = (values, transform) => ({
-    type: 'field',
+    type: "field",
     newColumnName: values.newFieldName,
-    sourceColumnName: transform.get('columnName'),
-    dropSourceColumn: values.dropSourceField
+    sourceColumnName: transform.get("columnName"),
+    dropSourceColumn: values.dropSourceField,
   });
 
   getRuleFromCards(cards, activeCard) {
@@ -30,61 +29,70 @@ class FieldsMappers {
     return transformRules.getRuleMapper(card.type)(card);
   }
 
-  getReplaceType = values => values.replaceType === 'NULL' ? 'NULL' : values.replaceSelectionType;
+  getReplaceType = (values) =>
+    values.replaceType === "NULL" ? "NULL" : values.replaceSelectionType;
 
-  getReplacementValue = values => {
-    const replacementValue = !isEmptyValue(values.replacementValue) ? values.replacementValue : '';
-    return values.replaceType === 'VALUE' ? replacementValue : null;
-  }
+  getReplacementValue = (values) => {
+    const replacementValue = !isEmptyValue(values.replacementValue)
+      ? values.replacementValue
+      : "";
+    return values.replaceType === "VALUE" ? replacementValue : null;
+  };
 
-  getSplitPosition = values => {
+  getSplitPosition = (values) => {
     const { index, maxFields } = values;
     const position = values.position ? values.position.toUpperCase() : null;
-    if (values.position === 'All') {
+    if (values.position === "All") {
       return { position, maxFields };
-    } else if (values.position === 'Index') {
+    } else if (values.position === "Index") {
       return { position, index };
     }
     return { position };
-  }
+  };
 
   getReplaceExact = (values, columnType) => ({
     replaceNull: values.replaceNull,
     replacementValue: this.getReplacementValue(values),
     replacedValuesList: values.replaceNull ? [] : values.replaceValues,
     replacementType: columnType,
-    replaceType: this.getReplaceType(values)
-  })
+    replaceType: this.getReplaceType(values),
+  });
 
   setNullIfEmpty = (bound) => {
-    if (bound === '') {
+    if (bound === "") {
       return null;
     }
     return bound;
-  }
+  };
 
   getReplaceRange = (values, columnType) => ({
-    lowerBound: typeof values.lowerBound === 'object'
-      ? values.lowerBound[0] : this.setNullIfEmpty(values.lowerBound),
-    upperBound: typeof values.upperBound === 'object'
-      ? values.upperBound[0] : this.setNullIfEmpty(values.upperBound),
+    lowerBound:
+      typeof values.lowerBound === "object"
+        ? values.lowerBound[0]
+        : this.setNullIfEmpty(values.lowerBound),
+    upperBound:
+      typeof values.upperBound === "object"
+        ? values.upperBound[0]
+        : this.setNullIfEmpty(values.upperBound),
     keepNull: values.keepNull,
     replacementType: columnType,
     replacementValue: this.getReplacementValue(values),
     lowerBoundInclusive: values.lowerBoundInclusive,
-    upperBoundInclusive: values.upperBoundInclusive
-  })
+    upperBoundInclusive: values.upperBoundInclusive,
+  });
 
   getReplaceValues = (values, columnType) => ({
-    replaceNull: values.hasOwnProperty('replaceNull') ? values.replaceNull : values.replaceType === 'NULL',
+    replaceNull: Object.prototype.hasOwnProperty.call(values, "replaceNull")
+      ? values.replaceNull
+      : values.replaceType === "NULL",
     replacementValue: this.getReplacementValue(values),
-    replacedValuesList:  values.replaceValues,
-    replacementType: columnType
-  })
+    replacedValuesList: values.replaceValues,
+    replacementType: columnType,
+  });
 
   getReplaceCustom = (values) => ({
     booleanExpression: values.booleanExpression,
-    replacementValue: this.getReplacementValue(values)
+    replacementValue: this.getReplacementValue(values),
   });
 }
 

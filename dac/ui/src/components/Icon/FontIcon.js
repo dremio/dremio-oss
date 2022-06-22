@@ -13,53 +13,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent, Component } from 'react';
-import Immutable  from 'immutable';
-import Radium from 'radium';
-import classNames from 'classnames';
+import React, { PureComponent, Component } from "react";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import './FontIcon.less';
+import "./FontIcon.less";
 
-export const SEARCH = 'fa-search';
-export const UNDO = 'fa-undo';
-export const EDIT = 'fa-pencil';
-export const STOP = 'fa-stop';
-export const COLUMNS = 'fa-columns';
-export const HOME = 'fa-home';
-export const FOLDER = 'fa-folder-o';
-export const CLOCK = 'fa-clock-o';
-export const USER_IN_BORDER = 'fa-user';
-export const CLOSE_X2 = 'fa-times fa-2x';
-export const CARET_DOWN = 'fa-caret-down';
-const CARET_UP = 'fa-caret-up';
-export const CARET_RIGHT = 'fa-caret-right';
-export const SPINNER = 'fa-spinner fa-spin';
-const FA_ON = 'fa-circle fa-on';
-const FA_OFF = 'fa-circle fa-off';
-const WARNING_ICON = 'fa-exclamation-circle';
-export const ANGEL_DOWN = 'fa fa-angle-down';
-const FILE = 'fa fa-file-o';
-const ARROW_DOWN = 'fa fa-arrow-down';
-const BAR_CHART = 'fa fa-bar-chart';
-const FA_TIMES = 'fa-times';
-const SHARE_ALT = 'fa-share-alt';
-const TRIANGLE = 'fa-exclamation-triangle';
-const EYE = 'fa-eye';
-const EYE_SLASH = 'fa-eye-slash';
-export const PLUS_CIRCLE = 'fa-plus-circle';
-const FOLDER_CONVERT = 'FolderConvert';
-const FILE_CONVERT = 'FileConvert';
-const TRASH = 'Trash';
-const FLAME = 'Flame';
-const CLIPBOARD = 'Clipboard';
-const DOWNLOAD_LINK = 'DownloadLink';
-const FONT_ICONS = new Set([CARET_DOWN, WARNING_ICON, CLOSE_X2, ANGEL_DOWN, HOME, CLOCK, USER_IN_BORDER,
-  FILE, ARROW_DOWN, BAR_CHART, CARET_UP, FA_ON, FA_OFF, SPINNER, FA_TIMES, CARET_RIGHT, FOLDER,
-  SHARE_ALT, TRIANGLE, EYE, EYE_SLASH, SEARCH, COLUMNS, PLUS_CIRCLE, STOP, UNDO, EDIT, DOWNLOAD_LINK]);
-
-
+export const SEARCH = "fa-search";
+export const UNDO = "fa-undo";
+export const EDIT = "fa-pencil";
+export const STOP = "fa-stop";
+export const COLUMNS = "fa-columns";
+export const HOME = "fa-home";
+export const FOLDER = "fa-folder-o";
+export const CLOCK = "fa-clock-o";
+export const USER_IN_BORDER = "fa-user";
+export const CLOSE_X2 = "fa-times fa-2x";
+export const CARET_DOWN = "fa-caret-down";
+const CARET_UP = "fa-caret-up";
+export const CARET_RIGHT = "fa-caret-right";
+export const SPINNER = "fa-spinner fa-spin";
+const FA_ON = "fa-circle fa-on";
+const FA_OFF = "fa-circle fa-off";
+const WARNING_ICON = "fa-exclamation-circle";
+export const ANGEL_DOWN = "fa fa-angle-down";
+const FILE = "fa fa-file-o";
+const ARROW_DOWN = "fa fa-arrow-down";
+const BAR_CHART = "fa fa-bar-chart";
+const FA_TIMES = "fa-times";
+const SHARE_ALT = "fa-share-alt";
+const TRIANGLE = "fa-exclamation-triangle";
+const EYE = "fa-eye";
+const EYE_SLASH = "fa-eye-slash";
+export const PLUS_CIRCLE = "fa-plus-circle";
+const FOLDER_CONVERT = "FolderConvert";
+const FILE_CONVERT = "FileConvert";
+const TRASH = "Trash";
+const FLAME = "Flame";
+const CLIPBOARD = "Clipboard";
+const DOWNLOAD_LINK = "DownloadLink";
+const FONT_ICONS = new Set([
+  CARET_DOWN,
+  WARNING_ICON,
+  CLOSE_X2,
+  ANGEL_DOWN,
+  HOME,
+  CLOCK,
+  USER_IN_BORDER,
+  FILE,
+  ARROW_DOWN,
+  BAR_CHART,
+  CARET_UP,
+  FA_ON,
+  FA_OFF,
+  SPINNER,
+  FA_TIMES,
+  CARET_RIGHT,
+  FOLDER,
+  SHARE_ALT,
+  TRIANGLE,
+  EYE,
+  EYE_SLASH,
+  SEARCH,
+  COLUMNS,
+  PLUS_CIRCLE,
+  STOP,
+  UNDO,
+  EDIT,
+  DOWNLOAD_LINK,
+]);
 
 /**
  * @description Theme is object that specify your styles.
@@ -69,113 +93,112 @@ const FONT_ICONS = new Set([CARET_DOWN, WARNING_ICON, CLOSE_X2, ANGEL_DOWN, HOME
  */
 const DEFAULT_STYLES = {
   defaultStyle: {
-    'Icon': {
-      'width': 24,
-      'height': 24
+    Icon: {
+      width: 24,
+      height: 24,
     },
-    'Container': {
-      'display': 'inline-block'
-    }
+    Container: {
+      display: "inline-block",
+    },
   },
   [FA_ON]: {
-    'Icon': {
-      'color': '#7FC24E',
-      'margin': '0 0 0 5px'
+    Icon: {
+      color: "#7FC24E",
+      margin: "0 0 0 5px",
     },
-    'Container': {
-      'display': 'inline-block'
-    }
+    Container: {
+      display: "inline-block",
+    },
   },
   [FA_OFF]: {
-    'Icon': {
-      'color': '#FF7E79',
-      'margin': '0 0 0 5px'
+    Icon: {
+      color: "#FF7E79",
+      margin: "0 0 0 5px",
     },
-    'Container': {
-      'display': 'inline-block'
-    }
+    Container: {
+      display: "inline-block",
+    },
   },
   [CARET_DOWN]: {
-    'Icon': {
-      'color': 'black',
-      'margin': '0 0 0 5px'
+    Icon: {
+      color: "black",
+      margin: "0 0 0 5px",
     },
-    'Container': {
-      'display': 'inline-block'
-    }
+    Container: {
+      display: "inline-block",
+    },
   },
   [CARET_RIGHT]: {
-    'Icon': {
-      'color': 'black',
-      'margin': '0 0 0 5px'
+    Icon: {
+      color: "black",
+      margin: "0 0 0 5px",
     },
-    'Container': {
-      'display': 'inline-block'
-    }
+    Container: {
+      display: "inline-block",
+    },
   },
   [CARET_UP]: {
-    'Icon': {
-      'color': 'black',
-      'margin': '0 0 0 5px'
+    Icon: {
+      color: "black",
+      margin: "0 0 0 5px",
     },
-    'Container': {
-      'display': 'inline-block'
-    }
+    Container: {
+      display: "inline-block",
+    },
   },
   [USER_IN_BORDER]: {
-    'Icon': {
-      'fontSize': 10,
-      'border': '1px solid #111',
-      'color': '#111',
-      'display': 'flex',
-      'alignItems': 'flex-end',
-      'width': 14,
-      'height': 14,
-      'float': 'left',
-      'borderRadius': 2
+    Icon: {
+      fontSize: 10,
+      border: "1px solid #111",
+      color: "#111",
+      display: "flex",
+      alignItems: "flex-end",
+      width: 14,
+      height: 14,
+      float: "left",
+      borderRadius: 2,
     },
-    'Container': {
-    }
+    Container: {},
   },
   [FOLDER_CONVERT]: {
-    'Icon': {
-      'marginTop': -2,
-      'width': 55,
-      'height': 24
-    }
+    Icon: {
+      marginTop: -2,
+      width: 55,
+      height: 24,
+    },
   },
   [FILE_CONVERT]: {
-    'Icon': {
-      'marginTop': -2,
-      'width': 55,
-      'height': 24
-    }
+    Icon: {
+      marginTop: -2,
+      width: 55,
+      height: 24,
+    },
   },
   [TRASH]: {
-    'Icon': {
-      'width': 11,
-      'height': 12
-    }
+    Icon: {
+      width: 11,
+      height: 12,
+    },
   },
   [FLAME]: {
-    'Icon': {
+    Icon: {
       width: 13,
-      height: 20
-    }
+      height: 20,
+    },
   },
   [CLIPBOARD]: {
-    'Icon': {
-      'width': 14,
-      'height': 14
-    }
+    Icon: {
+      width: 14,
+      height: 14,
+    },
   },
   [DOWNLOAD_LINK]: {
-    'Icon': {
+    Icon: {
       width: 11,
       height: 11,
-      margin: '2px 3px -1px 15px'
-    }
-  }
+      margin: "2px 3px -1px 15px",
+    },
+  },
 };
 /**
  * @description
@@ -185,13 +208,11 @@ const DEFAULT_STYLES = {
 
 // TODO: stop using a "font icon" component to display custom things that aren't in an icon font
 
-@Radium
 export class FullFontIcon extends PureComponent {
   static propTypes = {
     onClick: PropTypes.func,
     onMouseLeave: PropTypes.func,
     onMouseEnter: PropTypes.func,
-    hoverType: PropTypes.string, // todo: only works with custom icons
     type: PropTypes.string,
     theme: PropTypes.object,
     tooltip: PropTypes.string,
@@ -199,33 +220,38 @@ export class FullFontIcon extends PureComponent {
     iconClass: PropTypes.string,
     iconStyle: PropTypes.object,
     id: PropTypes.string,
-    class: PropTypes.string
+    class: PropTypes.string,
+    hasCustomStyle: PropTypes.bool,
   };
 
   getIcon() {
-    const {type, hoverType, iconStyle, iconClass} = this.props;
-    const styles = this.getStylesForThemeItem('Icon');
+    const { type, iconStyle, iconClass, hasCustomStyle } = this.props;
+    const [defaultStyle, customStyle] = this.getStylesForThemeItem("Icon");
     if (FONT_ICONS.has(type)) {
-      const classes = 'fa ${type}';
-      return <i className={classes} style={styles} onClick={this.onClick}/>;
+      const classes = "fa ${type}";
+      return (
+        <i
+          className={classes}
+          style={{ ...defaultStyle, ...customStyle }}
+          onClick={this.onClick}
+        />
+      );
     }
 
-    let typeToShow = type;
-    if (hoverType) {
-      const isHovered = Radium.getState(this.state, 'iconFont', ':hover');
-      if (isHovered) {
-        typeToShow = hoverType;
-      }
-    }
-    const classes = `icon-type fa ${typeToShow}`;
+    const classes = `icon-type fa ${type}`;
     return (
       <span
-        className={classNames([classes, iconClass])}
-        style={[hoverType ? {':hover': {}} : null, styles, iconStyle]} // need to fake out Radium
-        key='iconFont'
+        className={classNames(classes, iconClass)}
+        style={
+          hasCustomStyle
+            ? iconStyle
+            : { ...defaultStyle, ...customStyle, ...iconStyle }
+        }
+        key={`iconFont ${type}`}
         onMouseLeave={this.props.onMouseLeave}
         onMouseEnter={this.props.onMouseEnter}
-        onClick={this.props.onClick}/>
+        onClick={this.props.onClick}
+      />
     );
   }
 
@@ -238,7 +264,7 @@ export class FullFontIcon extends PureComponent {
    * @returns {Object[]}
    */
   getStylesForThemeItem(themeItem) {
-    const {type, theme} = this.props;
+    const { type, theme } = this.props;
 
     let defaultStyle = DEFAULT_STYLES[type] && DEFAULT_STYLES[type][themeItem];
     if (!defaultStyle) {
@@ -247,7 +273,9 @@ export class FullFontIcon extends PureComponent {
 
     let customStyle;
     if (Immutable.Map.isMap(theme)) {
-      console.warn('DEPRECATED: Now FontIcon supports a more convenient format of theme without Immutable.');
+      console.warn(
+        "DEPRECATED: Now FontIcon supports a more convenient format of theme without Immutable."
+      );
       customStyle = theme && theme.get(themeItem);
     } else {
       customStyle = theme && theme[themeItem];
@@ -257,21 +285,22 @@ export class FullFontIcon extends PureComponent {
   }
 
   render() {
-    const styles = this.getStylesForThemeItem('Container');
-    const {id = '', tooltip = '', class: className = ''} = this.props;
+    const [defaultStyle, customStyle] = this.getStylesForThemeItem("Container");
+    const { id = "", tooltip = "", class: className = "" } = this.props;
 
-    const ret =  (
+    const ret = (
       <span
         className={`font-icon ${className}`}
         title={tooltip}
-        id={id} style={styles.concat(this.props.style)}>
+        id={id}
+        style={{ ...defaultStyle, ...customStyle, ...this.props.style }}
+      >
         {this.getIcon()}
       </span>
     );
     return ret;
   }
 }
-
 
 /*
  * Creates and caches to optimized Icon components with precalculated props when type is only prop.
@@ -282,50 +311,60 @@ export default class FontIcon extends Component {
     type: PropTypes.string,
     theme: PropTypes.object,
     tooltip: PropTypes.string,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    sizeStyle: PropTypes.object,
   };
 
   static components = {};
 
   static getIconTypeForDataType(dataType) {
     const icon = dataType
-      ? dataType.charAt(0).toUpperCase() + (dataType).substring(1).toLowerCase()
-      : 'Text';
-    return 'Type' + icon;
+      ? dataType.charAt(0).toUpperCase() + dataType.substring(1).toLowerCase()
+      : "Text";
+    return "Type" + icon;
   }
 
   createFastIconComponent(iconClassName, iconStyle, containerStyle) {
-    let className = 'fa ' + iconClassName;
+    let className = "fa " + iconClassName;
     if (!FONT_ICONS.has(iconClassName)) {
-      className += ' icon-type';
+      className += " icon-type";
     }
-    const defaultIconStyle = iconStyle || {width: 24, height: 24};
-    const defaultContainerStyle = containerStyle || {'display': 'inline-block'};
+    const defaultIconStyle = iconStyle || { width: 24, height: 24 };
+    const defaultContainerStyle = containerStyle || { display: "inline-block" };
 
     class FastIcon extends PureComponent {
       static propTypes = {
         theme: PropTypes.object,
         tooltip: PropTypes.string,
-        dataQa: PropTypes.string
+        dataQa: PropTypes.string,
       };
 
       render() {
         const { theme, tooltip, dataQa } = this.props;
-        return <span
-          className='font-icon'
-          style={theme && theme.Container || defaultContainerStyle}>
-          <span data-qa={dataQa} title={tooltip} className={className} style={theme && theme.Icon || defaultIconStyle}/>
-        </span>;
+        return (
+          <span
+            className="font-icon"
+            style={(theme && theme.Container) || defaultContainerStyle}
+          >
+            <span
+              data-qa={dataQa}
+              title={tooltip}
+              className={className}
+              style={(theme && theme.Icon) || defaultIconStyle}
+            />
+          </span>
+        );
       }
     }
     return FastIcon;
   }
 
   render() {
-    const { type, theme, dataQa, tooltip, ...otherProps } = this.props;
+    const { type, theme, dataQa, tooltip, sizeStyle, ...otherProps } =
+      this.props;
     for (const key in otherProps) {
-      if (otherProps.hasOwnProperty(key)) {
-        return <FullFontIcon {...this.props}/>;
+      if (Object.prototype.hasOwnProperty.call(otherProps, key)) {
+        return <FullFontIcon {...this.props} />;
       }
     }
     let component = FontIcon.components[this.props.type];
@@ -333,10 +372,10 @@ export default class FontIcon extends Component {
       const defaultTheme = DEFAULT_STYLES[type] || {};
       component = FontIcon.components[type] = this.createFastIconComponent(
         type,
-        defaultTheme.Icon,
+        sizeStyle || defaultTheme.Icon,
         defaultTheme.Container
       );
     }
-    return React.createElement(component, {theme, tooltip, dataQa});
+    return React.createElement(component, { theme, tooltip, dataQa });
   }
 }

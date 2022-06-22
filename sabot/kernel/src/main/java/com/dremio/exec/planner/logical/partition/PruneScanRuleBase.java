@@ -125,8 +125,8 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   private static final long MIN_TO_LOG_INFO_MS = 10000;
 
   public static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
-  final private OptimizerRulesContext optimizerContext;
-  final protected SourceType pluginType;
+  private final OptimizerRulesContext optimizerContext;
+  protected final SourceType pluginType;
 
   /**
    * A logic expression and split holder which can be used as a key for map

@@ -13,23 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import config from 'dyn-load/utils/config';
-import { injectIntl } from 'react-intl';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import config from "dyn-load/utils/config";
+import { injectIntl } from "react-intl";
 
-import fileABug from 'utils/fileABug';
-import { logoutUser } from '@inject/actions/account';
+import fileABug from "utils/fileABug";
+import { logoutUser } from "@inject/actions/account";
 
-
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import DividerHr from 'components/Menus/DividerHr';
-import { HookConsumer } from '@app/containers/RouteLeave';
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import DividerHr from "components/Menus/DividerHr";
+import { HookConsumer } from "@app/containers/RouteLeave";
 
 const mapDispatchToProps = {
-  logoutUser
+  logoutUser,
 };
 
 @injectIntl
@@ -38,70 +37,72 @@ export class AccountMenu extends Component {
     closeMenu: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
     //connected
-    logoutUser: PropTypes.func.isRequired
+    logoutUser: PropTypes.func.isRequired,
   };
 
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   state = {
-    showIntercom: false
-  }
+    showIntercom: false,
+  };
 
   onAccountSettings = () => {
     this.props.closeMenu();
-    this.context.router.push({pathname: '/account/info'});
-  }
+    this.context.router.push({ pathname: "/account/info" });
+  };
 
   onLogOut = (doChangesCheckFn) => {
     this.props.closeMenu();
     const { hasChanges, userChoiceToLeaveOrStayPromise } = doChangesCheckFn();
     if (hasChanges) {
-      userChoiceToLeaveOrStayPromise.then(leaveTheChanges => {
+      return userChoiceToLeaveOrStayPromise.then((leaveTheChanges) => {
         if (leaveTheChanges) {
           this.props.logoutUser();
         }
+        return null;
       });
     } else {
       this.props.logoutUser();
     }
-  }
+  };
 
   onFileABug = () => {
     this.props.closeMenu();
     fileABug();
-  }
+  };
 
   render() {
     const { intl } = this.props;
 
-    return <Menu>
-      {config.shouldEnableBugFiling
-        &&
-        <>
-          <MenuItem isInformational>
-            <span style={styles.menuInformation}>{intl.formatMessage({ id: 'HeaderMenu.InternalBuild' })}</span>
-          </MenuItem>
-          <MenuItem onClick={this.onFileABug}>
-            {intl.formatMessage({id: 'HeaderMenu.FileABug'})}
-          </MenuItem>
-          <DividerHr/>
-        </>
-      }
-      <MenuItem onClick={this.onAccountSettings}>
-        {intl.formatMessage({ id: 'HeaderMenu.AccountSettings' })}
-      </MenuItem>
-      <HookConsumer>
-        {
-          ({ doChangesCheck }) => (
-            <MenuItem onClick={() => this.onLogOut(doChangesCheck)}>
-              {intl.formatMessage({ id: 'HeaderMenu.LogOut' })}
+    return (
+      <Menu>
+        {config.shouldEnableBugFiling && (
+          <>
+            <MenuItem isInformational>
+              <span style={styles.menuInformation}>
+                {intl.formatMessage({ id: "HeaderMenu.InternalBuild" })}
+              </span>
             </MenuItem>
-          )
-        }
-      </HookConsumer>
-    </Menu>;
+            <MenuItem onClick={this.onFileABug}>
+              {intl.formatMessage({ id: "HeaderMenu.FileABug" })}
+            </MenuItem>
+            <DividerHr />
+          </>
+        )}
+        <MenuItem onClick={this.onAccountSettings}>
+          {intl.formatMessage({ id: "HeaderMenu.AccountSettings" })}
+        </MenuItem>
+        <HookConsumer>
+          {({ doChangesCheck }) => (
+            <MenuItem onClick={() => this.onLogOut(doChangesCheck)}>
+              {intl.formatMessage({ id: "HeaderMenu.LogOut" })}
+            </MenuItem>
+          )}
+        </HookConsumer>
+      </Menu>
+    );
   }
 }
 
@@ -109,7 +110,7 @@ export default connect(null, mapDispatchToProps)(AccountMenu);
 
 const styles = {
   menuInformation: {
-    fontStyle: 'italic',
-    color: '#999'
-  }
+    fontStyle: "italic",
+    color: "#999",
+  },
 };

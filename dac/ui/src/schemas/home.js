@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema, arrayOf } from 'normalizr';
+import { Schema, arrayOf } from "normalizr";
 
-import dataset from './dataset';
-import file from './file';
-import folder from './folder';
-import physicalDataset from './physicalDataset';
+import dataset from "./dataset";
+import file from "./file";
+import folder from "./folder";
+import physicalDataset from "./physicalDataset";
 
-const home = new Schema('home', {
-  idAttribute: 'id'
+const home = new Schema("home", {
+  idAttribute: "id",
 });
 
 home.define({
@@ -29,8 +29,8 @@ home.define({
     datasets: arrayOf(dataset),
     files: arrayOf(file),
     folders: arrayOf(folder),
-    physicalDatasets: arrayOf(physicalDataset)
-  }
+    physicalDatasets: arrayOf(physicalDataset),
+  },
 });
 
 export default home;

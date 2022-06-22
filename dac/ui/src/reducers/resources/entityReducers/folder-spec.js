@@ -13,32 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import {CONVERT_DATASET_TO_FOLDER_SUCCESS} from 'actions/home';
+import { CONVERT_DATASET_TO_FOLDER_SUCCESS } from "actions/home";
 
-import folder from './folder';
+import folder from "./folder";
 
-describe('folder', () => {
-
-  const initialState =  Immutable.fromJS({
+describe("folder", () => {
+  const initialState = Immutable.fromJS({
     folder: {
       fooId: {
-        queryable: true
-      }
-    }
+        queryable: true,
+      },
+    },
   });
 
-  it('returns unaltered state by default', () => {
-    const result = folder(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = folder(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  it('sets queryable to false', () => {
+  it("sets queryable to false", () => {
     const result = folder(initialState, {
       type: CONVERT_DATASET_TO_FOLDER_SUCCESS,
-      meta: {folderId: 'fooId'}
+      meta: { folderId: "fooId" },
     });
-    expect(result.getIn(['folder', 'fooId', 'queryable'])).to.be.false;
+    expect(result.getIn(["folder", "fooId", "queryable"])).to.be.false;
   });
 });

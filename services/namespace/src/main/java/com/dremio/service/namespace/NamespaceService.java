@@ -25,6 +25,7 @@ import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -74,6 +75,8 @@ public interface NamespaceService {
 
   void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
+  void addOrUpdateFunction(NamespaceKey udfPath, FunctionConfig udfConfig, NamespaceAttribute... attributes) throws NamespaceException;
+
   void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes) throws NamespaceException;
 
   void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes) throws NamespaceException;
@@ -102,9 +105,13 @@ public interface NamespaceService {
 
   SpaceConfig getSpace(NamespaceKey spacePath) throws NamespaceException;
 
+  FunctionConfig getFunction(NamespaceKey functionPath) throws NamespaceException;
+
   SpaceConfig getSpaceById(String id) throws NamespaceException;
 
   NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException;
+
+  List<NameSpaceContainer> getEntitiesByIds(List<String> ids) throws NamespaceNotFoundException;
 
   /**
    * Returns {@link DatasetConfig configuration} corresponding to given path.
@@ -124,6 +131,8 @@ public interface NamespaceService {
   List<NameSpaceContainer> getEntities(List<NamespaceKey> lookupKeys) throws NamespaceNotFoundException;
 
   List<SpaceConfig> getSpaces();
+
+  List<FunctionConfig> getFunctions();
 
   List<HomeConfig> getHomeSpaces();
 
@@ -195,6 +204,8 @@ public interface NamespaceService {
   void deleteSourceChildren(final NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException;
 
   void deleteSpace(NamespaceKey spacePath, String version) throws NamespaceException;
+
+  void deleteFunction(NamespaceKey udfPath) throws NamespaceException;
 
   void deleteEntity(NamespaceKey entityPath) throws NamespaceException;
 

@@ -64,7 +64,6 @@ public class HiveAsyncStreamConf implements AsyncStreamConf {
 
     return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_ASYNC, true);
   }
-
   @Override
   public CacheProperties getCacheProperties() {
     return new HiveCacheProperties();

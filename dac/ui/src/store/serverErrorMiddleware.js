@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import sentryUtil from 'utils/sentryUtil';
+import sentryUtil from "utils/sentryUtil";
 
 function serverErrorMiddleware() {
-  return () => next => action => {
+  return () => (next) => (action) => {
     if (action.error && action.payload && action.payload.status >= 500) {
       // This can cause duplicate errors with reducers/resources/view.js
-      sentryUtil.logException('SERVER ERROR', action.payload);
+      sentryUtil.logException("SERVER ERROR", action.payload);
     }
 
     return next(action);

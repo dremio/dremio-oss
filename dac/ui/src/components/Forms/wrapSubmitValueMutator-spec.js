@@ -13,50 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Component } from 'react';
+import { shallow } from "enzyme";
+import { Component } from "react";
 
-import wrapSubmitValueMutator from './wrapSubmitValueMutator';
+import wrapSubmitValueMutator from "./wrapSubmitValueMutator";
 const TestComponent = wrapSubmitValueMutator((values) => {
   delete values.thingA;
 }, Component);
 
-describe('wrapSubmitValueMutator', () => {
-
+describe("wrapSubmitValueMutator", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      handleSubmit: sinon.spy((cb) => cb({thingA: 'a', thingB: 'b'}))
+      handleSubmit: sinon.spy((cb) => cb({ thingA: "a", thingB: "b" })),
     };
     commonProps = {
       ...minimalProps,
-      randomProp: 'foo'
+      randomProp: "foo",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<TestComponent {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<TestComponent {...commonProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.props().randomProp).to.be.equal('foo');
+    expect(wrapper.props().randomProp).to.be.equal("foo");
   });
 
-  it('should pass thru all props except handleSubmit', () => {
-    const wrapper = shallow(<TestComponent {...commonProps}/>);
-    expect(wrapper.props().randomProp).to.be.equal('foo');
-    expect(wrapper.props().handleSubmit).to.be.equal(wrapper.instance().handleSubmit);
+  it("should pass thru all props except handleSubmit", () => {
+    const wrapper = shallow(<TestComponent {...commonProps} />);
+    expect(wrapper.props().randomProp).to.be.equal("foo");
+    expect(wrapper.props().handleSubmit).to.be.equal(
+      wrapper.instance().handleSubmit
+    );
   });
 
-  it('#handleSubmit()', () => {
-    const instance = shallow(<TestComponent {...commonProps}/>).instance();
-    const onSubmit = sinon.stub().returns('canary');
+  it("#handleSubmit()", () => {
+    const instance = shallow(<TestComponent {...commonProps} />).instance();
+    const onSubmit = sinon.stub().returns("canary");
     const ret = instance.handleSubmit(onSubmit);
-    expect(onSubmit.getCall(0).args).to.be.eql([{thingB: 'b'}]);
-    expect(ret).to.be.eql('canary');
+    expect(onSubmit.getCall(0).args).to.be.eql([{ thingB: "b" }]);
+    expect(ret).to.be.eql("canary");
   });
 });

@@ -13,37 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { injectIntl } from 'react-intl';
-import { SpaceForm } from './SpaceForm';
+import { shallow } from "enzyme";
+import { injectIntl } from "react-intl";
+import { SpaceForm } from "./SpaceForm";
 
 const SpaceFormIntl = injectIntl(SpaceForm);
 
-describe('SpaceForm', () => {
-
+describe("SpaceForm", () => {
   let commonProps;
   let context;
   beforeEach(() => {
     commonProps = {
       fields: {
         name: {},
-        description: {}
+        description: {},
       },
       handleSubmit: sinon.stub().returns(sinon.spy()),
       onFormSubmit: sinon.stub(),
       onCancel: sinon.stub(),
       updateFormDirtyState: sinon.stub(),
-      editing: false
+      editing: false,
     };
   });
 
-  it('should render ModalForm, FormBody and General', () => {
-    const wrapper = shallow(<SpaceFormIntl {...commonProps}/>, {context});
-    expect(wrapper.find('ModalForm')).to.have.length(1);
-    expect(wrapper.find('FormBody')).to.have.length(1);
-    expect(wrapper.find('General')).to.have.length(1);
+  it("should render ModalForm, FormBody and General", () => {
+    const wrapper = shallow(<SpaceFormIntl {...commonProps} />, { context });
+    expect(wrapper.find("ModalForm")).to.have.length(1);
+    expect(wrapper.find("FormBody")).to.have.length(1);
+    expect(wrapper.find("General")).to.have.length(1);
 
-    const generalProps = wrapper.find('General').props();
+    const generalProps = wrapper.find("General").props();
     expect(generalProps.fields).to.equal(commonProps.fields);
     expect(generalProps.editing).to.equal(commonProps.editing);
   });

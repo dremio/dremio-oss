@@ -13,40 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
+import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
 
-export const getPathPart = pageType => pageType && pageType !== PageTypes.default ? `/${pageType}` : '';
-const getPageTypeFromString = str => {
-  if (str === '') { // see getPathPart
+export const getPathPart = (pageType) =>
+  pageType && pageType !== PageTypes.default ? `/${pageType}` : "";
+const getPageTypeFromString = (str) => {
+  if (str === "") {
+    // see getPathPart
     return PageTypes.default;
   }
-  if (!PageTypes.hasOwnProperty(str)) {
+  if (!Object.prototype.hasOwnProperty.call(PageTypes, str)) {
     throw new Error(`Not supported page type: '${str}'`);
   }
   return PageTypes[str];
 };
 
-const countSlashes = str => {
+const countSlashes = (str) => {
   if (!str) return 0;
   const matches = str.match(/\//g);
   return matches ? matches.length : 0;
 };
 // explore page has the following url pattern (see routes.js):
 // So page type may or may not be presented.
-const patternSlashCount = countSlashes('/resources/resourceId/tableId(/:pageType)');
-const isPageTypeContainedInPath = pathname => patternSlashCount === countSlashes(pathname);
+const patternSlashCount = countSlashes(
+  "/resources/resourceId/tableId(/:pageType)"
+);
+const isPageTypeContainedInPath = (pathname) =>
+  patternSlashCount === countSlashes(pathname);
 
-export const excludePageType = pathname => {
+export const excludePageType = (pathname) => {
   let pathWithoutPageType = pathname;
-  if (isPageTypeContainedInPath(pathname)) { // current path contains pageType. We should exclude it
-    pathWithoutPageType = pathname.substr(0, pathname.lastIndexOf('/'));
+  if (isPageTypeContainedInPath(pathname)) {
+    // current path contains pageType. We should exclude it
+    pathWithoutPageType = pathname.substr(0, pathname.lastIndexOf("/"));
   }
   return pathWithoutPageType;
 };
 
-export const getPageType = pathname => {
+export const getPageType = (pathname) => {
   if (isPageTypeContainedInPath(pathname)) {
-    return getPageTypeFromString(pathname.substr(pathname.lastIndexOf('/') + 1));
+    return getPageTypeFromString(
+      pathname.substr(pathname.lastIndexOf("/") + 1)
+    );
   }
   return PageTypes.default;
 };

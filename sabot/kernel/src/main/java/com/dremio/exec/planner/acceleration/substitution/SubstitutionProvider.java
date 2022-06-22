@@ -136,4 +136,3 @@ public interface SubstitutionProvider {
     }
   }
 }
-

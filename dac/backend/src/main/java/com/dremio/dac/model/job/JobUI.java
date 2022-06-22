@@ -31,6 +31,7 @@ import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
@@ -46,11 +47,13 @@ import com.google.common.collect.ImmutableList;
  */
 public class JobUI {
   private final JobId jobId;
+  private final SessionId sessionId;
   private final List<JobAttemptUI> attempts;
   private final JobData data;
 
-  public JobUI(JobsService jobsService, JobId jobId, String userName) {
+  public JobUI(JobsService jobsService, JobId jobId, SessionId sessionId, String userName) {
     this.jobId = jobId;
+    this.sessionId = sessionId;
 
     JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(jobId))
@@ -64,18 +67,25 @@ public class JobUI {
     } catch (JobNotFoundException e) {
       throw new IllegalArgumentException("Invalid JobId");
     }
-    this.data = new JobDataWrapper(jobsService, jobId, userName);
+    this.data = new JobDataWrapper(jobsService, jobId, null, userName);
   }
 
   @JsonCreator
-  public JobUI(@JsonProperty("jobId") JobId jobId, @JsonProperty("jobAttempt") JobAttemptUI jobConfig) {
+  public JobUI(@JsonProperty("jobId") JobId jobId,
+               @JsonProperty("sessionId") SessionId sessionId,
+               @JsonProperty("jobAttempt") JobAttemptUI jobConfig) {
     this.jobId = jobId;
+    this.sessionId = sessionId;
     this.attempts = ImmutableList.of(checkNotNull(jobConfig, "jobAttempt is null"));
     this.data = null;
   }
 
   public JobId getJobId() {
     return jobId;
+  }
+
+  public SessionId getSessionId() {
+    return sessionId;
   }
 
   public JobAttemptUI getJobAttempt() {
@@ -88,8 +98,9 @@ public class JobUI {
   @Override
   public String toString() {
     final JobAttemptUI jobAttempt = getJobAttempt();
-    return format("{JobId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
-            getJobId(), jobAttempt.getInfo().getSql(),
+    final String sessionIdStr = sessionId == null ? null : sessionId.getId();
+    return format("{JobId: %s, SessionId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
+            getJobId(), sessionIdStr, jobAttempt.getInfo().getSql(),
             PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
             jobAttempt.getInfo().getDatasetVersion()); //todo
   }
@@ -166,4 +177,3 @@ public class JobUI {
       .setEndpoint(attempt.getEndpoint());
   }
 }
-

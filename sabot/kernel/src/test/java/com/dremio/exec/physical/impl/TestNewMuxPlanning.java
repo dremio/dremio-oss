@@ -23,7 +23,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestNewMuxPlanning extends PlanTestBase {
-  private final static String sql = "select * from lineitem join orders on l_orderkey = o_orderkey order by l_orderkey desc";
+  private static final String sql = "select * from lineitem join orders on l_orderkey = o_orderkey order by l_orderkey desc";
   private static final String[] NONE = new String[] {};
 
   @BeforeClass

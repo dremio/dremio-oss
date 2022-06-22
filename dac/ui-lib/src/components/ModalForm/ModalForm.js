@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import { Formik, Form } from 'formik';
-import Dialog from '../Dialog';
-import FormikUnsavedWarningHOC from '../FormikUnsavedWarningHOC';
-
+import { Formik, Form } from "formik";
+import Dialog from "../Dialog";
+import FormikUnsavedWarningHOC from "../FormikUnsavedWarningHOC";
 
 const DialogWithUnsavedWarning = FormikUnsavedWarningHOC(Dialog);
 
@@ -56,7 +55,7 @@ const ModalForm = (props) => {
     title,
     children: childComponent,
     endChildren,
-    disableUnsavedWarning
+    disableUnsavedWarning,
   } = props;
 
   const handleClose = ({ resetForm }) => {
@@ -64,9 +63,7 @@ const ModalForm = (props) => {
     onClose();
   };
 
-  const DialogComp = disableUnsavedWarning ?
-    Dialog :
-    DialogWithUnsavedWarning;
+  const DialogComp = disableUnsavedWarning ? Dialog : DialogWithUnsavedWarning;
 
   return (
     <Formik
@@ -85,29 +82,27 @@ const ModalForm = (props) => {
       validateOnMount={validateOnMount}
       validationSchema={validationSchema}
     >
-      {
-        formikProps => (
-          <Form>
-            <DialogComp
-              classes={classes}
-              fullWidth
-              onClose={() => handleClose(formikProps)}
-              onEnter={onEnter}
-              onEntered={onEntered}
-              onExit={onExit}
-              onExited={onExited}
-              onExiting={onExiting}
-              open={open}
-              size={size}
-              title={title}
-              endChildren={endChildren}
-              type={type}
-            >
-              { childComponent(formikProps) }
-            </DialogComp>
-          </Form>
-        )
-      }
+      {(formikProps) => (
+        <Form>
+          <DialogComp
+            classes={classes}
+            fullWidth
+            onClose={() => handleClose(formikProps)}
+            onEnter={onEnter}
+            onEntered={onEntered}
+            onExit={onExit}
+            onExited={onExited}
+            onExiting={onExiting}
+            open={open}
+            size={size}
+            title={title}
+            endChildren={endChildren}
+            type={type}
+          >
+            {childComponent(formikProps)}
+          </DialogComp>
+        </Form>
+      )}
     </Formik>
   );
 };
@@ -129,7 +124,7 @@ ModalForm.propTypes = {
   validationSchema: PropTypes.object,
 
   // Dialog Props
-  size: PropTypes.oneOf(['sm', 'md', 'lg', 'xl']),
+  size: PropTypes.oneOf(["sm", "md", "lg", "xl"]),
   onClose: PropTypes.func,
   onEnter: PropTypes.func,
   onEntered: PropTypes.func,
@@ -137,23 +132,20 @@ ModalForm.propTypes = {
   onExited: PropTypes.func,
   onExiting: PropTypes.func,
   open: PropTypes.bool.isRequired,
-  children: PropTypes.oneOfType([
-    PropTypes.node,
-    PropTypes.func
-  ]),
+  children: PropTypes.oneOfType([PropTypes.node, PropTypes.func]),
   title: PropTypes.string,
   classes: PropTypes.object,
 
   disableUnsavedWarning: PropTypes.bool,
   endChildren: PropTypes.node,
-  type: PropTypes.oneOf(['default', 'info', 'warning', 'error'])
+  type: PropTypes.oneOf(["default", "info", "warning", "error"]),
 };
 
 ModalForm.defaultProps = {
   disableUnsavedWarning: false,
-  size: 'sm',
+  size: "sm",
   classes: {},
-  type: 'default'
+  type: "default",
 };
 
 export default ModalForm;

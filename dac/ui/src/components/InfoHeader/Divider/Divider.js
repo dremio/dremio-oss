@@ -13,12 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import './Divider.less';
+import "./Divider.less";
 
-const Divider = function() {
-  return (
-    <div className='info-header-divider' />
-  );
+const Divider = function () {
+  return <div className="info-header-divider" />;
 };
 
 export default Divider;

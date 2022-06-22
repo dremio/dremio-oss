@@ -596,7 +596,7 @@ public class TestCatalogServiceImpl {
     assertTrue(test.get());
   }
 
-  private static abstract class DatasetImpl implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {
+  private abstract static class DatasetImpl implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {
   }
 
   private static DatasetImpl newDataset(final String dsPath) {

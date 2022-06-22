@@ -53,6 +53,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
+import com.dremio.sabot.op.spi.Operator.ShrinkableOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -95,7 +96,7 @@ import com.sun.codemodel.JExpr;
  *
  */
 @Options
-public class ExternalSortOperator implements SingleInputOperator {
+public class ExternalSortOperator implements SingleInputOperator, ShrinkableOperator {
   public static final BooleanValidator OOB_SORT_TRIGGER_ENABLED = new BooleanValidator("exec.operator.sort.oob_trigger_enabled", true);
   public static final DoubleValidator OOB_SORT_SPILL_TRIGGER_FACTOR = new RangeDoubleValidator("exec.operator.sort.oob_trigger_factor", 0.0d, 10.0d, .75d);
   public static final DoubleValidator OOB_SORT_SPILL_TRIGGER_HEADROOM_FACTOR = new RangeDoubleValidator("exec.operator.sort.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
@@ -324,6 +325,29 @@ public class ExternalSortOperator implements SingleInputOperator {
       consolidateIfNecessary();
     }
     updateStats(false);
+  }
+
+  @Override
+  public long shrinkableMemory() {
+    long shrinkableMemory = 0;
+
+    /*
+     * Shrink is currently possible in one of the following case:
+     * 1. operator is in consume state with batches in memory
+     * 2. (during micro-spilling) spill is in progress.
+     * TODO: also spill when operator is in produce state with batches in memory
+     */
+    if (state == State.CAN_CONSUME
+        || (state == State.CAN_PRODUCE && sortState == SortState.SPILL_IN_PROGRESS)) {
+      shrinkableMemory = allocator.getAllocatedMemory() - MemoryRun.INITIAL_COPY_ALLOCATOR_RESERVATION;
+    }
+
+    return shrinkableMemory;
+  }
+
+  @Override
+  public long shrinkMemory(long size) {
+    throw new UnsupportedOperationException();
   }
 
   /**

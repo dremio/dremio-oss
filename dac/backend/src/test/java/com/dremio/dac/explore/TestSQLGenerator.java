@@ -423,11 +423,31 @@ public class TestSQLGenerator {
   }
 
   @Test
+  public void testSubQueryWithSemicolon() {
+    VirtualDatasetState state = new VirtualDatasetState()
+      .setFrom(new FromSQL("SELECT * FROM cp.\"region.json\";").wrap());
+    validate("SELECT * FROM cp.\"region.json\";", state);
+  }
+
+  @Test
   public void testSubQuerySelectColumns() {
     VirtualDatasetState state = new VirtualDatasetState()
         .setFrom(new FromSQL("SELECT * FROM cp.\"region.json\"").setAlias("region").wrap())
         .setColumnsList(asList(new Column("foo", new ExpColumnReference("my.foo").wrap())));
     validate("SELECT \"my.foo\" AS foo\nFROM (\n  SELECT * FROM cp.\"region.json\"\n) region", state);
+  }
+
+  @Test
+  public void testSubQuerySelectColumnsWithSemicolon() {
+    String expectedSql = "SELECT \"my.foo\" AS foo\nFROM (\n  SELECT * FROM cp.\"region.json\"\n) region";
+
+    VirtualDatasetState state = new VirtualDatasetState()
+      .setFrom(new FromSQL("SELECT * FROM cp.\"region.json\";").setAlias("region").wrap())
+      .setColumnsList(asList(new Column("foo", new ExpColumnReference("my.foo").wrap())));
+    validate(expectedSql, state);
+
+    state.setFrom(new FromSQL("SELECT * FROM cp.\"region.json\" ; ; ").setAlias("region").wrap());
+    validate(expectedSql, state);
   }
 
   @Test

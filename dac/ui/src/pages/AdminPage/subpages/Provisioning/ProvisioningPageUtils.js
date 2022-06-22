@@ -28,5 +28,5 @@ export const getExtraFunctions = (props) => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const getRemoveConfirmationMsgId = (entity) => {
-  return 'Admin.Engine.DeleteEngine.Confirmation';
+  return "Admin.Engine.DeleteEngine.Confirmation";
 };

@@ -46,4 +46,3 @@ public class LegacyRawByteStore implements TestLegacyStoreCreationFunction<Strin
     return Arrays.asList(String.class);
   }
 }
-

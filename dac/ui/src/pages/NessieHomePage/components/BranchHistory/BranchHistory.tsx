@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-import { createContext, useEffect, useMemo } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { createContext, useEffect, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 
-import { oc } from 'ts-optchain';
-import { Reference } from '@app/services/nessie/client';
-import { isDefaultReferenceLoading } from '@app/selectors/nessie/nessie';
-import PromiseViewState from '@app/components/PromiseViewState/PromiseViewState';
-import { isReqLoading } from '@app/utils/smartPromise';
-import { useNessieContext } from '../../utils/context';
-import BranchHistoryCommits from './components/BranchHistoryCommits/BranchHistoryCommits';
-import BranchHistoryHeader from './components/BranchHistoryHeader/BranchHistoryHeader';
-import BranchHistoryMetadata from './components/BranchHistoryMetadata/BranchHistoryMetadata';
+import { Reference } from "@app/services/nessie/client";
+import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import PromiseViewState from "@app/components/PromiseViewState/PromiseViewState";
+import { isReqLoading } from "@app/utils/smartPromise";
+import { useNessieContext } from "../../utils/context";
+import BranchHistoryCommits from "./components/BranchHistoryCommits/BranchHistoryCommits";
+import BranchHistoryHeader from "./components/BranchHistoryHeader/BranchHistoryHeader";
+import BranchHistoryMetadata from "./components/BranchHistoryMetadata/BranchHistoryMetadata";
 
-import { BranchHistoryContextType, useBranchHistoryContext } from './utils';
+import { BranchHistoryContextType, useBranchHistoryContext } from "./utils";
 
-import './BranchHistory.less';
+import "./BranchHistory.less";
 
 type BranchHistoryProps = {
   params: any;
@@ -42,58 +41,60 @@ export const BranchHistoryContext = createContext(
   {} as BranchHistoryContextType
 );
 
-function BranchHistory({
-  params
-}: BranchHistoryProps) {
+function BranchHistory({ params }: BranchHistoryProps) {
   const branchName: string = useMemo(() => {
-    return oc(params).branchName('').split('.')[0];
+    return (params?.branchName || "").split(".")[0];
   }, [params]);
 
   const { state, api } = useNessieContext();
   const { defaultReference } = state;
   const defaultReferenceLoading = isDefaultReferenceLoading(state);
   const branchHistoryContext = useBranchHistoryContext(branchName, api);
-  const { currentRefErr: err, currentRefStatus: status, setDefaultRef } = branchHistoryContext;
+  const {
+    currentRefErr: err,
+    currentRefStatus: status,
+    setDefaultRef,
+  } = branchHistoryContext;
 
   useEffect(() => {
     defaultReference && !defaultReferenceLoading
       ? setDefaultRef({
-        type: 'BRANCH',
-        name: defaultReference.name,
-        hash: defaultReference.hash
-      } as Reference)
+          type: "BRANCH",
+          name: defaultReference.name,
+          hash: defaultReference.hash,
+        } as Reference)
       : setDefaultRef({} as Reference);
   }, [defaultReference, defaultReferenceLoading, setDefaultRef]);
 
   return (
     <BranchHistoryContext.Provider value={branchHistoryContext}>
       {isReqLoading(status) ? (
-        <div className='branch-loading'>
+        <div className="branch-loading">
           <PromiseViewState error={err} status={status} />
         </div>
       ) : Object.keys(branchHistoryContext.currentRef).length &&
-        branchHistoryContext.currentRef.type === 'BRANCH' ? (
-          <div className='branch-history'>
-            <div className='branch-history-header-div'>
-              <BranchHistoryHeader />
-            </div>
-            <div className='branch-history-metadata-div'>
-              <BranchHistoryMetadata />
-            </div>
-            <div className='branch-history-commits-div'>
-              <BranchHistoryCommits />
-            </div>
+        branchHistoryContext.currentRef.type === "BRANCH" ? (
+        <div className="branch-history">
+          <div className="branch-history-header-div">
+            <BranchHistoryHeader />
           </div>
-        ) : (
-          <div className='branch-dne'>
-            <span className='branch-dne-message'>
-              <FormattedMessage
-                id='BranchHistory.DoesNotExist'
-                values={{ branchName: <strong>{branchName}</strong> }}
-              />
-            </span>
+          <div className="branch-history-metadata-div">
+            <BranchHistoryMetadata />
           </div>
-        )}
+          <div className="branch-history-commits-div">
+            <BranchHistoryCommits />
+          </div>
+        </div>
+      ) : (
+        <div className="branch-dne">
+          <span className="branch-dne-message">
+            <FormattedMessage
+              id="BranchHistory.DoesNotExist"
+              values={{ branchName: <strong>{branchName}</strong> }}
+            />
+          </span>
+        </div>
+      )}
     </BranchHistoryContext.Provider>
   );
 }

@@ -31,8 +31,8 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 /**
  * Adds columns to the table specified using {@link SqlAlterTableAddColumns}
@@ -54,6 +54,7 @@ public class AddColumnsHandler extends SimpleDirectHandler {
     SqlAlterTableAddColumns sqlAddColumns = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableAddColumns.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlAddColumns.getTable());
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     DremioTable table = catalog.getTableNoResolve(path);
     SimpleCommandResult validate = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
@@ -72,9 +73,9 @@ public class AddColumnsHandler extends SimpleDirectHandler {
       .setResolvedVersionContext(resolvedVersionContext)
       .build();
     BatchSchema deltaSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, newColumns, sql);
-    catalog.addColumns(path, deltaSchema.getFields(), tableMutationOptions);
+    catalog.addColumns(path, table.getDatasetConfig(), deltaSchema.getFields(), tableMutationOptions);
 
-    if (!DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
       DataAdditionCmdHandler.refreshDataset(catalog, path, false);
     }
     return Collections.singletonList(SimpleCommandResult.successful("New columns added."));

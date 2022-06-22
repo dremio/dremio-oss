@@ -26,6 +26,8 @@ import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
+
 /**
  * Base class for Flight SQL query execution tests.
  */
@@ -64,7 +66,7 @@ public abstract class AbstractTestFlightSqlServer extends AbstractTestFlightServ
   }
 
   @Override
-  public FlightInfo getFlightInfo(String query) throws SQLException {
+  public FlightInfo getFlightInfo(FlightClientWrapper flightClientWrapper, String query) throws SQLException {
     switch (executionMode) {
       case STATEMENT:
         return executeStatement(query);

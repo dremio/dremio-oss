@@ -13,30 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { take, race, put, call, select, takeEvery } from 'redux-saga/effects';
-import invariant from 'invariant';
+import { take, race, put, call, select, takeEvery } from "redux-saga/effects";
+import invariant from "invariant";
+import { cloneDeep } from "lodash";
 
-import { loadNextRows, EXPLORE_PAGE_EXIT, updateExploreJobProgress, updateJobRecordCount } from 'actions/explore/dataset/data';
-import { updateHistoryWithJobState } from 'actions/explore/history';
+import {
+  loadNextRows,
+  EXPLORE_PAGE_EXIT,
+  updateExploreJobProgress,
+  updateJobRecordCount,
+} from "actions/explore/dataset/data";
+import { updateHistoryWithJobState } from "actions/explore/history";
 
-import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_QV_JOB_PROGRESS, WS_MESSAGE_JOB_RECORDS, WS_CONNECTION_OPEN } from '@inject/utils/socket';
-import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
-import { getTableDataRaw, getCurrentRouteParams } from '@app/selectors/explore';
-import { log } from '@app/utils/logger';
-import { LOGOUT_USER_SUCCESS } from '@app/actions/account';
-import { loadJobDetails } from '@app/actions/jobs/jobs';
-import { intl } from '@app/utils/intl';
-import { addNotification } from '@app/actions/notification';
-import { JOB_DETAILS_VIEW_ID } from '@app/actions/joblist/jobList';
+import socket, {
+  WS_MESSAGE_JOB_PROGRESS,
+  WS_MESSAGE_QV_JOB_PROGRESS,
+  WS_MESSAGE_JOB_RECORDS,
+  WS_CONNECTION_OPEN,
+} from "@inject/utils/socket";
+import { getExplorePageLocationChangePredicate } from "@app/sagas/utils";
+import {
+  getTableDataRaw,
+  getCurrentRouteParams,
+  getExploreState,
+} from "@app/selectors/explore";
+import { log } from "@app/utils/logger";
+import { LOGOUT_USER_SUCCESS } from "@app/actions/account";
+import { resetQueryState, setQueryStatuses } from "@app/actions/explore/view";
+import { loadJobDetails } from "@app/actions/jobs/jobs";
+import { intl } from "@app/utils/intl";
+import { addNotification } from "@app/actions/notification";
+import { JOB_DETAILS_VIEW_ID } from "@app/actions/joblist/jobList";
 
 const getJobDoneActionFilter = (jobId) => (action) =>
-  (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId && action.payload.update.isComplete;
+  (action.type === WS_MESSAGE_JOB_PROGRESS ||
+    action.type === WS_MESSAGE_QV_JOB_PROGRESS) &&
+  action.payload.id.id === jobId &&
+  action.payload.update.isComplete;
 
 const getJobProgressActionFilter = (jobId) => (action) =>
-  (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId && !action.payload.update.isComplete;
+  (action.type === WS_MESSAGE_JOB_PROGRESS ||
+    action.type === WS_MESSAGE_QV_JOB_PROGRESS) &&
+  action.payload.id.id === jobId &&
+  !action.payload.update.isComplete;
 
 const getJobUpdateActionFilter = (jobId) => (action) =>
-  (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId;
+  (action.type === WS_MESSAGE_JOB_PROGRESS ||
+    action.type === WS_MESSAGE_QV_JOB_PROGRESS) &&
+  action.payload.id.id === jobId;
 
 const getJobRecordsActionFilter = (jobId) => (action) =>
   action.type === WS_MESSAGE_JOB_RECORDS && action.payload.id.id === jobId;
@@ -52,15 +76,20 @@ const getJobRecordsActionFilter = (jobId) => (action) =>
  * @yields {void} An exception may be thrown.
  * @throws DataLoadError
  */
-export function* handleResumeRunDataset(datasetVersion, jobId, forceReload, paginationUrl) {
-  invariant(datasetVersion, 'dataset version must be provided');
-  invariant(jobId, 'jobId must be provided');
-  invariant(paginationUrl, 'paginationUrl must be provided');
+export function* handleResumeRunDataset(
+  datasetVersion,
+  jobId,
+  forceReload,
+  paginationUrl
+) {
+  invariant(datasetVersion, "dataset version must be provided");
+  invariant(jobId, "jobId must be provided");
+  invariant(paginationUrl, "paginationUrl must be provided");
 
   // we always load data with column information inside, but rows may be missed in case if
   // we load data asynchronously
   const tableData = yield select(getTableDataRaw, datasetVersion);
-  const rows = tableData ? tableData.get('rows') : null;
+  const rows = tableData ? tableData.get("rows") : null;
   log(`rows are present = ${!!rows}`);
 
   // if forceReload = true and data exists, we should not clear data here. As it would be replaced
@@ -68,14 +97,14 @@ export function* handleResumeRunDataset(datasetVersion, jobId, forceReload, pagi
   if (forceReload || !rows) {
     yield race({
       jobDone: call(waitForRunToComplete, datasetVersion, paginationUrl, jobId),
-      locationChange: call(explorePageChanged)
+      locationChange: call(explorePageChanged),
     });
   }
 }
 
 export class DataLoadError {
   constructor(response) {
-    this.name = 'DataLoadError';
+    this.name = "DataLoadError";
     this.response = response;
   }
 }
@@ -91,7 +120,7 @@ export class DataLoadError {
  */
 export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
   try {
-    log('Check if socket is opened:', socket.isOpen);
+    log("Check if socket is opened:", socket.isOpen);
     if (!socket.isOpen) {
       const raceResult = yield race({
         // When explore page is refreshed, we register 'pageChangeListener'
@@ -99,15 +128,16 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
         // earlier, than application is booted ('APP_INIT' action) and socket is opened.
         // We must wait for WS_CONNECTION_OPEN before 'socket.startListenToJobProgress'
         socketOpen: take(WS_CONNECTION_OPEN),
-        stop: take(LOGOUT_USER_SUCCESS)
+        stop: take(LOGOUT_USER_SUCCESS),
       });
-      log('wait for socket open result:', raceResult);
+      log("wait for socket open result:", raceResult);
       if (raceResult.stop) {
         // if a user is logged out before socket is opened, terminate current saga
         return;
       }
     }
-    yield call([socket, socket.startListenToJobProgress],
+    yield call(
+      [socket, socket.startListenToJobProgress],
       jobId,
       // force listen request to force a response from server.
       // There's no other way right now to know if job is already completed.
@@ -119,12 +149,27 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
     const { jobDone } = yield race({
       jobProgress: call(watchUpdateHistoryOnJobProgress, datasetVersion, jobId),
       jobDone: take(getJobDoneActionFilter(jobId)),
-      locationChange: call(explorePageChanged)
+      locationChange: call(explorePageChanged),
     });
 
     if (jobDone) {
       const promise = yield put(loadNextRows(datasetVersion, paginationUrl, 0));
       const response = yield promise;
+      const exploreState = yield select(getExploreState);
+      const queryStatuses = cloneDeep(exploreState?.view?.queryStatuses ?? []);
+
+      if (response && response.error) {
+        if (queryStatuses.length) {
+          const index = queryStatuses.findIndex(
+            (query) => query.jobId === jobId
+          );
+          if (index > -1 && !queryStatuses[index].error) {
+            const newStatuses = cloneDeep(queryStatuses);
+            newStatuses[index].error = response;
+            yield put(setQueryStatuses({ statuses: newStatuses }));
+          }
+        }
+      }
 
       if (!response || response.error) {
         console.warn(`=+=+= socket returned error for job id ${jobId}`);
@@ -132,15 +177,16 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
       }
 
       console.warn(`=+=+= socket returned payload for job id ${jobId}`);
-      yield put(updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state));
+      yield put(
+        updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state)
+      );
       yield put(updateExploreJobProgress(jobDone.payload.update));
-      yield call(genLoadJobDetails, jobId);
+      yield call(genLoadJobDetails, jobId, queryStatuses);
     }
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
   }
 }
-
 
 /**
  * Returns a redux action that treated as explore page url change. The action could be one of the following cases:
@@ -151,9 +197,24 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
  */
 export function* explorePageChanged() {
   const prevRouteParams = yield select(getCurrentRouteParams);
-  return yield take([getExplorePageLocationChangePredicate(prevRouteParams), EXPLORE_PAGE_EXIT]);
-}
 
+  let shouldReset;
+  const promise = yield take([
+    (action) => {
+      const [result, shouldResetExploreViewState] =
+        getExplorePageLocationChangePredicate(prevRouteParams, action);
+      shouldReset = shouldResetExploreViewState;
+      return result;
+    },
+    EXPLORE_PAGE_EXIT,
+  ]);
+
+  if (shouldReset) {
+    yield put(resetQueryState());
+  }
+
+  return promise;
+}
 
 /**
  * Endless job that monitors job progress with id {@see jobId} and updates job state in redux
@@ -162,11 +223,16 @@ export function* explorePageChanged() {
  * @param {string} jobId
  */
 export function* watchUpdateHistoryOnJobProgress(datasetVersion, jobId) {
-  function *updateHistoryOnJobProgress(action) {
-    yield put(updateHistoryWithJobState(datasetVersion, action.payload.update.state));
+  function* updateHistoryOnJobProgress(action) {
+    yield put(
+      updateHistoryWithJobState(datasetVersion, action.payload.update.state)
+    );
   }
 
-  yield takeEvery(getJobProgressActionFilter(jobId), updateHistoryOnJobProgress);
+  yield takeEvery(
+    getJobProgressActionFilter(jobId),
+    updateHistoryOnJobProgress
+  );
 }
 
 /**
@@ -177,21 +243,21 @@ export function* jobUpdateWatchers(jobId) {
     recordWatcher: call(watchUpdateJobRecords, jobId),
     statusWatcher: call(watchUpdateJobStatus, jobId),
     locationChange: call(explorePageChanged),
-    jobDone: take(EXPLORE_JOB_STATUS_DONE)
+    jobDone: take(EXPLORE_JOB_STATUS_DONE),
   });
 }
 
 //export for testing
-export const EXPLORE_JOB_STATUS_DONE = 'EXPLORE_JOB_STATUS_DONE';
+export const EXPLORE_JOB_STATUS_DONE = "EXPLORE_JOB_STATUS_DONE";
 
 /**
  * monitor job status updates with jobId from the socket
  */
 export function* watchUpdateJobStatus(jobId) {
-  function *updateJobStatus(action) {
+  function* updateJobStatus(action) {
     yield put(updateExploreJobProgress(action.payload.update));
     if (action.payload.update.isComplete) {
-      yield put({type: EXPLORE_JOB_STATUS_DONE});
+      yield put({ type: EXPLORE_JOB_STATUS_DONE });
     }
   }
 
@@ -202,14 +268,17 @@ export function* watchUpdateJobStatus(jobId) {
  * monitor job records updates with jobId from the socket
  */
 export function* watchUpdateJobRecords(jobId) {
-  function *updateJobProgressWithRecordCount(action) {
+  function* updateJobProgressWithRecordCount(action) {
     yield put(updateJobRecordCount(action.payload.recordCount));
   }
 
-  yield takeEvery(getJobRecordsActionFilter(jobId), updateJobProgressWithRecordCount);
+  yield takeEvery(
+    getJobRecordsActionFilter(jobId),
+    updateJobProgressWithRecordCount
+  );
 }
 
-export function* genLoadJobDetails(jobId) {
+export function* genLoadJobDetails(jobId, queryStatuses) {
   const jobDetails = yield put(loadJobDetails(jobId, JOB_DETAILS_VIEW_ID));
   const jobDetailsResponse = yield jobDetails;
   const responseStats =
@@ -217,21 +286,25 @@ export function* genLoadJobDetails(jobId) {
     jobDetailsResponse.payload &&
     !jobDetailsResponse.error
       ? jobDetailsResponse.payload.getIn([
-        'entities',
-        'jobDetails',
-        jobDetailsResponse.meta.jobId,
-        'stats'
-      ])
-      : '';
+          "entities",
+          "jobDetails",
+          jobDetailsResponse.meta.jobId,
+          "stats",
+        ])
+      : "";
   // isOutputLimited will be true if the results were truncated
-  if (responseStats && responseStats.get('isOutputLimited')) {
+  if (responseStats && responseStats.get("isOutputLimited")) {
+    const index = (queryStatuses ?? []).findIndex(
+      (query) => query.jobId === jobId
+    );
     yield put(
       addNotification(
-        intl.formatMessage(
-          { id: 'Explore.Run.Warning' },
-          { rows: responseStats.get('outputRecords').toLocaleString() }
-        ),
-        'success',
+        `Query ${index + 1}: ` +
+          intl.formatMessage(
+            { id: "Explore.Run.Warning" },
+            { rows: responseStats.get("outputRecords").toLocaleString() }
+          ),
+        "success",
         10
       )
     );

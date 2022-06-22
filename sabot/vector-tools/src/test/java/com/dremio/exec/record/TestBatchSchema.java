@@ -18,6 +18,7 @@ package com.dremio.exec.record;
 import static com.dremio.common.expression.CompleteType.LIST;
 import static com.dremio.common.expression.CompleteType.STRUCT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -195,18 +196,18 @@ public class TestBatchSchema {
     assertEquals(newSchema1.getFields().size(), 5);
 
     //First column should not be an integerCol
-    assertTrue(newSchema1.getColumn(0).getName() != "integerCol");
+    assertNotEquals(newSchema1.getColumn(0).getName(), "integerCol");
 
     BatchSchema newSchema2 = tableSchema.dropField("structField");
     assertEquals(newSchema1.getFields().size(), 5);
     //second column should not be a struct column
-    assertTrue(newSchema1.getColumn(1).getName() != "structField");
+    assertNotEquals(newSchema1.getColumn(1).getName(), "structField");
 
 
     BatchSchema newSchema3 = tableSchema.dropField("listField");
     assertEquals(newSchema3.getFields().size(), 5);
     //third column should not be a struct column
-    assertTrue(newSchema1.getColumn(2).getName() != "listField");
+    assertNotEquals(newSchema1.getColumn(2).getName(), "listField");
   }
 
   @Test
@@ -238,7 +239,7 @@ public class TestBatchSchema {
     BatchSchema newSchema1 = tableSchema.dropField("integercol");
     assertEquals(newSchema1.getFields().size(), 3);
     //First column should not be an integerCol
-    assertTrue(newSchema1.getColumn(0).getName() != "integerCol");
+    assertNotEquals(newSchema1.getColumn(0).getName(), "integerCol");
   }
 
   @Test

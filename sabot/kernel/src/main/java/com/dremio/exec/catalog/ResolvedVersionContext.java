@@ -41,20 +41,20 @@ import com.google.common.base.Preconditions;
 @Value.Style(visibility = Value.Style.ImplementationVisibility.PACKAGE)
 @JsonSerialize(as = ImmutableResolvedVersionContext.class)
 @JsonDeserialize(as = ImmutableResolvedVersionContext.class)
-public interface ResolvedVersionContext {
-  enum Type {
+public abstract class ResolvedVersionContext {
+  public enum Type {
     BRANCH,
     TAG,
     BARE_COMMIT,
   }
 
-  String BARE_REF_NAME = "BARE";
+  public static final String DETACHED = "DETACHED";
 
-  Type getType();
-  String getRefName();
-  String getCommitHash();
+  public abstract Type getType();
+  public abstract String getRefName();
+  public abstract String getCommitHash();
 
-  static ResolvedVersionContext ofBranch(String branchName, String commitHash) {
+  public static ResolvedVersionContext ofBranch(String branchName, String commitHash) {
     return ImmutableResolvedVersionContext.builder()
       .type(Type.BRANCH)
       .refName(branchName)
@@ -62,7 +62,7 @@ public interface ResolvedVersionContext {
       .build();
   }
 
-  static ResolvedVersionContext ofTag(String tagName, String commitHash) {
+  public static ResolvedVersionContext ofTag(String tagName, String commitHash) {
     return ImmutableResolvedVersionContext.builder()
       .type(Type.TAG)
       .refName(tagName)
@@ -70,31 +70,53 @@ public interface ResolvedVersionContext {
       .build();
   }
 
-  static ResolvedVersionContext ofBareCommit(String commitHash) {
+  public static ResolvedVersionContext ofBareCommit(String commitHash) {
     return ImmutableResolvedVersionContext.builder()
       .type(Type.BARE_COMMIT)
-      .refName(BARE_REF_NAME)
+      .refName(DETACHED)
       .commitHash(commitHash)
       .build();
   }
 
   @Value.Check
-  default void check() {
-    Preconditions.checkNotNull(getRefName());
+  protected void check() {
     switch (Preconditions.checkNotNull(getType())) {
       case BRANCH: // Intentional fallthrough
       case TAG:
-        return; // No special checks needed
+        Preconditions.checkNotNull(getRefName());
+        break;
       case BARE_COMMIT:
-        Preconditions.checkArgument(getRefName().equals(BARE_REF_NAME));
-        return;
+        Preconditions.checkArgument(getRefName() == DETACHED);
+        break;
       default:
         throw new IllegalStateException("Unexpected value: " + getType());
     }
+    Preconditions.checkNotNull(getCommitHash());
   }
 
   @JsonIgnore
-  default boolean isBranch() {
+  public boolean isBranch() {
     return getType() == Type.BRANCH;
+  }
+
+  @JsonIgnore
+  public boolean isBareCommit() { return getType() == Type.BARE_COMMIT; }
+
+  public String toString() {
+    String out;
+    switch (getType()) {
+      case BRANCH:
+        out = String.format("branch %s at commit %s", getRefName(), getCommitHash());
+        break;
+      case TAG:
+        out = String.format("tag %s at commit %s", getRefName(), getCommitHash());
+        break;
+      case BARE_COMMIT:
+        out = String.format("commit %s", getCommitHash());
+        break;
+      default:
+        throw new IllegalStateException("Unexpected value: " + getType());
+    }
+    return out;
   }
 }

@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import { MEMORY_UNITS } from 'utils/numberFormatUtils';
-import MultiplierField from './MultiplierField';
+import { MEMORY_UNITS } from "utils/numberFormatUtils";
+import MultiplierField from "./MultiplierField";
 
 export default class ByteField extends Component {
   static propTypes = {}; // pass-thru

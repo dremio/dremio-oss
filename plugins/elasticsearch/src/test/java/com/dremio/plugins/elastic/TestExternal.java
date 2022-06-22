@@ -50,7 +50,7 @@ with the correct IP address.  Also, should load yelp dataset into elasticsearch.
 public class TestExternal extends BaseTestQuery {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(50000, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(50000, TimeUnit.SECONDS);
 
   @Test
   public void query() throws Exception {

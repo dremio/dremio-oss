@@ -13,35 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
-import { CLIENT_TOOL_ID } from '@app/constants/Constants';
+import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
 
-const isProductionBuild = process.env.NODE_ENV === 'production';
+const isProductionBuild = process.env.NODE_ENV === "production";
 
 export const isProduction = () => {
   return isProductionBuild;
 };
 
-export const getAnalyzeToolsConfig = (settings, config) => {
-  if (settings && settings.size) {
-    return {
-      tableau: {enabled: settings.getIn([CLIENT_TOOL_ID.tableau, 'value'])},
-      powerbi: {enabled: settings.getIn([CLIENT_TOOL_ID.powerbi, 'value'])},
-      qlik: {enabled: settings.getIn([CLIENT_TOOL_ID.qlik, 'value'])}
-    };
-  } else {
-    return config.analyzeTools;
-  }
+export const getAnalyzeToolsConfig = (config) => {
+  return config.analyzeTools;
 };
 
-export default { // defaults, and defaults for unit tests
+export default {
+  // defaults, and defaults for unit tests
   serverStatus: SERVER_STATUS_OK,
-  edition: 'OSS',
+  edition: "OSS",
   intercomAppId: null,
   shouldEnableBugFiling: !isProductionBuild,
   shouldEnableRSOD: !isProductionBuild,
-  supportEmailTo: 'noreply@dremio.com',
-  supportEmailSubjectForJobs: '',
+  supportEmailTo: "noreply@dremio.com",
+  supportEmailSubjectForJobs: "",
   outsideCommunicationDisabled: false,
   lowerProvisioningSettingsEnabled: false,
   allowFileUploads: true,
@@ -51,17 +43,17 @@ export default { // defaults, and defaults for unit tests
   versionInfo: {
     buildTime: 0,
     commit: {
-      time: 0
-    }
+      time: 0,
+    },
   },
-  isReleaseBuild: process.env.DREMIO_RELEASE === 'true',
-  logErrorsToSentry: process.env.SKIP_SENTRY_STEP !== 'true',
+  isReleaseBuild: process.env.DREMIO_RELEASE === "true",
+  logErrorsToSentry: process.env.SKIP_SENTRY_STEP !== "true",
   ts: new Date(),
-  whiteLabelUrl: 'dremio',
+  whiteLabelUrl: "dremio",
   analyzeTools: {
     tableau: { enabled: true },
     powerbi: { enabled: true },
-    qlik: { enabled: false }
+    qlik: { enabled: false },
   },
   crossSourceDisabled: false,
   queryBundleAdminsEnabled: false,
@@ -71,5 +63,5 @@ export default { // defaults, and defaults for unit tests
   displayTutorialsLink: false,
   showNewJobsPage: true,
   showMetadataValidityCheckbox: false,
-  ...((window && window.dremioConfig) || {})
+  ...((window && window.dremioConfig) || {}),
 };

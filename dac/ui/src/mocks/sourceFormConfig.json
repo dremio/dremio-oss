@@ -91,7 +91,6 @@
         {
           "type": "host_list",
           "propertyName": "hostList"
-
         },
         {
           "type": "boolean",

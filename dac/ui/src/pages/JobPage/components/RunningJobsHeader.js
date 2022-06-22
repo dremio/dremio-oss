@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import { PALE_NAVY } from 'uiTheme/radium/colors';
+import { PALE_NAVY } from "uiTheme/radium/colors";
 
-@Radium
-export default class RunningJobsHeader extends PureComponent {
+class RunningJobsHeader extends PureComponent {
   static propTypes = {
-    jobCount: PropTypes.number.isRequired
+    jobCount: PropTypes.number.isRequired,
   };
 
   //TODO: jobCount will be used after beta2
   render() {
     return (
-      <h3 className='running-jobs-header' style={[style.base]}>
+      <h3 className="running-jobs-header" style={[style.base]}>
         Jobs
       </h3>
     );
@@ -39,9 +38,10 @@ const style = {
   base: {
     backgroundColor: PALE_NAVY,
     flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     height: 38,
-    padding: '0 10px'
-  }
+    padding: "0 10px",
+  },
 };
+export default Radium(RunningJobsHeader);

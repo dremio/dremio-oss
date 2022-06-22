@@ -20,9 +20,9 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 
-import com.google.common.collect.ImmutableList;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Get the stack of Elastic operators

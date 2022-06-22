@@ -35,10 +35,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
- * Implements SQL ALTER BRANCH ASSIGN to assign a new reference to the given branch. Represents
- * statements like: ALTER BRANCH branchName ASSIGN ( BRANCH | TAG | COMMIT ) reference IN source
+ * Implements SQL ALTER BRANCH ASSIGN to assign a new reference to the given branch.
+ *
+ * ALTER BRANCH branchName ASSIGN
+ * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * [ IN sourceName ]
  */
-public final class SqlAssignBranch extends SqlVersionBase {
+public final class SqlAssignBranch extends SqlVersionSourceRefBase {
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("ASSIGN_BRANCH", SqlKind.OTHER) {
         @Override
@@ -56,19 +59,15 @@ public final class SqlAssignBranch extends SqlVersionBase {
       };
 
   private final SqlIdentifier branchName;
-  private final ReferenceType refType;
-  private final SqlIdentifier reference;
 
   public SqlAssignBranch(
       SqlParserPos pos,
       SqlIdentifier branchName,
       ReferenceType refType,
-      SqlIdentifier reference,
-      SqlIdentifier source) {
-    super(pos, source);
+      SqlIdentifier refValue,
+      SqlIdentifier sourceName) {
+    super(pos, sourceName, refType, refValue);
     this.branchName = branchName;
-    this.refType = refType;
-    this.reference = reference;
   }
 
   @Override
@@ -80,8 +79,8 @@ public final class SqlAssignBranch extends SqlVersionBase {
   public List<SqlNode> getOperandList() {
     List<SqlNode> ops = Lists.newArrayList();
     ops.add(branchName);
-    ops.add(SqlLiteral.createSymbol(refType, SqlParserPos.ZERO));
-    ops.add(reference);
+    ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    ops.add(getRefValue());
     ops.add(getSourceName());
 
     return ops;
@@ -93,19 +92,8 @@ public final class SqlAssignBranch extends SqlVersionBase {
     writer.keyword("BRANCH");
     branchName.unparse(writer, leftPrec, rightPrec);
 
-    writer.keyword("ASSIGN");
-    switch (refType) {
-      case BRANCH:
-        writer.keyword("BRANCH");
-        break;
-      case TAG:
-        writer.keyword("TAG");
-        break;
-    }
-    reference.unparse(writer, leftPrec, rightPrec);
-
-    writer.keyword("IN");
-    getSourceName().unparse(writer, leftPrec, rightPrec);
+    unparseRef(writer, leftPrec, rightPrec, "ASSIGN");
+    unparseSourceName(writer, leftPrec, rightPrec);
   }
 
   @Override
@@ -126,9 +114,5 @@ public final class SqlAssignBranch extends SqlVersionBase {
 
   public SqlIdentifier getBranchName() {
     return branchName;
-  }
-
-  public SqlIdentifier getReference() {
-    return reference;
   }
 }

@@ -1,0 +1,282 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "EMPTY SELECT"
+  input: "SELECT ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "SINGLE SELECT ITEM"
+  input: "SELECT EMP.ENAME ^  FROM EMP"
+  output:
+    completions:
+     -
+      data: "FROM"
+      detail: "Some SQL keyword"
+      insertText: "FROM"
+      kind: "Keyword"
+      label: "FROM"
+     -
+      data: ","
+      detail: "Some SQL keyword"
+      insertText: ","
+      kind: "Keyword"
+      label: ","
+     -
+      data: "LIMIT"
+      detail: "Some SQL keyword"
+      insertText: "LIMIT"
+      kind: "Keyword"
+      label: "LIMIT"
+     -
+      data: "ORDER"
+      detail: "Some SQL keyword"
+      insertText: "ORDER"
+      kind: "Keyword"
+      label: "ORDER"
+     -
+      data: "EXCEPT"
+      detail: "Some SQL keyword"
+      insertText: "EXCEPT"
+      kind: "Keyword"
+      label: "EXCEPT"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "SINGLE SELECT ITEM AWAITING SECOND SELECT ITEM"
+  input: "SELECT EMP.ENAME, ^  FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "MIDDLE OF SELECTS"
+  input: "SELECT EMP.ENAME, ^ , EMP.JOB  FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "ESCAPES IN PATH"
+  input: "SELECT \"EMP\".\"ENAME\", ^ FROM EMP"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+     -
+      data:
+        column:
+          name: "ENAME"
+          type: "VARCHAR"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.ENAME"
+      kind: "Column"
+      label: "ENAME"
+     -
+      data:
+        column:
+          name: "HIREDATE"
+          type: "TIMESTAMP"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.HIREDATE"
+      kind: "Column"
+      label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true

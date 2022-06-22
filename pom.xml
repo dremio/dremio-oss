@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>21.2.0-202205262146080444-038d6d1b</version>
+  <version>22.0.0-202206221430090603-1fa4049f</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -37,22 +37,23 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>7.0.0-20220218200504-acc0d6e-dremio</arrow.version>
+    <arrow.version>8.0.0-20220615173757-4698c877a6-dremio</arrow.version>
     <avatica.version>1.18.0</avatica.version>
-    <calcite.version>1.16.0-202202210426230510-7e44800</calcite.version>
+    <calcite.version>1.16.0-202204211330220132-beaa487</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
     <simpleclient.version>0.7.0</simpleclient.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
     <fmpp.version>0.9.16</fmpp.version>
-    <freemarker.version>2.3.29</freemarker.version>
+    <freemarker.version>2.3.31</freemarker.version>
+    <commons-io.version>2.11.0</commons-io.version>
 
     <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
 
     <hadoop.version>3.2.1-dremio-202107061151520241-a2c072f</hadoop.version>
     <avro.version>1.9.2</avro.version>
-    <iceberg.version>0.13-4d6b6b4-20220310102212-6505ede</iceberg.version>
+    <iceberg.version>0.13-4d6b6b4-20220601135536-6505ede</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive2.azure-datalake.version>
@@ -69,7 +70,7 @@
     <plugin.hive2.mapr.hadoop.version>2.7.0-mapr-1803</plugin.hive2.mapr.hadoop.version>
     <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-202112221639140828-cb8c82b</plugin.hive2.mapr.hive.version>
     <plugin.hive2.mapr.maprfs.version>6.0.1-mapr-client-dremio-20190717</plugin.hive2.mapr.maprfs.version>
-    <plugin.hive2.aws.glue.version>1.10.0-202111190435510345-8160822</plugin.hive2.aws.glue.version>
+    <plugin.hive2.aws.glue.version>1.10.0-202202240321510927-4ec4bff</plugin.hive2.aws.glue.version>
 
     <!-- [DX-18063] HBase versions older than 1.1.7 get version info using package-info.class
     metadata. However it is unreliable to get this when both the parent and child classloaders
@@ -98,8 +99,9 @@
     <errorprone.version>2.10.0</errorprone.version>
     <errorprone.type>jar</errorprone.type>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
-    <errorprone.args>-Xplugin:ErrorProne -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR -XepExcludedPaths:${project.build.directory}/.*generated-sources/.*</errorprone.args>
-
+    <errorprone.args.jdk11></errorprone.args.jdk11>
+    <errorprone.args>-Xplugin:ErrorProne -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR ${errorprone.args.jdk11} -XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
+    <mysql.dist.version>5.6.14</mysql.dist.version>
     <!--
          Note about -Djdk.attach.allowAttachSelf=true:
          See jdk.internal.misc.VM.saveAndRemoveProperties. jdk.attach.allowAttachSelf is
@@ -119,23 +121,26 @@
 
     <hsqldb.version>2.3.1</hsqldb.version>
     <immutables.version>2.8.8</immutables.version>
-    <jackson.version>2.11.4</jackson.version>
+    <jackson.version>2.13.2.20220328</jackson.version>
     <jersey.version>2.35</jersey.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
     <junit.version>4.13.2</junit.version>
-    <junit.jupiter.version>5.8.1</junit.jupiter.version>
+    <junit.jupiter.version>5.8.2</junit.jupiter.version>
+    <junit.mockito.jupiter.version>3.12.4</junit.mockito.jupiter.version>
     <lilith.version>8.2.0</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.2.9</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
-    <nessie-cel.version>0.2.3</nessie-cel.version>
+    <nessie-cel.version>0.2.4</nessie-cel.version>
+    <nessie-apprunner.version>0.21.4</nessie-apprunner.version>
+    <nessie.version>0.27.0</nessie.version>
     <netty.version>4.1.68.Final</netty.version>
     <netty.tcnative.version>2.0.46.Final</netty.tcnative.version>
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
     <netty.boringssl.version>2.0.43.Final</netty.boringssl.version>
-    <parquet.version>1.12.0-202110180807410209-92c5ab2</parquet.version>
+    <parquet.version>1.12.0-202205191717350594-a60d369</parquet.version>
     <pf4j.version>3.6.0</pf4j.version>
     <postgresql.version>42.3.4</postgresql.version>
     <protobuf.version>3.19.0</protobuf.version>
@@ -153,24 +158,24 @@
     <fbs.version>1.12.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
     <opencensus.version>0.24.0</opencensus.version>
-    <grpc.version>1.41.0</grpc.version>
+    <grpc.version>1.45.0</grpc.version>
+    <snakeyaml.version>1.30</snakeyaml.version>
     <guava.version>31.0.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
     <redis.clients.jedis.version>3.4.1</redis.clients.jedis.version>
     <opentelemetry.version>1.0.1</opentelemetry.version>
     <scim2-sdk.version>2.3.5</scim2-sdk.version>
-    <nessie.version>0.19.0</nessie.version>
-    <openapitools.plugin.version>5.3.1</openapitools.plugin.version>
+    <openapitools.plugin.version>5.4.0</openapitools.plugin.version>
     <swagger-annotations-version>1.6.4</swagger-annotations-version>
     <threeten-version>1.7.0</threeten-version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
-    <elasticsearch.version>5.5.3</elasticsearch.version>
+    <elasticsearch.version>6.8.23</elasticsearch.version>
     <!-- Specify API versions to test ES against. -->
     <tests.elasticsearch.api.version>${elasticsearch.version}</tests.elasticsearch.api.version>
-    <tests.elasticsearch.mvn.plugin.version>6.8</tests.elasticsearch.mvn.plugin.version>
+    <tests.elasticsearch.mvn.plugin.version>6.22</tests.elasticsearch.mvn.plugin.version>
     <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
-    <lucene.version>6.6.0</lucene.version>
+    <lucene.version>7.7.3</lucene.version>
 
     <!-- Surefire/Failsafe argline property -->
     <argLine></argLine>
@@ -181,8 +186,9 @@
     <!-- Default intercom app id -->
     <dremio.ui.intercom.appid>z8apq4co</dremio.ui.intercom.appid>
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
-    <npm.buildscript>buildprod</npm.buildscript>
+    <npm.buildscript>build</npm.buildscript>
     <npm.installscript>install --no-save --prefer-offline --no-audit</npm.installscript>
+    <pnpm.installscript>install --frozen-lockfile --prefer-offline --reporter=silent</pnpm.installscript>
     <yarn.installscript>install --frozen-lockfile --prefer-offline --no-audit --network-timeout 300000</yarn.installscript>
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
@@ -200,6 +206,20 @@
   </properties>
 
   <profiles>
+    <profile>
+      <id>dremio.no-ui</id>
+      <activation>
+        <property>
+          <name>dremio.no-ui</name>
+        </property>
+      </activation>
+      <properties>
+        <skip.installnodenpm>true</skip.installnodenpm>
+        <skip.installyarn>true</skip.installyarn>
+        <skip.npm>true</skip.npm>
+        <skip.yarn>true</skip.yarn>
+      </properties>
+    </profile>
     <profile>
       <id>eclipse-m2e</id>
       <activation>
@@ -401,15 +421,9 @@
             <configuration>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
-                <!-- Add some extra checkers
-                     Exclude files generated by protobuf from errorprone:
-                     Those files do not have a @Generated annotations and are analyzed by errorprone which
-                     reports a large number of warnings, causing a noticeable slowdown in some modules
-                 -->
                 <arg>${errorprone.args}</arg>
               </compilerArgs>
               <annotationProcessorPaths combine.children='append'>
-                <!-- Detect several classes of issues inside the codebase -->
                 <path>
                   <groupId>com.google.errorprone</groupId>
                   <artifactId>error_prone_core</artifactId>
@@ -436,6 +450,32 @@
               <compilerArgs combine.children="append">
                 <arg>-J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
               </compilerArgs>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>errorprone-jdk11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <errorprone.version>2.13.1</errorprone.version>
+        <errorprone.args.jdk11>-Xep:DoubleBraceInitialization:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN</errorprone.args.jdk11>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <annotationProcessorPaths combine.children='append'>
+                <path>
+                  <groupId>jp.skypencil.errorprone.slf4j</groupId>
+                  <artifactId>errorprone-slf4j</artifactId>
+                  <version>0.1.11</version>
+                </path>
+              </annotationProcessorPaths>
             </configuration>
           </plugin>
         </plugins>
@@ -599,6 +639,21 @@
         <dremio.beta>true</dremio.beta>
       </properties>
     </profile>
+    <profile>
+      <id>macos</id>
+      <activation>
+        <os>
+          <family>mac</family>
+        </os>
+      </activation>
+      <properties>
+        <!--
+        mysql-dist version 5.6.14 doesn't work on MacOS as it is in fact a 32bits distribution and Apple later removed support for 32bits programs
+        However, version 5.6.21 doesn't work on Linux.
+        -->
+        <mysql.dist.version>5.6.21</mysql.dist.version>
+      </properties>
+    </profile>
   </profiles>
 
   <build>
@@ -665,6 +720,35 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <!-- See https://github.com/diffplug/spotless/tree/main/plugin-maven#java -->
+          <java>
+            <endWithNewline/>
+            <importOrder>
+              <!-- This is replicating the import order from checkstyle -->
+              <!-- Trailing comma matters, since empty item stands for all other imports -->
+              <order>java.,javax.,org.,com.,</order>
+            </importOrder>
+            <indent>
+              <spaces>true</spaces>
+              <spacesPerTab>2</spacesPerTab>
+            </indent>
+            <removeUnusedImports/>
+            <toggleOffOn/>
+            <trimTrailingWhitespace/>
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <!-- Specify source and test directories to not included generated source directories -->
@@ -682,7 +766,6 @@
           <resourceIncludes>**/*.properties,**/*.conf,**/*.json,**/*.xml</resourceIncludes>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
           <configLocation>dremio-checkstyle/checkstyle-config.xml</configLocation>
-          <suppressionsLocation>dremio-checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
         </configuration>
         <dependencies>
           <dependency>
@@ -1072,6 +1155,7 @@ limitations under the License.
             <exclude>**/*.no_license</exclude>
             <exclude>**/rpm/conf/dremio-env</exclude>
             <exclude>**/rpm/conf/dremio.conf</exclude>
+            <exclude>**/pnpm-lock.yaml</exclude>
             <exclude>**/yarn.lock</exclude>
             <exclude>**/.env</exclude>
             <exclude>**/microsoft-logo.svg</exclude>
@@ -1315,8 +1399,9 @@ limitations under the License.
           <version>1.12.1</version>
 
           <configuration>
-            <nodeVersion>v14.18.2</nodeVersion>
+            <nodeVersion>v14.19.2</nodeVersion>
             <npmVersion>7.7.5</npmVersion>
+            <pnpmVersion>7.0.0</pnpmVersion>
             <yarnVersion>v1.22.10</yarnVersion>
             <installDirectory>${project.build.directory}/frontend</installDirectory>
             <workingDirectory>${project.build.directory}</workingDirectory>
@@ -1328,6 +1413,7 @@ limitations under the License.
               <SENTRY_AUTH_TOKEN>${project.sentry.token}</SENTRY_AUTH_TOKEN>
               <SKIP_SENTRY_STEP>${project.sentry.skip}</SKIP_SENTRY_STEP>
               <DREMIO_RELEASE>${dremio.release}</DREMIO_RELEASE>
+              <DREMIO_BETA>${dremio.beta}</DREMIO_BETA>
             </environmentVariables>
           </configuration>
         </plugin>
@@ -1427,7 +1513,7 @@ limitations under the License.
         <plugin>
           <groupId>org.projectnessie</groupId>
           <artifactId>nessie-apprunner-maven-plugin</artifactId>
-          <version>${nessie.version}</version>
+          <version>${nessie-apprunner.version}</version>
         </plugin>
         <plugin>
           <groupId>com.github.spotbugs</groupId>
@@ -1441,6 +1527,11 @@ limitations under the License.
           <groupId>org.openapitools</groupId>
           <artifactId>openapi-generator-maven-plugin</artifactId>
           <version>${openapitools.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>2.22.0</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -1584,6 +1675,7 @@ limitations under the License.
         <artifactId>dremio-common</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
+        <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>com.dremio</groupId>
@@ -1599,6 +1691,7 @@ limitations under the License.
         <groupId>com.dremio</groupId>
         <artifactId>dremio-dac-backend</artifactId>
         <classifier>tests</classifier>
+        <type>test-jar</type>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -1636,6 +1729,7 @@ limitations under the License.
         <artifactId>dremio-services-coordinator</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
+        <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
@@ -1672,6 +1766,7 @@ limitations under the License.
         <artifactId>dremio-services-namespace</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
+        <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
@@ -1718,6 +1813,7 @@ limitations under the License.
         <artifactId>dremio-services-users</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
+        <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
@@ -1753,6 +1849,7 @@ limitations under the License.
         <groupId>com.dremio.sabot</groupId>
         <artifactId>dremio-sabot-kernel</artifactId>
         <classifier>tests</classifier>
+        <type>test-jar</type>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -2045,6 +2142,11 @@ limitations under the License.
         <scope>import</scope>
       </dependency>
       <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
+      </dependency>
+      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
         <version>${netty3.version}</version>
@@ -2097,6 +2199,11 @@ limitations under the License.
         <version>${junit.jupiter.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-junit-jupiter</artifactId>
+        <version>${junit.mockito.jupiter.version}</version>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
@@ -2248,6 +2355,7 @@ limitations under the License.
         <groupId>org.apache.calcite</groupId>
         <artifactId>calcite-core</artifactId>
         <classifier>tests</classifier>
+        <type>test-jar</type>
         <version>${calcite.version}</version>
         <exclusions>
           <exclusion>
@@ -2283,6 +2391,11 @@ limitations under the License.
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>3.12.0</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>${commons-io.version}</version>
       </dependency>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
@@ -2549,6 +2662,7 @@ limitations under the License.
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>
         <classifier>tests</classifier>
+        <type>test-jar</type>
         <exclusions>
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
@@ -2720,6 +2834,11 @@ limitations under the License.
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>com.microsoft.sqlserver</groupId>
+        <artifactId>mssql-jdbc</artifactId>
+        <version>7.0.0.jre8</version>
+      </dependency>
+      <dependency>
         <groupId>com.microsoft.azure</groupId>
         <artifactId>adal4j</artifactId>
         <version>1.6.4</version>
@@ -2735,6 +2854,7 @@ limitations under the License.
         <version>${hadoop.version}</version>
         <scope>test</scope>
         <classifier>tests</classifier>
+        <type>test-jar</type>
         <exclusions>
           <exclusion>
             <groupId>commons-logging</groupId>
@@ -2996,6 +3116,7 @@ limitations under the License.
         <artifactId>hbase-hadoop2-compat</artifactId>
         <version>${hbase.version}</version>
         <classifier>tests</classifier>
+        <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>org.apache.hive</groupId>
@@ -3402,7 +3523,7 @@ limitations under the License.
       <dependency>
         <groupId>org.codehaus.woodstox</groupId>
         <artifactId>stax2-api</artifactId>
-        <version>3.1.4</version>
+        <version>4.2</version>
       </dependency>
       <dependency>
         <groupId>org.apache.avro</groupId>
@@ -3567,6 +3688,7 @@ limitations under the License.
     <module>plugins</module>
     <module>services</module>
     <module>tools</module>
+    <module>sample-data</module>
   </modules>
 
   <repositories>

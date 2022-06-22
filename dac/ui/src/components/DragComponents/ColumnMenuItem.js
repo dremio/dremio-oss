@@ -13,23 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import classNames  from 'classnames';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
+import { injectIntl } from "react-intl";
 
-import EllipsedText from 'components/EllipsedText';
-import FontIcon from 'components/Icon/FontIcon';
-import { typeToIconType } from '@app/constants/DataTypes';
-import { constructFullPath } from 'utils/pathUtils';
+import EllipsedText from "components/EllipsedText";
+import FontIcon from "components/Icon/FontIcon";
+import { typeToIconType } from "@app/constants/DataTypes";
+import { constructFullPath } from "utils/pathUtils";
 
-import Art from '@app/components/Art';
-import { itemContainer, base, content, disabled as disabledCls, icon as iconCls, datasetAdd } from '@app/uiTheme/less/DragComponents/ColumnMenuItem.less';
-import DragSource from './DragSource';
+import Art from "@app/components/Art";
+import {
+  itemContainer,
+  base,
+  content,
+  disabled as disabledCls,
+  icon as iconCls,
+  datasetAdd,
+} from "@app/uiTheme/less/DragComponents/ColumnMenuItem.less";
+import DragSource from "./DragSource";
 
-@Radium
 class ColumnMenuItem extends PureComponent {
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
@@ -47,39 +52,56 @@ class ColumnMenuItem extends PureComponent {
     className: PropTypes.string,
     intl: PropTypes.any,
     shouldAllowAdd: PropTypes.bool,
-    addtoEditor: PropTypes.func
-  }
+    addtoEditor: PropTypes.func,
+    draggableRowClassName: PropTypes.string,
+  };
   static defaultProps = {
-    fullPath: Immutable.List()
-  }
+    fullPath: Immutable.List(),
+  };
 
   checkThatDragAvailable = (e) => {
     if (this.props.preventDrag || this.props.disabled) {
       e.stopPropagation();
       e.preventDefault();
     }
-  }
+  };
 
-  renderDraggableIcon() { // DX-37793: This currently built with wrong icon. Correct icon has not been designed yet.
-    return !this.props.preventDrag && !this.props.disabled ?
-      (
-        <div style={{position: 'relative', width: 0, height: 0}}>
-          <FontIcon type='DropdownEnabled' class='column-draggable-icon'/>
-          <FontIcon type='DropdownDisabled' class='column-draggable-icon--static'/>
-        </div>
-      ) : null;
+  renderDraggableIcon() {
+    // DX-37793: This currently built with wrong icon. Correct icon has not been designed yet.
+    return !this.props.preventDrag && !this.props.disabled ? (
+      <div style={{ position: "relative", width: 0, height: 0 }}>
+        <FontIcon type="DropdownEnabled" class="column-draggable-icon" />
+        <FontIcon
+          type="DropdownDisabled"
+          class="column-draggable-icon--static"
+        />
+      </div>
+    ) : null;
   }
 
   render() {
-    const { item, disabled, preventDrag, fieldType, className, shouldAllowAdd, addtoEditor, intl: { formatMessage } } = this.props;
+    const {
+      item,
+      disabled,
+      preventDrag,
+      fieldType,
+      className,
+      shouldAllowAdd,
+      addtoEditor,
+      draggableRowClassName,
+      intl: { formatMessage },
+    } = this.props;
     const markAsDisabled = preventDrag || disabled;
-    const isGroupBy = this.props.dragType === 'groupBy';
+    const isGroupBy = this.props.dragType === "groupBy";
     // full paths are not yet supported by dremio in SELECT clauses, so force this to always be the simple name for now
-    const idForDrag = true || // eslint-disable-line no-constant-condition
-      isGroupBy ? item.get('name') : constructFullPath(this.props.fullPath.concat(item.get('name')));
+    const idForDrag =
+      true || // eslint-disable-line no-constant-condition
+      isGroupBy
+        ? item.get("name")
+        : constructFullPath(this.props.fullPath.concat(item.get("name")));
     return (
       <div
-        className={classNames(['inner-join-left-menu-item', base, className])}
+        className={classNames(["inner-join-left-menu-item", base, className])}
         onMouseDown={this.checkThatDragAvailable}
       >
         <DragSource
@@ -91,16 +113,37 @@ class ColumnMenuItem extends PureComponent {
           onDragEnd={this.props.onDragEnd}
           preventDrag={preventDrag}
           isFromAnother
-          id={idForDrag}>
+          id={idForDrag}
+        >
           <div
-            className={classNames(['draggable-row', content, markAsDisabled && disabledCls])}
-            data-qa={`inner-join-field-${item.get('name')}-${fieldType}`}
+            className={classNames([
+              "draggable-row",
+              content,
+              markAsDisabled && disabledCls,
+              draggableRowClassName,
+            ])}
+            data-qa={`inner-join-field-${item.get("name")}-${fieldType}`}
           >
-            <FontIcon type={typeToIconType[item.get('type')]} theme={styles.type}/>
+            <FontIcon
+              type={typeToIconType[item.get("type")]}
+              theme={styles.type}
+            />
             <div className={itemContainer}>
-              <EllipsedText data-qa={item.get('name')} style={!preventDrag ? {paddingRight: 10} : {} /* leave space for knurling */}
-                text={item.get('name')} title={preventDrag ? formatMessage({ id: 'Read.Only'}) : item.get('name')}>
-                {item.get('name')}
+              <EllipsedText
+                data-qa={item.get("name")}
+                style={
+                  !preventDrag
+                    ? { paddingRight: 10 }
+                    : {} /* leave space for knurling */
+                }
+                text={item.get("name")}
+                title={
+                  preventDrag
+                    ? formatMessage({ id: "Read.Only" })
+                    : item.get("name")
+                }
+              >
+                {item.get("name")}
               </EllipsedText>
             </div>
             {/*
@@ -111,38 +154,41 @@ class ColumnMenuItem extends PureComponent {
               col3    |P
               col4  S |P
             */}
-            {
-              item.get('isSorted') && <Art dataQa='is-partitioned'
-                src='sorted.svg'
-                alt='sorted'
-                title='sorted'
+            {item.get("isSorted") && (
+              <Art
+                dataQa="is-partitioned"
+                src="sorted.svg"
+                alt="sorted"
+                title="sorted"
                 className={iconCls}
               />
-            }
-            {
-              item.get('isPartitioned') && <Art dataQa='is-partitioned'
-                src='Partition.svg'
-                alt='partitioned'
-                title='partitioned'
+            )}
+            {item.get("isPartitioned") && (
+              <Art
+                dataQa="is-partitioned"
+                src="Partition.svg"
+                alt="partitioned"
+                title="partitioned"
                 className={iconCls}
               />
-            }
+            )}
             {
               // need to add a empty placeholder for partition icon to keep alignment
-              item.get('isSorted') && !item.get('isPartitioned') && <div className={iconCls}></div>
+              item.get("isSorted") && !item.get("isPartitioned") && (
+                <div className={iconCls}></div>
+              )
             }
-            {/* {this.renderDraggableIcon()} */} {/* DX-37793: This currently built with wrong icon. Correct icon has not been designed yet. */}
-
-            {
-              shouldAllowAdd &&
-                <Art
-                  src='CirclePlus.svg'
-                  alt=''
-                  className={datasetAdd}
-                  onClick={() => addtoEditor(item.get('name'))}
-                  title='Add to SQL editor'
-                />
-            }
+            {/* {this.renderDraggableIcon()} */}{" "}
+            {/* DX-37793: This currently built with wrong icon. Correct icon has not been designed yet. */}
+            {shouldAllowAdd && (
+              <Art
+                src="CirclePlus.svg"
+                alt=""
+                className={datasetAdd}
+                onClick={() => addtoEditor(item.get("name"))}
+                title="Add to SQL editor"
+              />
+            )}
           </div>
         </DragSource>
       </div>
@@ -152,21 +198,21 @@ class ColumnMenuItem extends PureComponent {
 
 const styles = {
   type: {
-    'Icon': {
+    Icon: {
       width: 24,
-      height: 20,
-      backgroundPosition: 'left center'
+      height: 24,
+      backgroundPosition: "center",
     },
     Container: {
-      width: 28,
-      height: 20,
+      width: 24,
+      height: 24,
       top: 0,
-      flex: '0 0 auto'
-    }
+      flex: "0 0 auto",
+    },
   },
   name: {
-    marginLeft: 5
-  }
+    marginLeft: 5,
+  },
 };
 
 export default injectIntl(ColumnMenuItem);

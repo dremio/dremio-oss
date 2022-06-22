@@ -13,31 +13,71 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import ByteField from 'components/Fields/ByteField';
-import DurationField from 'components/Fields/DurationField';
+import ByteField from "components/Fields/ByteField";
+import DurationField from "components/Fields/DurationField";
+import { formatMessage } from "@app/utils/locale";
 
 // todo: loc
 export const SECTIONS = new Map([
-  ['Query Queue Control', new Map([
-    ['exec.queue.enable', ''], // todo: ax
-    ['exec.queue.large', 'Concurrent queries (large queries)'],
-    ['exec.queue.small', 'Concurrent queries (small queries)'],
-    ['exec.queue.timeout_millis', 'Queue timeout']
-  ])],
-  ['Reflection Queue Control', new Map([
-    ['reflection.queue.enable', ''],
-    ['reflection.queue.large', 'Concurrent reflections (large queries)'],
-    ['reflection.queue.small', 'Concurrent reflections (small queries)'],
-    ['reflection.queue.timeout_millis', 'Reflection queue timeout']
-  ])],
-  ['Query Memory Control', new Map([
-    ['exec.queue.memory.enable', ''], // todo: ax
-    ['exec.queue.memory.large', 'Maximum query memory (large queries)'],
-    ['exec.queue.memory.small', 'Maximum query memory (small queries)']
-  ])],
-  ['Query Thresholds', new Map([
-    ['exec.queue.threshold', 'Large query threshold (plan cost)']
-  ])]
+  [
+    "Query Queue Control",
+    new Map([
+      ["exec.queue.enable", formatMessage("QueueControl.exec.queue.enable")], // todo: ax
+      ["exec.queue.large", formatMessage("QueueControl.exec.queue.large")],
+      ["exec.queue.small", formatMessage("QueueControl.exec.queue.small")],
+      [
+        "exec.queue.timeout_millis",
+        formatMessage("QueueControl.exec.queue.timeout_millis"),
+      ],
+    ]),
+  ],
+  [
+    "Reflection Queue Control",
+    new Map([
+      [
+        "reflection.queue.enable",
+        formatMessage("QueueControl.reflection.queue.enable"),
+      ],
+      [
+        "reflection.queue.large",
+        formatMessage("QueueControl.reflection.queue.large"),
+      ],
+      [
+        "reflection.queue.small",
+        formatMessage("QueueControl.reflection.queue.small"),
+      ],
+      [
+        "reflection.queue.timeout_millis",
+        formatMessage("QueueControl.reflection.queue.timeout_millis"),
+      ],
+    ]),
+  ],
+  [
+    "Query Memory Control",
+    new Map([
+      [
+        "exec.queue.memory.enable",
+        formatMessage("QueueControl.exec.queue.memory.enable"),
+      ], // todo: ax
+      [
+        "exec.queue.memory.large",
+        formatMessage("QueueControl.exec.queue.memory.large"),
+      ],
+      [
+        "exec.queue.memory.small",
+        formatMessage("QueueControl.exec.queue.memory.small"),
+      ],
+    ]),
+  ],
+  [
+    "Query Thresholds",
+    new Map([
+      [
+        "exec.queue.threshold",
+        formatMessage("QueueControl.exec.queue.threshold"),
+      ],
+    ]),
+  ],
 ]);
 
 const labels = {};
@@ -51,24 +91,24 @@ export const LABELS_IN_SECTIONS = labels;
 
 export const LABELS = {
   // handled by Support.js subpage
-  'support.email.addr': 'Email addresses (comma separated)',
-  'support.email.jobs.subject': 'Email subject',
+  "support.email.addr": formatMessage("Support.email.addr"),
+  "support.email.jobs.subject": formatMessage("Support.email.jobs.subject"),
 
-  ...labels
+  ...labels,
 };
 
 export const FIELD_OVERRIDES = {
-  'exec.queue.memory.large': ByteField,
-  'exec.queue.memory.small': ByteField,
-  'exec.queue.timeout_millis': DurationField,
-  'reflection.queue.timeout_millis': DurationField,
+  "exec.queue.memory.large": ByteField,
+  "exec.queue.memory.small": ByteField,
+  "exec.queue.timeout_millis": DurationField,
+  "reflection.queue.timeout_millis": DurationField,
 
-  'dremio.exec.operator_batch_bytes': ByteField
+  "dremio.exec.operator_batch_bytes": ByteField,
 };
 
 export const SETTINGS_TOOL_ID = {
-  powerbi: 'client.tools.powerbi',
-  tableau: 'client.tools.tableau',
-  qlik: 'client.tools.qlik',
-  qlikEnabled: 'support.dac.qlik'
+  powerbi: "client.tools.powerbi",
+  tableau: "client.tools.tableau",
+  qlik: "client.tools.qlik",
+  qlikEnabled: "support.dac.qlik",
 };

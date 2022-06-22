@@ -49,7 +49,13 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
     setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
     test(String.format("DROP TABLE %s", REGION));
     test(String.format("DROP TABLE %s", NATION));
+  }
 
+  @Before
+  public void setup() throws Exception{
+    testNoResult("alter session set \"planner.slice_target\" = 1");
+    testNoResult("alter session set \"planner.enable_broadcast_join\" = true");
+    testNoResult("alter session set \"planner.filter.runtime_filter\" = true");
   }
 
   @Test
@@ -76,7 +82,6 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
     testPlanMatchingPatterns(sql, null, "runtimeFilter");
     test(sql);
   }
-
 
   @Test
   public void testHashJoinWithCast() throws Exception {
@@ -140,7 +145,6 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
     }
   }
 
-
   @Test
   public void testWithAlias() throws Exception {
     String sql = String.format(""
@@ -198,6 +202,7 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
     testPlanMatchingPatterns(sql, includes);
     test(sql);
   }
+
   @Test
   public void testWithAggregate() throws Exception {
     try (AutoCloseable withDisableJoinOpt = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false);
@@ -335,12 +340,5 @@ public class TestHashJoinWithRuntimeFilter extends PlanTestBase {
       testPlanMatchingPatterns(sql, null, includedString);
       test(sql);
     }
-  }
-
-  @Before
-  public void setup() throws Exception{
-    testNoResult("alter session set \"planner.slice_target\" = 1");
-    testNoResult("alter session set \"planner.enable_broadcast_join\" = true");
-    testNoResult("alter session set \"planner.filter.runtime_filter\" = true");
   }
 }

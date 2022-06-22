@@ -16,114 +16,122 @@
 class SimpleTransformMappers {
   mapSortItem(item) {
     return {
-      type: 'sort',
+      type: "sort",
       sortedColumnName: item.columnName,
-      order: item.type
+      order: item.type,
     };
   }
 
   mapUnnest(item) {
     return {
-      type: 'field',
+      type: "field",
       sourceColumnName: item.columnName,
       newColumnName: item.columnName,
       dropSourceColumn: true,
       fieldTransformation: {
-        type: 'UnnestList'
-      }
+        type: "UnnestList",
+      },
     };
   }
 
   mapGroupBy(item) {
     return {
-      type: 'groupBy',
-      columnsDimensionsList: item.columnsDimensions.map(col => {
-        return {
-          column: col.column
-        };
-      }),
-      columnsMeasuresList: item.columnsMeasures.map(col => {
+      type: "groupBy",
+      columnsDimensionsList: item.columnsDimensions.map((col) => {
         return {
           column: col.column,
-          type: col.measure || 'Sum'
         };
-      })
+      }),
+      columnsMeasuresList: item.columnsMeasures.map((col) => {
+        return {
+          column: col.column,
+          type: col.measure || "Sum",
+        };
+      }),
     };
   }
 
   mapRename(item) {
     return {
-      type: 'rename',
+      type: "rename",
       oldColumnName: item.columnName,
-      newColumnName: item.newColumnName
+      newColumnName: item.newColumnName,
     };
   }
 
   mapDrop(item) {
     return {
-      type: 'drop',
-      droppedColumnName: item.columnName
+      type: "drop",
+      droppedColumnName: item.columnName,
     };
   }
 
   mapMultySortItem(item) {
     return {
-      type: 'sorts',
-      columns: item.sortColumns
+      type: "sorts",
+      columns: item.sortColumns,
     };
   }
 
   mapCovertCase(item) {
     const caseHash = {
-      UPPERCASE: 'UPPER_CASE',
-      lowercase: 'LOWER_CASE',
-      TITLECASE: 'TITLE_CASE'
+      UPPERCASE: "UPPER_CASE",
+      lowercase: "LOWER_CASE",
+      TITLECASE: "TITLE_CASE",
     };
     return {
-      type: 'field',
+      type: "field",
       sourceColumnName: item.columnName,
       newColumnName: item.newFieldName,
       dropSourceColumn: item.dropSourceField,
       fieldTransformation: {
-        type: 'convertCase',
-        convertCase: caseHash[item.action]
-      }
+        type: "convertCase",
+        convertCase: caseHash[item.action],
+      },
     };
   }
 
   mapTrim(item) {
     return {
-      type: 'field',
+      type: "field",
       sourceColumnName: item.columnName,
       newColumnName: item.newFieldName,
       dropSourceColumn: item.dropSourceField,
       fieldTransformation: {
-        type: 'trim',
-        trimType: item.action
-      }
+        type: "trim",
+        trimType: item.action,
+      },
     };
   }
 
   mapCalculated(item) {
     return {
-      type: 'addCalculatedField',
+      type: "addCalculatedField",
       dropSourceColumn: item.dropSourceField,
       sourceColumnName: item.sourceColumnName,
       newColumnName: item.newFieldName,
-      expression: item.expression
+      expression: item.expression,
     };
   }
 
   mapCleanData(form) {
-    const { typeMixed, newFieldName, dropSourceField, columnName, columnType, newColumnNamePrefix, ...data } = form;
+    const {
+      typeMixed,
+      newFieldName,
+      dropSourceField,
+      columnName,
+      columnType,
+      newColumnNamePrefix,
+      ...data
+    } = form;
 
-    if (typeMixed === 'convertToSingleType' && columnType === 'MIXED') {
+    if (typeMixed === "convertToSingleType" && columnType === "MIXED") {
       return {
         ...data,
         type: typeMixed,
         sourceColumnName: columnName,
         newColumnName: newFieldName,
-        dropSourceColumn: dropSourceField
+        dropSourceColumn: dropSourceField,
       };
     }
     return {
@@ -131,21 +139,21 @@ class SimpleTransformMappers {
       type: typeMixed,
       sourceColumnName: columnName,
       newColumnNamePrefix,
-      dropSourceColumn: dropSourceField
+      dropSourceColumn: dropSourceField,
     };
   }
 
   mapJoin(form) {
     return {
-      type: 'join',
-      joinType: form.joinType || 'Inner',
+      type: "join",
+      joinType: form.joinType || "Inner",
       rightTableFullPathList: form.activeDataset,
-      joinConditionsList: ( form.columns || [] ).map(item => {
+      joinConditionsList: (form.columns || []).map((item) => {
         return {
           leftColumn: item.joinedColumn,
-          rightColumn: item.joinedTableKeyColumnName
+          rightColumn: item.joinedTableKeyColumnName,
         };
-      })
+      }),
     };
   }
 }

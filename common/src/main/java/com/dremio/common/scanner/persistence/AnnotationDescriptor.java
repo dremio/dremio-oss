@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableMap;
  * a class annotation
  */
 public final class AnnotationDescriptor {
-  private final static Pattern CAPITAL_LETTER = Pattern.compile("[A-Z]");
+  private static final Pattern CAPITAL_LETTER = Pattern.compile("[A-Z]");
 
   private final String annotationType;
   private final List<AttributeDescriptor> attributes;

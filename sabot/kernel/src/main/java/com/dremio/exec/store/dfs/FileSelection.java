@@ -320,6 +320,11 @@ public class FileSelection {
     ImmutableList<FileAttributes> fileAttributes;
     try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
       fileAttributes = ImmutableList.copyOf(stream);
+      if (logger.isTraceEnabled()) {
+        for (FileAttributes fa : fileAttributes) {
+          logger.trace("File Path : " + fa.getPath().toString() + "; lastModifiedTime :" + fa.lastModifiedTime().toString());
+        }
+      }
     } catch (DirectoryIteratorException e) {
       throw e.getCause();
     }

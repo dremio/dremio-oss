@@ -76,4 +76,3 @@ final class SystemTableWrapper<T extends DatasetHandle & DatasetMetadata & Parti
     return new SystemTableWrapper(systemTable);
   }
 }
-

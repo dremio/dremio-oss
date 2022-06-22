@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Checkbox from './Checkbox';
-import DateInput from './DateInput';
-import FieldWithError from './FieldWithError';
-import FileField from './FileField';
-import FormatField from './FormatField';
-import Radio from './Radio';
-import Select from './Select';
-import TextField from './TextField';
-import PasswordField from './PasswordField';
-import TextArea from './TextArea';
-import Toggle from './Toggle';
-import PrevalidatedTextField from './PrevalidatedTextField';
-import FieldSelect from './FieldSelect';
-import SearchField from './SearchField';
+import Checkbox from "./Checkbox";
+import DateInput from "./DateInput";
+import FieldWithError from "./FieldWithError";
+import FileField from "./FileField";
+import FormatField from "./FormatField";
+import Radio from "./Radio";
+import Select from "./Select";
+import TextField from "./TextField";
+import PasswordField from "./PasswordField";
+import TextArea from "./TextArea";
+import Toggle from "./Toggle";
+import PrevalidatedTextField from "./PrevalidatedTextField";
+import FieldSelect from "./FieldSelect";
+import SearchField from "./SearchField";
 
 export {
   Checkbox,
@@ -42,5 +42,5 @@ export {
   Toggle,
   PrevalidatedTextField,
   FieldSelect,
-  SearchField
+  SearchField,
 };

@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -26,14 +27,15 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.commons.compress.utils.Lists;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.config.FooterReaderTableFunctionContext;
-import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.PartitionTransformTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -41,11 +43,13 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
@@ -63,18 +67,25 @@ public class TableFunctionUtil {
   }
 
   public static <E, T> TableFunctionContext getManifestScanTableFunctionContext(
-    final TableMetadata tableMetadata,
-    List<SchemaPath> columns,
-    BatchSchema schema,
-    ScanFilter scanFilter,
-    Expression icebergAnyColExpression) {
+      final TableMetadata tableMetadata,
+      List<SchemaPath> columns,
+      BatchSchema schema,
+      ScanFilter scanFilter,
+      Expression icebergAnyColExpression,
+      ManifestContent manifestContent) {
     try {
-    byte[] icebergAnyColExpressionbytes = IcebergSerDe.serializeToByteArray(icebergAnyColExpression);
-    ByteString partitionSpecMap = null;
-    if(tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null){
-      partitionSpecMap = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecs();
-    }
-      return new SplitGenManifestScanTableFunctionContext(partitionSpecMap,
+      byte[] icebergAnyColExpressionbytes = IcebergSerDe.serializeToByteArray(icebergAnyColExpression);
+      ByteString partitionSpecMap = null;
+      ByteString jsonPartitionSpecMap = null;
+      String icebergSchema = null;
+      if(tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null) {
+        partitionSpecMap = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecs();
+        jsonPartitionSpecMap = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecsJsonMap();
+        icebergSchema = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getJsonSchema();
+      }
+      return new ManifestScanTableFunctionContext(partitionSpecMap,
+              jsonPartitionSpecMap,
+              icebergSchema,
               icebergAnyColExpressionbytes,
               tableMetadata.getFormatSettings(), schema,
               tableMetadata.getSchema(),
@@ -84,9 +95,10 @@ public class TableFunctionUtil {
               columns,
               tableMetadata.getReadDefinition().getPartitionColumnsList(), null,
               tableMetadata.getReadDefinition().getExtendedProperty(), false, false, true,
-              tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
+              tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings(),
+              manifestContent);
     } catch (IOException e) {
-      throw UserException.validationError().message("Not able serialized iceberg prune condititions" + icebergAnyColExpression.toString()).buildSilently();
+      throw new UncheckedIOException(e);
     }
   }
 
@@ -137,19 +149,40 @@ public class TableFunctionUtil {
     ScanFilter scanFilter,
     List<SchemaPath> columns,
     boolean arrowCachingEnabled,
-    boolean isConvertedIcebergDataset) {
+    boolean isConvertedIcebergDataset,
+    boolean limitDataScanParallelism,
+    long survivingFileCount) {
     TableFunctionContext tableFunctionContext = getDataFileScanTableFunctionContext(tableMetadata, scanFilter, columns, arrowCachingEnabled, isConvertedIcebergDataset);
-    return new TableFunctionConfig(TableFunctionConfig.FunctionType.DATA_FILE_SCAN, false, tableFunctionContext);
+    TableFunctionConfig config = new TableFunctionConfig(TableFunctionConfig.FunctionType.DATA_FILE_SCAN, false, tableFunctionContext);
+    if(limitDataScanParallelism) {
+      config.setMinWidth(1);
+      config.setMaxWidth(survivingFileCount);
+    }
+    return config;
   }
 
-  public static TableFunctionConfig getManifestScanTableFunctionConfig(
+  public static TableFunctionConfig getSplitGenManifestScanTableFunctionConfig(
       final TableMetadata tableMetadata,
       List<SchemaPath> columns,
       BatchSchema schema,
       ScanFilter scanFilter,
       Expression icebergNonPartitionExpression) {
-    TableFunctionContext tableFunctionContext = getManifestScanTableFunctionContext(tableMetadata, columns, schema, scanFilter, icebergNonPartitionExpression);
+    TableFunctionContext tableFunctionContext = getManifestScanTableFunctionContext(tableMetadata, columns, schema,
+        scanFilter, icebergNonPartitionExpression, ManifestContent.DATA);
     return new TableFunctionConfig(TableFunctionConfig.FunctionType.SPLIT_GEN_MANIFEST_SCAN, true, tableFunctionContext);
+  }
+
+  public static TableFunctionConfig getManifestScanTableFunctionConfig(
+      TableMetadata tableMetadata,
+      List<SchemaPath> columns,
+      BatchSchema schema,
+      ScanFilter scanFilter,
+      Expression icebergNonPartitionExpression,
+      ManifestContent manifestContent) {
+    TableFunctionContext tableFunctionContext = getManifestScanTableFunctionContext(tableMetadata, columns, schema,
+        scanFilter, icebergNonPartitionExpression, manifestContent);
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.ICEBERG_MANIFEST_SCAN, true,
+        tableFunctionContext);
   }
 
   public static TableFunctionConfig getSplitGenFunctionConfig(
@@ -186,13 +219,61 @@ public class TableFunctionUtil {
       .collect(Collectors.toList());
   }
 
-  public static TableFunctionConfig getInternalMetadataManifestScanTableFunctionConfig(
+  public static TableFunctionConfig getMetadataManifestScanTableFunctionConfig(
     final TableMetadata tableMetadata,
     List<SchemaPath> columns,
     BatchSchema schema,
     ScanFilter scanFilter) {
-    TableFunctionContext tableFunctionContext = getManifestScanTableFunctionContext(tableMetadata, columns, schema, scanFilter, null);
-    return new TableFunctionConfig(TableFunctionConfig.FunctionType.METADATA_REFRESH_MANIFEST_SCAN, true, tableFunctionContext);
+    TableFunctionContext tableFunctionContext = getManifestScanTableFunctionContext(tableMetadata, columns, schema, scanFilter, null, ManifestContent.DATA);
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.METADATA_MANIFEST_FILE_SCAN, true, tableFunctionContext);
+  }
+
+  public static TableFunctionConfig getIcebergPartitionTransformTableFunctionConfig(IcebergTableProps icebergTableProps, BatchSchema schema, List<SchemaPath> schemaPathList) {
+    //Does this validation requires ? If so should it return PartitionTransformTableFunctionContext with null spec and schema?
+    Preconditions.checkNotNull(icebergTableProps);
+    TableFunctionContext tableFunctionContext = new PartitionTransformTableFunctionContext(icebergTableProps.getPartitionSpec(), icebergTableProps.getIcebergSchema(), schema, schemaPathList);
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.ICEBERG_PARTITION_TRANSFORM, true, tableFunctionContext);
+  }
+
+  public static TableFunctionConfig getIcebergSplitGenTableFunctionConfig(TableMetadata tableMetadata,
+      BatchSchema outputSchema, boolean isConvertedIcebergDataset) {
+    TableFunctionContext context = new TableFunctionContext(
+        null,
+        outputSchema,
+        null,
+        null,
+        null,
+        tableMetadata.getStoragePluginId(),
+        null,
+        outputSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
+        null,
+        null,
+        tableMetadata.getReadDefinition().getExtendedProperty(),
+        false,
+        isConvertedIcebergDataset,
+        false,
+        null);
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.ICEBERG_SPLIT_GEN, true, context);
+  }
+
+  public static TableFunctionConfig getIcebergDeleteFileAggTableFunctionConfig(BatchSchema outputSchema) {
+    TableFunctionContext context = new TableFunctionContext(
+        null,
+        outputSchema,
+        null,
+        null,
+        null,
+        null,
+        null,
+        outputSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
+        null,
+        null,
+        null,
+        false,
+        false,
+        false,
+        null);
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.ICEBERG_DELETE_FILE_AGG, true, context);
   }
 
   public static Function<Prel, TableFunctionPrel> getHashExchangeTableFunctionCreator(final TableMetadata tableMetadata, boolean isIcebergMetadata) {
@@ -216,6 +297,6 @@ public class TableFunctionUtil {
       ImmutableList.of(tableMetadata.getName().getPathComponents()), null, tableMetadata.getStoragePluginId(), getInternalTablePluginId(tableMetadata), outputColumns, null, null, null, false, false, isIcebergMetadata,
       tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
     TableFunctionConfig tableFunctionConfig = new TableFunctionConfig(TableFunctionConfig.FunctionType.SPLIT_ASSIGNMENT, true, tableFunctionContext);
-    return new TableFunctionPrel(input.getCluster(), input.getTraitSet(), null, input, tableMetadata, outputColumns, tableFunctionConfig, output);
+    return new TableFunctionPrel(input.getCluster(), input.getTraitSet(), null, input, tableMetadata, tableFunctionConfig, output);
   }
 }

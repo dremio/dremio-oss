@@ -15,13 +15,14 @@
  */
 package com.dremio.services.nessie.grpc.client.v1api;
 
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
 import org.projectnessie.client.api.MergeReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.ImmutableMerge;
 
-import com.dremio.services.nessie.grpc.api.MergeRequest;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcMergeReference implements MergeReferenceBuilder {
@@ -29,8 +30,7 @@ final class GrpcMergeReference implements MergeReferenceBuilder {
   private final TreeServiceBlockingStub stub;
   private String branchName;
   private String hash;
-  private String fromHash;
-  private String fromRefName;
+  private final ImmutableMerge.Builder merge = ImmutableMerge.builder();
 
   public GrpcMergeReference(TreeServiceBlockingStub stub) {
     this.stub = stub;
@@ -38,13 +38,19 @@ final class GrpcMergeReference implements MergeReferenceBuilder {
 
   @Override
   public MergeReferenceBuilder fromHash(String fromHash) {
-    this.fromHash = fromHash;
+    merge.fromHash(fromHash);
     return this;
   }
 
   @Override
   public MergeReferenceBuilder fromRefName(String fromRefName) {
-    this.fromRefName = fromRefName;
+    merge.fromRefName(fromRefName);
+    return this;
+  }
+
+  @Override
+  public MergeReferenceBuilder keepIndividualCommits(boolean keepIndividualCommits) {
+    merge.keepIndividualCommits(keepIndividualCommits);
     return this;
   }
 
@@ -63,16 +69,6 @@ final class GrpcMergeReference implements MergeReferenceBuilder {
   @Override
   public void merge() throws NessieNotFoundException, NessieConflictException {
     handle(
-      () -> {
-        MergeRequest.Builder builder =
-          MergeRequest.newBuilder().setToBranch(branchName).setExpectedHash(hash);
-        if (null != fromHash) {
-          builder.setFromHash(fromHash);
-        }
-        if (null != fromRefName) {
-          builder.setFromRefName(fromRefName);
-        }
-        return stub.mergeRefIntoBranch(builder.build());
-      });
+      () -> stub.mergeRefIntoBranch(toProto(branchName, hash, merge.build())));
   }
 }

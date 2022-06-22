@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import MenuItemLink from 'components/Menus/MenuItemLink';
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import MenuItemLink from "components/Menus/MenuItemLink";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderCompletely() {
       //TODO add renameLink into menu when API will be ready
       const { folder, closeMenu } = this.props;
@@ -26,14 +27,13 @@ export default function(input) {
       return (
         <Menu>
           <MenuItemLink
-            href={folder.getIn(['links', 'self'])}
-            text={la('Browse Contents')}
-            closeMenu={closeMenu}/>
-          <MenuItem onClick={this.removeFolder}>
-            {la('Remove Folder')}
-          </MenuItem>
+            href={folder.getIn(["links", "self"])}
+            text={la("Browse Contents")}
+            closeMenu={closeMenu}
+          />
+          <MenuItem onClick={this.removeFolder}>{la("Remove Folder")}</MenuItem>
         </Menu>
       );
-    }
+    },
   });
 }

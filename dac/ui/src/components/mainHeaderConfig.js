@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 export default {
-  showMainHeaderSeachItem: true
+  showMainHeaderSeachItem: true,
 };

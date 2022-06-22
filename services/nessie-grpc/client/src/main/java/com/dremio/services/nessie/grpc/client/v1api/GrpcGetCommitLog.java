@@ -22,6 +22,7 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleN
 import javax.annotation.Nullable;
 
 import org.projectnessie.api.params.CommitLogParams;
+import org.projectnessie.api.params.CommitLogParamsBuilder;
 import org.projectnessie.api.params.FetchOption;
 import org.projectnessie.client.api.GetCommitLogBuilder;
 import org.projectnessie.error.NessieNotFoundException;
@@ -32,7 +33,7 @@ import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingSt
 final class GrpcGetCommitLog implements GetCommitLogBuilder {
 
   private final TreeServiceBlockingStub stub;
-  private final CommitLogParams.Builder params = CommitLogParams.builder();
+  private final CommitLogParamsBuilder params = CommitLogParams.builder();
   private String refName;
 
   public GrpcGetCommitLog(TreeServiceBlockingStub stub) {
@@ -41,7 +42,7 @@ final class GrpcGetCommitLog implements GetCommitLogBuilder {
 
   @Override
   public GetCommitLogBuilder fetch(FetchOption fetchOption) {
-    params.fetch(fetchOption);
+    params.fetchOption(fetchOption);
     return this;
   }
 

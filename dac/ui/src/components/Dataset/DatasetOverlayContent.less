@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .dataset-label-overlay {
-
     .breadCrumbs {
       margin-left: 2px;
 
       .copy-button {
-        color: #43B8C9;
+        color: #43b8c9;
         margin: 0 0 0 5px;
         opacity: 0;
       }
@@ -34,10 +34,17 @@
     }
 
     .view-state-wrapper-overlay .font-icon {
+      background-color: @WHITE;
       position: absolute;
-      right: -30px;
-      top: -27px;
+      left: -2px;
+      top: -25px;
     }
   }
 
+  .treeNode:hover
+    .dataset-label-overlay
+    .view-state-wrapper-overlay
+    .font-icon {
+    background-color: @PRIMARY_100;
+  }
 }

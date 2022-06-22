@@ -47,7 +47,7 @@ import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.Path;
 
 public class TestParquetReader extends BaseTestQuery {
-  private final static String WORKING_PATH = TestTools.getWorkingPath();
+  private static final String WORKING_PATH = TestTools.getWorkingPath();
 
   // enable decimal data type
   @BeforeClass

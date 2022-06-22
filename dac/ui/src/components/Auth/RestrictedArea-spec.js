@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as authUtils from '@app/utils/authUtils';
-import { createStore } from 'redux';
-import { Provider } from 'react-redux';
-import { shallow, mount } from 'enzyme';
-import { AuthorizationWrapperView, RestrictedArea } from './RestrictedArea';
+import * as authUtils from "@app/utils/authUtils";
+import { createStore } from "redux";
+import { Provider } from "react-redux";
+import { shallow, mount } from "enzyme";
+import { AuthorizationWrapperView, RestrictedArea } from "./RestrictedArea";
 
-describe('AuthorizationWrapperView', () => {
-  const testValue = value => {
+describe("AuthorizationWrapperView", () => {
+  const testValue = (value) => {
     try {
       const renderFn = sinon.stub().returns(<div></div>); // temp content
-      sinon.stub(authUtils, 'isAuthorized').returns(value);
+      sinon.stub(authUtils, "isAuthorized").returns(value);
       const props = {
         authInfo: {}, // required property
         rule: {}, // required property
-        children: renderFn
+        children: renderFn,
       };
 
       shallow(<AuthorizationWrapperView {...props} />);
@@ -37,46 +37,47 @@ describe('AuthorizationWrapperView', () => {
     }
   };
 
-  it('Render function is called with true', () => {
+  it("Render function is called with true", () => {
     testValue(true);
   });
 
-  it('Render function is called with false', () => {
+  it("Render function is called with false", () => {
     testValue(false);
   });
 });
 
-describe('RestrictedArea', () => {
-  const content = (<div>asdsad</div>);
+describe("RestrictedArea", () => {
+  const content = <div>asdsad</div>;
   let minimalProps;
   let wrapper;
 
   const renderComponent = () => {
     const reducer = (state = {}) => state;
-    const providerEl = mount(<Provider store={createStore(reducer)}>
-      <RestrictedArea {...minimalProps} />
-    </Provider>);
+    const providerEl = mount(
+      <Provider store={createStore(reducer)}>
+        <RestrictedArea {...minimalProps} />
+      </Provider>
+    );
 
-    wrapper = providerEl;//.childAt(1);
+    wrapper = providerEl; //.childAt(1);
   };
 
   beforeEach(() => {
     minimalProps = {
       rule: {}, // required property
-      children: content
+      children: content,
     };
 
-    sinon.stub(authUtils, 'getAuthInfoSelector').returns({});
-
+    sinon.stub(authUtils, "getAuthInfoSelector").returns({});
   });
 
   afterEach(() => {
     authUtils.getAuthInfoSelector.restore();
   });
 
-  it('Nothing is rendered if an user is not authorized', () => {
+  it("Nothing is rendered if an user is not authorized", () => {
     try {
-      sinon.stub(authUtils, 'isAuthorized').returns(false);
+      sinon.stub(authUtils, "isAuthorized").returns(false);
       renderComponent();
       expect(authUtils.isAuthorized.called).to.be.true;
       expect(wrapper.html()).to.equal(null); // nothing is rendered
@@ -85,9 +86,9 @@ describe('RestrictedArea', () => {
     }
   });
 
-  it('Content is rendered if an user is authorized', () => {
+  it("Content is rendered if an user is authorized", () => {
     try {
-      sinon.stub(authUtils, 'isAuthorized').returns(true);
+      sinon.stub(authUtils, "isAuthorized").returns(true);
       renderComponent();
       expect(wrapper.html()).to.equal(shallow(content).html());
     } finally {

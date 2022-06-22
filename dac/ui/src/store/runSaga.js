@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import rootSaga from 'sagas/sagas';
+import rootSaga from "sagas/sagas";
 
 /**
  * Catches saga exceptions and restarts the sagas.

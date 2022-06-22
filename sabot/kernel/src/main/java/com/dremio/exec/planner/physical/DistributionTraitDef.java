@@ -31,14 +31,9 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
   @Override
   public boolean canConvert(
       RelOptPlanner planner, DistributionTrait fromTrait, DistributionTrait toTrait) {
-    if (fromTrait.equals(toTrait)) {
-      return true;
-    } else if (fromTrait.getType() == DistributionType.BROADCAST_DISTRIBUTED
-      && toTrait.getType() == DistributionType.HASH_DISTRIBUTED) {
-      return false;
-    } else {
-      return true;
-    }
+    return fromTrait.equals(toTrait)
+      || fromTrait.getType() != DistributionType.BROADCAST_DISTRIBUTED
+      || toTrait.getType() != DistributionType.HASH_DISTRIBUTED;
   }
 
   @Override

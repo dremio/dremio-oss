@@ -424,7 +424,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
   }
 
-  private final static RpcEndpointInfos UNKNOWN = RpcEndpointInfos.newBuilder().build();
+  private static final RpcEndpointInfos UNKNOWN = RpcEndpointInfos.newBuilder().build();
 
   /**
    * {@link RemoteConnection} implementation for user connection. Also implements {@link UserClientConnection}.
@@ -683,7 +683,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         // if timeout is unsupported or is set to false, disable timeout.
         if (!inbound.hasSupportTimeout() || !inbound.getSupportTimeout()) {
           connection.disableReadTimeout();
-          logger.warn("Timeout Disabled as client doesn't support it.", connection.getName());
+          logger.warn("Timeout Disabled as client doesn't support it. Connection: {}", connection.getName());
         }
 
         final BitToUserHandshake.Builder respBuilder = BitToUserHandshake.newBuilder()

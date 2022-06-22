@@ -185,8 +185,10 @@ public class DatasetSaverImpl implements DatasetSaver {
       UserBitShared.DremioPBError.ErrorType errorCode = uex.getErrorType();
       switch (errorCode) {
         case CONCURRENT_MODIFICATION:
-          logger.error("Internal metadata refresh failed due to concurrent update.", uex);
-          throw UserException.invalidMetadataError().message(firstLine(uex.getMessage())).buildSilently();
+          logger.error("Internal metadata refresh failed", uex);
+          throw UserException.invalidMetadataError()
+            .message(e.getMessage())
+            .buildSilently();
         case UNSUPPORTED_OPERATION:
           if (uex.getMessage().contains(unsupportedPartitionListingError)) {
             logger.error("REFRESH DATASET query failed. Using old refresh mechanism", uex);

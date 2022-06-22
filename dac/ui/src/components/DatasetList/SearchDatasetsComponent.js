@@ -13,38 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
 
-import FontIcon from '../Icon/FontIcon';
+import FontIcon from "../Icon/FontIcon";
 
 const SearchDatasetsComponent = (props) => {
-  const { placeholderText, intl, onInputRef, onInput, clearFilter, dataQa, closeVisible } = props;
-  const placeholder = placeholderText ? placeholderText : intl.formatMessage({id: 'Explore.SearchDatasets'});
+  const {
+    placeholderText,
+    intl,
+    onInputRef,
+    onInput,
+    clearFilter,
+    dataQa,
+    closeVisible,
+  } = props;
+  const placeholder = placeholderText
+    ? placeholderText
+    : intl.formatMessage({ id: "Explore.SearchDatasets" });
 
   return (
-    <div className='searchDatasetsPopover'>
-      <FontIcon
-        key='icon'
-        type='Search'
-        theme={styles.fontIcon}
-      />
+    <div className="searchDatasetsPopover">
+      <FontIcon key="icon" type="Search" theme={styles.fontIcon} />
       <input
-        key='textInput'
-        type='text'
+        key="textInput"
+        type="text"
         placeholder={placeholder}
         ref={onInputRef}
         onInput={onInput}
-        className={'searchInput'}
+        className={"searchInput"}
         data-qa={dataQa}
       />
-      {closeVisible &&
-        <FontIcon
-          type='XBig'
-          theme={styles.clearIcon}
-          onClick={clearFilter}
-        />
-      }
+      {closeVisible && (
+        <FontIcon type="XBig" theme={styles.clearIcon} onClick={clearFilter} />
+      )}
     </div>
   );
 };
@@ -56,31 +58,31 @@ SearchDatasetsComponent.propTypes = {
   onInputRef: PropTypes.any,
   intl: PropTypes.object.isRequired,
   placeholderText: PropTypes.string,
-  dataQa: PropTypes.string
+  dataQa: PropTypes.string,
 };
 
 const styles = {
   fontIcon: {
-    'Icon': {
+    Icon: {
       width: 24,
-      height: 24
+      height: 24,
     },
-    'Container': {
+    Container: {
       width: 24,
-      height: 24
-    }
+      height: 24,
+    },
   },
   clearIcon: {
     Icon: {
       width: 22,
-      height: 22
+      height: 22,
     },
     Container: {
-      cursor: 'pointer',
+      cursor: "pointer",
       width: 22,
-      height: 22
-    }
-  }
+      height: 22,
+    },
+  },
 };
 
 export default injectIntl(SearchDatasetsComponent);

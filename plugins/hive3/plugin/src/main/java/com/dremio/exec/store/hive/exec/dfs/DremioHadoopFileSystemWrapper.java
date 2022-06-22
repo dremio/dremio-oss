@@ -87,9 +87,9 @@ import com.google.common.collect.Maps;
 public class DremioHadoopFileSystemWrapper
   implements com.dremio.io.file.FileSystem, OpenFileTracker {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHadoopFileSystemWrapper.class);
-  private final static boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
+  private static final boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
 
-  private final static DremioFileSystemCache DREMIO_FS_CACHE = new DremioFileSystemCache();
+  private static final DremioFileSystemCache DREMIO_FS_CACHE = new DremioFileSystemCache();
 
   private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
   private static int FORCE_REFRESH_LEVELS_VALUE = Integer.getInteger(FORCE_REFRESH_LEVELS, 2);
@@ -106,8 +106,8 @@ public class DremioHadoopFileSystemWrapper
   private final boolean isHDFS;
   private final boolean enableAsync;
 
-  public DremioHadoopFileSystemWrapper(org.apache.hadoop.fs.Path path, Configuration fsConf, OperatorStats operatorStats, boolean enableAsync) throws IOException {
-    this(fsConf, path.getFileSystem(fsConf), operatorStats, enableAsync);
+  public DremioHadoopFileSystemWrapper(org.apache.hadoop.fs.Path path, Configuration fsConf, OperatorStats operatorStats, boolean enableAsync, FileSystem fs) throws IOException {
+    this(fsConf, fs, operatorStats, enableAsync);
   }
 
   public DremioHadoopFileSystemWrapper(Configuration fsConf, FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
@@ -481,7 +481,7 @@ public class DremioHadoopFileSystemWrapper
       try (DirectoryStream<java.nio.file.Path> ignore = Files.newDirectoryStream(p)) {
         return; //return if there is no exception, i.e. it was found
       } catch (IOException e) {
-        logger.trace("Refresh generated exception: {}", e);
+        logger.trace("Refresh failed", e);
       }
     }
   }
@@ -626,8 +626,8 @@ public class DremioHadoopFileSystemWrapper
   }
 
   public static class DebugStackTrace {
-    final private StackTraceElement[] elements;
-    final private Path path;
+    private final StackTraceElement[] elements;
+    private final Path path;
 
     public DebugStackTrace(Path path, StackTraceElement[] elements) {
       this.path = path;

@@ -24,6 +24,7 @@ import static com.dremio.service.namespace.NamespaceUtils.setId;
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.DATASET;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FOLDER;
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FUNCTION;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.HOME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
@@ -82,6 +83,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -111,6 +113,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   public static final String MULTI_SPLITS = "metadata-multi-splits";
   private static final int LOG_BATCH = 99;
   public static final int LATEST_VERSION = 1;
+  public static final int MAX_ENTITIES_PER_QUERY = 1000;
 
   private final LegacyIndexedStore<String, NameSpaceContainer> namespace;
   private final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
@@ -486,6 +489,15 @@ public class NamespaceServiceImpl implements NamespaceService {
   @Override
   public void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException {
     createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, keyNormalization, new ArrayList<>()), attributes);
+  }
+
+  @Override
+  public void addOrUpdateFunction(NamespaceKey udfPath, FunctionConfig functionConfig, NamespaceAttribute... attributes) throws NamespaceException {
+    if(functionConfig.getCreatedAt() == null){
+      functionConfig.setCreatedAt(System.currentTimeMillis());
+    }
+    functionConfig.setLastModified(System.currentTimeMillis());
+    createOrUpdateEntity(NamespaceEntity.toEntity(FUNCTION, udfPath, functionConfig, keyNormalization, new ArrayList<>()), attributes);
   }
 
   @Override
@@ -923,6 +935,11 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  public FunctionConfig getFunction(NamespaceKey udfPath) throws NamespaceException {
+    return getEntity(udfPath, FUNCTION).getFunction();
+  }
+
+  @Override
   public SpaceConfig getSpaceById(String id) throws NamespaceException {
     return getEntityByIndex(NamespaceIndexKeys.SPACE_ID, id, SPACE).getSpace();
   }
@@ -934,7 +951,9 @@ public class NamespaceServiceImpl implements NamespaceService {
       SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SOURCE_ID, id),
       SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SPACE_ID, id),
       SearchQueryUtils.newTermQuery(NamespaceIndexKeys.HOME_ID, id),
-      SearchQueryUtils.newTermQuery(NamespaceIndexKeys.FOLDER_ID, id));
+      SearchQueryUtils.newTermQuery(NamespaceIndexKeys.FOLDER_ID, id),
+      SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UDF_ID, id)
+    );
 
     final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setOffset(0)
@@ -944,6 +963,60 @@ public class NamespaceServiceImpl implements NamespaceService {
     final Iterable<Entry<String, NameSpaceContainer>> result = namespace.find(condition);
     final Iterator<Entry<String, NameSpaceContainer>> it = result.iterator();
     return it.hasNext()?it.next().getValue():null;
+  }
+
+  @Override
+  public List<NameSpaceContainer> getEntitiesByIds(List<String> ids)
+    throws NamespaceNotFoundException {
+
+    if (ids.size() > MAX_ENTITIES_PER_QUERY) {
+      throw new IllegalArgumentException(String.format(
+        "Maximum %s entities can be fetched per call.",
+        MAX_ENTITIES_PER_QUERY));
+    }
+
+    final SearchQuery query = SearchQueryUtils.or(
+      SearchQueryUtils.or(
+        ids.stream()
+          .map(id -> SearchQueryUtils.newTermQuery(DatasetIndexKeys.DATASET_UUID, id))
+          .collect(Collectors.toList())
+      ),
+      SearchQueryUtils.or(
+        ids.stream()
+          .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SOURCE_ID, id))
+          .collect(Collectors.toList())
+      ),
+      SearchQueryUtils.or(
+        ids.stream()
+          .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SPACE_ID, id))
+          .collect(Collectors.toList())
+      ),
+      SearchQueryUtils.or(
+        ids.stream()
+          .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.HOME_ID, id))
+          .collect(Collectors.toList())
+      ),
+      SearchQueryUtils.or(
+        ids.stream()
+          .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.FOLDER_ID, id))
+          .collect(Collectors.toList())
+      ),
+    SearchQueryUtils.or(
+      ids.stream()
+        .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UDF_ID, id))
+        .collect(Collectors.toList())
+    ));
+
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
+      .setCondition(query);
+
+    final Iterable<Entry<String, NameSpaceContainer>> result = namespace.find(condition);
+    final Iterator<Entry<String, NameSpaceContainer>> it = result.iterator();
+    List<NameSpaceContainer> entities = new ArrayList<>();
+    while (it.hasNext()) {
+      entities.add(it.next().getValue());
+    }
+    return entities;
   }
 
   @Override
@@ -994,6 +1067,18 @@ public class NamespaceServiceImpl implements NamespaceService {
         @Override
         public SpaceConfig apply(NameSpaceContainer input) {
           return input.getSpace();
+        }
+      })
+    );
+  }
+
+  @Override
+  public List<FunctionConfig> getFunctions(){
+    return Lists.newArrayList(
+      Iterables.transform(doGetRootNamespaceContainers(FUNCTION), new Function<NameSpaceContainer, FunctionConfig>() {
+        @Override
+        public FunctionConfig apply(NameSpaceContainer input) {
+          return input.getFunction();
         }
       })
     );
@@ -1371,6 +1456,12 @@ public class NamespaceServiceImpl implements NamespaceService {
   public void deleteSpace(final NamespaceKey spacePath, String version) throws NamespaceException {
     deleteEntityWithCallback(spacePath, SPACE, version, true, null);
   }
+
+  @Override
+  public void deleteFunction(NamespaceKey udfPath) throws NamespaceException {
+    deleteEntity(udfPath);
+  }
+
 
   @Override
   public void deleteEntity(NamespaceKey entityPath) throws NamespaceException {

@@ -13,11 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DEFAULT_REF_REQUEST } from '@app/actions/nessie/nessie';
-import { initialState, NessieRootState, NessieState } from '@app/reducers/nessie/nessie';
-import { createLoadingSelector } from '../createLoadingSelector';
+import { DEFAULT_REF_REQUEST } from "@app/actions/nessie/nessie";
+import {
+  initialState,
+  NessieRootState,
+  NessieState,
+} from "@app/reducers/nessie/nessie";
+import { createLoadingSelector } from "../createLoadingSelector";
 
-export const isDefaultReferenceLoading = createLoadingSelector([DEFAULT_REF_REQUEST]);
+export const isDefaultReferenceLoading = createLoadingSelector([
+  DEFAULT_REF_REQUEST,
+]);
 
 export function selectState(state: NessieRootState, source: string) {
   return (state[source] || initialState) as NessieState;

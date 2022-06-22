@@ -13,11 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import history from './history';
+import history from "./history";
 
-const previousLocation = {pathname: '/space/myspace/ds1', query: {version: '1234567890'}};
-const resourcePath = '/dataset/myspace."folder.name".ds1/version/00a7024a0e8d4519';
-const homeResourcePath = '/dataset/"@test_user".folder.ds1/version/00a7024a0e8d4519';
+const previousLocation = {
+  pathname: "/space/myspace/ds1",
+  query: { version: "1234567890" },
+};
+const resourcePath =
+  '/dataset/myspace."folder.name".ds1/version/00a7024a0e8d4519';
+const homeResourcePath =
+  '/dataset/"@test_user".folder.ds1/version/00a7024a0e8d4519';
 
 /**
  * History hrefs are hacky right now because it uses the href of the dataset with different versions instead of one of
@@ -25,16 +30,22 @@ const homeResourcePath = '/dataset/"@test_user".folder.ds1/version/00a7024a0e8d4
  * 'previousLocation'
  */
 
-describe('history resourcePath util', () => {
-  it('can convert to fullPath', () => {
-    expect(history.toFullPath(resourcePath, previousLocation)).to.eql('myspace."folder.name".ds1');
-    expect(history.toFullPath(homeResourcePath, previousLocation)).to.eql('"@test_user".folder.ds1');
+describe("history resourcePath util", () => {
+  it("can convert to fullPath", () => {
+    expect(history.toFullPath(resourcePath, previousLocation)).to.eql(
+      'myspace."folder.name".ds1'
+    );
+    expect(history.toFullPath(homeResourcePath, previousLocation)).to.eql(
+      '"@test_user".folder.ds1'
+    );
   });
 
-  it('can convert to href', () => {
+  it("can convert to href", () => {
     expect(history.toHref(resourcePath, previousLocation)).to.eql(
-      '/space/myspace/ds1?version=00a7024a0e8d4519&history=true');
+      "/space/myspace/ds1?version=00a7024a0e8d4519&history=true"
+    );
     expect(history.toHref(homeResourcePath, previousLocation)).to.eql(
-      '/space/myspace/ds1?version=00a7024a0e8d4519&history=true');
+      "/space/myspace/ds1?version=00a7024a0e8d4519&history=true"
+    );
   });
 });

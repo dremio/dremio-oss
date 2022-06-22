@@ -13,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Spinner from 'components/Spinner';
-import DragSource from 'components/DragComponents/DragSource';
-import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
-import { constructFullPath } from 'utils/pathUtils';
-import { bodySmall } from 'uiTheme/radium/typography';
-import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
+import Spinner from "components/Spinner";
+import DragSource from "components/DragComponents/DragSource";
+import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
+import { constructFullPath } from "utils/pathUtils";
+import { bodySmall } from "uiTheme/radium/typography";
+import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
 
-@Radium
-export default class DatasetList extends PureComponent {
-
+class DatasetList extends PureComponent {
   static propTypes = {
     data: PropTypes.instanceOf(Immutable.List).isRequired,
     changeSelectedNode: PropTypes.func.isRequired,
@@ -37,13 +35,17 @@ export default class DatasetList extends PureComponent {
     dragType: PropTypes.string,
     showParents: PropTypes.bool,
     shouldAllowAdd: PropTypes.bool,
-    addtoEditor: PropTypes.func
+    addtoEditor: PropTypes.func,
+    starNode: PropTypes.func,
+    unstarNode: PropTypes.func,
+    isStarredLimitReached: PropTypes.bool,
+    starredItems: PropTypes.array,
   };
 
   constructor(props) {
     super(props);
     this.state = {
-      activeDataset: ''
+      activeDataset: "",
     };
   }
 
@@ -54,56 +56,81 @@ export default class DatasetList extends PureComponent {
   }
 
   setActiveDataset(node) {
-    const fullPath = constructFullPath(node.get('fullPath'));
+    const fullPath = constructFullPath(node.get("fullPath"));
     this.setState({ activeDataset: fullPath });
     this.props.changeSelectedNode(fullPath, node);
   }
 
   getDatasetsList(data, inputValue) {
-    const { shouldAllowAdd, addtoEditor } = this.props;
-    return data && data.map && data.map((value, key) => {
-      const name = value.get('fullPath').get(value.get('fullPath').size - 1);
-      const displayFullPath = value.get('displayFullPath') || value.get('fullPath');
+    const {
+      shouldAllowAdd,
+      addtoEditor,
+      starNode,
+      unstarNode,
+      dragType,
+      isStarredLimitReached,
+      starredItems,
+    } = this.props;
+    return (
+      data &&
+      data.map &&
+      data.map((value, key) => {
+        const name = value.get("fullPath").get(value.get("fullPath").size - 1);
+        const nodeId = value.get("id");
+        const displayFullPath =
+          value.get("displayFullPath") || value.get("fullPath");
 
-      return (
-        <DragSource dragType={this.props.dragType || ''} key={key} id={displayFullPath}>
-          <div
-            key={key} style={[styles.datasetItem, bodySmall]}
-            className='dataset-item'
-            onClick={this.setActiveDataset.bind(this, value)}>
-
-            <DatasetItemLabel
-              dragType={this.props.dragType}
-              name={name}
-              showFullPath
-              inputValue={inputValue}
-              fullPath={value.get('fullPath')}
-              typeIcon={getIconDataTypeFromDatasetType(value.get('datasetType'))}
-              placement='right'
-              isExpandable
-              shouldShowOverlay
-              shouldAllowAdd={shouldAllowAdd}
-              addtoEditor={addtoEditor}
-              displayFullPath={displayFullPath} />
-
-          </div>
-        </DragSource>
-      );
-    });
+        return (
+          <DragSource dragType={dragType || ""} key={key} id={displayFullPath}>
+            <div
+              key={key}
+              style={[styles.datasetItem, bodySmall]}
+              className="dataset-item"
+              onClick={this.setActiveDataset.bind(this, value)}
+            >
+              <DatasetItemLabel
+                dragType={dragType}
+                name={name}
+                showFullPath
+                inputValue={inputValue}
+                fullPath={value.get("fullPath")}
+                typeIcon={getIconDataTypeFromDatasetType(
+                  value.get("datasetType")
+                )}
+                placement="right"
+                isExpandable
+                shouldShowOverlay
+                shouldAllowAdd={shouldAllowAdd}
+                addtoEditor={addtoEditor}
+                displayFullPath={displayFullPath}
+                starNode={starNode}
+                unstarNode={unstarNode}
+                nodeId={nodeId}
+                isStarredLimitReached={isStarredLimitReached}
+                isStarred={starredItems}
+              />
+            </div>
+          </DragSource>
+        );
+      })
+    );
   }
 
   resetSelectedData() {
-    this.setState({ activeDataset: '' });
+    this.setState({ activeDataset: "" });
     this.props.changeSelectedNode(null);
   }
 
   render() {
     const { data, inputValue, isInProgress } = this.props;
-    const searchBlock = data && data.size && data.size > 0
-      ? this.getDatasetsList(data, inputValue)
-      : <div style={styles.notFound}>{la('No results found')}</div>;
+    const searchBlock =
+      data && data.size && data.size > 0 ? (
+        this.getDatasetsList(data, inputValue)
+      ) : (
+        <div style={styles.notFound}>{la("No results found")}</div>
+      );
     return (
-      <div style={styles.dataSetsList} className='datasets-list'>
+      <div style={styles.dataSetsList} className="datasets-list">
         {isInProgress ? <Spinner /> : searchBlock}
       </div>
     );
@@ -112,45 +139,46 @@ export default class DatasetList extends PureComponent {
 
 const styles = {
   dataSetsList: {
-    background: '#fff',
-    maxHeight: '50vh',
-    overflow: 'auto',
-    boxShadow: 'rgb(0 0 0 / 10%) 0px 0px 8px 0px',
+    background: "#fff",
+    maxHeight: "50vh",
+    overflow: "auto",
+    boxShadow: "rgb(0 0 0 / 10%) 0px 0px 8px 0px",
     borderRadius: 5,
     padding: 10,
-    minWidth: 480
+    minWidth: 480,
   },
   datasetItem: {
-    borderBottom: '1px solid #E9EDF0',
-    width: '100%',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(0,1fr))',
-    cursor: 'pointer',
-    padding: '10px 0',
-    ':hover': {
-      background: '#F1FAFB'
-    }
+    borderBottom: "1px solid #E9EDF0",
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(0,1fr))",
+    cursor: "pointer",
+    padding: "10px 0",
+    ":hover": {
+      background: "#F1FAFB",
+    },
   },
   datasetData: {
-    margin: '0 0 0 5px',
-    minWidth: 300
+    margin: "0 0 0 5px",
+    minWidth: 300,
   },
   parentDatasetsHolder: {
-    display: 'flex',
-    flex: '1 1 auto',
-    overflow: 'hidden' // don't scroll - avoid windows scroll bars
+    display: "flex",
+    flex: "1 1 auto",
+    overflow: "hidden", // don't scroll - avoid windows scroll bars
   },
   parentDataset: {
-    display: 'flex',
-    margin: '0 10px 0 10px'
+    display: "flex",
+    margin: "0 10px 0 10px",
   },
   notFound: {
-    padding: '10px 10px'
+    padding: "10px 10px",
   },
   addIcon: {
     Container: {
       marginRight: 0,
-      marginLeft: 10
-    }
-  }
+      marginLeft: 10,
+    },
+  },
 };
+export default Radium(DatasetList);

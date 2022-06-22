@@ -13,39 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import DurationField from './DurationField';
+import DurationField from "./DurationField";
 
 const MULTIPLIERS = new Map([
-  ['Millisecond(s)', 1],
-  ['Second(s)', 1000],
-  ['Minute(s)', 60 * 1000],
-  ['Hour(s)', 60 * 60 * 1000],
-  ['Day(s)', 24 * 60 * 60 * 1000],
-  ['Week(s)', 7 * 24 * 60 * 60 * 1000]
+  ["Millisecond(s)", 1],
+  ["Second(s)", 1000],
+  ["Minute(s)", 60 * 1000],
+  ["Hour(s)", 60 * 60 * 1000],
+  ["Day(s)", 24 * 60 * 60 * 1000],
+  ["Week(s)", 7 * 24 * 60 * 60 * 1000],
 ]);
 
-describe('DurationField', () => {
-
+describe("DurationField", () => {
   let minimalProps, commonProps;
   beforeEach(() => {
     minimalProps = {
-      onChange: sinon.spy()
+      onChange: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
-      multipliers: MULTIPLIERS
+      multipliers: MULTIPLIERS,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DurationField {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DurationField {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with commonProps props without exploding', () => {
-    const wrapper = shallow(<DurationField {...commonProps}/>);
+  it("should render with commonProps props without exploding", () => {
+    const wrapper = shallow(<DurationField {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

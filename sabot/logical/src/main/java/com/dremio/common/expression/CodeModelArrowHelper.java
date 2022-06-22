@@ -59,7 +59,6 @@ import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
-import com.dremio.common.expression.CompleteType;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JType;

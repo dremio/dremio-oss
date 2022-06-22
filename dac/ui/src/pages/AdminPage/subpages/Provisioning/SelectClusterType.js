@@ -13,38 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import SelectConnectionButton from 'components/SelectConnectionButton';
+import SelectConnectionButton from "components/SelectConnectionButton";
 
-@Radium
-export default class SelectClusterType extends Component {
-
+class SelectClusterType extends Component {
   static propTypes = {
     style: PropTypes.object,
     clusters: PropTypes.instanceOf(Immutable.List).isRequired,
-    onSelectClusterType: PropTypes.func.isRequired
+    onSelectClusterType: PropTypes.func.isRequired,
   };
 
   handleSelectClusterType(cluster) {
-    if (!cluster.get('connected')) {
+    if (!cluster.get("connected")) {
       return;
     }
-    this.props.onSelectClusterType(cluster.get('clusterType'));
+    this.props.onSelectClusterType(cluster.get("clusterType"));
   }
 
   renderClusters() {
     const { clusters } = this.props;
     return clusters.map((cluster) => (
       <SelectConnectionButton
-        key={cluster.get('clusterType')}
-        label={cluster.get('label')}
-        iconType={`provisionManagers/${cluster.get('iconType')}`}
-        disabled={!cluster.get('connected')}
-        pillText={cluster.get('connected') ? '' : la('coming soon')}
+        key={cluster.get("clusterType")}
+        label={cluster.get("label")}
+        iconType={`provisionManagers/${cluster.get("iconType")}`}
+        disabled={!cluster.get("connected")}
+        pillText={cluster.get("connected") ? "" : la("coming soon")}
         onClick={this.handleSelectClusterType.bind(this, cluster)}
       />
     ));
@@ -54,10 +51,11 @@ export default class SelectClusterType extends Component {
     const { style } = this.props;
     return (
       <div style={style}>
-        <div style={{maxWidth: 720, display: 'flex', flexWrap: 'wrap'}}>
+        <div style={{ maxWidth: 720, display: "flex", flexWrap: "wrap" }}>
           {this.renderClusters()}
         </div>
       </div>
     );
   }
 }
+export default SelectClusterType;

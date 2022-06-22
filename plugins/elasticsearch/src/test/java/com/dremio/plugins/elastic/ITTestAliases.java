@@ -43,7 +43,7 @@ public class ITTestAliases extends ElasticBaseTestQuery {
   private static final Logger logger = LoggerFactory.getLogger(ITTestAliases.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testAlias() throws Exception {

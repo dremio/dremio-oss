@@ -385,7 +385,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
             try {
               outputStream.write(chunk.getContent().toByteArray(), 0, chunk.getLength());
             } catch (IOException e) {
-              logger.error("Failed to write grpc stream to {}. {}", logType, e);
+              logger.error("Failed to write grpc stream to {}", logType, e);
             }
           });
         }
@@ -430,7 +430,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
                 gzos.write(buf, 0, len);
               }
             } catch (IOException e) {
-              logger.error("Failed to write {} to a temp file {}. {}",
+              logger.error("Failed to write {} to a temp file {}",
                 file.getAbsolutePath(), tempFile.getAbsolutePath(), e);
             }
           }
@@ -445,7 +445,7 @@ public class BasicQueryLogBundleService implements QueryLogBundleService {
               gzos.write(buf, 0, len); // test?
             }
           } catch (IOException e) {
-            logger.error("Failed to write {} to a temp file {}. {}",
+            logger.error("Failed to write {} to a temp file {}",
               file.getAbsolutePath(), tempFile.getAbsolutePath(), e);
           }
         }

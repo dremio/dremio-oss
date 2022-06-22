@@ -27,6 +27,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 
@@ -35,14 +36,16 @@ import com.google.common.collect.ImmutableMap;
  */
 public class JobDataFragmentImpl implements JobDataFragment {
   private final JobId jobId;
+  private final SessionId sessionId;
   private final RecordBatches recordBatches;
 
   // transient map to avoid constantly searching linear list.
   private final Map<String, Integer> nameToColumnIndex;
 
-  public JobDataFragmentImpl(final RecordBatches recordBatches, final int offsetInJobResults, final JobId jobId) {
+  public JobDataFragmentImpl(final RecordBatches recordBatches, final int offsetInJobResults, final JobId jobId, SessionId sessionId) {
     this.recordBatches = recordBatches;
     this.jobId = jobId;
+    this.sessionId = sessionId;
     this.nameToColumnIndex = getColumnIndicesFromSchema(recordBatches.getSchema());
   }
 
@@ -64,6 +67,11 @@ public class JobDataFragmentImpl implements JobDataFragment {
   @Override
   public JobId getJobId() {
     return jobId;
+  }
+
+  @Override
+  public SessionId getSessionId() {
+    return sessionId;
   }
 
   @Override

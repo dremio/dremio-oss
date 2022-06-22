@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import FontIcon from 'components/Icon/FontIcon';
-import SimpleButton from 'components/Buttons/SimpleButton';
-import {createReflectionFormValues} from 'utils/accelerationUtils';
-import AccelerationAggregationMixin from '@inject/components/Acceleration/Advanced/AccelerationAggregationMixin.js';
+import FontIcon from "components/Icon/FontIcon";
+import SimpleButton from "components/Buttons/SimpleButton";
+import { createReflectionFormValues } from "utils/accelerationUtils";
+import AccelerationAggregationMixin from "@inject/components/Acceleration/Advanced/AccelerationAggregationMixin.js";
 
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import { commonThemes } from '../commonThemes';
-import AccelerationGridController from './AccelerationGridController';
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import { commonThemes } from "../commonThemes";
+import AccelerationGridController from "./AccelerationGridController";
 
 @AccelerationAggregationMixin
 export default class AccelerationAggregation extends Component {
@@ -32,26 +32,26 @@ export default class AccelerationAggregation extends Component {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
   };
 
   static getFields() {
     return [
-      'aggregationReflections[].id',
-      'aggregationReflections[].tag',
-      'aggregationReflections[].type',
-      'aggregationReflections[].name',
-      'aggregationReflections[].enabled',
-      'aggregationReflections[].partitionDistributionStrategy',
-      'aggregationReflections[].arrowCachingEnabled',
-      'aggregationReflections[].partitionFields[].name',
-      'aggregationReflections[].sortFields[].name',
-      'aggregationReflections[].dimensionFields[].name',
-      'aggregationReflections[].dimensionFields[].granularity',
-      'aggregationReflections[].measureFields[].name',
-      'aggregationReflections[].measureFields[].measureTypeList',
-      'aggregationReflections[].distributionFields[].name',
-      'aggregationReflections[].shouldDelete'
+      "aggregationReflections[].id",
+      "aggregationReflections[].tag",
+      "aggregationReflections[].type",
+      "aggregationReflections[].name",
+      "aggregationReflections[].enabled",
+      "aggregationReflections[].partitionDistributionStrategy",
+      "aggregationReflections[].arrowCachingEnabled",
+      "aggregationReflections[].partitionFields[].name",
+      "aggregationReflections[].sortFields[].name",
+      "aggregationReflections[].dimensionFields[].name",
+      "aggregationReflections[].dimensionFields[].granularity",
+      "aggregationReflections[].measureFields[].name",
+      "aggregationReflections[].measureFields[].measureTypeList",
+      "aggregationReflections[].distributionFields[].name",
+      "aggregationReflections[].shouldDelete",
     ];
   }
 
@@ -62,42 +62,59 @@ export default class AccelerationAggregation extends Component {
   addNewLayout = () => {
     const { aggregationReflections } = this.props.fields;
 
-    const reflection = createReflectionFormValues({
-      type: 'AGGREGATION'
-    }, aggregationReflections.map(e => e.name.value));
+    const reflection = createReflectionFormValues(
+      {
+        type: "AGGREGATION",
+      },
+      aggregationReflections.map((e) => e.name.value)
+    );
 
     aggregationReflections.addField(reflection);
   };
 
   renderHeader = () => {
     return (
-      <div className={'AccelerationAggregation__header'}>
-        <h3 className={'AccelerationAggregation__toggleLabel'}>
-          <FontIcon type='Aggregate' theme={commonThemes.aggregationIconTheme}/>
-          {la('Aggregation Reflections')}
+      <div className={"AccelerationAggregation__header"}>
+        <h3 className={"AccelerationAggregation__toggleLabel"}>
+          <FontIcon
+            type="Aggregate"
+            theme={commonThemes.aggregationIconTheme}
+          />
+          {la("Aggregation Reflections")}
         </h3>
         <SimpleButton
           onClick={this.addNewLayout}
-          buttonStyle='secondary'
-          children={la('New Reflection')}
+          buttonStyle="secondary"
           // DX-34369
-          style={this.checkIfButtonShouldBeRendered() ? {minWidth: '110px'} : {display: 'none'}}
-          type='button'/>
+          style={
+            this.checkIfButtonShouldBeRendered()
+              ? { minWidth: "110px" }
+              : { display: "none" }
+          }
+          type="button"
+        >
+          {la("New Reflection")}
+        </SimpleButton>
       </div>
     );
   };
 
   render() {
-    const {dataset, reflections, fields: {aggregationReflections}, canAlter} = this.props;
+    const {
+      dataset,
+      reflections,
+      fields: { aggregationReflections },
+      canAlter,
+    } = this.props;
     return (
-      <div className={'AccelerationAggregation'}>
+      <div className={"AccelerationAggregation"}>
         {this.renderHeader()}
         <AccelerationGridController
           canAlter={canAlter}
           dataset={dataset}
           reflections={reflections}
           layoutFields={aggregationReflections}
-          activeTab='aggregation'
+          activeTab="aggregation"
         />
       </div>
     );

@@ -62,6 +62,7 @@ class MemoryRun implements AutoCloseable {
 
   @VisibleForTesting
   public static final String INJECTOR_OOM_ON_SORT = "injectOOMSort";
+  public static final long INITIAL_COPY_ALLOCATOR_RESERVATION = 1 << 16;
 
   private final ExternalSort sortConfig;
   private final ClassProducer classProducer;
@@ -116,7 +117,7 @@ class MemoryRun implements AutoCloseable {
       logger.debug("Memory Run: failed to allocate memory for sorter");
       throw ex;
     }
-    updateProtectedSize(1 << 16);
+    updateProtectedSize(INITIAL_COPY_ALLOCATOR_RESERVATION);
   }
 
   private boolean updateProtectedSize(long needed) {

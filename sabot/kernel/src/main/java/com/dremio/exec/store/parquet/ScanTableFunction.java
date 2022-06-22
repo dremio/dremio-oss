@@ -78,7 +78,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   // This is set to true after we are done consuming from upstream and we want to produce the
   // remianing buffered splits if present.
   private boolean produceFromBufferedSplits = false;
-  protected BoostBufferManager boostBufferManager;
 
   public ScanTableFunction(FragmentExecutionContext fec,
                            OperatorContext context,
@@ -105,7 +104,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.COL_IDS);
       isColIdMapSet = false;
     }
-    boostBufferManager = new BoostBufferManager(fec, context, props, functionConfig);
     createRecordReaderIterator();
     return outgoing;
   }
@@ -249,7 +247,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
       final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
       String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats());
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
       rollbackCloseable.add(filter);
 
       boolean isAlreadyPresent = this.runtimeFilters.stream()
@@ -282,7 +280,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     closeables.add(super::close);
     closeables.add(currentRecordReader);
     closeables.addAll(runtimeFilters);
-    boostBufferManager.close();
     AutoCloseables.close(closeables);
     currentRecordReader = null;
     this.context.getStats().setReadIOStats();

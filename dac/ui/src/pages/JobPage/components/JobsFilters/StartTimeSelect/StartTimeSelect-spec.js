@@ -13,69 +13,67 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import moment from 'moment';
-import * as IntervalTypes from './IntervalTypes';
-import StartTimeSelect from './StartTimeSelect';
+import { shallow } from "enzyme";
+import moment from "@app/utils/dayjs";
+import * as IntervalTypes from "./IntervalTypes";
+import StartTimeSelect from "./StartTimeSelect";
 
-describe('StartTimeSelect', () => {
-  let minimalProps;
+describe("StartTimeSelect", () => {
   let commonProps;
   beforeEach(() => {
-    minimalProps = {
+    commonProps = {
       startTime: 0,
       endTime: 0,
       onChange: sinon.spy(),
-      id: '1'
-    };
-    commonProps = {
-      ...minimalProps,
-      defaultType: IntervalTypes.ALL_TIME_INTERVAL
+      id: "1",
+      defaultType: IntervalTypes.ALL_TIME_INTERVAL,
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<StartTimeSelect {...minimalProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<StartTimeSelect {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<StartTimeSelect {...commonProps}/>);
-    expect(wrapper).to.have.length(1);
-  });
-  describe('getSelectedInterval', () => {
+  describe("getSelectedInterval", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<StartTimeSelect {...commonProps}/>);
+      wrapper = shallow(<StartTimeSelect {...commonProps} />);
       instance = wrapper.instance();
     });
-    it('should return correct interval based on chosen range', () => {
-      let startTime = Number(moment().subtract(1, 'h').valueOf());
+    it("should return correct interval based on chosen range", () => {
+      let startTime = Number(moment().subtract(1, "h").valueOf());
       let endTime = Number(moment().valueOf());
       wrapper.setProps({
         startTime,
-        endTime
+        endTime,
       });
-      expect(instance.getSelectedInterval().get('type')).to.eql(IntervalTypes.LAST_HOUR_INTERVAL);
+      expect(instance.getSelectedInterval().get("type")).to.eql(
+        IntervalTypes.LAST_HOUR_INTERVAL
+      );
 
-      startTime = Number(moment().subtract(6, 'h'));
+      startTime = Number(moment().subtract(6, "h"));
       endTime = Number(moment());
       wrapper.setProps({
         startTime,
-        endTime
+        endTime,
       });
-      expect(instance.getSelectedInterval().get('type')).to.eql(IntervalTypes.LAST_6_HOURS_INTERVAL);
+      expect(instance.getSelectedInterval().get("type")).to.eql(
+        IntervalTypes.LAST_6_HOURS_INTERVAL
+      );
     });
-    it('should return undefined if range is not match with other intervals', () => {
-      const startTime = Number(moment().subtract(2, 'h'));
+    it("should return undefined if range is not match with other intervals", () => {
+      const startTime = Number(moment().subtract(2, "h"));
       const endTime = Number(moment());
       wrapper.setProps({
         startTime,
-        endTime
+        endTime,
       });
       expect(instance.getSelectedInterval()).to.be.undefined;
     });
-    it('should return defaultType if range is empty', () => {
-      expect(instance.getSelectedInterval().get('type')).to.eql(IntervalTypes.ALL_TIME_INTERVAL);
+    it("should return defaultType if range is empty", () => {
+      expect(instance.getSelectedInterval().get("type")).to.eql(
+        IntervalTypes.ALL_TIME_INTERVAL
+      );
     });
   });
 });

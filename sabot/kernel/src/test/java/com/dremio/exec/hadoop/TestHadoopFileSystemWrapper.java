@@ -18,7 +18,7 @@ package com.dremio.exec.hadoop;
 import static com.dremio.io.file.PathFilters.ALL_FILES;
 import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.AccessMode;
 import java.nio.file.DirectoryStream;
+import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.EnumSet;
 import java.util.Iterator;
@@ -39,13 +40,12 @@ import java.util.stream.StreamSupport;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.dremio.common.perf.StatsCollectionEligibilityRegistrar;
 import com.dremio.exec.proto.UserBitShared;
@@ -61,127 +61,101 @@ import com.google.common.collect.Lists;
 
 public class TestHadoopFileSystemWrapper {
 
-
-  @RunWith(Parameterized.class)
-  public static class TestToFsPermission {
-    private final FsPermission expected;
-    private final Set<PosixFilePermission> test;
-
-
-    @Parameters(name =  "[{index}] mode: {0}")
-    public static Object[][] getTestCases() {
-      return IntStream.range(0, 01000)
-          .mapToObj(i -> new Object[] { FsPermission.createImmutable((short) i), toPosixFilePermissions((short) i) })
-          .toArray(Object[][]::new);
-    }
-
-    private static Set<PosixFilePermission> toPosixFilePermissions(short mode) {
-      Set<PosixFilePermission> result = EnumSet.noneOf(PosixFilePermission.class);
-
-      if ((mode & 0001) != 0) {
-        result.add(PosixFilePermission.OTHERS_EXECUTE);
-      }
-      if ((mode & 0002) != 0) {
-        result.add(PosixFilePermission.OTHERS_WRITE);
-      }
-      if ((mode & 0004) != 0) {
-        result.add(PosixFilePermission.OTHERS_READ);
-      }
-      if ((mode & 0010) != 0) {
-        result.add(PosixFilePermission.GROUP_EXECUTE);
-      }
-      if ((mode & 0020) != 0) {
-        result.add(PosixFilePermission.GROUP_WRITE);
-      }
-      if ((mode & 0040) != 0) {
-        result.add(PosixFilePermission.GROUP_READ);
-      }
-      if ((mode & 0100) != 0) {
-        result.add(PosixFilePermission.OWNER_EXECUTE);
-      }
-      if ((mode & 0200) != 0) {
-        result.add(PosixFilePermission.OWNER_WRITE);
-      }
-      if ((mode & 0400) != 0) {
-        result.add(PosixFilePermission.OWNER_READ);
-      }
-      return result;
-    }
-
-    public TestToFsPermission(FsPermission expected, Set<PosixFilePermission> test) {
-      this.expected = expected;
-      this.test = test;
-    }
-
-    @Test
-    public void test() {
-      assertThat(HadoopFileSystem.toFsPermission(test)).isEqualTo(expected);
-    }
+  private static Stream<Arguments> testToFsPermission() {
+    return IntStream.range(0, 01000)
+        .mapToObj(i -> Arguments.of (FsPermission.createImmutable((short) i), toPosixFilePermissions((short) i) ));
   }
 
-  @RunWith(Parameterized.class)
-  public static class TestToFsAction {
-    private final FsAction expected;
-    private final Set<AccessMode> test;
+  private static Set<PosixFilePermission> toPosixFilePermissions(short mode) {
+    Set<PosixFilePermission> result = EnumSet.noneOf(PosixFilePermission.class);
 
-
-    @Parameters(name =  "[{index}] mode: {0}")
-    public static Object[][] getTestCases() {
-      return IntStream.range(0, 0010)
-          .mapToObj(i -> new Object[] { toFsAction((short) i), toAccessModes((short) i) })
-          .toArray(Object[][]::new);
+    if ((mode & 0001) != 0) {
+      result.add(PosixFilePermission.OTHERS_EXECUTE);
     }
-
-    private static FsAction toFsAction(short mode) {
-      FsAction result = FsAction.NONE;
-
-      if ((mode & 0001) != 0) {
-        result = result.or(FsAction.EXECUTE);
-      }
-      if ((mode & 0002) != 0) {
-        result = result.or(FsAction.WRITE);
-      }
-      if ((mode & 0004) != 0) {
-        result = result.or(FsAction.READ);
-      }
-      return result;
+    if ((mode & 0002) != 0) {
+      result.add(PosixFilePermission.OTHERS_WRITE);
     }
-
-    private static Set<AccessMode> toAccessModes(short mode) {
-      Set<AccessMode> result = EnumSet.noneOf(AccessMode.class);
-
-      if ((mode & 0001) != 0) {
-        result.add(AccessMode.EXECUTE);
-      }
-      if ((mode & 0002) != 0) {
-        result.add(AccessMode.WRITE);
-      }
-      if ((mode & 0004) != 0) {
-        result.add(AccessMode.READ);
-      }
-      return result;
+    if ((mode & 0004) != 0) {
+      result.add(PosixFilePermission.OTHERS_READ);
     }
-
-    public TestToFsAction(FsAction expected, Set<AccessMode> test) {
-      this.expected = expected;
-      this.test = test;
+    if ((mode & 0010) != 0) {
+      result.add(PosixFilePermission.GROUP_EXECUTE);
     }
-
-    @Test
-    public void test() {
-      assertThat(HadoopFileSystem.toFsAction(test)).isEqualTo(expected);
+    if ((mode & 0020) != 0) {
+      result.add(PosixFilePermission.GROUP_WRITE);
     }
+    if ((mode & 0040) != 0) {
+      result.add(PosixFilePermission.GROUP_READ);
+    }
+    if ((mode & 0100) != 0) {
+      result.add(PosixFilePermission.OWNER_EXECUTE);
+    }
+    if ((mode & 0200) != 0) {
+      result.add(PosixFilePermission.OWNER_WRITE);
+    }
+    if ((mode & 0400) != 0) {
+      result.add(PosixFilePermission.OWNER_READ);
+    }
+    return result;
+  }
+
+  @ParameterizedTest(name =  "[{index}] mode: {0}")
+  @MethodSource
+  public void testToFsPermission(FsPermission expected, Set<PosixFilePermission> test) {
+    assertThat(HadoopFileSystem.toFsPermission(test)).isEqualTo(expected);
+  }
+
+  private static Stream<Arguments> testToFsAction() {
+    return IntStream.range(0, 0010)
+        .mapToObj(i -> Arguments.of( toFsAction((short) i), toAccessModes((short) i) ));
+  }
+
+  private static FsAction toFsAction(short mode) {
+    FsAction result = FsAction.NONE;
+
+    if ((mode & 0001) != 0) {
+      result = result.or(FsAction.EXECUTE);
+    }
+    if ((mode & 0002) != 0) {
+      result = result.or(FsAction.WRITE);
+    }
+    if ((mode & 0004) != 0) {
+      result = result.or(FsAction.READ);
+    }
+    return result;
+  }
+
+  private static Set<AccessMode> toAccessModes(short mode) {
+    Set<AccessMode> result = EnumSet.noneOf(AccessMode.class);
+
+    if ((mode & 0001) != 0) {
+      result.add(AccessMode.EXECUTE);
+    }
+    if ((mode & 0002) != 0) {
+      result.add(AccessMode.WRITE);
+    }
+    if ((mode & 0004) != 0) {
+      result.add(AccessMode.READ);
+    }
+    return result;
+  }
+
+  @ParameterizedTest(name =  "[{index}] mode: {0}")
+  @MethodSource
+  public void testToFsAction(FsAction expected, Set<AccessMode> test) {
+    assertThat(HadoopFileSystem.toFsAction(test)).isEqualTo(expected);
   }
 
   private static String tempFilePath;
 
-  @ClassRule
-  public static final TemporaryFolder tempFolder = new TemporaryFolder();
+  @TempDir
+  static File tempFolder;
 
-  @BeforeClass
+  @BeforeAll
   public static void createTempFile() throws Exception {
-
-    File tempFile = tempFolder.newFile("dremioFSReadTest.txt");
+    tempFilePath = tempFolder.toPath().resolve(Paths.get("dremioFSReadTest.txt")).toString();
+    File tempFile = Paths.get(tempFilePath).toFile();
+    tempFile.createNewFile();
 
     // Write some data
     PrintWriter printWriter = new PrintWriter(tempFile);
@@ -275,7 +249,7 @@ public class TestHadoopFileSystemWrapper {
 
     try {
       dfs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf), stats);
-      os = dfs.create(Path.of(tempFolder.getRoot().getPath()).resolve("dremioFSWriteTest.txt"));
+      os = dfs.create(Path.of(tempFolder.getPath()).resolve("dremioFSWriteTest.txt"));
 
       byte[] buf = new byte[8192];
       for (int i = 0; i < 10000; ++i) {
@@ -355,11 +329,11 @@ public class TestHadoopFileSystemWrapper {
     Configuration conf = new Configuration();
     try (FileSystem dfs = HadoopFileSystem.getLocal(conf)) {
 
-      final Path folderPath = Path.of(tempFolder.getRoot().toString()).resolve("hidden_files_folders_test");
+      final Path folderPath = Path.of(tempFolder.toString()).resolve("hidden_files_folders_test");
       createFolderWithContent(dfs, folderPath, 10, 20, 30);
 
       try(DirectoryStream<FileAttributes> iterable = FileSystemUtils.listRecursive(dfs, folderPath, NO_HIDDEN_FILES)) {
-        assertEquals("Should return 10 visible files", 10L, Iterables.size(iterable));
+        assertEquals(10L, Iterables.size(iterable), "Should return 10 visible files");
       }
 
       dfs.delete(folderPath, true);
@@ -371,7 +345,7 @@ public class TestHadoopFileSystemWrapper {
     final Configuration conf = new Configuration();
 
     try (FileSystem dfs = HadoopFileSystem.getLocal(conf)) {
-      final Path folderPath = Path.of(tempFolder.getRoot().toString()).resolve("hidden_files_folders_test");
+      final Path folderPath = Path.of(tempFolder.toString()).resolve("hidden_files_folders_test");
       // produces visible files
       createFolderWithContent(dfs, folderPath, 10, 1, 1);
       createFolderWithContent(dfs, folderPath.resolve("visible"), 3, 0, 0);
@@ -381,8 +355,9 @@ public class TestHadoopFileSystemWrapper {
 
 
       try(DirectoryStream<FileAttributes> directoryStream =  FileSystemUtils.listRecursive(dfs, folderPath, NO_HIDDEN_FILES)) {
-        assertEquals("Should return 13 visible files", 13L,
-            getStream(directoryStream.iterator()).filter(f -> !f.isDirectory()).count());
+        assertEquals(13L,
+            getStream(directoryStream.iterator()).filter(f -> !f.isDirectory()).count(),
+          "Should return 13 visible files");
       }
       dfs.delete(folderPath, true);
     }
@@ -393,7 +368,7 @@ public class TestHadoopFileSystemWrapper {
     final Configuration conf = new Configuration();
 
     try (FileSystem dfs = HadoopFileSystem.getLocal(conf)) {
-      final Path folderPath = Path.of(tempFolder.getRoot().toString()).resolve("list_recursive_on_file");
+      final Path folderPath = Path.of(tempFolder.toString()).resolve("list_recursive_on_file");
       final Path foo = folderPath.resolve("foo.txt");
       dfs.create(foo);
 

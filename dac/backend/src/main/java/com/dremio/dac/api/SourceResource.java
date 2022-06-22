@@ -101,6 +101,7 @@ public class SourceResource {
   }
 
   private final SourceService sourceService;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final SabotContext sabotContext;
 
   @Inject

@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { withRouter } from 'react-router';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
 
-import { CombinedActionMenuMixin } from 'dyn-load/components/Menus/ExplorePage/CombinedActionMenuMixin.js';
-import HoverHelp from '@app/components/HoverHelp';
-import MenuItem from '@app/components/Menus/MenuItem';
-import { getJobProgress } from '@app/selectors/explore';
+import { CombinedActionMenuMixin } from "dyn-load/components/Menus/ExplorePage/CombinedActionMenuMixin.js";
+import HoverHelp from "@app/components/HoverHelp";
+import MenuItem from "@app/components/Menus/MenuItem";
+import { getJobProgress } from "@app/selectors/explore";
 
-import Menu from './Menu';
-import MenuLabel from './MenuLabel';
+import Menu from "./Menu";
+import MenuLabel from "./MenuLabel";
 
 @injectIntl
 @CombinedActionMenuMixin
@@ -39,13 +39,13 @@ export class CombinedActionMenu extends PureComponent {
     updateDownloading: PropTypes.func,
     intl: PropTypes.object.isRequired,
     //connected
-    jobProgress: PropTypes.object
+    jobProgress: PropTypes.object,
   };
 
   static contextTypes = {
     router: PropTypes.object,
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   handleSettingsClick = () => {
     const { isSettingsDisabled, dataset, closeMenu } = this.props;
@@ -56,25 +56,33 @@ export class CombinedActionMenu extends PureComponent {
     router.push({
       ...location,
       state: {
-        modal: 'DatasetSettingsModal',
-        datasetUrl: dataset.getIn(['apiLinks', 'namespaceEntity']),
-        datasetType: dataset.get('datasetType'),
-        query: { then: 'query' },
-        isHomePage: false
-      }
+        modal: "DatasetSettingsModal",
+        datasetUrl: dataset.getIn(["apiLinks", "namespaceEntity"]),
+        datasetType: dataset.get("datasetType"),
+        query: { then: "query" },
+        isHomePage: false,
+      },
     });
   };
 
   renderDownloadSectionHeader = () => {
-    const {intl, jobProgress} = this.props;
+    const { intl, jobProgress } = this.props;
     const isRun = jobProgress && jobProgress.isRun;
-    const headerText = isRun ? la('Download (limited)') : la('Download (sample)');
-    const helpContent = isRun ?
-      intl.formatMessage({ id: 'Explore.Run.Warning' }) :
-      intl.formatMessage({ id: 'Explore.Preview.Warning' });
+    const headerText = isRun
+      ? la("Download (limited)")
+      : la("Download (sample)");
+    const helpContent = isRun
+      ? intl.formatMessage({ id: "Explore.Run.Warning" })
+      : intl.formatMessage({ id: "Explore.Preview.Warning" });
     return (
       <MenuLabel>
-        {headerText}<HoverHelp content={helpContent} placement='bottom-start' />
+        {headerText}
+        <HoverHelp
+          content={helpContent}
+          tooltipStyle={{ zIndex: 1400 }} // greater than 1300 in MenuItem.js
+          container={document.body}
+          placement="bottom-start"
+        />
       </MenuLabel>
     );
   };
@@ -83,12 +91,14 @@ export class CombinedActionMenu extends PureComponent {
     const { isSettingsDisabled } = this.props;
     return (
       <Menu>
-        <MenuLabel>{la('Dataset')}</MenuLabel>
-        <MenuItem key='settings'
-          className={'ellipsis-settings-item'}
+        <MenuLabel>{la("Dataset")}</MenuLabel>
+        <MenuItem
+          key="settings"
+          className={"ellipsis-settings-item"}
           onClick={this.handleSettingsClick}
-          disabled={isSettingsDisabled}>
-          {la('Settings')}
+          disabled={isSettingsDisabled}
+        >
+          {la("Settings")}
         </MenuItem>
         {this.checkToRenderDownloadSection()}
       </Menu>
@@ -98,7 +108,7 @@ export class CombinedActionMenu extends PureComponent {
 
 function mapStateToProps(state) {
   return {
-    jobProgress: getJobProgress(state)
+    jobProgress: getJobProgress(state),
   };
 }
 

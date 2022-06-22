@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { EntityLinkProviderView } from './EntityLink';
+import { shallow } from "enzyme";
+import { EntityLinkProviderView } from "./EntityLink";
 
 /**
  * Gets a content of EntityLinkProvider component form shallow wrapper
@@ -22,17 +22,25 @@ import { EntityLinkProviderView } from './EntityLink';
  * @param {shallowWrapper} wrapper
  * @param {string} linkUrlToInject - a link that would be injected as render props function argument
  */
-export const getRenderEntityLinkContent = (wrapper, linkUrlToInject = 'test/url') => (
-  wrapper.prop('children')(linkUrlToInject)
-);
+export const getRenderEntityLinkContent = (
+  wrapper,
+  linkUrlToInject = "test/url"
+) => wrapper.prop("children")(linkUrlToInject);
 
-it('EntityLinkProvider renders a result of render props function', () => {
-  const urlToInject = '/space/test_space';
-  const renderProps = sinon.stub().returns(<div className='test-selector'>test</div>);
-  const wrapper = shallow(<EntityLinkProviderView linkTo={urlToInject}>
-    {renderProps}
-  </EntityLinkProviderView>);
+it("EntityLinkProvider renders a result of render props function", () => {
+  const urlToInject = "/space/test_space";
+  const renderProps = sinon
+    .stub()
+    .returns(<div className="test-selector">test</div>);
+  const wrapper = shallow(
+    <EntityLinkProviderView linkTo={urlToInject}>
+      {renderProps}
+    </EntityLinkProviderView>
+  );
 
   expect(renderProps).to.be.calledWith(urlToInject);
-  expect(wrapper.find('.test-selector')).to.have.length(1, 'result which is returned by children function should be rendered');
+  expect(wrapper.find(".test-selector")).to.have.length(
+    1,
+    "result which is returned by children function should be rendered"
+  );
 });

@@ -13,25 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import { Radio } from 'components/Fields';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import { FieldWithError, TextField } from 'components/Fields';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
-import { inputForRadio, radioStacked } from '@app/uiTheme/less/forms.less';
-import { sectionMargin } from '@app/uiTheme/less/layout.less';
+import { Radio } from "components/Fields";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import { FieldWithError, TextField } from "components/Fields";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { formSectionTitle } from "uiTheme/radium/exploreTransform";
+import { inputForRadio, radioStacked } from "@app/uiTheme/less/forms.less";
+import { sectionMargin } from "@app/uiTheme/less/layout.less";
 
-import { isRequired, applyValidators } from 'utils/validation';
-import TransformForm, { formWrapperProps } from '../../forms/TransformForm';
-import { transformProps } from './../../forms/TransformationPropTypes';
+import { isRequired, applyValidators } from "utils/validation";
+import TransformForm, { formWrapperProps } from "../../forms/TransformForm";
+import { transformProps } from "./../../forms/TransformationPropTypes";
 
 const SECTIONS = [NewFieldSection];
 
 function validate(values) {
-  if (values.actionForNonMatchingValue === 'REPLACE_WITH_DEFAULT') {
-    return applyValidators(values, [isRequired('defaultValue', 'Value')]);
+  if (values.actionForNonMatchingValue === "REPLACE_WITH_DEFAULT") {
+    return applyValidators(values, [isRequired("defaultValue", "Value")]);
   }
 }
 
@@ -45,8 +45,11 @@ export class NonMatchingForm extends Component {
 
   submit(form, submitType) {
     const { actionForNonMatchingValue, defaultValue, ...rest } = form;
-    const value = actionForNonMatchingValue === 'REPLACE_WITH_DEFAULT' ? { defaultValue } : null;
-    const data =  { ...rest, ...value, actionForNonMatchingValue };
+    const value =
+      actionForNonMatchingValue === "REPLACE_WITH_DEFAULT"
+        ? { defaultValue }
+        : null;
+    const data = { ...rest, ...value, actionForNonMatchingValue };
     return this.props.submit(data, submitType);
   }
 
@@ -55,56 +58,77 @@ export class NonMatchingForm extends Component {
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
-        onFormSubmit={this.submit}>
+        onFormSubmit={this.submit}
+      >
         <div>
-          <span style={[formSectionTitle, {marginBottom: 5}]}>{la('Action for Non-matching Values')}</span>
+          <span style={{ ...formSectionTitle, marginBottom: 5 }}>
+            {la("Action for Non-matching Values")}
+          </span>
           <Radio
             className={radioStacked}
             {...fields.actionForNonMatchingValue}
-            label='Replace values with null'
-            radioValue='REPLACE_WITH_NULL'/>
+            label="Replace values with null"
+            radioValue="REPLACE_WITH_NULL"
+          />
           <div>
             <Radio
               className={radioStacked}
               {...fields.actionForNonMatchingValue}
-              label='Replace values with:'
-              radioValue='REPLACE_WITH_DEFAULT'/>
-            <FieldWithError errorPlacement='right' {...fields.defaultValue} className={inputForRadio}>
+              label="Replace values with:"
+              radioValue="REPLACE_WITH_DEFAULT"
+            />
+            <FieldWithError
+              errorPlacement="right"
+              {...fields.defaultValue}
+              className={inputForRadio}
+            >
               <TextField
-                disabled={fields.actionForNonMatchingValue.value !== 'REPLACE_WITH_DEFAULT'}
+                disabled={
+                  fields.actionForNonMatchingValue.value !==
+                  "REPLACE_WITH_DEFAULT"
+                }
                 {...fields.defaultValue}
-                style={{ width: 300 }}/>
+                style={{ width: 300 }}
+              />
             </FieldWithError>
           </div>
           <Radio
             className={radioStacked}
             {...fields.actionForNonMatchingValue}
-            label='Delete records'
-            radioValue='DELETE_RECORDS'/>
+            label="Delete records"
+            radioValue="DELETE_RECORDS"
+          />
         </div>
-        <NewFieldSection fields={fields} className={sectionMargin}/>
+        <NewFieldSection fields={fields} className={sectionMargin} />
       </TransformForm>
     );
   }
 }
 
 function mapStateToProps(state, props) {
-  const { actionForNonMatchingValue, dropSourceField, defaultValue } = props.initialValues;
+  const { actionForNonMatchingValue, dropSourceField, defaultValue } =
+    props.initialValues;
 
   return {
     initialValues: {
-      desiredType: (props.toType || '').toUpperCase(),
-      actionForNonMatchingValue: actionForNonMatchingValue || 'REPLACE_WITH_NULL',
-      defaultValue: defaultValue || '',
+      desiredType: (props.toType || "").toUpperCase(),
+      actionForNonMatchingValue:
+        actionForNonMatchingValue || "REPLACE_WITH_NULL",
+      defaultValue: defaultValue || "",
       newFieldName: props.columnName,
-      dropSourceField: dropSourceField !== undefined ? dropSourceField : true
-    }
+      dropSourceField: dropSourceField !== undefined ? dropSourceField : true,
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'actionNonMatching',
-  fields: ['defaultValue', 'actionForNonMatchingValue', 'desiredType'],
-  overwriteOnInitialValuesChange: false,
-  validate
-}, SECTIONS, mapStateToProps, null)(NonMatchingForm);
+export default connectComplexForm(
+  {
+    form: "actionNonMatching",
+    fields: ["defaultValue", "actionForNonMatchingValue", "desiredType"],
+    overwriteOnInitialValuesChange: false,
+    validate,
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(NonMatchingForm);

@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { replace } from 'react-router-redux';
+import { replace } from "react-router-redux";
 
 export function hideModal() {
   return (dispatch, getStore) => {
     const location = getStore().routing.locationBeforeTransitions;
     if (location.state && location.state.modal) {
-      dispatch(replace({
-        ...location,
-        state: {}
-      }));
+      dispatch(
+        replace({
+          ...location,
+          state: {},
+        })
+      );
     }
   };
 }

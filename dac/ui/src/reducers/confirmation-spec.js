@@ -13,83 +13,88 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { HIDE_CONFIRMATION_DIALOG, SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
-import confirmationReducer from './confirmation';
+import {
+  HIDE_CONFIRMATION_DIALOG,
+  SHOW_CONFIRMATION_DIALOG,
+} from "actions/confirmation";
+import confirmationReducer from "./confirmation";
 
-describe('confirmation reducer', () => {
+describe("confirmation reducer", () => {
   const initialState = {
     isOpen: false,
     title: null,
     confirmText: null,
     cancelText: null,
     text: null,
-    confirm: null
+    confirm: null,
   };
 
-  it('returns unaltered state by default', () => {
-    const result = confirmationReducer(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = confirmationReducer(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  describe('SHOW_CONFIRMATION_DIALOG', () => {
-    it('should set required attributes to show dialog ', () => {
+  describe("SHOW_CONFIRMATION_DIALOG", () => {
+    it("should set required attributes to show dialog ", () => {
       const confirmFn = () => {};
       const cancelFn = () => {};
       const validateFn = () => {};
       const result = confirmationReducer(initialState, {
         type: SHOW_CONFIRMATION_DIALOG,
-        text: 'Confirmation text',
-        title: 'Confirm',
-        confirmText: 'Ok',
-        cancelText: 'Cancel',
+        text: "Confirmation text",
+        title: "Confirm",
+        confirmText: "Ok",
+        cancelText: "Cancel",
         className: undefined,
         closeButtonType: undefined,
         confirm: confirmFn,
         cancel: cancelFn,
         style: {},
-        doNotAskAgainKey: 'Do not ask again key',
-        doNotAskAgainText: 'Do not ask again text',
+        doNotAskAgainKey: "Do not ask again key",
+        doNotAskAgainText: "Do not ask again text",
         headerIcon: undefined,
         hideCancelButton: true,
         showOnlyConfirm: false,
         showPrompt: false,
-        promptLabel: 'Prompt Label',
+        promptLabel: "Prompt Label",
         promptFieldProps: {},
-        dataQa: 'test',
+        dataQa: "test",
         validatePromptText: validateFn,
-        isCentered: true
+        isCentered: true,
+        size: "small",
       });
       expect(result).to.be.eql({
         isOpen: true,
-        text: 'Confirmation text',
-        title: 'Confirm',
-        confirmText: 'Ok',
-        cancelText: 'Cancel',
+        text: "Confirmation text",
+        title: "Confirm",
+        confirmText: "Ok",
+        cancelText: "Cancel",
         className: undefined,
         closeButtonType: undefined,
         confirmButtonStyle: undefined,
         confirm: confirmFn,
         cancel: cancelFn,
         style: {},
-        doNotAskAgainKey: 'Do not ask again key',
-        doNotAskAgainText: 'Do not ask again text',
+        doNotAskAgainKey: "Do not ask again key",
+        doNotAskAgainText: "Do not ask again text",
         headerIcon: undefined,
         hideCancelButton: true,
         showOnlyConfirm: false,
         showPrompt: false,
-        promptLabel: 'Prompt Label',
+        promptLabel: "Prompt Label",
         promptFieldProps: {},
-        dataQa: 'test',
+        dataQa: "test",
         validatePromptText: validateFn,
-        isCentered: true
+        isCentered: true,
+        size: "small",
       });
     });
   });
 
-  describe('HIDE_CONFIRMATION_DIALOG', () => {
-    it('should reset state with default', () => {
+  describe("HIDE_CONFIRMATION_DIALOG", () => {
+    it("should reset state with default", () => {
       const result = confirmationReducer(initialState, {
-        type: HIDE_CONFIRMATION_DIALOG
+        type: HIDE_CONFIRMATION_DIALOG,
       });
       expect(result).to.be.eql(initialState);
     });

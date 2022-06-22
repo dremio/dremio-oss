@@ -15,5 +15,5 @@
  */
 
 export default {
-  hideOpenResultsButton: false
+  hideOpenResultsButton: false,
 };

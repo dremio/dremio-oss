@@ -19,10 +19,13 @@ package com.dremio.exec.store.iceberg.model;
  * Type of the Iceberg command
  */
 public enum IcebergCommandType {
-    CREATE, // create a table
-    INSERT, // Insert into a table
-    TRUNCATE, // truncate a table
-    METADATA, // alter table - add / drop column, change name or type of a column
-    FULL_METADATA_REFRESH, // creates table, inserts data, updates KV store
-    INCREMENTAL_METADATA_REFRESH // delete then insert into a table
+  CREATE, // create a table
+  INSERT, // Insert into a table
+  DELETE, // Delete from a table
+  MERGE, // Merge into a table
+  UPDATE, // Update a table
+  TRUNCATE, // truncate a table
+  METADATA, // alter table - add / drop column, change name or type of a column
+  FULL_METADATA_REFRESH, // creates table, inserts data, updates KV store
+  INCREMENTAL_METADATA_REFRESH // delete then insert into a table
 }

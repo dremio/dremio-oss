@@ -13,60 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import Immutable from "immutable";
 
-import FontIcon from 'components/Icon/FontIcon';
+import FontIcon from "components/Icon/FontIcon";
 
-import './SqlErrorSection.less';
+import "./SqlErrorSection.less";
 
 class SqlErrorSection extends Component {
   static propTypes = {
     visible: PropTypes.bool.isRequired,
-    errorData: PropTypes.instanceOf(Immutable.Map).isRequired
+    errorData: PropTypes.instanceOf(Immutable.Map).isRequired,
   };
 
   constructor(props) {
     super(props);
     this.state = {
-      detailsVisible: false
+      detailsVisible: false,
     };
   }
 
   getDetailsList(errorData) {
-    return (
-      errorData.get('details').map((item, index) => {
-        return (
-          <li key={index}>{item}</li>
-        );
-      })
-    );
+    return errorData.get("details").map((item, index) => {
+      return <li key={index}>{item}</li>;
+    });
   }
 
   toggleDetails() {
     this.setState({
-      detailsVisible: !this.state.detailsVisible
+      detailsVisible: !this.state.detailsVisible,
     });
   }
 
   render() {
     const { visible, errorData } = this.props;
-    const holderClasses = classNames('sql-error', {visible});
-    const detailsClasses = classNames('details-list', {'visible': this.state.detailsVisible});
-    return (
-      visible
-        ? <div className={holderClasses}>
-          <FontIcon type='fa-exclamation-circle'/>
-          {errorData.get('msg')}
-          <span
-            onClick={this.toggleDetails.bind(this)}
-            className='details-link'>{this.state.detailsVisible ? 'Hide details' : 'Show details'}</span>
-          <ul className={detailsClasses}>{this.getDetailsList(errorData)}</ul>
-        </div>
-        : null
-    );
+    const holderClasses = classNames("sql-error", { visible });
+    const detailsClasses = classNames("details-list", {
+      visible: this.state.detailsVisible,
+    });
+    return visible ? (
+      <div className={holderClasses}>
+        <FontIcon type="fa-exclamation-circle" />
+        {errorData.get("msg")}
+        <span onClick={this.toggleDetails.bind(this)} className="details-link">
+          {this.state.detailsVisible ? "Hide details" : "Show details"}
+        </span>
+        <ul className={detailsClasses}>{this.getDetailsList(errorData)}</ul>
+      </div>
+    ) : null;
   }
 }
 

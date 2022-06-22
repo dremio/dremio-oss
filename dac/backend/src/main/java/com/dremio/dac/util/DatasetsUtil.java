@@ -74,7 +74,11 @@ import io.protostuff.ByteString;
  */
 public class DatasetsUtil {
 
+  private static final String DATASET_VERSION_DELIMITER = "/";
+  private static final String DATASET_PATH_DELIMITER = ".";
+
   private static final List<String> TEMPORARY_DATASET_PATH = Arrays.asList("tmp", "UNTITLED");
+  private static final String EMPTY_STRING = "";
 
   /**
    * Helper method which gets the completed preview data job for given query on given dataset path and version.
@@ -143,6 +147,7 @@ public class DatasetsUtil {
     vvds.setPreviousVersion(virtualDatasetUI.getPreviousVersion());
     vvds.setNamed(virtualDatasetUI.getIsNamed());
     vvds.setDerivation(virtualDatasetUI.getDerivation());
+    vvds.setReferencesList(virtualDatasetUI.getReferencesList());
 
     datasetConfig.setName(virtualDatasetUI.getName());
     datasetConfig.setOwner(virtualDatasetUI.getOwner());
@@ -210,6 +215,7 @@ public class DatasetsUtil {
     virtualDatasetUI.setRecordSchema(datasetConfig.getRecordSchema());
 
     virtualDatasetUI.getState().setContextList(virtualDataset.getContextList());
+    virtualDatasetUI.setReferencesList(vvds.getReferencesList());
 
     return virtualDatasetUI;
   }
@@ -362,6 +368,21 @@ public class DatasetsUtil {
 
   private static Set<String> toSet(List<String> list) {
     return list != null ? new HashSet<>(list) : Collections.emptySet();
+  }
+
+  public static String printVersionViewInfo(VirtualDatasetUI vdsUI) {
+    return "VirtualDatasetUI (versioned view related info) {" +
+      "name=" + vdsUI.getName() +
+      ", fullpath=" + vdsUI.getFullPathList() +
+      ", context=" + vdsUI.getContextList() +
+      ", version=" + vdsUI.getVersion() +
+      ", id=" + vdsUI.getId() +
+      ", sql=" + vdsUI.getSql() +
+      ", sqlFieldList=" + vdsUI.getSqlFieldsList() +
+      ", createdAt=" + vdsUI.getCreatedAt() +
+      ", owner=" + vdsUI.getOwner() +
+      ", versionContext=" + vdsUI.getReferencesList() +
+      '}';
   }
 
   /**

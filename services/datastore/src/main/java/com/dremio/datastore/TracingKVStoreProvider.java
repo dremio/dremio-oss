@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore;
 
+import java.util.Set;
+
 import com.dremio.datastore.TracingKVStore.TracingIndexedStore;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
@@ -99,6 +101,11 @@ public class TracingKVStoreProvider implements KVStoreProvider {
     public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       return TracingIndexedStore.of(name, tracer, delegate.buildIndexed(documentConverter));
     }
+  }
+
+  @Override
+  public Set<KVStore<?, ?>> stores() {
+     return kvProvider.stores();
   }
 
   @Override

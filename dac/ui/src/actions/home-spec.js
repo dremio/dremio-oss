@@ -13,41 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'chai';
-import Immutable from 'immutable';
-import { RSAA } from 'redux-api-middleware';
+import { expect } from "chai";
+import Immutable from "immutable";
+import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from '@app/core/APICall';
-import * as Actions from './home.js';
+import { APIV2Call } from "@app/core/APICall";
+import * as Actions from "./home.js";
 
-describe('home actions', () => {
-  describe('test convert to folder', () => {
-    it('to passthrough url', () => {
-      const apiCall = new APIV2Call()
-        .fullpath('/folder/foo/bar/baz?test=ad./ad');
+describe("home actions", () => {
+  describe("test convert to folder", () => {
+    it("to passthrough url", () => {
+      const apiCall = new APIV2Call().fullpath(
+        "/folder/foo/bar/baz?test=ad./ad"
+      );
 
       const folder = Immutable.fromJS({
         links: {
-          format: '/folder/foo/bar/baz?test=ad./ad'
-        }
+          format: "/folder/foo/bar/baz?test=ad./ad",
+        },
       });
 
-      expect(Actions.convertFolderToDataset({folder})((obj) => obj)[RSAA].endpoint).to.eql(apiCall);
+      expect(
+        Actions.convertFolderToDataset({ folder })((obj) => obj)[RSAA].endpoint
+      ).to.eql(apiCall);
     });
   });
 
-  describe('test remove folder format', () => {
-    it('to passthrough url', () => {
-      const apiCall = new APIV2Call()
-        .fullpath('/folder/foo/bar/baz?test=ad./ad');
+  describe("test remove folder format", () => {
+    it("to passthrough url", () => {
+      const apiCall = new APIV2Call().fullpath(
+        "/folder/foo/bar/baz?test=ad./ad"
+      );
 
       const dataset = Immutable.fromJS({
         links: {
-          'delete_format': '/folder/foo/bar/baz?test=ad./ad'
-        }
+          delete_format: "/folder/foo/bar/baz?test=ad./ad",
+        },
       });
 
-      expect(Actions.convertDatasetToFolder(dataset)((obj) => obj)[RSAA].endpoint).to.eql(apiCall);
+      expect(
+        Actions.convertDatasetToFolder(dataset)((obj) => obj)[RSAA].endpoint
+      ).to.eql(apiCall);
     });
   });
 });

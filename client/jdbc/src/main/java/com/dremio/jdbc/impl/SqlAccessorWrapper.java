@@ -46,8 +46,8 @@ import com.dremio.jdbc.InvalidCursorStateSqlException;
 class SqlAccessorWrapper implements Accessor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlAccessorWrapper.class);
 
-  private final static byte PRIMITIVE_NUM_NULL_VALUE = 0;
-  private final static boolean BOOLEAN_NULL_VALUE = false;
+  private static final byte PRIMITIVE_NUM_NULL_VALUE = 0;
+  private static final boolean BOOLEAN_NULL_VALUE = false;
 
   private SqlAccessor underlyingAccessor;
   private DremioCursor cursor;

@@ -15,7 +15,7 @@
  */
 package com.dremio.jdbc;
 
-import java.sql.Statement;  // (for Javadoc reference(s))
+import java.sql.Statement;
 
 
 /**

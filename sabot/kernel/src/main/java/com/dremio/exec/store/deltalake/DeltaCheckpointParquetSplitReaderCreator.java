@@ -51,6 +51,7 @@ import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetDictionaryConvertor;
+import com.dremio.exec.store.parquet.ParquetFilters;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
@@ -160,7 +161,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
                     parquetSubScanConfig.getFullSchema(),
                     projectedCols,
                     Maps.newHashMap(),
-                    Collections.EMPTY_LIST,//TODO pushdown add column value not null as a condition
+                    ParquetFilters.NONE, //TODO pushdown add column value not null as a condition
                     readerFactory.newFilterCreator(opCtx, null, null, opCtx.getAllocator()),
                     ParquetDictionaryConvertor.DEFAULT,
                     parquetXAttr,

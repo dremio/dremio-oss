@@ -13,53 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { DeleteButton } from '@app/components/tableRowButtons/DeleteButton';
-import UsersView from './UsersView';
+import { DeleteButton } from "@app/components/tableRowButtons/DeleteButton";
+import UsersView from "./UsersView";
 
-describe('UsersView', () => {
+describe("UsersView", () => {
   let commonProps;
   let context;
   beforeEach(() => {
     commonProps = {
       users: Immutable.fromJS([
         {
-          userConfig: { // todo: why is this nested?
-            email: 'email@domain.com',
-            firstName: 'First',
-            lastName: 'Last',
-            userName: 'userName'
-          }
-        }
+          userConfig: {
+            // todo: why is this nested?
+            email: "email@domain.com",
+            firstName: "First",
+            lastName: "Last",
+            userName: "userName",
+          },
+        },
       ]),
-      removeUser: () => {}
+      removeUser: () => {},
     };
-    context = { location: {}, loggedInUser: { userName: 'userName'} };
+    context = { location: {}, loggedInUser: { userName: "userName" } };
   });
 
-  it('render elements', () => {
-    const wrapper = shallow(<UsersView {...commonProps}/>, {context});
-    expect(wrapper.find('#admin-user')).have.length(1);
-    expect(wrapper.find('SettingHeader')).have.length(1);
-    expect(wrapper.find('.filter')).have.length(1);
-    expect(wrapper.find('StatefulTableViewer')).have.length(1);
+  it("render elements", () => {
+    const wrapper = shallow(<UsersView {...commonProps} />, { context });
+    expect(wrapper.find("#admin-user")).have.length(1);
+    expect(wrapper.find("SettingHeader")).have.length(1);
+    expect(wrapper.find(".filter")).have.length(1);
+    expect(wrapper.find("StatefulTableViewer")).have.length(1);
   });
 
-  describe('#getTableData', () => {
-    it('should return correct data with delete button when user name is not equal current logged in user', () => {
-      context.loggedInUser.userName = 'foo';
-      const instance = shallow(<UsersView {...commonProps}/>, {context}).instance();
-      const result = instance.getTableData().toJS()[0].data[3].props.children[1].type;
+  describe("#getTableData", () => {
+    it("should return correct data with delete button when user name is not equal current logged in user", () => {
+      context.loggedInUser.userName = "foo";
+      const instance = shallow(<UsersView {...commonProps} />, {
+        context,
+      }).instance();
+      const result = instance.getTableData().toJS()[0].data[3].props
+        .children[1].type;
       expect(result).to.be.eql(DeleteButton);
     });
 
-    it('should return correct data without delete button when user has current logged in user name', () => {
-      const instance = shallow(<UsersView {...commonProps}/>, {context}).instance();
-      const result = instance.getTableData().toJS()[0].data[3].props.children[1];
+    it("should return correct data without delete button when user has current logged in user name", () => {
+      const instance = shallow(<UsersView {...commonProps} />, {
+        context,
+      }).instance();
+      const result = instance.getTableData().toJS()[0].data[3].props
+        .children[1];
       expect(result).to.be.false;
     });
   });
 });
-

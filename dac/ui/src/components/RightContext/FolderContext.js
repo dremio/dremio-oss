@@ -13,4 +13,4 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const TOGGLE_VIEW_ID = 'toggleFolderPhysicalDataset';
+export const TOGGLE_VIEW_ID = "toggleFolderPhysicalDataset";

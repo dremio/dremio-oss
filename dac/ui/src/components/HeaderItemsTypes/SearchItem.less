@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
 
 :global {
   .searchItem {
-    display: flex
+    display: flex;
+    align-items: center;
   }
 
   .searchInput {
@@ -28,8 +28,11 @@
     border: 0;
     height: 20px;
     width: 300px;
-    margin-top: 2px;
     outline: none;
+  }
+
+  .searchInput::placeholder {
+    color: var(--dremio--color--neutral--300);
   }
 
   .searchTable {
@@ -43,15 +46,30 @@
     align-items: center;
     width: 336px;
     height: 32px;
-    border-radius: 4px;
-    background-color: @datasets-search-field-background;
-    border-color: @datasets-search-field-border;
+    border-radius: var(--dremio--radius--1);
+    background-color: var(--dremio--color--neutral--000);
+    border-color: var(--dremio--color--neutral--200);
     border-width: 1px;
     border-style: solid;
+
+    &:hover {
+      border-color: var(--dremio--color--neutral--300);
+    }
+
+    &.--focused {
+      border-color: var(--dremio--color--primary--500);
+    }
   }
 
   .searchTableCol1 {
     display: table-cell;
-    vertical-align: middle
+    vertical-align: middle;
   }
- }
+}
+
+.searchIcon {
+  height: 24px;
+  width: 24px;
+  color: var(--dremio--color--neutral--600);
+  margin-inline: var(--dremio--spacing--05);
+}

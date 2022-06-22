@@ -222,7 +222,7 @@ public final class Path implements Comparable<Path> {
    * (separated by the path separator if necesseray), and creates a new
    * {@code Path} instance with the current schema and authorite, and the new
    * path component.</li>
-   * <ul>
+   * </ul>
    *
    * Note that {@code that} scheme and authority components are ignored
    *

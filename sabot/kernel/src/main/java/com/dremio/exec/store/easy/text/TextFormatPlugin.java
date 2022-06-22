@@ -52,7 +52,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 
 public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextFormatConfig> {
-  private final static String DEFAULT_NAME = "text";
+  private static final String DEFAULT_NAME = "text";
 
   public TextFormatPlugin(String name, SabotContext context, FileSystemPlugin<?> fsPlugin) {
     super(name, context, new TextFormatConfig(), true, false, true, true,

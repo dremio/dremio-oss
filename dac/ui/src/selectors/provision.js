@@ -13,28 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
 export function getProvision(state, id) {
-  return state.resources.entities.getIn(['provision', id]) || Immutable.Map();
+  return state.resources.entities.getIn(["provision", id]) || Immutable.Map();
 }
 
 export function getAllProvisions(state) {
-  const provisions = state.resources.entities.get('provision') || Immutable.Map();
-  return provisions.toList()
-    .sortBy((provision) => provision.getIn(['id', 'id'])) // ultimate fallback stability
-    .sortBy((provision) => provision.get('name'))
-    .sortBy((provision) => provision.get('clusterType'));
+  const provisions =
+    state.resources.entities.get("provision") || Immutable.Map();
+  return provisions
+    .toList()
+    .sortBy((provision) => provision.getIn(["id", "id"])) // ultimate fallback stability
+    .sortBy((provision) => provision.get("name"))
+    .sortBy((provision) => provision.get("clusterType"));
 }
 
 export function getClouds(state) {
-  return state.resources.entities.get('clouds');
+  return state.resources.entities.get("clouds");
 }
 
 export function getAwsDefaults(state) {
-  return state.resources.entities.get('awsDefaults');
+  return state.resources.entities.get("awsDefaults");
 }
 
-export const getEngineDefualts = state => {
-  return state.resources.entities.get('engineDefaults');
+export const getEngineDefaults = (state) => {
+  return state.resources.entities.get("engineDefaults");
 };

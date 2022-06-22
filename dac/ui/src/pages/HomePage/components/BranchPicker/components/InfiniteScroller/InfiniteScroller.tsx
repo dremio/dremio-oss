@@ -13,11 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FontIcon from '@app/components/Icon/FontIcon';
-import { FormattedMessage } from 'react-intl';
-import { useCallback, useRef, useState } from 'react';
-import { AutoSizer, InfiniteLoader, List, ListRowProps } from 'react-virtualized';
-import './InfiniteScroller.less';
+import FontIcon from "@app/components/Icon/FontIcon";
+import { FormattedMessage } from "react-intl";
+import { useCallback, useRef, useState } from "react";
+import {
+  AutoSizer,
+  InfiniteLoader,
+  List,
+  ListRowProps,
+} from "react-virtualized";
+import "./InfiniteScroller.less";
 
 const LIST_ITEM_HEIGHT = 32;
 
@@ -34,7 +39,7 @@ function InfiniteScroller<T>({
   numRows = 1,
   children: renderRow,
   loadData,
-  rowHeight = LIST_ITEM_HEIGHT
+  rowHeight = LIST_ITEM_HEIGHT,
 }: InfiniteScrollerProps<T>) {
   const [hasError, setHasError] = useState(false);
 
@@ -44,7 +49,7 @@ function InfiniteScroller<T>({
   }
 
   const loadMoreRows = useCallback(
-    async function() {
+    async function () {
       try {
         await loadData();
         setHasError(false);
@@ -53,12 +58,17 @@ function InfiniteScroller<T>({
       } finally {
         if (listRef.current) listRef.current.forceUpdate();
       }
-    }, [loadData]);
+    },
+    [loadData]
+  );
 
-  const isRowLoaded = useCallback(function({ index }: any) {
-    if (data.length === 0) return false;
-    return index < data.length;
-  }, [data]);
+  const isRowLoaded = useCallback(
+    function ({ index }: any) {
+      if (data.length === 0) return false;
+      return index < data.length;
+    },
+    [data]
+  );
 
   function rowRenderer(row: ListRowProps) {
     const { style, key, index } = row;
@@ -70,20 +80,29 @@ function InfiniteScroller<T>({
       );
     } else if (hasError) {
       return (
-        <div key={key} style={style} className='infiniteScroller__error'>
-          <a href='#' onClick={e => {
-            e.preventDefault();
-            retry();
-          }}>
-            <FormattedMessage id='Common.Retry' />
-            <FontIcon type='WarningSolid' theme={{ Icon: { width: '24px', height: '24px' } }} />
+        <div key={key} style={style} className="infiniteScroller__error">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              retry();
+            }}
+          >
+            <FormattedMessage id="Common.Retry" />
+            <FontIcon
+              type="WarningSolid"
+              theme={{ Icon: { width: "24px", height: "24px" } }}
+            />
           </a>
         </div>
       );
     } else {
       return (
-        <div key={key} style={style} className='infiniteScroller__loading'>
-          <FontIcon type='Loader spinner' theme={{ Icon: { width: '24px', height: '24px' } }} />
+        <div key={key} style={style} className="infiniteScroller__loading">
+          <FontIcon
+            type="Loader spinner"
+            theme={{ Icon: { width: "24px", height: "24px" } }}
+          />
         </div>
       );
     }
@@ -92,16 +111,17 @@ function InfiniteScroller<T>({
   const listRef = useRef<List | null>(null);
 
   return (
-    <div className='infiniteScroller'>
+    <div className="infiniteScroller">
       <InfiniteLoader
         isRowLoaded={isRowLoaded}
         loadMoreRows={loadMoreRows}
-        rowCount={numRows}>
+        rowCount={numRows}
+      >
         {({ onRowsRendered, registerChild }: any) => (
           <AutoSizer>
             {({ height, width }) => (
               <List
-                ref={ref => {
+                ref={(ref) => {
                   listRef.current = ref;
                   registerChild(ref);
                 }}

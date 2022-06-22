@@ -16,14 +16,18 @@
 package com.dremio.service.coordinator;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
 import com.dremio.common.util.DremioVersionUtils;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
@@ -119,5 +123,14 @@ public class LocalExecutorSetService implements ExecutorSetService {
 
   @Override
   public void close() throws Exception {
+  }
+
+  public Map<EngineManagementProtos.SubEngineId, List<NodeEndpoint>> listAllEnginesExecutors() {
+    if(executorSet != null) {
+      Map<EngineManagementProtos.SubEngineId, List<CoordinationProtos.NodeEndpoint>> executorsGroupedByReplica =
+        executorSet.getAvailableEndpoints().stream().collect(Collectors.groupingBy(w -> w.getSubEngineId()));
+      return executorsGroupedByReplica;
+    }
+    return Collections.emptyMap();
   }
 }

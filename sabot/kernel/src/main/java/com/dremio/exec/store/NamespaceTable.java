@@ -15,9 +15,16 @@
  */
 package com.dremio.exec.store;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
@@ -27,10 +34,13 @@ import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
+import org.apache.calcite.schema.Table;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -40,6 +50,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.PrimaryKey;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -54,15 +65,26 @@ public class NamespaceTable implements DremioTable {
 
   private final TableMetadata dataset;
   private final boolean complexTypeSupport;
+  private final List<RelDataTypeField> extendedFields;
+
+  private ImmutableBitSet keys;
 
   public NamespaceTable(TableMetadata dataset, boolean complexTypeSupport) {
     this.dataset = Preconditions.checkNotNull(dataset);
     this.complexTypeSupport = complexTypeSupport;
+    this.extendedFields = Collections.emptyList();
+  }
+
+  private NamespaceTable(TableMetadata dataset, boolean complexTypeSupport, List<RelDataTypeField> extendedFields) {
+    this.dataset = Preconditions.checkNotNull(dataset);
+    this.complexTypeSupport = complexTypeSupport;
+    this.extendedFields = new ArrayList<>(extendedFields);
   }
 
   @Override
   public ScanCrel toRel(ToRelContext toRelContext, RelOptTable relOptTable) {
-    return new ScanCrel(toRelContext.getCluster(), toRelContext.getCluster().traitSetOf(Convention.NONE), dataset.getStoragePluginId(), dataset, null, 1.0d, true);
+    return new ScanCrel(toRelContext.getCluster(), toRelContext.getCluster().traitSetOf(Convention.NONE),
+      dataset.getStoragePluginId(), dataset, null, 1.0d, true, true);
   }
 
   @Override
@@ -71,6 +93,7 @@ public class NamespaceTable implements DremioTable {
       .toCalciteRecordType(relDataTypeFactory, (Field f) -> !SYSTEM_COLUMNS.contains(f.getName()), complexTypeSupport);
   }
 
+  @Override
   public TableMetadata getDataset() {
     return dataset;
   }
@@ -87,6 +110,26 @@ public class NamespaceTable implements DremioTable {
       public List<RelReferentialConstraint> getReferentialConstraints() {
         return ImmutableList.of();
       }
+
+      @Override
+      public boolean isKey(ImmutableBitSet columns) {
+        if (NamespaceTable.this.keys == null) {
+          PrimaryKey key = getDatasetConfig().getPhysicalDataset().getPrimaryKey();
+          if (key == null || key.getColumnList() == null || key.getColumnList().isEmpty()) {
+            NamespaceTable.this.keys = ImmutableBitSet.of();
+            return false;
+          }
+          Set<String> keys = key.getColumnList().stream().map(c -> c.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
+          ImmutableBitSet.Builder b = ImmutableBitSet.builder();
+          Ord.zip(getSchema().getFields()).forEach(f -> {
+            if (keys.contains(f.e.getName().toLowerCase(Locale.ROOT))) {
+              b.set(f.i);
+            }
+          });
+          NamespaceTable.this.keys = b.build();
+        }
+        return !NamespaceTable.this.keys.isEmpty() && columns.contains(NamespaceTable.this.keys);
+      }
     };
   }
 
@@ -96,7 +139,7 @@ public class NamespaceTable implements DremioTable {
       return false;
     }
 
-    return pd.getAllowApproxStats() == null ? false : pd.getAllowApproxStats();
+    return Optional.ofNullable(pd.getAllowApproxStats()).orElse(false);
   }
 
   @Override
@@ -136,6 +179,39 @@ public class NamespaceTable implements DremioTable {
     return Objects.hashCode(dataset);
   }
 
+  @Override
+  public Table extend(List<RelDataTypeField> fields) {
+    boolean tryingToExtendExistingField = getSchema().getFields().stream().anyMatch(
+      field -> fields.stream().anyMatch(
+        extendingField -> extendingField.getName().equals(field.getName())));
+    if (tryingToExtendExistingField) {
+      throw UserException.sourceInBadState().buildSilently();
+    }
+
+    // ScanCrel works directly with TableMetadata, rather than RelOptTable, so we must
+    // use a delegating TableMetadata and override getSchema specifically.
+    return new NamespaceTable(new DelegatingTableMetadata(dataset) {
+
+      private BatchSchema schema;
+
+      @Override
+      public BatchSchema getSchema() {
+        if (schema == null) {
+          schema = getTableMetadata().getSchema().cloneWithFields(fields.stream().map(
+              field -> CalciteArrowHelper.fieldFromCalciteRowType(field.getName(), field.getType()).get())
+            .collect(ImmutableList.toImmutableList()));
+        }
+
+        return schema;
+      }
+    }, complexTypeSupport, fields);
+  }
+
+  @Override
+  public int getExtendedColumnOffset() {
+    return dataset.getSchema().getFieldCount() - extendedFields.size();
+  }
+
   public abstract static class StatisticImpl implements Statistic {
 
     @Override
@@ -164,4 +240,18 @@ public class NamespaceTable implements DremioTable {
     return dataset.getVersion();
   }
 
+  @Override
+  public String getExtendTableSql() {
+    if (extendedFields.isEmpty()) {
+      return "";
+    }
+
+    return String.format("EXTEND (%s)", extendedFields.stream().map(
+      field -> String.format("\"%s\" %s", field.getName(), field.getType())).collect(Collectors.joining(", ")));
+  }
+
+  @Override
+  public boolean hasNativeRowColumnAccessPolicies() {
+    return false;
+  }
 }

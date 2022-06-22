@@ -13,34 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { getIconDataTypeFromEntity, getIconDataTypeFromDatasetType } from './iconUtils';
+import Immutable from "immutable";
+import {
+  getIconDataTypeFromEntity,
+  getIconDataTypeFromDatasetType,
+} from "./iconUtils";
 
-describe('iconUtils', () => {
-
-  describe('getIconDataTypeFromEntity', () => {
-    it('should return Folder if fileType is folder, and not queryable', () => {
-      expect(getIconDataTypeFromEntity(Immutable.Map({fileType: 'folder', queryable: false }))).to.eql('Folder');
-    });
-    it('should return FolderData if fileType is folder, and is queryable', () => {
-      expect(getIconDataTypeFromEntity(Immutable.Map({fileType: 'folder', queryable: true }))).to.eql('FolderData');
-    });
-    it('should return FileEmpty if fileType is file, and not queryable', () => {
-      expect(getIconDataTypeFromEntity(Immutable.Map({fileType: 'file', queryable: false }))).to.eql('FileEmpty');
-    });
-    it('should return File if fileType is file, and is queryable', () => {
-      expect(getIconDataTypeFromEntity(Immutable.Map({fileType: 'file', queryable: true }))).to.eql('File');
-    });
-    it('should return PhysicalDataset if fileType is physicalDatasets', () => {
+describe("iconUtils", () => {
+  describe("getIconDataTypeFromEntity", () => {
+    it("should return Folder if fileType is folder, and not queryable", () => {
       expect(
-        getIconDataTypeFromEntity(Immutable.Map({fileType: 'physicalDatasets', queryable: true }))
-      ).to.eql('PhysicalDataset');
+        getIconDataTypeFromEntity(
+          Immutable.Map({ fileType: "folder", queryable: false })
+        )
+      ).to.eql("Folder");
+    });
+    it("should return FolderData if fileType is folder, and is queryable", () => {
+      expect(
+        getIconDataTypeFromEntity(
+          Immutable.Map({ fileType: "folder", queryable: true })
+        )
+      ).to.eql("FolderData");
+    });
+    it("should return FileEmpty if fileType is file, and not queryable", () => {
+      expect(
+        getIconDataTypeFromEntity(
+          Immutable.Map({ fileType: "file", queryable: false })
+        )
+      ).to.eql("FileEmpty");
+    });
+    it("should return File if fileType is file, and is queryable", () => {
+      expect(
+        getIconDataTypeFromEntity(
+          Immutable.Map({ fileType: "file", queryable: true })
+        )
+      ).to.eql("File");
+    });
+    it("should return PhysicalDataset if fileType is physicalDatasets", () => {
+      expect(
+        getIconDataTypeFromEntity(
+          Immutable.Map({ fileType: "physicalDatasets", queryable: true })
+        )
+      ).to.eql("PhysicalDataset");
     });
   });
 
-  describe('getIconDataTypeFromDatasetType', () => {
-    it('returns correct icon type', () => {
-      expect(getIconDataTypeFromDatasetType('PHYSICAL_DATASET')).to.eql('PhysicalDataset');
+  describe("getIconDataTypeFromDatasetType", () => {
+    it("returns correct icon type", () => {
+      expect(getIconDataTypeFromDatasetType("PHYSICAL_DATASET")).to.eql(
+        "PhysicalDataset"
+      );
     });
   });
 });

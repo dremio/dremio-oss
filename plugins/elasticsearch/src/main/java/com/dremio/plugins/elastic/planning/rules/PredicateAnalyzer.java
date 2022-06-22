@@ -25,6 +25,7 @@ import static org.elasticsearch.index.query.QueryBuilders.rangeQuery;
 import static org.elasticsearch.index.query.QueryBuilders.regexpQuery;
 import static org.elasticsearch.index.query.QueryBuilders.scriptQuery;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -1152,10 +1153,13 @@ public class PredicateAnalyzer {
   }
 
   public static String queryAsJson(QueryBuilder query) throws IOException {
-    XContentBuilder x = XContentFactory.jsonBuilder();
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    XContentBuilder x = XContentFactory.jsonBuilder(baos);
     x.prettyPrint().lfAtEnd();
     query.toXContent(x, ToXContent.EMPTY_PARAMS);
-    return x.string();
+    x.close();
+
+    return baos.toString("UTF-8");
   }
 
   /**

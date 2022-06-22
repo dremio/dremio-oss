@@ -20,14 +20,14 @@ export const BYTES_IN_GB = 1024 * 1024 * 1024;
 const FileUtils = {
   convertFileSize(size) {
     if (size < BYTES_IN_KB) {
-      return '1.0KB';
+      return "1.0KB";
     } else if (size < BYTES_IN_MB) {
-      return Number(size / BYTES_IN_KB).toFixed(1) + 'KB';
+      return Number(size / BYTES_IN_KB).toFixed(1) + "KB";
     } else if (size < BYTES_IN_GB) {
-      return Number(size / BYTES_IN_MB).toFixed(1) + 'MB';
+      return Number(size / BYTES_IN_MB).toFixed(1) + "MB";
     }
-    return Number(size / BYTES_IN_GB).toFixed(1) + 'GB';
-  }
+    return Number(size / BYTES_IN_GB).toFixed(1) + "GB";
+  },
 };
 
 export default FileUtils;

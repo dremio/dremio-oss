@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
 /**
  * @file - that define all Button Types.
  */
-import * as ButtonTypes from './ButtonTypes';
+import * as ButtonTypes from "./ButtonTypes";
 
-import './button.scss';
+import "./button.scss";
 
 /**
  * @description
@@ -44,7 +44,7 @@ const Button = (props) => {
     text,
     title,
     type,
-    variant
+    variant,
   } = props;
 
   const handleClick = (evt) => {
@@ -54,23 +54,23 @@ const Button = (props) => {
   };
 
   const rootClassName = clsx([
-    'btn',
-    { 'btn__primary': color === ButtonTypes.PRIMARY },
-    { 'btn__secondary': color === ButtonTypes.SECONDARY },
-    { 'btn__warn': color === ButtonTypes.WARNING },
-    { 'btn__default': color === ButtonTypes.DEFAULT },
-    { '--contained': variant === ButtonTypes.CONTAINED },
-    { '--outlined': variant === ButtonTypes.OUTLINED },
-    { '--text': variant === ButtonTypes.TEXT },
-    { '--disabled': disabled },
-    { 'margin-top--double margin-bottom--double': !disableMargin },
+    "btn",
+    { btn__primary: color === ButtonTypes.PRIMARY },
+    { btn__secondary: color === ButtonTypes.SECONDARY },
+    { btn__warn: color === ButtonTypes.WARNING },
+    { btn__default: color === ButtonTypes.DEFAULT },
+    { "--contained": variant === ButtonTypes.CONTAINED },
+    { "--outlined": variant === ButtonTypes.OUTLINED },
+    { "--text": variant === ButtonTypes.TEXT },
+    { "--disabled": disabled },
+    { "margin-top--double margin-bottom--double": !disableMargin },
     className,
-    { [classes.root]: classes.root }
+    { [classes.root]: classes.root },
   ]);
 
   const contentClassName = clsx([
-    'btn__content',
-    { [classes.content]: classes.content }
+    "btn__content",
+    { [classes.content]: classes.content },
   ]);
 
   return (
@@ -84,9 +84,7 @@ const Button = (props) => {
       type={type}
       disabled={disabled}
     >
-      <span className={contentClassName}>
-        {children ? children : (text)}
-      </span>
+      <span className={contentClassName}>{children ? children : text}</span>
     </button>
   );
 };
@@ -105,7 +103,7 @@ Button.propTypes = {
   onMouseDown: PropTypes.func,
   style: PropTypes.object,
   title: PropTypes.string,
-  dataQa: PropTypes.string
+  dataQa: PropTypes.string,
 };
 
 Button.defaultProps = {
@@ -115,7 +113,7 @@ Button.defaultProps = {
   color: ButtonTypes.DEFAULT,
   variant: ButtonTypes.CONTAINED,
   classes: {},
-  text: ''
+  text: "",
 };
 
 export default Button;

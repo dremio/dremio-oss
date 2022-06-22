@@ -13,39 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import FontIcon from 'components/Icon/FontIcon';
-import SimpleButton from 'components/Buttons/SimpleButton';
-import { Tooltip } from '@app/components/Tooltip';
-import HoverTrigger from 'components/HoverTrigger';
+import { Component, createRef } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import FontIcon from "components/Icon/FontIcon";
+import SimpleButton from "components/Buttons/SimpleButton";
+import { Tooltip } from "@app/components/Tooltip";
+import HoverTrigger from "components/HoverTrigger";
 
-@injectIntl
-@Radium
-export default class ExploreSettingsButton extends Component {
+class ExploreSettingsButton extends Component {
   static propTypes = {
     disabled: PropTypes.bool,
     dataset: PropTypes.instanceOf(Immutable.Map),
-    side: PropTypes.oneOf(['left', 'right', 'bottom', 'top']),
-    intl: PropTypes.object.isRequired
+    side: PropTypes.oneOf(["left", "right", "bottom", "top"]),
+    intl: PropTypes.object.isRequired,
   };
 
   static defaultProps = {
-    side: 'left',
-    dataset: Immutable.Map()
+    side: "left",
+    dataset: Immutable.Map(),
   };
 
   static contextTypes = {
     router: PropTypes.object,
-    location: PropTypes.object
-  }
-
-  state = {
-    isOpenOverlay: false
+    location: PropTypes.object,
   };
+
+  constructor(props) {
+    super(props);
+    this.settingsButtonRef = createRef();
+    this.state = {
+      isOpenOverlay: false,
+    };
+  }
 
   handleMouseEnter = () => {
     if (this.props.disabled) {
@@ -66,12 +67,12 @@ export default class ExploreSettingsButton extends Component {
     router.push({
       ...location,
       state: {
-        modal: 'DatasetSettingsModal',
-        datasetUrl: dataset.getIn(['apiLinks', 'namespaceEntity']),
-        datasetType: dataset.get('datasetType'),
-        query: { then: 'query' },
-        isHomePage: false
-      }
+        modal: "DatasetSettingsModal",
+        datasetUrl: dataset.getIn(["apiLinks", "namespaceEntity"]),
+        datasetType: dataset.get("datasetType"),
+        query: { then: "query" },
+        isHomePage: false,
+      },
     });
   };
 
@@ -81,22 +82,30 @@ export default class ExploreSettingsButton extends Component {
       <HoverTrigger
         onEnter={this.handleMouseEnter}
         onLeave={this.handleMouseLeave}
-        style={styles.base}>
+        style={styles.base}
+      >
         <SimpleButton
-          ref='settingsButton'
+          ref={this.settingsButtonRef}
           disabled={disabled}
           style={styles.button}
           onClick={this.handleOnClick}
-          buttonStyle='secondary'>
-          <FontIcon type='Settings' tooltip={la('Settings')} theme={styles.icon}/>
+          buttonStyle="secondary"
+        >
+          <FontIcon
+            type="Settings"
+            tooltip={la("Settings")}
+            theme={styles.icon}
+          />
         </SimpleButton>
         <Tooltip
           container={document.body}
-          target={() => this.state.isOpenOverlay ? this.refs.settingsButton : null}
+          target={() =>
+            this.state.isOpenOverlay ? this.settingsButtonRef.current : null
+          }
           placement={side}
           tooltipInnerStyle={styles.overlay}
         >
-          {intl.formatMessage({ id: 'Dataset.ChangeSettingsTooltip' })}
+          {intl.formatMessage({ id: "Dataset.ChangeSettingsTooltip" })}
         </Tooltip>
       </HoverTrigger>
     );
@@ -105,19 +114,20 @@ export default class ExploreSettingsButton extends Component {
 
 const styles = {
   base: {
-    position: 'relative'
+    position: "relative",
   },
   button: {
     minWidth: 40,
-    lineHeight: 'inherit'
+    lineHeight: "inherit",
   },
   icon: {
     height: 28,
-    'Icon': {
-      verticalAlign: 'middle'
-    }
+    Icon: {
+      verticalAlign: "middle",
+    },
   },
   overlay: {
-    width: 300
-  }
+    width: 300,
+  },
 };
+export default injectIntl(ExploreSettingsButton);

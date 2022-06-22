@@ -58,7 +58,7 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
       nessieClient,
       ((IcebergNessieVersionedTableIdentifier) tableIdentifier));
 
-    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations);
+    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations, plugin);
   }
 
   @Override

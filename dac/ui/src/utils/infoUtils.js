@@ -14,23 +14,23 @@
  * limitations under the License.
  */
 
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
-import { log } from '@app/utils/logger';
-import APICall from '@app/core/APICall';
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { log } from "@app/utils/logger";
+import APICall from "@app/core/APICall";
 
 export const getClusterInfo = async () => {
-  const apiCall = new APICall().path('info');
-  const method = 'GET';
+  const apiCall = new APICall().path("info");
+  const method = "GET";
   const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': localStorageUtils.getAuthToken()
+    "Content-Type": "application/json",
+    Authorization: localStorageUtils.getAuthToken(),
   };
-  const apiResponse = await fetch(apiCall, {method, headers});
+  const apiResponse = await fetch(apiCall, { method, headers });
   if (apiResponse.ok) {
     const responseJson = await apiResponse.json();
     return responseJson;
   }
   const error = await apiResponse.text();
-  log('error', error);
+  log("error", error);
   return {};
 };

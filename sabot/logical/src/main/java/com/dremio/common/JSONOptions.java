@@ -48,7 +48,7 @@ import com.google.common.base.Preconditions;
 @JsonDeserialize(using = De.class)
 public class JSONOptions {
 
-  private final static Logger logger = LoggerFactory.getLogger(JSONOptions.class);
+  private static final Logger logger = LoggerFactory.getLogger(JSONOptions.class);
 
   private final JsonNode root;
   private final JsonLocation location;

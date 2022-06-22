@@ -13,28 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import classNames from 'classnames';
-import Immutable  from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import classNames from "classnames";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import FontIcon from 'components/Icon/FontIcon';
-import { PALE_NAVY } from 'uiTheme/radium/colors';
+import FontIcon from "components/Icon/FontIcon";
+import {
+  BLUE,
+  LESS_IMPORTANT_TEXT,
+  NETURAL_150,
+  NETURAL_200,
+  PALE_NAVY,
+  PRIMARY_600,
+  RIBBON,
+  TEXT_DISABLED,
+  WHITE,
+} from "uiTheme/radium/colors";
 
 /**
  * @file - that define all Button Types.
  */
-import * as ButtonTypes from './ButtonTypes';
+import * as ButtonTypes from "./ButtonTypes";
 
 /**
  * @const - this constant define default value for text variable for different button types.
  */
-const DEFAULT_TEXT_HASH = new Immutable.Map({ // todo: loc
-  [ButtonTypes.CUSTOM]: '',
-  [ButtonTypes.NEXT || ButtonTypes.PRIMARY]: 'Next',
-  [ButtonTypes.BACK || ButtonTypes.SECONDARY]: 'Back',
-  [ButtonTypes.CANCEL || ButtonTypes.SECONDARY]: 'Cancel'
+const DEFAULT_TEXT_HASH = new Immutable.Map({
+  // todo: loc
+  [ButtonTypes.CUSTOM]: "",
+  [ButtonTypes.NEXT || ButtonTypes.PRIMARY]: "Next",
+  [ButtonTypes.BACK || ButtonTypes.SECONDARY]: "Back",
+  [ButtonTypes.CANCEL || ButtonTypes.SECONDARY]: "Cancel",
 });
 
 /**
@@ -42,9 +53,7 @@ const DEFAULT_TEXT_HASH = new Immutable.Map({ // todo: loc
  * Button class that define standard button.
  * If you want to bind clicker to this component just assign this function to onClick property.
  */
-@Radium
 class Button extends PureComponent {
-
   static propTypes = {
     className: PropTypes.string,
     disable: PropTypes.bool,
@@ -61,7 +70,7 @@ class Button extends PureComponent {
     icon: PropTypes.string,
     title: PropTypes.string,
     dataQa: PropTypes.string,
-    items: PropTypes.array
+    items: PropTypes.array,
   };
 
   constructor(props) {
@@ -73,12 +82,12 @@ class Button extends PureComponent {
     this.isClickOnChildOfParent = this.isClickOnChildOfParent.bind(this);
     this.state = {
       dropdown: false,
-      updateBtnName: props.items && props.items[0] ? props.items[0].name : null
+      updateBtnName: props.items && props.items[0] ? props.items[0].name : null,
     };
   }
 
   componentWillUnmount() {
-    $(document).off('click', this.clickListener);
+    $(document).off("click", this.clickListener);
   }
 
   onClick(evt) {
@@ -89,7 +98,7 @@ class Button extends PureComponent {
   }
 
   closeDropdown() {
-    this.setState({dropdown: false});
+    this.setState({ dropdown: false });
   }
 
   isClickOnChildOfParent(target, classNamesPrevented) {
@@ -105,11 +114,14 @@ class Button extends PureComponent {
       this.counter = 0;
       return false;
     }
-    return this.isClickOnChildOfParent(target.parentElement, classNamesPrevented);
+    return this.isClickOnChildOfParent(
+      target.parentElement,
+      classNamesPrevented
+    );
   }
 
   selectItemDropDown(name, id) {
-    this.setState({updateBtnName: name});
+    this.setState({ updateBtnName: name });
     if (this.props.onClickDrop) {
       this.props.onClickDrop(id);
     }
@@ -123,64 +135,81 @@ class Button extends PureComponent {
   }
 
   toggleDropdown() {
-    this.setState({dropdown: !this.state.dropdown});
+    this.setState({ dropdown: !this.state.dropdown });
   }
 
   renderBtn() {
-    const { text, type, icon, title, dataQa, items, disableSubmit, disable } = this.props;
+    const { text, type, icon, title, dataQa, items, disableSubmit, disable } =
+      this.props;
     const customStyle = this.props.styles ? this.props.styles : {};
-    const commonStyle = type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
-      ? [styles.primary, customStyle]
-      : [styles.secondary, customStyle];
-    const standartBtn = type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
-      ? [commonStyle, {':hover': {backgroundColor: '#5EC6D5'}}, customStyle]
-      : [commonStyle, {':hover': {backgroundColor: '#F9F9F9'}}, customStyle];
-    const iconBtn = icon
-      ? (
-        <FontIcon
-          type={icon}
-          theme={{...styles.icon, ...this.props.iconStyle}}/>
-      )
-      : null;
-    return !items
-      ? (
-        <button
-          data-qa={dataQa || text}
-          title={title}
-          type={disableSubmit ? 'button' : 'submit'}
-          style={[styles.wrapper, standartBtn, disable && {opacity: 0.7, pointerEvents: 'none'}, this.props.style]}
-          className={classNames(this.props.className, icon)}
-          onSubmit={this.onSubmit}
-          onMouseDown={this.props.onMouseDown}
-          onClick={this.onClick}>
-          {iconBtn}
-          <span style={[styles.innerText, this.props.innerTextStyle]}>
-            {text || DEFAULT_TEXT_HASH.get(type)}
-          </span>
-        </button>
-      )
-      : this.renderBtnWithDropDown(items, commonStyle, iconBtn);
+    const commonStyle =
+      type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
+        ? [styles.primary, customStyle]
+        : [styles.secondary, customStyle];
+    const standartBtn =
+      type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
+        ? [
+            commonStyle,
+            { ":hover": { backgroundColor: PRIMARY_600 } },
+            customStyle,
+          ]
+        : [commonStyle, { ":hover": { backgroundColor: RIBBON } }, customStyle];
+    const iconBtn = icon ? (
+      <FontIcon
+        type={icon}
+        theme={{ ...styles.icon, ...this.props.iconStyle }}
+      />
+    ) : null;
+    return !items ? (
+      <button
+        data-qa={dataQa || text}
+        title={title}
+        type={disableSubmit ? "button" : "submit"}
+        style={[
+          styles.wrapper,
+          standartBtn,
+          disable && styles.disabled,
+          this.props.style,
+        ]}
+        className={classNames(this.props.className, icon)}
+        onSubmit={this.onSubmit}
+        onMouseDown={this.props.onMouseDown}
+        onClick={this.onClick}
+      >
+        {iconBtn}
+        <span style={[styles.innerText, this.props.innerTextStyle]}>
+          {text || DEFAULT_TEXT_HASH.get(type)}
+        </span>
+      </button>
+    ) : (
+      this.renderBtnWithDropDown(items, commonStyle, iconBtn)
+    );
   }
 
   renderBtnWithDropDown(items, styleBtn, iconBtn) {
     const { updateBtnName } = this.state;
     const { icon, type } = this.props;
-    const color = type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
-      ? {backgroundColor: 'rgba(255,255,255,0.25)'}
-      : {backgroundColor: '#6A7781'};
+    const color =
+      type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
+        ? { backgroundColor: PRIMARY_600 }
+        : { backgroundColor: RIBBON };
     return (
       <div
         style={[styles.wrapper, this.props.styles, styleBtn]}
         className={icon || `Arrow-Down-Small${updateBtnName}`}
-        key={icon}>
+        key={icon}
+      >
         <div style={[styleBtn, styles.wrapRight]} onClick={this.onClick}>
           {iconBtn}
           <div style={styles.text}>{updateBtnName}</div>
           <div style={[styles.delimiter, color]}></div>
         </div>
         <FontIcon
-          type='Arrow-Down-Small' theme={styles.arrowIcon}
-          onClick={this.toggleDropdown} className={updateBtnName}/>
+          type="Arrow-Down-Small"
+          theme={styles.arrowIcon}
+          onClick={this.toggleDropdown}
+          className={updateBtnName}
+        />
         {this.showDropdown(items)}
       </div>
     );
@@ -188,27 +217,25 @@ class Button extends PureComponent {
 
   renderDropdown(items) {
     const WIDTH_BTN = 100;
-    const position = {marginLeft: 0 - WIDTH_BTN, top: 30};
+    const position = { marginLeft: 0 - WIDTH_BTN, top: 30 };
     const itemsDrop = items.map((item) => {
       return (
         <span
-          key={item.name} style={styles.itemDrop}
-          onClick={this.selectItemDropDown.bind(this, item.name, item || {})}>
+          key={item.name}
+          style={styles.itemDrop}
+          onClick={this.selectItemDropDown.bind(this, item.name, item || {})}
+        >
           {item.name}
         </span>
       );
     });
-    return (
-      <div style={[styles.dropdown, position]}>
-        {itemsDrop}
-      </div>
-    );
+    return <div style={[styles.dropdown, position]}>{itemsDrop}</div>;
   }
 
   render() {
-    const {type, text} = this.props;
+    const { type, text } = this.props;
     if (type === ButtonTypes.CUSTOM && !text) {
-      throw new Error('Custom button must have a text!');
+      throw new Error("Custom button must have a text!");
     }
 
     return this.renderBtn();
@@ -218,31 +245,31 @@ class Button extends PureComponent {
 const styles = {
   text: {
     paddingRight: 3,
-    marginLeft: 8
+    marginLeft: 8,
   },
 
   content: {
-    ':hover': {
-      backgroundColor: 'rgba(0,0,0,0.02)'
-    }
+    ":hover": {
+      backgroundColor: "rgba(0,0,0,0.02)",
+    },
   },
 
   wrapper: {
-    borderRight: 'none',
-    borderLeft: 'none',
-    borderTop: 'none',
-    position: 'relative',
+    borderRight: "none",
+    borderLeft: "none",
+    borderTop: "none",
+    position: "relative",
     minWidth: 100,
     height: 32,
     borderRadius: 4,
     marginBottom: 5,
     fontSize: 13,
     outline: 0,
-    cursor: 'pointer',
-    border: '1px solid #D9D9D9',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
+    cursor: "pointer",
+    border: "1px solid #D9D9D9",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   wrapRight: {
@@ -250,48 +277,62 @@ const styles = {
     borderRadius: 2,
     flexGrow: 2,
     height: 27,
-    position: 'relative',
+    position: "relative",
     zIndex: 20,
-    display: 'inline-flex',
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    borderBottom: 'none',
-    ':hover': {
-      backgroundColor: 'rgba(0,0,0,0.02)'
-    }
+    display: "inline-flex",
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    borderBottom: "none",
+    ":hover": {
+      backgroundColor: "rgba(0,0,0,0.02)",
+    },
   },
 
   innerText: {
-    position: 'relative',
-    lineHeight: '28px'
+    position: "relative",
+    lineHeight: "28px",
   },
 
   secondary: {
-    color: '#333',
-    backgroundColor: '#F2F2F2'
+    color: LESS_IMPORTANT_TEXT,
+    backgroundColor: WHITE,
+    border: `1px solid ${NETURAL_200}`,
+    ":hover": {
+      backgroundColor: RIBBON,
+    },
   },
 
   primary: {
-    backgroundColor: '#43B8C9',
-    color: '#FFFFFF',
-    borderColor: '#43B8C9'
+    backgroundColor: BLUE,
+    color: WHITE,
+    border: "none",
+    ":hover": {
+      backgroundColor: PRIMARY_600,
+    },
+  },
+
+  disabled: {
+    border: "none",
+    backgroundColor: NETURAL_150,
+    color: TEXT_DISABLED,
+    pointerEvents: "none",
   },
 
   icon: {
-    'Icon': {
+    Icon: {
       height: 22,
       width: 22,
       opacity: 0.6,
-      marginTop: 3
+      marginTop: 3,
     },
-    'Container': {
+    Container: {
       height: 32,
       width: 24,
       marginLeft: 3,
-      marginRight: 10
-    }
+      marginRight: 10,
+    },
   },
 
   delimiter: {
@@ -299,53 +340,53 @@ const styles = {
     width: 1,
     marginTop: 4,
     marginBottom: 4,
-    backgroundColor: '#6A7781',
+    backgroundColor: "#6A7781",
     opacity: 0.6,
     borderRadius: 2,
-    marginLeft: 10
+    marginLeft: 10,
   },
 
   arrowIcon: {
-    'Container': {
+    Container: {
       height: 27,
       width: 26,
       borderRadius: 2,
-      position: 'relative',
+      position: "relative",
       flexBasis: 26,
-      ':hover': {
-        backgroundColor: 'rgba(0,0,0,0.02)'
-      }
+      ":hover": {
+        backgroundColor: "rgba(0,0,0,0.02)",
+      },
     },
-    'Icon': {
+    Icon: {
       width: 26,
       height: 27,
-      position: 'absolute',
+      position: "absolute",
       top: 1,
-      right: 1
-    }
+      right: 1,
+    },
   },
 
   dropdown: {
     minWidth: 100,
     borderRadius: 2,
-    position: 'absolute',
-    backgroundColor: '#F5FCFF',
+    position: "absolute",
+    backgroundColor: "#F5FCFF",
     padding: 5,
-    display: 'flex',
-    flexDirection: 'column',
-    zIndex: 99999
+    display: "flex",
+    flexDirection: "column",
+    zIndex: 99999,
   },
 
   itemDrop: {
     padding: 5,
-    cursor: 'pointer',
-    color: 'black',
-    ':hover': {
+    cursor: "pointer",
+    color: "black",
+    ":hover": {
       backgroundColor: PALE_NAVY,
       opacity: 0.5,
-      color: 'black'
-    }
-  }
+      color: "black",
+    },
+  },
 };
 
-export default Button;
+export default Radium(Button);

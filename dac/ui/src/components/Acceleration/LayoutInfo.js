@@ -13,32 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { Link } from 'react-router';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { Link } from "react-router";
 
-import EllipsedText from 'components/EllipsedText';
-import jobsUtils from 'utils/jobsUtils';
+import EllipsedText from "components/EllipsedText";
+import jobsUtils from "utils/jobsUtils";
 
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import '@app/uiTheme/less/commonModifiers.less';
-import Footprint from './Footprint';
-import ValidityIndicator from './ValidityIndicator';
-import Status from './Status';
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import "@app/uiTheme/less/commonModifiers.less";
+import Footprint from "./Footprint";
+import ValidityIndicator from "./ValidityIndicator";
+import Status from "./Status";
 
 export default class LayoutInfo extends Component {
   static propTypes = {
     layout: PropTypes.instanceOf(Immutable.Map),
     showValidity: PropTypes.bool,
     overrideTextMessage: PropTypes.string,
-    className: PropTypes.any
+    className: PropTypes.any,
   };
 
   renderBody() {
     if (this.props.overrideTextMessage) {
       return (
-        <div data-qa='message' className={'LayoutInfo__message'}>
+        <div data-qa="message" className={"LayoutInfo__message"}>
           {this.props.overrideTextMessage}
         </div>
       );
@@ -50,18 +50,28 @@ export default class LayoutInfo extends Component {
     const jobsURL = jobsUtils.navigationURLForLayoutId(reflection.id);
     return (
       <div className={`LayoutInfo__main ${this.props.className}`}>
-        {this.props.showValidity && <div style={{marginRight, height: 20}}>
-          <ValidityIndicator isValid={reflection && reflection.hasValidMaterialization}/>
-        </div>}
-        <div className={'LayoutInfo__status'}>
-          <Link to={jobsURL} style={{height: 24}}><Status reflection={this.props.layout}/></Link>
+        {this.props.showValidity && (
+          <div style={{ marginRight, height: 20 }}>
+            <ValidityIndicator
+              isValid={reflection && reflection.hasValidMaterialization}
+            />
+          </div>
+        )}
+        <div className={"LayoutInfo__status"}>
+          <Link to={jobsURL} style={{ height: 24 }}>
+            <Status reflection={this.props.layout} />
+          </Link>
         </div>
-        <EllipsedText style={{flex: '1 1', marginRight}}>{/* todo: figure out how to @text for this */}
-          <b>{la('Footprint: ')}</b>
-          <Footprint currentByteSize={reflection.currentSizeBytes} totalByteSize={reflection.totalSizeBytes} />
+        <EllipsedText style={{ flex: "1 1", marginRight }}>
+          {/* todo: figure out how to @text for this */}
+          <b>{la("Footprint: ")}</b>
+          <Footprint
+            currentByteSize={reflection.currentSizeBytes}
+            totalByteSize={reflection.totalSizeBytes}
+          />
         </EllipsedText>
         <div>
-          <Link to={jobsURL}>{la('history')} »</Link>
+          <Link to={jobsURL}>{la("history")} »</Link>
         </div>
       </div>
     );
@@ -71,9 +81,10 @@ export default class LayoutInfo extends Component {
     if (!this.props.layout) return null;
 
     // todo: ax
-    return <div className={`LayoutInfo__main ${this.props.className}`} >
-      {this.renderBody()}
-    </div>;
+    return (
+      <div className={`LayoutInfo__main ${this.props.className}`}>
+        {this.renderBody()}
+      </div>
+    );
   }
 }
-

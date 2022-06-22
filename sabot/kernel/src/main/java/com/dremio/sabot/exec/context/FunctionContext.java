@@ -19,13 +19,17 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.EndPointListProvider;
 import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.options.OptionResolver;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
+
 
 /**
  * Defines the query state and shared resources available to Functions through
@@ -143,4 +147,6 @@ public interface FunctionContext {
    * @return - a wrapper object for an constant value.
    */
   ValueHolder getConstantValueHolder(String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer);
+
+  Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition);
 }

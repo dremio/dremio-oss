@@ -104,7 +104,7 @@ public class TestFileGenerator {
     props.fields.put("S_COMMENT", new FieldInfo("binary", "bin2", -1, bin2Vals, TypeProtos.MinorType.VARBINARY, props));
   }
 
-  private static abstract class ValueProducer {
+  private abstract static class ValueProducer {
 
     public abstract void reset();
     public abstract Object getValue();

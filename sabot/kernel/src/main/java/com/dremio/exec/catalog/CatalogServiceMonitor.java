@@ -44,4 +44,3 @@ interface CatalogServiceMonitor {
   default void startBackgroundRefreshWithLock() {}
   default void finishBackgroundRefresh() {}
 }
-

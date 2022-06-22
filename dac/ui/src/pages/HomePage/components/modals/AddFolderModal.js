@@ -13,23 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
 
-import Modal from 'components/Modals/Modal';
+import Modal from "components/Modals/Modal";
 
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import { addNewFolderForSpace } from 'actions/resources/spaceDetails';
+import ApiUtils from "utils/apiUtils/apiUtils";
+import { addNewFolderForSpace } from "actions/resources/spaceDetails";
 
-import AddFolderForm from '../forms/AddFolderForm';
-import './Modal.less';
+import AddFolderForm from "../forms/AddFolderForm";
+import "./Modal.less";
 
 @injectIntl
 export class AddFolderModal extends Component {
-
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
@@ -38,11 +37,11 @@ export class AddFolderModal extends Component {
     parentEntity: PropTypes.instanceOf(Immutable.Map),
     parentType: PropTypes.string,
     addNewFolderForSpace: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   static contextTypes = {
-    username: PropTypes.string
+    username: PropTypes.string,
   };
 
   constructor(props) {
@@ -60,11 +59,12 @@ export class AddFolderModal extends Component {
     const { isOpen, hide, intl } = this.props;
     return (
       <Modal
-        size='small'
-        title={intl.formatMessage({ id: 'Folder.AddFolder' })}
+        size="small"
+        title={intl.formatMessage({ id: "Folder.AddFolder" })}
         isOpen={isOpen}
-        hide={hide}>
-        <AddFolderForm onFormSubmit={this.submit} onCancel={hide}/>
+        hide={hide}
+      >
+        <AddFolderForm onFormSubmit={this.submit} onCancel={hide} />
       </Modal>
     );
   }

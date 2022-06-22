@@ -89,4 +89,3 @@ public final class SourceFilePath extends NamespacePath {
   }
 
 }
-

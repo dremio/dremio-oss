@@ -41,7 +41,6 @@ public class TestIcebergColumnCounts extends BaseTestQuery {
   private static Map<String, IcebergCatalogType> SCHEMAS_TO_CATALOG_TYPE = new HashMap<>();
 
   static {
-    SCHEMAS_TO_CATALOG_TYPE.put(TEMP_SCHEMA, IcebergCatalogType.NESSIE);
     SCHEMAS_TO_CATALOG_TYPE.put(TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
   }
 

@@ -26,6 +26,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.physical.AggregatePrel;
+import com.dremio.exec.planner.physical.BridgeExchangePrel;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
@@ -119,6 +120,8 @@ public class RuntimeFilterDecorator {
         buildKeys = hashJoinPrel.getRightKeys();
       }
 
+      boolean shouldAddNonPartitionRF = hasFilter(buildSideRel);
+
       // find exchange node from build side
       ExchangePrel buildExchangePrel = findExchangePrel(buildSideRel);
       ExchangePrel probeExchangePrel = findExchangePrel(probeSideRel);
@@ -148,7 +151,8 @@ public class RuntimeFilterDecorator {
           RuntimeFilteredRel.ColumnType columnType = isPartitionColumn(scanPrel, probeFieldName)
             ? RuntimeFilteredRel.ColumnType.PARTITION
             : RuntimeFilteredRel.ColumnType.RANDOM;
-          if (columnType == RuntimeFilteredRel.ColumnType.PARTITION || nonParitionRuntimeFiltersEnabled) {
+          if (columnType == RuntimeFilteredRel.ColumnType.PARTITION
+            || (nonParitionRuntimeFiltersEnabled && shouldAddNonPartitionRF)) {
             scanPrel.addRuntimeFilter(
               new RuntimeFilteredRel.Info(id, columnType, probeFieldName, buildFieldName));
             found = true;
@@ -160,6 +164,23 @@ public class RuntimeFilterDecorator {
       }
     }
 
+  }
+
+  private static boolean hasFilter(RelNode rel) {
+    if (rel instanceof FilterPrel) {
+      return true;
+    }
+    if (rel instanceof TableFunctionPrel) {
+      if (((TableFunctionPrel) rel).hasFilter()) {
+        return true;
+      }
+    }
+    for (RelNode child : rel.getInputs()) {
+      if (hasFilter(child)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static class ColumnOriginScan {
@@ -218,6 +239,9 @@ public class RuntimeFilterDecorator {
 
     @Override
     public List<ColumnOriginScan> visitExchange(ExchangePrel exchange, Integer idx) {
+      if (exchange instanceof BridgeExchangePrel) {
+        return ImmutableList.of();
+      }
       return visitRel(exchange.getInput(), idx);
     }
 

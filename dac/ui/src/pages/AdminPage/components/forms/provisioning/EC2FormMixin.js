@@ -13,25 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {cloneDeep} from 'lodash/lang';
+import { cloneDeep } from "lodash/lang";
 import {
-  EC2_FORM_TAB_VLH, EC2_FIELDS_MAP
-} from '@app/constants/provisioningPage/provisioningConstants';
-import FormUtils from '@app/utils/FormUtils/FormUtils';
+  EC2_FORM_TAB_VLH,
+  EC2_FIELDS_MAP,
+} from "@app/constants/provisioningPage/provisioningConstants";
+import FormUtils from "@app/utils/FormUtils/FormUtils";
 
 export const getInitValuesFromVlh = () => {
   const initValues = {};
-  FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.authMode, 'AUTO');
-  FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.useClusterPlacementGroup, true);
-  FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.instanceType, 'm5d.8xlarge');
+  FormUtils.addInitValue(initValues, EC2_FIELDS_MAP.authMode, "AUTO");
+  FormUtils.addInitValue(
+    initValues,
+    EC2_FIELDS_MAP.useClusterPlacementGroup,
+    true
+  );
+  FormUtils.addInitValue(
+    initValues,
+    EC2_FIELDS_MAP.instanceType,
+    "m5d.8xlarge"
+  );
   return initValues;
 };
 
-export default function(input) {
-
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getVlh() {
       return cloneDeep(EC2_FORM_TAB_VLH);
-    }
+    },
   });
 }

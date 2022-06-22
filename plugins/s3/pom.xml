@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
 
   <artifactId>dremio-s3-plugin</artifactId>
@@ -90,12 +90,14 @@
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -123,11 +125,6 @@
       <artifactId>javassist</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
   <profiles>
     <profile>
@@ -148,30 +145,6 @@
   </profiles>
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <configuration>
-          <includes>**/*.java</includes>
-          <encoding>UTF-8</encoding>
-          <failsOnError>true</failsOnError>
-          <consoleOutput>true</consoleOutput>
-          <includeResources>true</includeResources>
-          <includeTestResources>true</includeTestResources>
-          <resourceIncludes>**/*.properties,**/*.conf,**/*.json,**/*.xml</resourceIncludes>
-          <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <suppressionsLocation>src/main/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
-        </configuration>
-        <executions>
-          <execution>
-            <id>checkstyle-validation</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>

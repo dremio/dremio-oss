@@ -24,7 +24,6 @@ import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.io.FileIO;
-import org.projectnessie.model.Reference;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.ResolvedVersionContext;
@@ -45,7 +44,7 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   private final FileIO fileIO;
   private final NessieClient nessieClient;
   private final IcebergNessieTableIdentifier nessieTableIdentifier;
-  private Reference reference;
+  private ResolvedVersionContext reference;
   private final OperatorStats operatorStats;
 
   public IcebergNessieTableOperations(OperatorStats operatorStats, NessieClient nessieClient, FileIO fileIO, IcebergNessieTableIdentifier nessieTableIdentifier) {
@@ -68,9 +67,10 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
 
   @Override
   protected void doRefresh() {
+    reference = getDefaultBranch();
     String metadataLocation = nessieClient.getMetadataLocation(
       getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-      getDefaultBranch());
+      reference);
     refreshFromMetadataLocation(metadataLocation, 2);
   }
 
@@ -91,10 +91,10 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient.commitOperation(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-        newMetadataLocation,
-        metadata,
-        getDefaultBranch());
+      nessieClient.commitTable(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
+          newMetadataLocation,
+          metadata,
+          reference);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {
@@ -104,9 +104,9 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
         logger.debug(String.format("Commit failed: Reference hash is out of date. " +
             "Update the reference %s and try again for table %s",
-          reference.getHash(), nessieTableIdentifier));
+          reference.getCommitHash(), nessieTableIdentifier));
         throw new CommitFailedException(sre, "Commit failed: Reference hash is out of date. " +
-          "Update the reference %s and try again", reference.getHash());
+          "Update the reference %s and try again", reference.getCommitHash());
       } else {
         throw UserException.dataReadError(sre).build(logger);
       }

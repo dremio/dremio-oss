@@ -83,7 +83,7 @@ public class PhysicalDatasetUtils {
       final DatasetConfig config = namespaceService.getDataset(new NamespaceKey(tableSchemaPath));
       return toFormatPlugin(config.getPhysicalDataset().getFormatSettings(), fileSelection.getExtensions());
     } catch (NamespaceException e) {
-      logger.debug("Failed to get physical dataset properties for table {} error {}", PathUtils.constructFullPath(tableSchemaPath), e);
+      logger.debug("Failed to get physical dataset properties for table {}", PathUtils.constructFullPath(tableSchemaPath), e);
     }
     return null;
   }

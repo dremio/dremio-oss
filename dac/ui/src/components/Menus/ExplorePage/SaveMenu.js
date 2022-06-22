@@ -13,77 +13,130 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import Radium from "radium";
+import { injectIntl } from "react-intl";
 
+import PropTypes from "prop-types";
 
-import PropTypes from 'prop-types';
+import { Divider } from "@material-ui/core";
+import MenuItem from "./MenuItem";
+import Menu from "./Menu";
+import { getSaveMenuItems } from "./SaveMenuUtil";
+import { MAX_MINE_SCRIPTS_ALLOWANCE } from "@app/components/SQLScripts/sqlScriptsUtils";
 
-import { Divider } from '@material-ui/core';
-import MenuItem from './MenuItem';
-import Menu from './Menu';
-
-import './SaveMenu.less';
+import "./SaveMenu.less";
 
 export const DOWNLOAD_TYPES = {
-  json: 'JSON',
-  csv: 'CSV',
-  parquet: 'PARQUET'
+  json: "JSON",
+  csv: "CSV",
+  parquet: "PARQUET",
 };
 
-@injectIntl
-@Radium
-export default class SaveMenu extends PureComponent {
+class SaveMenu extends PureComponent {
   static propTypes = {
     action: PropTypes.func,
     closeMenu: PropTypes.func,
-    mustSaveAs: PropTypes.bool,
+    mustSaveDatasetAs: PropTypes.bool,
+    mustSaveViewAs: PropTypes.bool,
+    scriptPermissions: PropTypes.array,
     disableBoth: PropTypes.bool,
     isSqlEditorTab: PropTypes.bool,
-    intl: PropTypes.object
+    isUntitledScript: PropTypes.bool,
+    intl: PropTypes.object,
+    numberOfMineScripts: PropTypes.number,
   };
 
   saveAction = (saveType) => {
     this.props.closeMenu();
     this.props.action(saveType);
-  }
+  };
 
   renderMenuItems = () => {
-    const { mustSaveAs, disableBoth, isSqlEditorTab, intl } = this.props;
+    const {
+      mustSaveDatasetAs,
+      isUntitledScript,
+      disableBoth,
+      scriptPermissions,
+      isSqlEditorTab,
+      intl,
+      numberOfMineScripts,
+    } = this.props;
 
     const saveMenuItems = [
-      { label: 'NewQuery.SaveScript', handleSave: () => this.saveAction('saveScript'), disabled: false, class: 'save-menu-item' },
-      { label: 'NewQuery.SaveScriptAs', handleSave: () => this.saveAction('saveScriptAs'), disabled: false, class: 'save-as-menu-item' },
-      { label: 'NewQuery.SaveView', handleSave: () => this.saveAction('saveView'), disabled: mustSaveAs || disableBoth, class: 'save-menu-item' },
-      { label: 'NewQuery.SaveViewAs', handleSave: () => this.saveAction('saveViewAs'), disabled: disableBoth, class: 'save-as-menu-item' }
+      {
+        label: "NewQuery.SaveScriptAs",
+        handleSave: () => this.saveAction("saveScriptAs"),
+        id: "saveScriptAs",
+        disabled: numberOfMineScripts === MAX_MINE_SCRIPTS_ALLOWANCE || false,
+        class: "save-as-menu-item",
+      },
+      {
+        label: "NewQuery.SaveScript",
+        handleSave: () => this.saveAction("saveScript"),
+        disabled:
+          (numberOfMineScripts === MAX_MINE_SCRIPTS_ALLOWANCE &&
+            isUntitledScript) ||
+          false,
+        id: "saveScript",
+        class: "save-menu-item",
+      },
+      {
+        label: "NewQuery.SaveView",
+        handleSave: () => this.saveAction("saveView"),
+        disabled: mustSaveDatasetAs || disableBoth,
+        id: "saveView",
+        class: "save-menu-item",
+      },
+      {
+        label: "NewQuery.SaveViewAs",
+        handleSave: () => this.saveAction("saveViewAs"),
+        id: "saveViewAs",
+        disabled: disableBoth,
+        class: "save-as-menu-item",
+      },
     ];
 
-    const renderItems = isSqlEditorTab ?
-      [saveMenuItems[0], saveMenuItems[1], null, saveMenuItems[3]] :
-      [saveMenuItems[2], saveMenuItems[3], null,  saveMenuItems[1]];
+    const list = getSaveMenuItems({
+      saveMenuItems,
+      permissionsFromScript: scriptPermissions,
+      isUntitledScript,
+      isSqlEditorTab,
+    });
 
-    return renderItems.map((item, i) => {
+    return list.map((item, i) => {
+      const showTooltip =
+        (item &&
+          item.id === "saveScript" &&
+          numberOfMineScripts === MAX_MINE_SCRIPTS_ALLOWANCE &&
+          isUntitledScript) ||
+        (item &&
+          item.id === "saveScriptAs" &&
+          numberOfMineScripts === MAX_MINE_SCRIPTS_ALLOWANCE);
+
       return item && item.label ? (
         <MenuItem
           key={item.label}
           className={item.class}
           disabled={item.disabled}
           onClick={item.handleSave}
+          showTooltip={showTooltip}
+          title={
+            showTooltip
+              ? intl.formatMessage({ id: "Scripts.Maximum.Reached" })
+              : null
+          }
         >
-          {intl.formatMessage({ id: item.label})}
+          {intl.formatMessage({ id: item.label })}
         </MenuItem>
       ) : (
-        <Divider key={`${i}`} className='custom-menu-divider' />
+        <Divider key={`${i}`} className="custom-menu-divider" />
       );
     });
-  }
+  };
 
   render() {
-    return (
-      <Menu>
-        {this.renderMenuItems()}
-      </Menu>
-    );
+    return <Menu>{this.renderMenuItems()}</Menu>;
   }
 }
+export default injectIntl(Radium(SaveMenu));

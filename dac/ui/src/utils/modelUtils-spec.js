@@ -13,49 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import modelUtils from './modelUtils';
+import modelUtils from "./modelUtils";
 
-describe('exploreUtils', () => {
-  describe('check isNewDataset', () => {
-    it('should return false when no tableName', () => {
-      expect(modelUtils.isNewDataset(null, 'new')).to.be.false;
+describe("exploreUtils", () => {
+  describe("check isNewDataset", () => {
+    it("should return false when no tableName", () => {
+      expect(modelUtils.isNewDataset(null, "new")).to.be.false;
     });
 
-    it('should return true', () => {
+    it("should return true", () => {
       const dataset = Immutable.fromJS({
-        fullPath: ['foo', 'bar']
+        fullPath: ["foo", "bar"],
       });
-      expect(modelUtils.isNewDataset(dataset, 'new')).to.be.true;
+      expect(modelUtils.isNewDataset(dataset, "new")).to.be.true;
     });
 
-    it('should return true for untitled', () => {
+    it("should return true for untitled", () => {
       const dataset = Immutable.fromJS({
-        fullPath: ['tmp', 'UNTITLED']
+        fullPath: ["tmp", "UNTITLED"],
       });
       expect(modelUtils.isNewDataset(dataset)).to.be.true;
     });
 
-    it('should return false', () => {
+    it("should return false", () => {
       const dataset = Immutable.fromJS({
-        fullPath: ['foo', 'name']
+        fullPath: ["foo", "name"],
       });
-      expect(modelUtils.isNewDataset(dataset, 'edit')).to.be.false;
+      expect(modelUtils.isNewDataset(dataset, "edit")).to.be.false;
     });
   });
 
-  describe('#isNamedDataset', () => {
-    it('should return true when displayFullPath of dataset is not the same as temporary', () => {
+  describe("#isNamedDataset", () => {
+    it("should return true when displayFullPath of dataset is not the same as temporary", () => {
       const dataset = Immutable.fromJS({
-        displayFullPath: ['ds']
+        displayFullPath: ["ds"],
       });
       expect(modelUtils.isNamedDataset(dataset)).to.be.true;
     });
 
-    it('should return false when displayFullPath of dataset is related to tmp', () => {
+    it("should return false when displayFullPath of dataset is related to tmp", () => {
       const dataset = Immutable.fromJS({
-        displayFullPath: ['tmp']
+        displayFullPath: ["tmp"],
       });
       expect(modelUtils.isNamedDataset(dataset)).to.be.false;
     });

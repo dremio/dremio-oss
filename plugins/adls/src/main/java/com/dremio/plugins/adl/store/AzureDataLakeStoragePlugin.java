@@ -24,14 +24,14 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.DirectorySupportLackingFileSystemPlugin;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.microsoft.azure.datalake.store.ADLStoreOptions;
 
 /**
  * Storage plugin for Microsoft Azure Data Lake
  */
-public class AzureDataLakeStoragePlugin extends FileSystemPlugin<AzureDataLakeConf> {
+public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSystemPlugin<AzureDataLakeConf> {
 
   static {
     final String useDirectMemoryKey = System.getProperty(ADLStoreOptions.USE_OFF_HEAP_MEMORY_KEY);

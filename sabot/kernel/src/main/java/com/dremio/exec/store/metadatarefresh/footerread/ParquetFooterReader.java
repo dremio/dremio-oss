@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
@@ -64,7 +65,7 @@ import com.google.common.base.Preconditions;
 /**
  * Parquet footer reader used in refresh dataset flow
  */
-public class ParquetFooterReader implements FooterReader {
+public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsAndUpPromotions {
 
   private static final Logger logger = LoggerFactory.getLogger(ParquetFooterReader.class);
 
@@ -150,7 +151,7 @@ public class ParquetFooterReader implements FooterReader {
       arrowSchema = DremioArrowSchema.fromMetaData(footer.getFileMetaData().getKeyValueMetaData());
     } catch (Exception e) {
       arrowSchema = null;
-      logger.warn("Invalid Arrow Schema", e);
+      logger.debug("Invalid Arrow Schema", e);
     }
 
     List<Field> fields;
@@ -161,7 +162,7 @@ public class ParquetFooterReader implements FooterReader {
         // Convert all the arrow fields to dremio fields
         fields = CompleteType.convertToDremioFields(arrowSchema.getFields());
       } catch (Exception e) {
-        logger.warn("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter.Trying using ParquetTypeHelper", e);
+        logger.debug("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter.Trying using ParquetTypeHelper", e);
         try {
           fields = getFieldsUsingParquetTypeHelper(footer);
         } catch (Exception ex) {
@@ -178,11 +179,11 @@ public class ParquetFooterReader implements FooterReader {
       logger.error("Parquet contains more columns than the limit. Number of columns {}, Max columns permitted {}", fields.size(), maxLeafCols);
       throw new ColumnCountTooLargeException(maxLeafCols);
     }
-    return new BatchSchema(fields).handleUnions();
+    return new BatchSchema(fields).handleUnions(this);
   }
 
   private BatchSchema getBatchSchemaFromReader(final FileSystem fs, final String path, long fileSize, MutableParquetMetadata mutableParquetMetadata) throws IOException {
-    logger.debug("Reading records in the parquet file [{}] to generate schema", path);
+    logger.warn("Reading records in the parquet file [{}] to generate schema", path);
     try (
       BufferAllocator sampleAllocator = opContext.getAllocator().newChildAllocator("RecordReadForSchema-alloc", 0, Long.MAX_VALUE);
       SampleMutator mutator = new SampleMutator(sampleAllocator)) {

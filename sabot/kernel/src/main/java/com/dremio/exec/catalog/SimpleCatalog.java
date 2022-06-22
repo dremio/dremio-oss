@@ -32,9 +32,11 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
   /**
    * Get a list of functions. Provided specifically for DremioCatalogReader.
    * @param path
+   * @param functionType
    * @return
    */
-  Collection<Function> getFunctions(NamespaceKey path);
+  Collection<Function> getFunctions(NamespaceKey path,
+    FunctionType functionType);
 
   /**
    * Get the default schema for this catalog. Returns null if there is no default.
@@ -87,4 +89,9 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * @return the column extended properties grouped by column name
    */
   Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
+
+  enum FunctionType {
+    SCALAR,
+    TABLE
+  }
 }

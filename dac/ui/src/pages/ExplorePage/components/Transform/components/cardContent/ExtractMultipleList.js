@@ -13,36 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { FieldWithError, TextField, Select } from 'components/Fields';
+import { FieldWithError, TextField, Select } from "components/Fields";
 
-import { applyValidators, isRequired, isWholeNumber } from 'utils/validation';
+import { applyValidators, isRequired, isWholeNumber } from "utils/validation";
 
-import { formLabel, bodySmall } from 'uiTheme/radium/typography';
+import { formLabel, bodySmall } from "uiTheme/radium/typography";
 
 const DEFAULT_WIDTH = 200;
 
-@Radium
-export default class ExtractMultipleList extends Component {
+class ExtractMultipleList extends Component {
   static getFields() {
     return [
-      'multiple.startIndex.value',
-      'multiple.startIndex.direction',
-      'multiple.endIndex.value',
-      'multiple.endIndex.direction'
+      "multiple.startIndex.value",
+      "multiple.startIndex.direction",
+      "multiple.endIndex.value",
+      "multiple.endIndex.direction",
     ];
   }
 
   static validate(values) {
     return applyValidators(values, [
-      isRequired('multiple.startIndex.value', 'Start'),
-      isWholeNumber('multiple.startIndex.value', 'Start'),
-      isRequired('multiple.endIndex.value', 'End'),
-      isWholeNumber('multiple.endIndex.value', 'End')
+      isRequired("multiple.startIndex.value", "Start"),
+      isWholeNumber("multiple.startIndex.value", "Start"),
+      isRequired("multiple.endIndex.value", "End"),
+      isWholeNumber("multiple.endIndex.value", "End"),
     ]);
   }
 
@@ -50,60 +49,63 @@ export default class ExtractMultipleList extends Component {
     firstElementLabel: PropTypes.string,
     lastElementLabel: PropTypes.string,
     startIndex: PropTypes.object,
-    endIndex: PropTypes.object
+    endIndex: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
     this.items = [
       {
-        option: 'Start',
-        label: 'Start'
+        option: "Start",
+        label: "Start",
       },
       {
-        option: 'End',
-        label: 'End'
-      }
+        option: "End",
+        label: "End",
+      },
     ];
   }
 
   render() {
-    const {startIndex, endIndex} = this.props;
+    const { startIndex, endIndex } = this.props;
     return (
       <div style={[styles.extract]}>
-        <div style={[styles.largeItem, {marginTop: 0}]}>
+        <div style={[styles.largeItem, { marginTop: 0 }]}>
           <div style={[styles.item]}>
             <span style={[styles.font, formLabel]}>
               {this.props.firstElementLabel}
             </span>
-            <FieldWithError {...startIndex.value} errorPlacement='bottom'>
+            <FieldWithError {...startIndex.value} errorPlacement="bottom">
               <TextField
                 {...startIndex.value}
-                type='number'
-                style={[styles.input]}/>
+                type="number"
+                style={styles.input}
+                numberInputWrapperStyles={styles.numberInputWrapperStyles}
+              />
             </FieldWithError>
           </div>
           <div style={[styles.item]}>
-            <span style={[styles.font, formLabel]}>
-              Relative To
-            </span>
+            <span style={[styles.font, formLabel]}>Relative To</span>
             <Select
               items={this.items}
               {...startIndex.direction}
-              style={styles.select}/>
+              style={styles.select}
+            />
           </div>
         </div>
-        { endIndex
-          ? <div style={[styles.largeItem]}>
+        {endIndex ? (
+          <div style={[styles.largeItem, { paddingBottom: 8 }]}>
             <div style={[styles.item]}>
               <span style={[styles.font, formLabel]}>
                 {this.props.lastElementLabel}
               </span>
-              <FieldWithError {...endIndex.value} errorPlacement='bottom'>
+              <FieldWithError {...endIndex.value} errorPlacement="bottom">
                 <TextField
                   {...endIndex.value}
-                  type='number'
-                  style={[styles.input]}/>
+                  type="number"
+                  style={styles.input}
+                  numberInputWrapperStyles={styles.numberInputWrapperStyles}
+                />
               </FieldWithError>
             </div>
             <div style={[styles.item]}>
@@ -111,10 +113,11 @@ export default class ExtractMultipleList extends Component {
               <Select
                 items={this.items}
                 {...endIndex.direction}
-                style={styles.select}/>
+                style={styles.select}
+              />
             </div>
           </div>
-          : null}
+        ) : null}
       </div>
     );
   }
@@ -126,29 +129,37 @@ const styles = {
     marginLeft: 10,
     fontWeight: 400,
     marginTop: 5,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-start'
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start",
   },
   largeItem: {
     marginTop: 0,
-    display: 'flex'
+    display: "flex",
+    backgroundColor: "rgb(255, 245, 220)",
   },
   input: {
     width: 180,
     height: 28,
     fontSize: 13,
-    border: '1px solid #ccc',
+    border: "1px solid #ccc",
     borderRadius: 3,
-    outline: 'none',
-    marginRight: 0
+    outline: "none",
+    marginRight: 0,
+    backgroundColor: "none",
+  },
+  numberInputWrapperStyles: {
+    background: "white",
+    width: "inherit",
   },
   select: {
     width: DEFAULT_WIDTH,
     height: 24,
-    ...bodySmall
+    background: "white",
+    ...bodySmall,
   },
   font: {
-    margin: 0
-  }
+    margin: 0,
+  },
 };
+export default Radium(ExtractMultipleList);

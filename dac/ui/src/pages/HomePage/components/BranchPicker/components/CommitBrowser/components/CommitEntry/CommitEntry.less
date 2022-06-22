@@ -13,98 +13,98 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '~@app/uiTheme/less/color-schema.less';
- @import '~@app/uiTheme/less/mixins.less';
- 
- :global {
-    .commitEntryTooltip {
-        table {
-          table-layout: fixed;
-          width: 284px;
-        }
-        tr > td:first-of-type {
-          vertical-align: top;
-        }
-        td:first-of-type {
-          width: 30%;
-        }
-        td {
-          vertical-align: top;
-        }
-        a {
-          color: lighten(@BLUE, 8%);
-        }
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
+
+:global {
+  .commitEntryTooltip {
+    table {
+      table-layout: fixed;
+      width: 284px;
+    }
+    tr > td:first-of-type {
+      vertical-align: top;
+    }
+    td:first-of-type {
+      width: 30%;
+    }
+    td {
+      vertical-align: top;
+    }
+    a {
+      color: lighten(#008489, 8%);
+    }
+  }
+
+  .commitEntry {
+    height: 100%;
+    padding: 8px 12px;
+    border-bottom: 1px solid @SECONDARY_200;
+
+    position: relative;
+
+    transition: background-color 0.25s linear;
+
+    &:not(.disabled) {
+      &:hover,
+      &:focus {
+        background-color: @aqua-spring;
       }
-
-      .commitEntry {
-        height: 100%;
-        padding: 8px 12px;
-        border-bottom: 1px solid @SECONDARY_200;
- 
-        position: relative;
-
-        transition: background-color 0.25s linear;
-
-        &:not(.disabled) {
-          &:hover, &:focus {
-            background-color: @aqua-spring;
-          }
-          &.isSelected {
-            background-color: @PRIMARY_200;
-          }
-        }
-
-        button {
-          all: unset;
-          cursor: pointer;
-          display: block;
-        }
-
-        &-select:after {
-          position: absolute;
-          left: 0;
-          top: 0;
-          content: '';
-          width: 100%;
-          height: 100%;
-        }
- 
-        a {
-          position: relative;
-        }
-
-        &.disabled {
-          cursor: not-allowed;
-          a {
-            pointer-events: none;
-          }
-        }
- 
-        &-desc {
-          font-size: 12px;
-          margin-bottom: 6px;
- 
-        }
- 
-        &-content {
-          .flex-center;
-          justify-content: space-between;
-          font-size: 14px;
-          font-weight: normal;
- 
-          & > * {
-            width: 33.3%;
-            margin-right: 4px;
-          }
-        }
-
-        .commitEntryHash {
-          z-index: 1;
-        }
- 
-        &-userInfo {
-          .flex-center;
-          line-height: normal;
-        }
+      &.isSelected {
+        background-color: @PRIMARY_200;
       }
- }
+    }
+
+    button {
+      all: unset;
+      cursor: pointer;
+      display: block;
+    }
+
+    &-select:after {
+      position: absolute;
+      left: 0;
+      top: 0;
+      content: "";
+      width: 100%;
+      height: 100%;
+    }
+
+    a {
+      position: relative;
+    }
+
+    &.disabled {
+      cursor: not-allowed;
+      a {
+        pointer-events: none;
+      }
+    }
+
+    &-desc {
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    &-content {
+      .flex-center;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: normal;
+
+      & > * {
+        width: 33.3%;
+        margin-right: 4px;
+      }
+    }
+
+    .commitEntryHash {
+      z-index: 1;
+    }
+
+    &-userInfo {
+      .flex-center;
+      line-height: normal;
+    }
+  }
+}

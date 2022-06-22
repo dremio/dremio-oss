@@ -16,37 +16,41 @@
 // TODO: loc
 export default {
   DATE: {
-    values: ['YYYY-MM-DD', 'MM.DD.YY', 'DD/MM/YY', 'MON DD, YYYY'],
+    values: ["YYYY-MM-DD", "MM.DD.YY", "DD/MM/YY", "MON DD, YYYY"],
     examples: [
-      {format: 'YYYY', description: 'Four digits of year'},
-      {format: 'YY', description: 'Last two digits of year'},
-      {format: 'MM', description: 'Month (1-12)'},
-      {format: 'MON', description: 'Abbreviated month name (Mar, Oct)'},
-      {format: 'MONTH', description: 'Full month name (March, October)'},
-      {format: 'DD', description: 'Day of month (1-31)'}
-    ]
+      { format: "YYYY", description: "Four digits of year" },
+      { format: "YY", description: "Last two digits of year" },
+      { format: "MM", description: "Month (1-12)" },
+      { format: "MON", description: "Abbreviated month name (Mar, Oct)" },
+      { format: "MONTH", description: "Full month name (March, October)" },
+      { format: "DD", description: "Day of month (1-31)" },
+    ],
   },
 
   TIME: {
-    values: ['HH:MI', 'HH24:MI', 'HH24:MI:SS', 'HH24:MI:SS.FFF'],
+    values: ["HH:MI", "HH24:MI", "HH24:MI:SS", "HH24:MI:SS.FFF"],
     examples: [
-      {format: 'HH', description: 'Hour of day (1-12)'},
-      {format: 'HH24', description: 'Hour of day (0-23)'},
-      {format: 'MI', description: 'Minutes (0-59)'},
-      {format: 'SS', description: 'Seconds (0-59)'},
-      {format: 'FFF', description: 'Milliseconds (0-999)'}
-    ]
+      { format: "HH", description: "Hour of day (1-12)" },
+      { format: "HH24", description: "Hour of day (0-23)" },
+      { format: "MI", description: "Minutes (0-59)" },
+      { format: "SS", description: "Seconds (0-59)" },
+      { format: "FFF", description: "Milliseconds (0-999)" },
+    ],
   },
 
   DATETIME: {
-    values: ['YYYY-MM-DD HH24:MI:SS', 'YYYY-MM-DD HH24:MI:SS.FFF', 'YYYY-MM-DD"T"HH24:MI:SS.FFFTZO'],
+    values: [
+      "YYYY-MM-DD HH24:MI:SS",
+      "YYYY-MM-DD HH24:MI:SS.FFF",
+      'YYYY-MM-DD"T"HH24:MI:SS.FFFTZO',
+    ],
     examples: [
-      {format: 'YYYY', description: 'Four digits of year'},
-      {format: 'MM', description: 'Month (1-12)'},
-      {format: 'DD', description: 'Day of month (1-31)'},
-      {format: 'HH24', description: 'Hour of day (0-23)'},
-      {format: 'MI', description: 'Minutes (0-59)'},
-      {format: 'SS', description: 'Seconds (0-59)'}
-    ]
-  }
+      { format: "YYYY", description: "Four digits of year" },
+      { format: "MM", description: "Month (1-12)" },
+      { format: "DD", description: "Day of month (1-31)" },
+      { format: "HH24", description: "Hour of day (0-23)" },
+      { format: "MI", description: "Minutes (0-59)" },
+      { format: "SS", description: "Seconds (0-59)" },
+    ],
+  },
 };

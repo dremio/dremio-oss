@@ -17,13 +17,12 @@
 @import "~@app/uiTheme/less/color-schema.less";
 
 .title {
-  composes: form-label from '~@app/uiTheme/less/typography.less';
+  composes: form-label from "~@app/uiTheme/less/typography.less";
 }
 
 .form-body {
-  composes: horizontal-content-padding from '~@app/uiTheme/less/layout.less';
-  padding-top: 20px;
-  padding-bottom: 20px;
+  composes: horizontal-content-padding from "~@app/uiTheme/less/layout.less";
+  padding: 16px;
 }
 
 .common-title {
@@ -41,22 +40,20 @@
 }
 
 .tab-sections {
-  width: 100%
+  width: 100%;
 }
 
 .tab-tall-sections {
-  width: 400px
+  width: 400px;
 }
 
 .section-label {
   composes: common-title;
-  font-size: 16px;
-  font-weight: 400;
+  font-size: 18px;
+  font-weight: 600;
   line-height: 19px;
   color: #333;
-  margin-bottom: 13px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid @COLLABORATION_BORDER;
+  margin: 24px 0;
 }
 
 .section-body {
@@ -65,7 +62,7 @@
 
 .section-title {
   composes: title;
-  composes: section-margin from '~@app/uiTheme/less/layout.less';
+  composes: section-margin from "~@app/uiTheme/less/layout.less";
 }
 
 .input-for-radio {
@@ -89,22 +86,137 @@
 }
 
 .text-input {
-  composes: form-default form-placeholder from '~@app/uiTheme/less/typography.less';
-  padding: 8px;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
+  composes: form-default form-placeholder from "~@app/uiTheme/less/typography.less";
   width: 310px;
   height: 32px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid @FIGMA_NEUTRAL_200;
+
   &::placeholder {
-    opacity: 0.7;
+    color: @FIGMA_NEUTRAL_300;
   }
-  &:focus:hover, &:focus {
-    border: 1px solid #A1DBE4;
-    background-color: #F5FCFF;
+
+  &:hover {
+    border: 1px solid @FIGMA_NEUTRAL_300;
+  }
+
+  &:focus:hover,
+  &:focus {
+    border: 1px solid @FIGMA_PRIMARY_500;
     outline: none;
   }
+}
+
+.input-wrapper-advanced {
+  width: 500px !important;
+}
+
+.number-input-wrapper {
+  width: 310px;
+  height: 32px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  border: 1px solid @FIGMA_NEUTRAL_200;
+
+  &[type="number"]::-webkit-inner-spin-button,
+  &[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+
+  &[type="number"] {
+    -moz-appearance: textfield;
+  }
+
   &:hover {
-    border: 1px solid #A1DBE4;
+    border-color: @FIGMA_NEUTRAL_200;
+    .number-input-button-icon {
+      display: inline-flex;
+    }
+  }
+
+  &.--disabled {
+    color: @FIGMA_TEXT_DISABLED;
+    border-color: @FIGMA_NEUTRAL_200;
+    background-color: @FIGMA_NEUTRAL_150;
+  }
+
+  &.--error {
+    border-color: @FIGMA_STATUS_ERROR;
+  }
+}
+
+.number-input-wrapper-focused {
+  outline: none;
+  border-color: @FIGMA_PRIMARY_500;
+
+  .number-input-button-icon {
+    display: inline-flex !important;
+  }
+
+  &:hover {
+    border-color: @FIGMA_PRIMARY_500;
+  }
+}
+
+.number-input-wrapper-disabled {
+  color: @FIGMA_TEXT_DISABLED;
+  border-color: @FIGMA_NEUTRAL_200;
+  background-color: @FIGMA_NEUTRAL_150;
+  cursor: not-allowed;
+
+  &:hover {
+    border-color: @FIGMA_NEUTRAL_200;
+
+    .number-input-button-icon {
+      display: none;
+    }
+  }
+
+  .number-input-button-icon {
+    display: none;
+  }
+}
+
+.number-input-wrapper-error {
+  border-color: @FIGMA_STATUS_ERROR;
+
+  &:hover {
+    border-color: @FIGMA_STATUS_ERROR;
+  }
+}
+
+.number-input {
+  height: auto;
+  padding: 0 !important;
+  border: none !important;
+  color: inherit;
+  background-color: inherit;
+}
+
+.number-input-disabled {
+  cursor: not-allowed;
+}
+
+.number-input-buttons {
+  width: 20px;
+  padding: 3px 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(2, 1fr);
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+  justify-items: center;
+
+  .number-input-button-icon {
+    padding: 0;
+    width: 20px;
+    height: 14px;
+    display: none;
   }
 }
 
@@ -131,7 +243,7 @@
 
 .row-of-inputs-spacing {
   > *:not(:last-child) {
-    .fields-horizontal-spacing
+    .fields-horizontal-spacing;
   }
 }
 
@@ -139,7 +251,8 @@
   margin-bottom: 8px;
 }
 
-.table-row-element-margin { // it is padding for table like view. See
+.table-row-element-margin {
+  // it is padding for table like view. See
   margin-left: @row-content-margin;
 }
 
@@ -157,7 +270,7 @@
 }
 
 .view-state-wrapper {
-  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
+  composes: flex-column-container from "~@app/uiTheme/less/layout.less";
   overflow: hidden;
 }
 

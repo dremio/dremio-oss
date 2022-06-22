@@ -13,47 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component} from 'react';
-import PropTypes from 'prop-types';
-import {connect} from 'react-redux';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
 
-import Modal from '@app/components/Modals/Modal';
-import {getProvision} from '@app/selectors/provision';
-import AdjustWorkersForm from '@app/pages/AdminPage/subpages/Provisioning/components/forms/AdjustWorkersForm';
+import Modal from "@app/components/Modals/Modal";
+import { getProvision } from "@app/selectors/provision";
+import AdjustWorkersForm from "@app/pages/AdminPage/subpages/Provisioning/components/forms/AdjustWorkersForm";
 
 export class AdjustWorkersModal extends Component {
   static propTypes = {
     provision: PropTypes.instanceOf(Immutable.Map),
     isOpen: PropTypes.bool,
-    hide: PropTypes.func
+    hide: PropTypes.func,
   };
 
   static defaultProps = {
-    provision: Immutable.Map()
+    provision: Immutable.Map(),
   };
 
   render() {
-    const {isOpen, hide, provision} = this.props;
+    const { isOpen, hide, provision } = this.props;
 
     return (
       <Modal
-        title={la('Add / Remove Executors')}
-        size='smallest'
+        title={la("Add / Remove Executors")}
+        size="smallest"
         isOpen={isOpen}
         hide={hide}
       >
-        <AdjustWorkersForm
-          onCancel={hide}
-          entity={provision}
-        />
+        <AdjustWorkersForm onCancel={hide} entity={provision} />
       </Modal>
     );
   }
 }
 
 const mapStateToProps = (state, ownProps) => ({
-  provision: getProvision(state, ownProps.entityId)
+  provision: getProvision(state, ownProps.entityId),
 });
 
 export default connect(mapStateToProps)(AdjustWorkersModal);

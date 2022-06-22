@@ -123,6 +123,15 @@ public class LogInLogOutResource {
         projectOptionManager.getOption(SupportService.USERS_DOWNLOAD),
         projectOptionManager.getOption(SupportService.USERS_EMAIL),
         projectOptionManager.getOption(SupportService.USERS_CHAT),
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
         true
       );
 

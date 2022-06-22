@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
-import DragSortColumn from './DragSortColumn';
+import ExploreDragArea from "pages/ExplorePage/components/ExploreDragArea";
+import DragSortColumn from "./DragSortColumn";
 
-const DEFAULT_DRAG_AREA_TEXT = 'Drag and drop field here or click “Add a Sort Field”';
+const DEFAULT_DRAG_AREA_TEXT =
+  "Drag and drop field here or click “Add a Sort Field”";
 
-@Radium
 class SortDragArea extends Component {
   static propTypes = {
     columnsField: PropTypes.array,
@@ -33,16 +32,16 @@ class SortDragArea extends Component {
     moveColumn: PropTypes.func,
     dragType: PropTypes.string,
     isDragInProgress: PropTypes.bool,
-    addColumn: PropTypes.func
+    addColumn: PropTypes.func,
   };
 
   handleDrop = (data) => {
-    this.props.onDrop('sort', data);
-  }
+    this.props.onDrop("sort", data);
+  };
 
   handleRemoveColumn = (index) => {
     this.props.columnsField.removeField(index);
-  }
+  };
 
   renderColumnsForDragArea() {
     const { allColumns, columnsField } = this.props;
@@ -55,7 +54,7 @@ class SortDragArea extends Component {
           allColumns={this.props.allColumns}
           key={i}
           index={i}
-          type='sort'
+          type="sort"
           moveColumn={this.props.moveColumn}
           dragType={this.props.dragType}
           onRemoveColumn={this.handleRemoveColumn}

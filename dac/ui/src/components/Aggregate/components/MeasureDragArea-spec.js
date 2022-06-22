@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import ColumnDragItem from 'utils/ColumnDragItem';
-import MeasureDragArea from './MeasureDragArea';
+import ColumnDragItem from "utils/ColumnDragItem";
+import MeasureDragArea from "./MeasureDragArea";
 
-describe('MeasureDragArea', () => {
-
+describe("MeasureDragArea", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -31,44 +30,46 @@ describe('MeasureDragArea', () => {
     minimalProps = {
       isDragInProgress: true,
       dragItem: new ColumnDragItem(),
-      dragType: 'groupBy',
-      columnsField
+      dragType: "groupBy",
+      columnsField,
     };
 
     commonProps = {
       ...minimalProps,
       onDrop: sinon.spy(),
       moveColumn: sinon.spy(),
-      allColumns: Immutable.List()
+      allColumns: Immutable.List(),
     };
-    commonProps.columnsField.push({ value: 'field1' }, { value: 'field2' });
+    commonProps.columnsField.push({ value: "field1" }, { value: "field2" });
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<MeasureDragArea {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<MeasureDragArea {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render ExploreDragArea and DragMeasureColumn based on columnsField array', () => {
-    const wrapper = shallow(<MeasureDragArea {...commonProps}/>);
+  it("should render ExploreDragArea and DragMeasureColumn based on columnsField array", () => {
+    const wrapper = shallow(<MeasureDragArea {...commonProps} />);
 
-    expect(wrapper.find('ExploreDragArea')).to.have.length(1);
-    expect(wrapper.find('DragMeasureColumn')).to.have.length(commonProps.columnsField.length);
+    expect(wrapper.find("ExploreDragArea")).to.have.length(1);
+    expect(wrapper.find("DragMeasureColumn")).to.have.length(
+      commonProps.columnsField.length
+    );
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#handleRemoveColumn', () => {
-    it('should call columnsField.removeField', () => {
-      const instance = shallow(<MeasureDragArea {...commonProps}/>).instance();
+  describe("#handleRemoveColumn", () => {
+    it("should call columnsField.removeField", () => {
+      const instance = shallow(<MeasureDragArea {...commonProps} />).instance();
       instance.handleRemoveColumn(0);
       expect(commonProps.columnsField.removeField).to.be.calledWith(0);
     });
   });
 
-  describe('#handleDrop', () => {
-    it('should call onDrop', () => {
-      const instance = shallow(<MeasureDragArea {...commonProps}/>).instance();
-      instance.handleDrop('foo');
-      expect(commonProps.onDrop).to.be.calledWith('measures', 'foo');
+  describe("#handleDrop", () => {
+    it("should call onDrop", () => {
+      const instance = shallow(<MeasureDragArea {...commonProps} />).instance();
+      instance.handleDrop("foo");
+      expect(commonProps.onDrop).to.be.calledWith("measures", "foo");
     });
   });
 });

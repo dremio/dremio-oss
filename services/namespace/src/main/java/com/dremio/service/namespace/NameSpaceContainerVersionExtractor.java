@@ -37,6 +37,8 @@ final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameS
         return value.getSource().getTag();
       case SPACE:
         return value.getSpace().getTag();
+      case FUNCTION:
+        return value.getFunction().getTag();
       default:
         throw new UnsupportedOperationException("Unknown type: " + value.getType());
     }
@@ -59,6 +61,9 @@ final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameS
         break;
       case SPACE:
         value.getSpace().setTag(version);
+        break;
+      case FUNCTION:
+        value.getFunction().setTag(version);
         break;
       default:
         throw new UnsupportedOperationException("Unknown type: " + value.getType());

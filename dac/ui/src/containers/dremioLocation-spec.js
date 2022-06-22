@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount } from 'enzyme';
-import { withLocation, LocationProvider } from './dremioLocation';
+import { mount } from "enzyme";
+import { withLocation, LocationProvider } from "./dremioLocation";
 
-describe('Dremio location context provider', () => {
-  it('Location is passed to a child', () => {
+describe("Dremio location context provider", () => {
+  it("Location is passed to a child", () => {
     const inputLocation = {};
     let innerLocation = null;
     let Comp = ({ location }) => {
@@ -35,5 +35,3 @@ describe('Dremio location context provider', () => {
     expect(innerLocation).to.eql(inputLocation);
   });
 });
-
-

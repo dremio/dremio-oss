@@ -13,36 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import EnginesFilter from './EnginesFilter';
+import EnginesFilter from "./EnginesFilter";
 
-describe('EnginesFilter', () => {
+describe("EnginesFilter", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      filterState: {}
+      filterState: {},
     };
     commonProps = {
       ...minimalProps,
       filterstate: {
         filters: {
           st: [],
-          sz: []
-        }
-      }
+          sz: [],
+        },
+      },
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<EnginesFilter {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<EnginesFilter {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<EnginesFilter {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<EnginesFilter {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
-
 });

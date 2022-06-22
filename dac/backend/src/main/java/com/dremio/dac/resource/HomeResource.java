@@ -101,7 +101,7 @@ import com.dremio.file.FilePath;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubmitJobRequest;
-import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.BoundedDatasetCount;
@@ -247,10 +247,7 @@ public class HomeResource extends BaseResourceWithAllocator {
                          @FormDataParam("file") FormDataContentDisposition contentDispositionHeader,
                          @FormDataParam("fileName") FileName fileName,
                          @QueryParam("extension") String extension) throws Exception {
-    // check if file uploads are allowed
-    if (!projectOptionManager.getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
-      throw new ForbiddenException("File uploads have been disabled.");
-    }
+    checkFileUploadPermissions();
 
     // add some validation
     InputValidation inputValidation = new InputValidation();
@@ -297,10 +294,7 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public File finishUploadFile(FileFormat fileFormat, @PathParam("path") String path) throws Exception {
-    // check if file uploads are allowed
-    if (!projectOptionManager.getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
-      throw new ForbiddenException("File uploads have been disabled.");
-    }
+    checkFileUploadPermissions();
 
     final FilePath filePath = FilePath.fromURLPath(homeName, path);
     if (namespaceService.exists(filePath.toNamespaceKey())) {
@@ -329,6 +323,15 @@ public class HomeResource extends BaseResourceWithAllocator {
     );
   }
 
+  /**
+   * Helper for checking if file uploads are allowed.
+   */
+  protected void checkFileUploadPermissions() {
+    if (!projectOptionManager.getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
+      throw new ForbiddenException("File uploads have been disabled.");
+    }
+  }
+
   @POST
   @Path("file_preview_unsaved/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
@@ -350,10 +353,11 @@ public class HomeResource extends BaseResourceWithAllocator {
       securityContext.getUserPrincipal().getName());
 
     final CompletionListener listener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INITIAL_PREVIEW).build(), listener);
+    final JobSubmission jobSubmission = jobsService.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INITIAL_PREVIEW).build(), listener);
     listener.awaitUnchecked();
 
-    return new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName()).truncate(getOrCreateAllocator("previewFormatSettingsStaging"),500);
+    return new JobDataWrapper(jobsService, jobSubmission.getJobId(), jobSubmission.getSessionId(), securityContext.getUserPrincipal().getName())
+      .truncate(getOrCreateAllocator("previewFormatSettingsStaging"),500);
   }
 
   @POST
@@ -371,10 +375,11 @@ public class HomeResource extends BaseResourceWithAllocator {
       securityContext.getUserPrincipal().getName());
 
     final CompletionListener listener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INITIAL_PREVIEW).build(), listener);
+    final JobSubmission jobSubmission = jobsService.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INITIAL_PREVIEW).build(), listener);
     listener.awaitUnchecked();
 
-    return new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName()).truncate(getOrCreateAllocator("previewFormatSettings"),500);
+    return new JobDataWrapper(jobsService, jobSubmission.getJobId(), jobSubmission.getSessionId(), securityContext.getUserPrincipal().getName())
+      .truncate(getOrCreateAllocator("previewFormatSettings"),500);
   }
 
   @GET

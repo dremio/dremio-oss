@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import static com.dremio.exec.hadoop.DremioHadoopUtils.toHadoopPath;
 import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;

@@ -15,6 +15,7 @@
  */
 
 @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/components/colors.less";
 
 :global {
   .branch-list {
@@ -74,6 +75,10 @@
       &-hash {
         position: fixed;
         left: 50%;
+      }
+
+      &-icon {
+        color: @blue;
       }
 
       &-left-icon {

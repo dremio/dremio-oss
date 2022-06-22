@@ -13,27 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
 
-import { getUserName } from '@app/selectors/account';
-import { getHomeContents, getNormalizedEntityPathByUrl } from '@app/selectors/home';
-import { loadHomeContent as loadHomeContentAction } from '@app/actions/home';
-import { getViewState } from 'selectors/resources';
-import { getEntityType } from 'utils/pathUtils';
-import { ENTITY_TYPES } from '@app/constants/Constants';
-import { getRefQueryParams } from '@app/utils/nessieUtils';
+import { getUserName } from "@app/selectors/account";
+import {
+  getHomeContents,
+  getNormalizedEntityPathByUrl,
+  getSortedSources,
+} from "@app/selectors/home";
+import { loadHomeContent as loadHomeContentAction } from "@app/actions/home";
+import { getViewState } from "selectors/resources";
+import { getEntityType, getSourceNameFromUrl } from "utils/pathUtils";
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import { getRefQueryParams } from "@app/utils/nessieUtils";
 
-import { updateRightTreeVisibility } from 'actions/ui/ui';
+import { updateRightTreeVisibility } from "actions/ui/ui";
 
-import MainInfo from '../components/MainInfo';
+import MainInfo from "../components/MainInfo";
 
-export const VIEW_ID = 'HomeContents';
+export const VIEW_ID = "HomeContents";
 
 class HomeContents extends Component {
-
   static propTypes = {
     location: PropTypes.object,
 
@@ -45,11 +48,12 @@ class HomeContents extends Component {
     entity: PropTypes.instanceOf(Immutable.Map),
     entityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     viewState: PropTypes.instanceOf(Immutable.Map),
-    nessie: PropTypes.object
+    source: PropTypes.object,
+    params: PropTypes.object,
   };
 
   static contextTypes = {
-    username: PropTypes.string.isRequired
+    username: PropTypes.string.isRequired,
   };
 
   componentDidMount() {
@@ -57,20 +61,17 @@ class HomeContents extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.location.pathname !== this.props.location.pathname || this.props.viewState.get('invalidated')) {
+    if (
+      prevProps.location.pathname !== this.props.location.pathname ||
+      this.props.viewState.get("invalidated")
+    ) {
       this.load();
     }
   }
 
   load() {
-    const {
-      getContentUrl,
-      entityType,
-      loadHomeContent,
-      nessie
-    } = this.props;
+    const { getContentUrl, entityType, loadHomeContent, params } = this.props;
 
-    const params = this.getParams(nessie, entityType, getContentUrl);
     loadHomeContent(getContentUrl, entityType, VIEW_ID, params);
   }
 
@@ -81,11 +82,16 @@ class HomeContents extends Component {
       // getHomeContents produces a new instance on each invocation
       // TODO: Unfortunately loading file format settings triggers a load of data that gets
       // merged into `entity` (so we still churn a little bit)
-      if (key === 'entity' && value && value.equals(currentValue)) {
+      if (key === "entity" && value && value.equals(currentValue)) {
         continue;
       }
 
-      if (key === 'location' && value && currentValue && value.pathname === currentValue.pathname) {
+      if (
+        key === "location" &&
+        value &&
+        currentValue &&
+        value.pathname === currentValue.pathname
+      ) {
         continue;
       }
 
@@ -97,18 +103,14 @@ class HomeContents extends Component {
     return false;
   }
 
-  getParams(nessie, entityType, url) {
-    if (!['source', 'folder'].includes(entityType)) return null;
-    const [, , sourceName] = url.split('/');
-    return getRefQueryParams(nessie, sourceName);
-  }
-
   render() {
-    const {entity, entityType, viewState, rightTreeVisible} = this.props;
+    const { entity, entityType, source, viewState, rightTreeVisible } =
+      this.props;
     return (
       <MainInfo
         entityType={entityType}
         entity={entity}
+        source={source}
         viewState={viewState}
         updateRightTreeVisibility={this.props.updateRightTreeVisibility}
         rightTreeVisible={rightTreeVisible}
@@ -121,19 +123,35 @@ function mapStateToProps(state, props) {
   const { location } = props;
   const entityType = getEntityType(location.pathname);
 
+  const getContentUrl = getNormalizedEntityPathByUrl(
+    location.pathname,
+    getUserName(state)
+  );
+  const sourceName = getSourceNameFromUrl(getContentUrl);
+  const sources = getSortedSources(state);
+  const source =
+    sources && sourceName
+      ? sources.find((cur) => cur.get("name") === sourceName)
+      : null;
+  const params =
+    entityType && ["source", "folder"].includes(entityType)
+      ? getRefQueryParams(state.nessie, sourceName)
+      : null;
+
   return {
-    rightTreeVisible: state.ui.get('rightTreeVisible'),
+    rightTreeVisible: state.ui.get("rightTreeVisible"),
     entity: getHomeContents(state),
     entityType,
     // do not use getNormalizedEntityPath from selectors/home here until DX-16200 would be resolved
     // we must use router location value, as redux location could be out of sync
-    getContentUrl: getNormalizedEntityPathByUrl(location.pathname, getUserName(state)),
+    getContentUrl,
     viewState: getViewState(state, VIEW_ID),
-    nessie: state.nessie
+    params,
+    source,
   };
 }
 
 export default connect(mapStateToProps, {
   loadHomeContent: loadHomeContentAction,
-  updateRightTreeVisibility
+  updateRightTreeVisibility,
 })(HomeContents);

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { combineReducers } from 'redux';
+import { combineReducers } from "redux";
 
-import jobs from './jobs';
+import jobs from "./jobs";
 
 const jobsReducer = combineReducers({
-  jobs
+  jobs,
 });
 
 export default jobsReducer;

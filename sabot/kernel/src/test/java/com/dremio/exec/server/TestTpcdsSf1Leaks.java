@@ -46,7 +46,7 @@ import com.dremio.exec.proto.UserBitShared;
 public class TestTpcdsSf1Leaks extends BaseTestQuery {
 
   @Rule
-  final public TestRule TIMEOUT = new Timeout(0); // wait forever
+  public final TestRule TIMEOUT = new Timeout(0); // wait forever
 
   @BeforeClass
   public static void initCluster() {

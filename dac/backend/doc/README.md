@@ -14,10 +14,6 @@ We use:
  - protostuff for the persistence layer and also JSON binding in many cases.
  - MapDB for persistence layer
 
-# auto generated doc
- in dac/backend/src/main/java/com/dremio/dac/server/doc.md
-(V2 URLs are the ones that matter)
-
 # Explore
 
 ## Dataset creation, transformation and save.

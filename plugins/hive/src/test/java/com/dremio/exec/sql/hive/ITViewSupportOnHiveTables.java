@@ -40,7 +40,7 @@ import com.google.common.collect.ImmutableList;
 public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();

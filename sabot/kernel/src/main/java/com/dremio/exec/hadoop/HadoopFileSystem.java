@@ -84,7 +84,7 @@ import com.google.common.collect.Maps;
 public class HadoopFileSystem
   implements FileSystem, OpenFileTracker {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopFileSystem.class);
-  private final static boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
+  private static final boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
 
   private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
   private static int FORCE_REFRESH_LEVELS_VALUE = Integer.getInteger(FORCE_REFRESH_LEVELS, 2);
@@ -348,7 +348,13 @@ public class HadoopFileSystem
   public DirectoryStream<FileAttributes> glob(Path pattern, Predicate<Path> filter)
     throws FileNotFoundException, IOException {
     try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
-      return new ArrayDirectoryStream(underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter)));
+      FileStatus[] fileStatuses = underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter));
+      if (logger.isTraceEnabled()) {
+        for (FileStatus fileStatus : fileStatuses) {
+          logger.trace(fileStatus.toString());
+        }
+      }
+      return new ArrayDirectoryStream(fileStatuses);
     } catch (FSError e) {
       throw propagateFSError(e);
     }
@@ -492,7 +498,7 @@ public class HadoopFileSystem
       try (DirectoryStream<java.nio.file.Path> ignore = Files.newDirectoryStream(p)) {
         return; //return if there is no exception, i.e. it was found
       } catch (IOException e) {
-        logger.trace("Refresh generated exception: {}", e);
+        logger.trace("Refresh failed", e);
       }
     }
   }
@@ -578,15 +584,11 @@ public class HadoopFileSystem
     if (!enableAsync) {
       return false;
     }
-
     if (underlyingFs instanceof MayProvideAsyncStream) {
       return ((MayProvideAsyncStream) underlyingFs).supportsAsync();
-    } else if (isHDFS) {
-      // will use wrapper to emulate async APIs.
-      return true;
-    } else {
-      return false;
     }
+    // will use wrapper to emulate async APIs.
+    return isHDFS;
   }
 
   @Override
@@ -676,8 +678,8 @@ public class HadoopFileSystem
   }
 
   public static class DebugStackTrace {
-    final private StackTraceElement[] elements;
-    final private Path path;
+    private final StackTraceElement[] elements;
+    private final Path path;
 
     public DebugStackTrace(Path path, StackTraceElement[] elements) {
       this.path = path;

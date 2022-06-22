@@ -17,7 +17,8 @@
 .mde-border-mixin(@border) {
   .editor-preview, // read mode
   .CodeMirror, //bottom border in edit mode
-  .editor-toolbar { // toolbar is responsible for top border in edit mode
+  .editor-toolbar {
+    // toolbar is responsible for top border in edit mode
     border: @border;
   }
 }
@@ -31,7 +32,8 @@
 
 .mde-colors-mixin(@background, @color) {
   .editor-preview,
-  .CodeMirror, .CodeMirror h3 {
+  .CodeMirror,
+  .CodeMirror h3 {
     background: @background;
     color: @color;
   }

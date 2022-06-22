@@ -13,39 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LogResponse } from '@app/services/nessie/client';
+import { LogResponse } from "@app/services/nessie/client";
 
 type CommitBrowserState = {
-    search?: string;
-    data?: LogResponse;
-    numRows: number;
-  }
-
-export const initialState = {
-  search: '',
-  data: undefined,
-  numRows: 1
+  search?: string;
+  data?: LogResponse;
+  numRows: number;
 };
 
-type ActionTypes = { type: 'SET_SEARCH'; value?: string } | { type: 'SET_DATA'; value: LogResponse };
+export const initialState = {
+  search: "",
+  data: undefined,
+  numRows: 1,
+};
 
-export function CommitBrowserReducer(state: CommitBrowserState, action: ActionTypes) {
+type ActionTypes =
+  | { type: "SET_SEARCH"; value?: string }
+  | { type: "SET_DATA"; value: LogResponse };
+
+export function CommitBrowserReducer(
+  state: CommitBrowserState,
+  action: ActionTypes
+) {
   switch (action.type) {
-  case 'SET_SEARCH': {
-    return { ...state, search: action.value, numRows: 1, data: undefined };
-  }
-  case 'SET_DATA': {
-    const { logEntries, hasMore } = action.value;
-    const cur = state.data ? state.data.logEntries : [];
-    const newVals = cur.concat(logEntries);
-    const numRows = hasMore ? newVals.length + 1 : newVals.length;
-    return { ...state, data: { ...state.data, ...action.value, logEntries: newVals }, numRows };
-  }
-  default: return state;
+    case "SET_SEARCH": {
+      return { ...state, search: action.value, numRows: 1, data: undefined };
+    }
+    case "SET_DATA": {
+      const { logEntries, hasMore } = action.value;
+      const cur = state.data ? state.data.logEntries : [];
+      const newVals = cur.concat(logEntries);
+      const numRows = hasMore ? newVals.length + 1 : newVals.length;
+      return {
+        ...state,
+        data: { ...state.data, ...action.value, logEntries: newVals },
+        numRows,
+      };
+    }
+    default:
+      return state;
   }
 }
 
-export function formatQuery(search: string | undefined, namespace: string | undefined) {
+export function formatQuery(
+  search: string | undefined,
+  path: string[] | undefined
+) {
   let clauses: string[] = [];
   if (search) {
     const q = search.toLowerCase();
@@ -53,15 +66,15 @@ export function formatQuery(search: string | undefined, namespace: string | unde
       `commit.author == "${q}"`,
       `commit.hash == "${q}"`,
       `commit.hash.startsWith("${q}")`,
-      `commit.author.startsWith("${q}")`
+      `commit.author.startsWith("${q}")`,
     ];
   }
 
-  if (namespace) {
-    clauses.push(
-      `operations.exists(op, op.key == '${namespace}')`
-    );
+  if (path?.length) {
+    //TODO Check with nessie team on escaping this namespace
+    const namespace = path.map((c) => decodeURIComponent(c)).join(".");
+    clauses.push(`operations.exists(op, op.key == '${namespace}')`);
   }
 
-  return clauses.join(' || ');
+  return clauses.join(" || ");
 }

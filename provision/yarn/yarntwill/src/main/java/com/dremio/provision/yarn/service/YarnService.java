@@ -371,7 +371,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     OnTerminatingRunnable onTerminating = new OnTerminatingRunnable(cluster, controller);
     OnTerminatingRunnable onTerminatingPrev = terminatingThreads.putIfAbsent(cluster.getRunId(), onTerminating);
     if (onTerminatingPrev == null) {
-      logger.info("Cluster with ID: {} is adding onTerminatingThread for runId: ", cluster.getId(), cluster.getRunId());
+      logger.info("Cluster with ID: {} is adding onTerminatingThread for runId: {}", cluster.getId(), cluster.getRunId());
       controller.onTerminated(onTerminating, Threads.SAME_THREAD_EXECUTOR);
     }
   }

@@ -13,53 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import transformRules from './transformRules.js';
+import transformRules from "./transformRules.js";
 
-describe('transformRules', () => {
-
-  describe('mapPositionRule', () => {
-    it('should return correct values', () => {
+describe("transformRules", () => {
+  describe("mapPositionRule", () => {
+    it("should return correct values", () => {
       const result = transformRules.mapPositionRule({
-        type: 'position',
+        type: "position",
         position: {
-          startIndex: {value: 1, direction: 'FROM_THE_START'},
-          endIndex: {value: 2, direction: 'FROM_THE_START'}
-        }
+          startIndex: { value: 1, direction: "FROM_THE_START" },
+          endIndex: { value: 2, direction: "FROM_THE_START" },
+        },
       });
       expect(result).to.eql({
-        type: 'position',
+        type: "position",
         position: {
           startIndex: {
             value: 1,
-            direction: 'FROM_THE_START'
+            direction: "FROM_THE_START",
           },
           endIndex: {
             value: 2,
-            direction: 'FROM_THE_START'
-          }
-        }
+            direction: "FROM_THE_START",
+          },
+        },
       });
     });
   });
 
-  describe('mapPatternRule', () => {
-    it('should return correct values', () => {
+  describe("mapPatternRule", () => {
+    it("should return correct values", () => {
       const result = transformRules.mapPatternRule({
-        type: 'pattern',
+        type: "pattern",
         ignoreCase: true,
         pattern: {
-          pattern: 'ss',
-          value: {index: 1, value: 'INDEX'}
-        }
+          pattern: "ss",
+          value: { index: 1, value: "INDEX" },
+        },
       });
       expect(result).to.eql({
-        type: 'pattern',
+        type: "pattern",
         pattern: {
           ignoreCase: true,
-          pattern: 'ss',
+          pattern: "ss",
           index: 1,
-          indexType: 'INDEX'
-        }
+          indexType: "INDEX",
+        },
       });
     });
   });

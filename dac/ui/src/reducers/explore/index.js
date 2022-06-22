@@ -13,20 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { combineReducers } from 'redux';
+import { combineReducers } from "redux";
 
-import { EXPLORE_PAGE_LOCATION_CHANGED } from '@app/actions/explore/dataset/data';
-import { extractValue } from '@app/reducers/reducerFactories';
-import graph from 'dyn-load/reducers/explore/graph';
+import { EXPLORE_PAGE_LOCATION_CHANGED } from "@app/actions/explore/dataset/data";
+import { extractValue } from "@app/reducers/reducerFactories";
+import graph from "dyn-load/reducers/explore/graph";
 
-import sqlActions from './sqlActions';
-import recommended from './recommended';
-import join from './join';
-import ui from './ui';
-import view from './view';
+import sqlActions from "./sqlActions";
+import recommended from "./recommended";
+import join from "./join";
+import ui from "./ui";
+import view from "./view";
 
 // export for testing
-export const currentRouteState = extractValue(EXPLORE_PAGE_LOCATION_CHANGED, 'newRouteState');
+export const currentRouteState = extractValue(
+  EXPLORE_PAGE_LOCATION_CHANGED,
+  "newRouteState"
+);
 
 export default combineReducers({
   view,
@@ -35,5 +38,5 @@ export default combineReducers({
   graph,
   recommended,
   join,
-  currentRouteState
+  currentRouteState,
 });

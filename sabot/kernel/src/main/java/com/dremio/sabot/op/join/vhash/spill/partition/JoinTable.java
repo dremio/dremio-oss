@@ -46,7 +46,7 @@ public interface JoinTable extends AutoCloseable {
    * @param variable var block
    * @param outputAddr ordinals for the inserted records in the hash table
    */
-  public void insertPivoted(long sv2Addr, int records,
+  public int insertPivoted(long sv2Addr, int records,
                             long tableHashAddr4B, FixedBlockVector fixed, VariableBlockVector variable,
                             long outputAddr);
 
@@ -86,6 +86,15 @@ public interface JoinTable extends AutoCloseable {
    * @return
    */
   public int getCumulativeVarKeyLength(final long keyOffsetAddr, final int count);
+
+  /**
+   * Get the var lengths for the referenced keys
+   * @param keyOffsetAddr
+   * @param count
+   * @param outAddr
+   * @return
+   */
+  public void getVarKeyLengths(final long keyOffsetAddr, final int count, final long outAddr);
 
   // Debugging methods
 

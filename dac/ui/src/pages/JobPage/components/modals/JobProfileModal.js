@@ -13,46 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Modal from 'components/Modals/Modal';
-import Keys from '@app/constants/Keys.json';
+import { Component, createRef } from "react";
+import PropTypes from "prop-types";
+import Modal from "components/Modals/Modal";
+import Keys from "@app/constants/Keys.json";
 
 export default class JobProfileModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
-    profileUrl: PropTypes.string
+    profileUrl: PropTypes.string,
+  };
+
+  constructor(props) {
+    super(props);
+    this.iframeRef = createRef();
   }
 
-  registerEscape = () => { // DX-5720: when focus is in Profile modal, `esc` doesn't close it
+  registerEscape = () => {
+    // DX-5720: when focus is in Profile modal, `esc` doesn't close it
     try {
-      this.refs.iframe.contentWindow.addEventListener('keydown', (evt) => {
-        if (evt.keyCode === Keys.ESCAPE) { // todo: keyCode deprecated, but no well-supported replacement yet
+      const {
+        current: { contentWindow },
+      } = this.iframeRef;
+      contentWindow.addEventListener("keydown", (evt) => {
+        if (evt.keyCode === Keys.ESCAPE) {
+          // todo: keyCode deprecated, but no well-supported replacement yet
           this.props.hide();
         }
       });
-    } catch (error) { // if the iframe content fails to load, suppress the cross-origin frame access error
+    } catch (error) {
+      // if the iframe content fails to load, suppress the cross-origin frame access error
       console.error(error);
     }
-  }
+  };
 
   render() {
     const { isOpen, hide, profileUrl } = this.props;
     return (
       <Modal
-        style={{maxWidth: 'none'}}
-        size='large'
-        title={la('Job Profile')}
+        style={{ maxWidth: "none" }}
+        size="large"
+        title={la("Job Profile")}
         isOpen={isOpen}
         hide={hide}
       >
         <iframe
-          id='profile_frame'
+          id="profile_frame"
           src={profileUrl}
-          style={{ height: '100%', width: '100%', border: 'none' }}
-          ref='iframe'
-          onLoad={this.registerEscape} />
+          style={{ height: "100%", width: "100%", border: "none" }}
+          ref={this.iframeRef}
+          onLoad={this.registerEscape}
+        />
       </Modal>
     );
   }

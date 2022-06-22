@@ -19,23 +19,24 @@ import java.util.Comparator;
 
 import org.apache.arrow.util.Preconditions;
 
-import com.dremio.service.autocomplete.DremioToken;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Comparator for SQL query token sequences
  */
 public final class TokenSequenceComparator implements Comparator<DremioToken> {
-  private final DremioToken lastTokenFromCorpus;
-  private final SqlTokenKindMarkovChain markovChain;
+  private final ImmutableList<DremioToken> lastNMinusOneTokens;
+  private final DremioTokenNGramFrequencyTable frequencyTable;
 
   public TokenSequenceComparator(
     ImmutableList<DremioToken> partialQuery,
-    SqlTokenKindMarkovChain markovChain) {
-    assert partialQuery != null;
-    assert markovChain != null;
-    this.lastTokenFromCorpus = partialQuery.isEmpty() ? DremioToken.START_TOKEN : partialQuery.get(partialQuery.size() - 1);
-    this.markovChain = markovChain;
+    DremioTokenNGramFrequencyTable frequencyTable) {
+    Preconditions.checkNotNull(partialQuery);
+    Preconditions.checkNotNull(frequencyTable);
+    partialQuery = ImmutableList.<DremioToken>builder().add(DremioToken.START_TOKEN).addAll(partialQuery).build();
+    int startIndex = Math.max(partialQuery.size() - frequencyTable.getN() + 1, 0);
+    this.lastNMinusOneTokens = partialQuery.subList(startIndex, partialQuery.size());
+    this.frequencyTable = frequencyTable;
   }
 
   @Override
@@ -43,8 +44,11 @@ public final class TokenSequenceComparator implements Comparator<DremioToken> {
     Preconditions.checkNotNull(token1);
     Preconditions.checkNotNull(token2);
 
-    int frequency1 = markovChain.getTransitionFrequency(this.lastTokenFromCorpus, token1);
-    int frequency2 = markovChain.getTransitionFrequency(this.lastTokenFromCorpus, token2);
+    ImmutableList<DremioToken> nGram1 = ImmutableList.<DremioToken>builder().addAll(lastNMinusOneTokens).add(token1).build();
+    ImmutableList<DremioToken> nGram2 = ImmutableList.<DremioToken>builder().addAll(lastNMinusOneTokens).add(token2).build();
+
+    int frequency1 = frequencyTable.getFrequency(nGram1);
+    int frequency2 = frequencyTable.getFrequency(nGram2);
     int cmp = frequency2 - frequency1;
     if (cmp != 0) {
       return cmp;

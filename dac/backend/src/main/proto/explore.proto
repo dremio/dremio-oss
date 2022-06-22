@@ -89,6 +89,9 @@ message VirtualDatasetUI {
 
   // sql context
   repeated string context = 23;
+
+  //version context references
+  repeated SourceVersionReference references = 24;
 }
 
 enum Derivation {
@@ -124,6 +127,7 @@ message VirtualDatasetVersion {
   
   optional bool named = 6 [DEFAULT = true];
 
+  repeated SourceVersionReference references = 7;
 }
 
 message NameDatasetRef {
@@ -450,21 +454,20 @@ message TransformUpdateSQL {
   repeated string sqlContext = 2;
   optional string engineName = 3;
   optional string sessionId = 4;
-  enum VersionContextType {
-    BRANCH = 0;
-    TAG = 1;
-    COMMIT = 2;
-  }
-  message VersionContext {
-    required VersionContextType type = 1;
-    required string value = 2;
-  }
-  message SourceVersionReference {
-    required string sourceName = 1;
-    required VersionContext reference = 2;
-  }
-
   repeated SourceVersionReference references = 5;
+}
+enum VersionContextType {
+ BRANCH = 0;
+ TAG = 1;
+ COMMIT = 2;
+}
+message VersionContext {
+ required VersionContextType type = 1;
+ required string value = 2;
+}
+message SourceVersionReference {
+ required string sourceName = 1;
+ required VersionContext reference = 2;
 }
 message TransformField {
   option (extends_class) = "com.dremio.dac.explore.model.TransformBase";

@@ -82,7 +82,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
       bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class), mock(ExpressionSplitCache.class));
 
     try {
-      fragmentExecutorBuilder.build(mock(QueryTicket.class), planFragmentFull, 1, mock(EventProvider.class), null, mock(CachedFragmentReader.class));
+      fragmentExecutorBuilder.build(mock(QueryTicket.class), planFragmentFull, 1, null, mock(EventProvider.class), null, mock(CachedFragmentReader.class));
     } catch (UserException ex) {
       Assert.assertTrue(ex.getContextStrings().stream().anyMatch(s -> s.contains("Allocator dominators:\nAllocator(ROOT)")));
       throw ex;

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
 
-import Art from '@app/components/Art';
-import Spinner from '@app/components/Spinner';
+import Art from "@app/components/Art";
+import Spinner from "@app/components/Spinner";
 
 export default class CopyButtonIcon extends PureComponent {
   static propTypes = {
@@ -26,28 +26,36 @@ export default class CopyButtonIcon extends PureComponent {
     onClick: PropTypes.func,
     disabled: PropTypes.bool,
     showSpinner: PropTypes.bool,
-    version: PropTypes.number
+    version: PropTypes.number,
   };
 
   static defaultProps = {
-    version: 1
+    version: 1,
   };
 
   render() {
-    const { title, style, onClick, disabled, showSpinner, version } = this.props;
+    const { title, style, onClick, disabled, showSpinner, version } =
+      this.props;
     const clickHandler = disabled ? undefined : onClick;
-    const iconSrc = version === 2 ? 'copy.svg' : 'Clipboard.svg';
+    const iconSrc = version === 2 ? "copy.svg" : "Clipboard.svg";
     return (
-      <span style={{...styles.wrap, ...style}} >
-        {showSpinner && <Spinner style={styles.spinner} iconStyle={styles.spinnerIcon}/>}
+      <span style={{ ...styles.wrap, ...style }}>
+        {showSpinner && (
+          <Spinner style={styles.spinner} iconStyle={styles.spinnerIcon} />
+        )}
         <Art
           src={iconSrc}
           onClick={clickHandler}
           alt={title}
           title={title}
-          className='copy-button'
-          data-qa='copy-icon'
-          style={{...styles.icon, ...(disabled && styles.disabled), ...(version === 2 && styles.version2)}} />
+          className="copy-button"
+          data-qa="copy-icon"
+          style={{
+            ...styles.icon,
+            ...(disabled && styles.disabled),
+            ...(version === 2 && styles.version2),
+          }}
+        />
       </span>
     );
   }
@@ -55,32 +63,31 @@ export default class CopyButtonIcon extends PureComponent {
 
 const styles = {
   icon: {
-    cursor: 'pointer',
+    cursor: "pointer",
     width: 14,
-    height: 14
+    height: 14,
   },
   wrap: {
-    display: 'inline-block',
-    transform: 'translateY(4px)'
+    display: "inline-block",
   },
   disabled: {
     opacity: 0.7,
-    cursor: 'default',
-    color: '#DDDDDD'
+    cursor: "default",
+    color: "#DDDDDD",
   },
   spinner: {
     top: -4,
     right: 18,
-    left: 'inherit'
+    left: "inherit",
   },
   spinnerIcon: {
     width: 24,
-    height: 24
+    height: 24,
   },
   version2: {
-    height: 16,
-    width: 18,
-    filter: 'invert(50%) sepia(22%) saturate(275%) hue-rotate(174deg) brightness(89%) contrast(85%)'
-  }
-
+    height: 21,
+    width: 16,
+    filter:
+      "invert(50%) sepia(22%) saturate(275%) hue-rotate(174deg) brightness(89%) contrast(85%)",
+  },
 };

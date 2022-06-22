@@ -13,25 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import { AddProvisionModal } from './AddProvisionModal';
+import { shallow } from "enzyme";
+import ApiUtils from "utils/apiUtils/apiUtils";
+import { AddProvisionModal } from "./AddProvisionModal";
 
-describe('AddProvisionModal', () => {
+describe("AddProvisionModal", () => {
   let minimalProps;
   let commonProps;
   let context;
   beforeEach(() => {
     context = {
       router: {
-        push: sinon.spy()
-      }
+        push: sinon.spy(),
+      },
     };
     minimalProps = {
       updateFormDirtyState: sinon.spy(),
       location: {
-        state: {}
-      }
+        state: {},
+      },
     };
     commonProps = {
       ...minimalProps,
@@ -39,144 +39,164 @@ describe('AddProvisionModal', () => {
       editProvision: sinon.spy(),
       hide: sinon.spy(),
       showConfirmationDialog: sinon.spy(),
-      addNotification: sinon.spy()
+      addNotification: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AddProvisionModal {...minimalProps}/>, { context });
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AddProvisionModal {...minimalProps} />, {
+      context,
+    });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render SelectClusterType only if clusterType is absent', () => {
-    const wrapper = shallow(<AddProvisionModal {...commonProps}/>, { context });
-    expect(wrapper.find('SelectClusterType')).to.have.length(1);
+  it("should render SelectClusterType only if clusterType is absent", () => {
+    const wrapper = shallow(<AddProvisionModal {...commonProps} />, {
+      context,
+    });
+    expect(wrapper.find("SelectClusterType")).to.have.length(1);
 
     wrapper.setProps({
-      clusterType: 'YARN'
+      clusterType: "YARN",
     });
-    expect(wrapper.find('SelectClusterType')).to.have.length(0);
+    expect(wrapper.find("SelectClusterType")).to.have.length(0);
   });
 
-  describe('#getModalTitle', () => {
+  describe("#getModalTitle", () => {
     let instance;
     let wrapper;
     beforeEach(() => {
-      wrapper = shallow(<AddProvisionModal {...commonProps}/>, { context });
+      wrapper = shallow(<AddProvisionModal {...commonProps} />, { context });
       instance = wrapper.instance();
     });
 
-    it('should return appropriate title when edit existing configuration', () => {
+    it("should return appropriate title when edit existing configuration", () => {
       wrapper.setProps({
-        clusterType: 'YARN',
-        provisionId: 'provision_id'
+        clusterType: "YARN",
+        provisionId: "provision_id",
       });
-      expect(instance.getModalTitle()).to.be.eql('Edit YARN');
+      expect(instance.getModalTitle()).to.be.eql("Edit YARN");
     });
 
-    it('should return appropriate title when create new configuration', () => {
+    it("should return appropriate title when create new configuration", () => {
       wrapper.setProps({
-        clusterType: 'YARN'
+        clusterType: "YARN",
       });
-      expect(instance.getModalTitle()).to.be.eql('Set Up YARN');
+      expect(instance.getModalTitle()).to.be.eql("Set Up YARN");
     });
 
-    it('should return appropriate title if clusterType is absent', () => {
+    it("should return appropriate title if clusterType is absent", () => {
       wrapper.setProps({
-        clusterType: null
+        clusterType: null,
       });
 
-      expect(instance.getModalTitle()).to.be.eql('Set Up');
+      expect(instance.getModalTitle()).to.be.eql("Set Up");
     });
   });
 
-  describe('#promptEditProvisionRestart', () => {
+  describe("#promptEditProvisionRestart", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<AddProvisionModal {...commonProps}/>, { context });
+      wrapper = shallow(<AddProvisionModal {...commonProps} />, { context });
       instance = wrapper.instance();
-      sinon.stub(ApiUtils, 'attachFormSubmitHandlers').returns({
-        then: f => {
+      sinon.stub(ApiUtils, "attachFormSubmitHandlers").returns({
+        then: (f) => {
           f();
           return {
-            catch: c => c()
+            catch: (c) => c(),
           };
-        }
+        },
       });
     });
     afterEach(() => {
       ApiUtils.attachFormSubmitHandlers.restore();
     });
 
-    it('should show confirmation modal', () => {
+    it("should show confirmation modal", () => {
       instance.promptEditProvisionRestart();
       expect(commonProps.showConfirmationDialog).to.be.called;
     });
 
-    it('should call editProvision when confirmation modal confirmed', () => {
+    it("should call editProvision when confirmation modal confirmed", () => {
       wrapper.setProps({
         showConfirmationDialog: (options) => options.confirm(),
-        location: { state: { provisionId: 'provision_id'}}
+        location: { state: { provisionId: "provision_id" } },
       });
-      const promise = instance.promptEditProvisionRestart('values');
-      expect(commonProps.editProvision).to.be.calledWith('values', 'AddProvisionModal');
+      const promise = instance.promptEditProvisionRestart("values");
+      expect(commonProps.editProvision).to.be.calledWith(
+        "values",
+        "AddProvisionModal"
+      );
       expect(commonProps.hide).to.be.calledWith(null, true);
 
       return expect(promise).to.be.fulfilled;
     });
   });
 
-  describe('#isEditMode', () => {
-    it('should return false when provisionId is absent', () => {
-      const instance = shallow(<AddProvisionModal {...minimalProps}/>, { context }).instance();
+  describe("#isEditMode", () => {
+    it("should return false when provisionId is absent", () => {
+      const instance = shallow(<AddProvisionModal {...minimalProps} />, {
+        context,
+      }).instance();
       expect(instance.isEditMode()).to.be.false;
     });
-    it('should return true when provisionId passed', () => {
-      const instance = shallow(<AddProvisionModal {...minimalProps} provisionId='1' />, { context }).instance();
+    it("should return true when provisionId passed", () => {
+      const instance = shallow(
+        <AddProvisionModal {...minimalProps} provisionId="1" />,
+        { context }
+      ).instance();
       expect(instance.isEditMode()).to.be.true;
     });
   });
 
-  describe('#submit', () => {
+  describe("#submit", () => {
     let instance;
     beforeEach(() => {
-      instance = shallow(<AddProvisionModal {...commonProps}/>, { context }).instance();
-      sinon.stub(ApiUtils, 'attachFormSubmitHandlers').returns({
-        then: f => {
+      instance = shallow(<AddProvisionModal {...commonProps} />, {
+        context,
+      }).instance();
+      sinon.stub(ApiUtils, "attachFormSubmitHandlers").returns({
+        then: (f) => {
           f();
           return {
-            catch: c => c()
+            catch: (c) => c(),
           };
-        }
+        },
       });
     });
     afterEach(() => {
       ApiUtils.attachFormSubmitHandlers.restore();
     });
 
-    it('should call createProvision when not editing', () => {
-      sinon.stub(instance, 'isEditMode').returns(false);
-      instance.submit('values', false);
-      expect(commonProps.createProvision).to.be.calledWith('values', 'AddProvisionModal');
+    it("should call createProvision when not editing", () => {
+      sinon.stub(instance, "isEditMode").returns(false);
+      instance.submit("values", false);
+      expect(commonProps.createProvision).to.be.calledWith(
+        "values",
+        "AddProvisionModal"
+      );
       expect(commonProps.hide).to.be.calledWith(null, true);
     });
 
-    it('should show confirmation when edit existing configuration and restart is required', () => {
-      sinon.stub(instance, 'isEditMode').returns(true);
-      instance.submit('values', true);
+    it("should show confirmation when edit existing configuration and restart is required", () => {
+      sinon.stub(instance, "isEditMode").returns(true);
+      instance.submit("values", true);
       expect(commonProps.createProvision).to.be.not.called;
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(commonProps.hide).to.be.not.called;
     });
 
-    it('should not show confirmation when edit existing configuration and restart is not required', () => {
-      sinon.stub(instance, 'isEditMode').returns(true);
-      instance.submit('values', false);
+    it("should not show confirmation when edit existing configuration and restart is not required", () => {
+      sinon.stub(instance, "isEditMode").returns(true);
+      instance.submit("values", false);
       expect(commonProps.createProvision).to.be.not.called;
       expect(commonProps.showConfirmationDialog).to.be.not.called;
       expect(commonProps.hide).to.be.called;
-      expect(commonProps.editProvision).to.be.calledWith('values', 'AddProvisionModal');
+      expect(commonProps.editProvision).to.be.calledWith(
+        "values",
+        "AddProvisionModal"
+      );
     });
   });
 });

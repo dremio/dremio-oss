@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- :global {
-  .jobsContent {     
-    &__durationSpill{
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
+  .jobsContent {
+    &__durationSpill {
       display: flex;
       align-items: center;
       gap: 4px;
     }
-    &__spillIcon{
+    &__spillIcon {
       height: 20px;
     }
     &__columnCell {
@@ -48,7 +48,7 @@
     }
     &__sqlTooltipText {
       color: @font-color1;
-      font-family: 'Menlo';
+      font-family: "Menlo";
       font-size: 12px;
       line-height: 20px;
     }
@@ -58,22 +58,23 @@
       white-space: nowrap;
     }
     &__sqlWrapper {
-      font-style: normal;
-      font-weight: normal;
+      font-family: "Menlo";
       font-size: 12px;
-      line-height: 18px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 20px;
       overflow: hidden;
       text-overflow: ellipsis;
       color: @greyish-blue;
 
       &::after {
-        content: '';
+        content: "";
         display: block;
       }
     }
     &__tableHeaders {
-    display: flex;
-    justify-content: flex-end;
+      display: flex;
+      justify-content: flex-end;
     }
     &__twoColumnWrapper {
       display: flex;
@@ -104,7 +105,7 @@
         color: @font-color1;
       }
       &__tooltipWrapper {
-        margin-top:10px;
+        margin-top: 10px;
         display: flex;
         align-items: center;
         overflow: hidden;
@@ -138,7 +139,7 @@
     border-radius: 8px;
     background-color: @white;
   }
-  .ReactVirtualized__Table__Grid::-webkit-scrollbar-thumb{
+  .ReactVirtualized__Table__Grid::-webkit-scrollbar-thumb {
     width: 8px;
     height: 5px;
     border-radius: 8px;
@@ -146,5 +147,10 @@
   }
   .ReactVirtualized__Table .ReactVirtualized__Table__row:hover {
     background: @PRIMARY_100 !important;
+
+    .pin {
+      opacity: 1;
+    }
+    opacity: 1;
   }
- }
+}

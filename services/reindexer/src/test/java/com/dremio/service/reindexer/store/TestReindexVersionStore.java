@@ -18,6 +18,7 @@ package com.dremio.service.reindexer.store;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -30,11 +31,20 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.NoopIndexedStore;
+import com.dremio.datastore.NoopKVStore;
+import com.dremio.datastore.api.AbstractStoreBuilder;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.StoreCreationFunction;
+import com.dremio.datastore.utility.StoreLoader;
 import com.dremio.service.reindexer.proto.CheckpointInfo;
 import com.dremio.service.reindexer.proto.ReindexVersionInfo;
 import com.dremio.service.reindexer.proto.STATUS;
 import com.dremio.test.DremioTest;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Any;
 import com.google.protobuf.Timestamp;
 
@@ -43,14 +53,13 @@ import com.google.protobuf.Timestamp;
  */
 public class TestReindexVersionStore extends DremioTest {
 
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TestReindexVersionStore.class.getName());
-  public static final String COLLECTION = "version_info";
+  public static final String COLLECTION = "SampleCollection";
   public static final int VERSION = 1;
   public static final String DOC_ID = UUID.randomUUID().toString();
-
   @ClassRule
   public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TestReindexVersionStore.class.getName());
+  private static final String VERSION_INFO_COLLECTION = "versioninfo";
   private ReindexVersionStore reindexVersionStore;
   private KVStoreProvider kvStoreProvider;
 
@@ -62,14 +71,13 @@ public class TestReindexVersionStore extends DremioTest {
   public void setup() throws Exception {
     LOGGER.info("setup");
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    reindexVersionStore = new ReindexVersionStoreImpl(() -> kvStoreProvider, COLLECTION);
-    kvStoreProvider.start();
+    reindexVersionStore = new ReindexVersionStoreImpl(() -> kvStoreProvider, TestReindexVersionStoreCreator.class);
     reindexVersionStore.start();
   }
 
   @After
-  public void doCleanup() throws Exception{
-    kvStoreProvider.close();
+  public void doCleanup() throws Exception {
+    reindexVersionStore.close();
     LOGGER.info("cleanup");
   }
 
@@ -92,7 +100,7 @@ public class TestReindexVersionStore extends DremioTest {
   @Test
   public void testGetReindexVersionInfo() {
     ReindexVersionInfo versionInfo = createReindexVersionInfo();
-    ReindexVersionInfo versionInfo1 = reindexVersionStore.get(COLLECTION, VERSION);
+    ReindexVersionInfo versionInfo1 = reindexVersionStore.get(COLLECTION);
     assertNotNull(versionInfo1);
     assertNotNull(versionInfo1.getCheckpointInfo());
     assertEquals(versionInfo, versionInfo1);
@@ -107,10 +115,50 @@ public class TestReindexVersionStore extends DremioTest {
     }, (state) -> {
       return true;
     });
-    ReindexVersionInfo versionInfo1 = reindexVersionStore.get(COLLECTION, VERSION);
+    ReindexVersionInfo versionInfo1 = reindexVersionStore.get(COLLECTION);
     assertEquals(versionInfo1.getStatus(), STATUS.COMPLETED);
     assertEquals(versionInfo1.getProgress(), 100);
     assertNotEquals(versionInfo, versionInfo1);
     reindexVersionStore.delete(COLLECTION);
+  }
+
+  @Test
+  public void testVersionInfoCollection() {
+    ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores = StoreLoader.buildStores(DremioTest.CLASSPATH_SCAN_RESULT, TestReindexVersionStore.this::newStore);
+    assertTrue(stores.containsKey(TestReindexVersionStoreCreator.class));
+    assertEquals(stores.get(TestReindexVersionStoreCreator.class).getName(), VERSION_INFO_COLLECTION);
+  }
+
+  private <K, V> KVStoreProvider.StoreBuilder<K, V> newStore() {
+    return new PropStoreBuilder<>();
+  }
+
+  /**
+   * Test Store creator implementation of {@link ReindexVersionStoreCreator}
+   */
+  public static class TestReindexVersionStoreCreator extends ReindexVersionStoreCreator {
+    @Override
+    public String name() {
+      return VERSION_INFO_COLLECTION;
+    }
+  }
+
+  /**
+   * Store builder which builds noop indexedstores
+   *
+   * @param <K> key type K.
+   * @param <V> value type V.
+   */
+  static class PropStoreBuilder<K, V> extends AbstractStoreBuilder<K, V> {
+    @Override
+    protected KVStore<K, V> doBuild() {
+      return new NoopKVStore<>(getStoreBuilderHelper());
+    }
+
+    @Override
+    protected IndexedStore<K, V> doBuildIndexed(DocumentConverter<K, V> documentConverter) {
+      getStoreBuilderHelper().documentConverter(documentConverter);
+      return new NoopIndexedStore<>(getStoreBuilderHelper());
+    }
   }
 }

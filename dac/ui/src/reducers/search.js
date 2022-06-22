@@ -13,29 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/search';
+import * as ActionTypes from "actions/search";
 
 const initialState = Immutable.fromJS({
   searchDatasets: [],
   hideRequest: true,
-  searchText: null // string
+  searchText: null, // string
 });
 
 export default function search(state = initialState, action) {
   switch (action.type) {
-  case ActionTypes.SEARCH_SUCCESS:
-    return state.set('searchDatasets', Immutable.List(action.payload.get('result').toArray()));
-  // This is a synchronous action.
-  case ActionTypes.HIDE_BAR_REQUEST:
-    return state.set('hideRequest', true);
+    case ActionTypes.SEARCH_SUCCESS:
+      return state.set(
+        "searchDatasets",
+        Immutable.List(action.payload.get("result").toArray())
+      );
+    // This is a synchronous action.
+    case ActionTypes.HIDE_BAR_REQUEST:
+      return state.set("hideRequest", true);
 
-  case ActionTypes.NEW_SEARCH_REQUEST:
-    return state.set('searchText', action.text);
-  case ActionTypes.NEW_SEARCH_REQUEST_CLEANUP:
-    return state.delete('searchText');
-  default:
-    return state;
+    case ActionTypes.NEW_SEARCH_REQUEST:
+      return state.set("searchText", action.text);
+    case ActionTypes.NEW_SEARCH_REQUEST_CLEANUP:
+      return state.delete("searchText");
+    default:
+      return state;
   }
 }

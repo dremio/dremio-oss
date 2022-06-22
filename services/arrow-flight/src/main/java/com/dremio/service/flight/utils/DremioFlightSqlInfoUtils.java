@@ -217,7 +217,7 @@ public final class DremioFlightSqlInfoUtils {
       case GENERIC_OBJECT:
         return Types.JAVA_OBJECT;
       default:
-        throw new UnsupportedOperationException("This MinorType is not supported in Flight SQL.");
+        throw new UnsupportedOperationException("'" + minorType + "' is not a supported MinorType in Flight SQL.");
     }
   }
 
@@ -251,7 +251,7 @@ public final class DremioFlightSqlInfoUtils {
       case GB_BEYOND_SELECT:
         return FlightSql.SqlSupportedGroupBy.SQL_GROUP_BY_BEYOND_SELECT;
       default:
-        throw new UnsupportedOperationException("Unrecognized GroupBySupport value");
+        throw new UnsupportedOperationException("'" + groupBySupport + " is not a supported FlightSql.SqlSupportedGroupBy type.");
     }
   }
 
@@ -286,7 +286,7 @@ public final class DremioFlightSqlInfoUtils {
           // pass; Correlated sub queries are not part of this enum
           break;
         default:
-          throw new UnsupportedOperationException("Failed to map to a valid Flight SQL SqlSupportedSubqueries");
+          throw new UnsupportedOperationException("'" + subQuerySupport + "' is not a supported FlightSql.SqlSupportedSubqueries type.");
       }
     }
 

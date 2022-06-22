@@ -13,35 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import {ClusterListView} from './ClusterListView';
+import { ClusterListView } from "./ClusterListView";
 
-describe('ClusterListView', () => {
+describe("ClusterListView", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {
-    };
+    minimalProps = {};
     commonProps = {
       ...minimalProps,
-      provisions: Immutable.fromJS([
-        {id: '1'},
-        {id: '2'}
-      ])
+      provisions: Immutable.fromJS([{ id: "1" }, { id: "2" }]),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ClusterListView {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ClusterListView {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render the list based on props.provisions', () => {
-    const wrapper = shallow(<ClusterListView {...commonProps}/>);
+  it("should render the list based on props.provisions", () => {
+    const wrapper = shallow(<ClusterListView {...commonProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.find('EnginesFilter')).to.have.length(1);
-    expect(wrapper.find('StatefulTableViewer')).to.have.length(1);
+    expect(wrapper.find("EnginesFilter")).to.have.length(1);
+    expect(wrapper.find("StatefulTableViewer")).to.have.length(1);
   });
 });

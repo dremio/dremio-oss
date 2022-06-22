@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import noop from 'lodash.noop';
+import React from "react";
+import { noop } from "lodash";
 
 const DialogContext = React.createContext({ onClose: noop });
 

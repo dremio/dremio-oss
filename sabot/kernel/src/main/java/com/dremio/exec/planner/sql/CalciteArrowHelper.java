@@ -151,7 +151,10 @@ public class CalciteArrowHelper {
 
   private static Field getListField(String name, RelDataType relDataType) {
     final List<Field> onlyChild = new ArrayList<>();
-    fieldFromCalciteRowType("$data$", relDataType.getComponentType()).ifPresent(onlyChild::add);
+    if (relDataType != null) {
+      fieldFromCalciteRowType("$data$", relDataType.getComponentType()).ifPresent(onlyChild::add);
+    }
+
     return new Field(
       name,
       new FieldType(true,

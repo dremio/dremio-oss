@@ -36,11 +36,12 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
   public static final SqlSpecialOperator CREATE_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_TABLE", SqlKind.CREATE_TABLE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 10, "SqlCreateTable.createCall() has to get 10 operands!");
+      Preconditions.checkArgument(operands.length == 12, "SqlCreateTable.createCall() has to get 12 operands!");
       return new SqlCreateTable(
         pos,
         (SqlIdentifier) operands[0],
         (SqlNodeList) operands[1],
+        ((SqlLiteral) operands[9]).booleanValue(),
         ((SqlLiteral) operands[2]).symbolValue(PartitionDistributionStrategy.class),
         (SqlNodeList) operands[3],
         (SqlNodeList) operands[4],
@@ -48,7 +49,8 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
         (SqlLiteral) operands[6],
         (SqlNodeList) operands[7],
         (SqlNodeList) operands[8],
-        operands[9]);
+        (SqlPolicy) operands[10],
+        operands[11]);
     }
   };
 
@@ -58,6 +60,7 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
       SqlParserPos pos,
       SqlIdentifier tblName,
       SqlNodeList fieldList,
+      boolean ifNotExists,
       PartitionDistributionStrategy partitionDistributionStrategy,
       SqlNodeList partitionColumns,
       SqlNodeList formatOptions,
@@ -65,9 +68,10 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
       SqlLiteral singleWriter,
       SqlNodeList sortFieldList,
       SqlNodeList distributionColumns,
+      SqlPolicy policy,
       SqlNode query) {
-    super(pos, tblName, fieldList, partitionDistributionStrategy, partitionColumns, formatOptions, location, singleWriter,
-      sortFieldList, distributionColumns);
+    super(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy, partitionColumns, formatOptions, location, singleWriter,
+      sortFieldList, distributionColumns, policy);
     this.query = query;
   }
 

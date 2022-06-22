@@ -13,34 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import { formDefault } from 'uiTheme/radium/typography';
-import HoverHelp from 'components/HoverHelp';
-import DurationField from 'components/Fields/DurationField';
-import FieldWithError from 'components/Fields/FieldWithError';
-import Checkbox from 'components/Fields/Checkbox';
-import Button from 'components/Buttons/Button';
-import config from 'dyn-load/utils/config';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import NotificationSystem from 'react-notification-system';
-import Message from 'components/Message';
-import {isCME} from 'dyn-load/utils/versionUtils';
+import { Component, createRef } from "react";
+import Radium from "radium";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { formDefault } from "uiTheme/radium/typography";
+import HoverHelp from "components/HoverHelp";
+import DurationField from "components/Fields/DurationField";
+import FieldWithError from "components/Fields/FieldWithError";
+import Checkbox from "components/Fields/Checkbox";
+import Button from "components/Buttons/Button";
+import config from "dyn-load/utils/config";
+import ApiUtils from "utils/apiUtils/apiUtils";
+import NotificationSystem from "react-notification-system";
+import Message from "components/Message";
+import { isCME } from "dyn-load/utils/versionUtils";
 
 const DURATION_ONE_HOUR = 3600000;
-const MIN_DURATION = config.subhourAccelerationPoliciesEnabled ? 60 * 1000 : DURATION_ONE_HOUR; // when changed, must update validation error text
+const MIN_DURATION = config.subhourAccelerationPoliciesEnabled
+  ? 60 * 1000
+  : DURATION_ONE_HOUR; // when changed, must update validation error text
 
-@Radium
-export default class DataFreshnessSection extends Component {
+class DataFreshnessSection extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     entityType: PropTypes.string,
     datasetId: PropTypes.string,
     elementConfig: PropTypes.object,
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
 
   static defaultFormValueRefreshInterval() {
@@ -52,88 +53,155 @@ export default class DataFreshnessSection extends Component {
   }
 
   static getFields() {
-    return ['accelerationRefreshPeriod', 'accelerationGracePeriod', 'accelerationNeverExpire', 'accelerationNeverRefresh'];
+    return [
+      "accelerationRefreshPeriod",
+      "accelerationGracePeriod",
+      "accelerationNeverExpire",
+      "accelerationNeverRefresh",
+    ];
   }
 
   static validate(values) {
     const errors = {};
 
-    if (values.accelerationRefreshPeriod === 0 || values.accelerationRefreshPeriod < MIN_DURATION) {
+    if (
+      values.accelerationRefreshPeriod === 0 ||
+      values.accelerationRefreshPeriod < MIN_DURATION
+    ) {
       if (config.subhourAccelerationPoliciesEnabled) {
-        errors.accelerationRefreshPeriod = la('Reflection refresh must be at least 1 minute.');
+        errors.accelerationRefreshPeriod = la(
+          "Reflection refresh must be at least 1 minute."
+        );
       } else {
-        errors.accelerationRefreshPeriod = la('Reflection refresh must be at least 1 hour.');
+        errors.accelerationRefreshPeriod = la(
+          "Reflection refresh must be at least 1 hour."
+        );
       }
     }
 
-    if (values.accelerationGracePeriod && values.accelerationGracePeriod < MIN_DURATION) {
+    if (
+      values.accelerationGracePeriod &&
+      values.accelerationGracePeriod < MIN_DURATION
+    ) {
       if (config.subhourAccelerationPoliciesEnabled) {
-        errors.accelerationGracePeriod = la('Reflection expiry must be at least 1 minute.');
+        errors.accelerationGracePeriod = la(
+          "Reflection expiry must be at least 1 minute."
+        );
       } else {
-        errors.accelerationGracePeriod = la('Reflection expiry must be at least 1 hour.');
+        errors.accelerationGracePeriod = la(
+          "Reflection expiry must be at least 1 hour."
+        );
       }
-    } else if (!values.accelerationNeverRefresh && !values.accelerationNeverExpire
-      && values.accelerationRefreshPeriod > values.accelerationGracePeriod) {
-      errors.accelerationGracePeriod = la('Reflections cannot be configured to expire faster than they refresh.');
+    } else if (
+      !values.accelerationNeverRefresh &&
+      !values.accelerationNeverExpire &&
+      values.accelerationRefreshPeriod > values.accelerationGracePeriod
+    ) {
+      errors.accelerationGracePeriod = la(
+        "Reflections cannot be configured to expire faster than they refresh."
+      );
     }
 
     return errors;
   }
 
-  state = {
-    refreshingReflections: false
-  };
+  constructor(props) {
+    super(props);
+    this.notificationSystemRef = createRef();
+    this.state = {
+      refreshingReflections: false,
+    };
+  }
 
   refreshAll = () => {
-    ApiUtils.fetch(`catalog/${encodeURIComponent(this.props.datasetId)}/refresh`, {method: 'POST'}).then().catch();
+    ApiUtils.fetch(
+      `catalog/${encodeURIComponent(this.props.datasetId)}/refresh`,
+      { method: "POST" }
+    );
 
-    const message = la('All dependent reflections will be refreshed.');
-    const level = 'success';
+    const message = la("All dependent reflections will be refreshed.");
+    const level = "success";
 
     const handleDismiss = () => {
-      this.refs.notificationSystem.removeNotification(notification);
+      this.notificationSystemRef?.current?.removeNotification(notification);
       return false;
     };
 
-    const notification = this.refs.notificationSystem.addNotification({
-      children: <Message onDismiss={handleDismiss} messageType={level} message={message} />,
+    const notification = this.notificationSystemRef?.current?.addNotification({
+      children: (
+        <Message
+          onDismiss={handleDismiss}
+          messageType={level}
+          message={message}
+        />
+      ),
       dismissible: false,
       level,
-      position: 'tc',
-      autoDismiss: 0
+      position: "tc",
+      autoDismiss: 0,
     });
 
-    this.setState({refreshingReflections: true});
+    this.setState({ refreshingReflections: true });
   };
 
   isRefreshAllowed = () => {
-    const {entity} = this.props;
+    const { entity } = this.props;
     let result = true;
     if (isCME && !isCME()) {
-      result = entity ? entity.get('permissions').get('canAlterReflections') : false;
+      result = entity
+        ? entity.get("permissions").get("canAlterReflections")
+        : false;
     }
     return result;
-  }
+  };
 
   render() {
-    const { entityType, elementConfig, editing, fields: { accelerationRefreshPeriod, accelerationGracePeriod, accelerationNeverRefresh, accelerationNeverExpire } } = this.props;
-    const helpContent = la('How often reflections are refreshed and how long data can be served before expiration.');
+    const {
+      entityType,
+      elementConfig,
+      editing,
+      fields: {
+        accelerationRefreshPeriod,
+        accelerationGracePeriod,
+        accelerationNeverRefresh,
+        accelerationNeverExpire,
+      },
+    } = this.props;
+    const helpContent = la(
+      "How often reflections are refreshed and how long data can be served before expiration."
+    );
 
     let message = null;
-    if (editing && accelerationGracePeriod.value !== accelerationGracePeriod.initialValue) {
-      message = la(`Please note that reflections dependent on this ${entityType === 'dataset' ? 'dataset' : 'source'} will not use the updated expiration configuration until their next scheduled refresh. Use "Refresh Dependent Reflections" on ${entityType === 'dataset' ? 'this dataset' : ' any affected physical datasets'} for new configuration to take effect immediately.`);
+    if (
+      editing &&
+      accelerationGracePeriod.value !== accelerationGracePeriod.initialValue
+    ) {
+      message = la(
+        `Please note that reflections dependent on this ${
+          entityType === "dataset" ? "dataset" : "source"
+        } will not use the updated expiration configuration until their next scheduled refresh. Use "Refresh Dependent Reflections" on ${
+          entityType === "dataset"
+            ? "this dataset"
+            : " any affected physical datasets"
+        } for new configuration to take effect immediately.`
+      );
     }
 
     // do not show Refresh Policy header and tooltip in configurable forms with elementConfig
     return (
       <div>
-        <NotificationSystem style={notificationStyles} ref='notificationSystem' autoDismiss={0} dismissible={false} />
-        {!elementConfig &&
-        <span style={styles.label}>
-          {la('Refresh Policy')}
-          <HoverHelp content={helpContent}/>
-        </span>
-        }
+        <NotificationSystem
+          style={notificationStyles}
+          ref={this.notificationSystemRef}
+          autoDismiss={0}
+          dismissible={false}
+        />
+        {!elementConfig && (
+          <span style={styles.label}>
+            {la("Refresh Policy")}
+            <HoverHelp content={helpContent} />
+          </span>
+        )}
         <table>
           <tbody>
             <tr>
@@ -141,24 +209,42 @@ export default class DataFreshnessSection extends Component {
                 <div style={styles.inputLabel}>
                   <Checkbox
                     {...accelerationNeverRefresh}
-                    label={la('Never refresh')}/>
+                    label={la("Never refresh")}
+                  />
                 </div>
               </td>
             </tr>
             <tr>
-              <td><div style={styles.inputLabel}>{la('Refresh every')}</div></td>{/* todo: ax: <label> */}
               <td>
-                <FieldWithError errorPlacement='right' {...accelerationRefreshPeriod}>
-                  <div style={{display: 'flex'}}>
-                    <DurationField {...accelerationRefreshPeriod} min={MIN_DURATION} style={styles.durationField} disabled={!!accelerationNeverRefresh.value}/>
-                    { this.isRefreshAllowed() && entityType === 'dataset' && <Button
-                      disable={this.state.refreshingReflections}
-                      disableSubmit
-                      onClick={this.refreshAll}
-                      type='SECONDARY'
-                      style={{marginBottom: 0, marginLeft: 10, marginTop: 2}}
-                      text={la('Refresh Now')}
-                    />}
+                <div style={styles.inputLabel}>{la("Refresh every")}</div>
+              </td>
+              {/* todo: ax: <label> */}
+              <td>
+                <FieldWithError
+                  errorPlacement="right"
+                  {...accelerationRefreshPeriod}
+                >
+                  <div style={{ display: "flex" }}>
+                    <DurationField
+                      {...accelerationRefreshPeriod}
+                      min={MIN_DURATION}
+                      style={styles.durationField}
+                      disabled={!!accelerationNeverRefresh.value}
+                    />
+                    {this.isRefreshAllowed() && entityType === "dataset" && (
+                      <Button
+                        disable={this.state.refreshingReflections}
+                        disableSubmit
+                        onClick={this.refreshAll}
+                        type="SECONDARY"
+                        style={{
+                          marginBottom: 0,
+                          marginLeft: 10,
+                          marginTop: 2,
+                        }}
+                        text={la("Refresh Now")}
+                      />
+                    )}
                   </div>
                 </FieldWithError>
               </td>
@@ -168,23 +254,39 @@ export default class DataFreshnessSection extends Component {
                 <div style={styles.inputLabel}>
                   <Checkbox
                     {...accelerationNeverExpire}
-                    label={la('Never expire')}/>
+                    label={la("Never expire")}
+                  />
                 </div>
               </td>
             </tr>
             <tr>
               <td>
-                <div style={styles.inputLabel}>{la('Expire after')}</div> {/* todo: ax: <label> */}
+                <div style={styles.inputLabel}>{la("Expire after")}</div>{" "}
+                {/* todo: ax: <label> */}
               </td>
               <td>
-                <FieldWithError errorPlacement='right' {...accelerationGracePeriod}>
-                  <DurationField {...accelerationGracePeriod} min={MIN_DURATION} style={styles.durationField} disabled={!!accelerationNeverExpire.value}/>
+                <FieldWithError
+                  errorPlacement="right"
+                  {...accelerationGracePeriod}
+                >
+                  <DurationField
+                    {...accelerationGracePeriod}
+                    min={MIN_DURATION}
+                    style={styles.durationField}
+                    disabled={!!accelerationNeverExpire.value}
+                  />
                 </FieldWithError>
               </td>
             </tr>
           </tbody>
         </table>
-        { message && <Message style={{marginTop: 5}} messageType={'warning'} message={message}/> }
+        {message && (
+          <Message
+            style={{ marginTop: 5 }}
+            messageType={"warning"}
+            message={message}
+          />
+        )}
       </div>
     );
   }
@@ -192,31 +294,31 @@ export default class DataFreshnessSection extends Component {
 
 const styles = {
   section: {
-    display: 'flex',
+    display: "flex",
     marginBottom: 6,
-    alignItems: 'center'
+    alignItems: "center",
   },
   select: {
     width: 164,
-    marginTop: 3
+    marginTop: 3,
   },
   label: {
-    fontSize: '18px',
+    fontSize: "18px",
     fontWeight: 300,
-    margin: '0 0 8px 0px',
-    color: '#555555',
-    display: 'flex',
-    alignItems: 'center'
+    margin: "0 0 8px 0px",
+    color: "#555555",
+    display: "flex",
+    alignItems: "center",
   },
   inputLabel: {
     ...formDefault,
     marginRight: 10,
-    marginBottom: 4
+    marginBottom: 4,
   },
   durationField: {
     width: 250,
-    marginBottom: 7
-  }
+    marginBottom: 7,
+  },
 };
 
 const notificationStyles = {
@@ -224,21 +326,22 @@ const notificationStyles = {
     DefaultStyle: {
       width: 24,
       height: 24,
-      color: 'inherit',
-      fontWeight: 'inherit',
-      backgroundColor: 'none',
+      color: "inherit",
+      fontWeight: "inherit",
+      backgroundColor: "none",
       top: 10,
-      right: 5
-    }
+      right: 5,
+    },
   },
   NotificationItem: {
     DefaultStyle: {
       margin: 5,
       borderRadius: 1,
-      border: 'none',
+      border: "none",
       padding: 0,
-      background: 'none',
-      zIndex: 45235
-    }
-  }
+      background: "none",
+      zIndex: 45235,
+    },
+  },
 };
+export default Radium(DataFreshnessSection);

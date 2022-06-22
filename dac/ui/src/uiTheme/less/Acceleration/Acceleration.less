@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- @import "~@app/uiTheme/less/color-schema.less";
- @import "~@app/uiTheme/less/variables.less";
- @import "~@app/uiTheme/less/commonModifiers.less";
- 
+
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/commonModifiers.less";
+
 :global {
   .--bgColor {
     &-header {
@@ -27,15 +27,15 @@
     &-highlight {
       background-color: @PALE_ORANGE;
     }
- 
+
     &-white {
-      background-color: @WHITE
+      background-color: @WHITE;
     }
- 
+
     &-transparent {
       background-color: transparent !important;
     }
- 
+
     // advanced enabled light row
     &-advEnLight {
       background-color: @ACTIVE_ADVANCED_LIGHT_ROW;
@@ -53,7 +53,7 @@
 
     // advanced disabled dark row
     &-advDisDark {
-      background-color: @DISABLED_ADVANCED_DARK_ROW
+      background-color: @DISABLED_ADVANCED_DARK_ROW;
     }
 
     &-advEnDrag {
@@ -64,7 +64,7 @@
       background-color: @DISABLED_DRAG_AREA_BACKGROUND_COLOR;
     }
   }
- 
+
   // border color and width
   .--bColor {
     // set border color for every side: b-col-full
@@ -77,9 +77,9 @@
       &-@{direction-val} {
         border-@{direction-val}: 1px solid @BORDER_TABLE;
       }
-    })
+    });
   }
- 
+
   .AccelerationAdvanced {
     display: flex;
     flex-direction: column;
@@ -100,17 +100,16 @@
       color: @TEXT_COLOR;
       display: flex;
       align-content: center;
-      height: 25px;
       padding: 5px;
       margin-right: 10px;
-    
+
       &:hover {
         background-color: @CELL_EXPANSION_HEADER !important;
         cursor: pointer;
       }
     }
   }
-   
+
   .AccelerationAggregate {
     display: flex;
     position: relative;
@@ -135,7 +134,7 @@
 
     &__toggle {
       width: auto;
-      padding-left: 10px
+      padding-left: 10px;
     }
 
     &__toggleLabel {
@@ -154,8 +153,8 @@
       display: flex;
       align-items: center;
     }
-   }
-   
+  }
+
   .AccelerationAggregation {
     display: flex;
     flex-direction: column;
@@ -214,7 +213,7 @@
       width: 100%;
       height: 100%;
       border-right: 1px solid @BORDER_TABLE;
-      border-right: 0
+      border-right: 0;
     }
 
     &__subVal {
@@ -231,7 +230,7 @@
       border-left: 1px solid @BORDER_TABLE;
     }
   }
- 
+
   .AccelerationRaw {
     display: flex;
     flex-direction: column;
@@ -278,11 +277,9 @@
       z-index: 1000;
     }
 
- 
-
     &__toggle {
       width: auto;
-      padding-left: 10px
+      padding-left: 10px;
     }
 
     &__toggleLayout {
@@ -297,7 +294,7 @@
     &__toggleLabel {
       display: flex;
       align-items: center;
-      margin-left: -10px
+      margin-left: -10px;
     }
   }
 
@@ -333,7 +330,7 @@
       justify-content: center;
       align-items: center;
       background-color: @ACTIVE_COLUMN_INDEX_BACKGROUND_COLOR;
-      height: 100%
+      height: 100%;
     }
 
     &__disabledColumnIndex {
@@ -347,7 +344,7 @@
       align-items: center;
       background-color: @DISABLED_COLUMN_INDEX_BACKGROUND_COLOR;
       height: 100%;
-      color: @DISABLED_COLUMN_INDEX_TEXT_COLOR
+      color: @DISABLED_COLUMN_INDEX_TEXT_COLOR;
     }
 
     &__menuHeader {
@@ -361,7 +358,7 @@
     }
 
     &__measureMenuItem {
-      margin-top: 5px
+      margin-top: 5px;
     }
   }
 
@@ -369,13 +366,14 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-height: 540px;
     max-height: calc(100vh - 120px);
     overflow: hidden;
 
     &__formBody {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
     }
 
     &__extraError {
@@ -410,8 +408,6 @@
   .ValidityIndicator {
     height: 20px;
     flex: 0 0 24px;
-    text-align: center
+    text-align: center;
   }
 }
- 
- 

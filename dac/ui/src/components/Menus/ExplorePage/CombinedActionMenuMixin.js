@@ -14,21 +14,27 @@
  * limitations under the License.
  */
 
-import DividerHr from '@app/components/Menus/DividerHr';
-import ExportMenu from './ExportMenu';
+import DividerHr from "@app/components/Menus/DividerHr";
+import ExportMenu from "./ExportMenu";
 
 export function CombinedActionMenuMixin(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     checkToRenderDownloadSection() {
-      const datasetSql = this.props.dataset.get('sql');
+      const datasetSql = this.props.dataset.get("sql");
       const { action, datasetColumns, updateDownloading } = this.props;
       return (
-        <div className='combinedActionMenu'>
+        <div className="combinedActionMenu">
           <DividerHr />
           {this.renderDownloadSectionHeader()}
-          <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql} updateDownloading={updateDownloading} />
+          <ExportMenu
+            action={action}
+            datasetColumns={datasetColumns}
+            datasetSql={datasetSql}
+            updateDownloading={updateDownloading}
+          />
         </div>
       );
-    }
+    },
   });
 }

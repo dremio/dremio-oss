@@ -14,69 +14,88 @@
  * limitations under the License.
  */
 
-import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
+import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
 
-import actionUtils from './actionUtils';
+import actionUtils from "./actionUtils";
 
-describe('actionUtils', () => {
-  describe('shouldLoad', () => {
-    it('should return false when isInProgress', () => {
-      expect(actionUtils.shouldLoad({isInProgress: true, isInvalid: true})).to.be.false;
+describe("actionUtils", () => {
+  describe("shouldLoad", () => {
+    it("should return false when isInProgress", () => {
+      expect(actionUtils.shouldLoad({ isInProgress: true, isInvalid: true })).to
+        .be.false;
     });
-    it('should return true when not isInProgress and isInvalid', () => {
-      expect(actionUtils.shouldLoad({isInProgress: false, isInvalid: true})).to.be.true;
+    it("should return true when not isInProgress and isInvalid", () => {
+      expect(actionUtils.shouldLoad({ isInProgress: false, isInvalid: true }))
+        .to.be.true;
     });
-    it('should accept Immutable map', () => {
-      expect(actionUtils.shouldLoad(Immutable.fromJS({isInProgress: false, isInvalid: true}))).to.be.true;
+    it("should accept Immutable map", () => {
+      expect(
+        actionUtils.shouldLoad(
+          Immutable.fromJS({ isInProgress: false, isInvalid: true })
+        )
+      ).to.be.true;
     });
   });
-  describe('humanizeNotificationMessage', () => {
-
-    it('should return function on first call', () => {
-      const errorMessage = 'error';
-      expect(actionUtils.humanizeNotificationMessage(errorMessage)).to.be.a('function');
+  describe("humanizeNotificationMessage", () => {
+    it("should return function on first call", () => {
+      const errorMessage = "error";
+      expect(actionUtils.humanizeNotificationMessage(errorMessage)).to.be.a(
+        "function"
+      );
     });
 
-    it('should set notification when provide errorMessage on first call and moreInfo from payload', () => {
-      const errorMessage = 'error';
-      const moreInfo = 'more info';
-      const payload = { response: { errorMessage: 'message', moreInfo } };
+    it("should set notification when provide errorMessage on first call and moreInfo from payload", () => {
+      const errorMessage = "error";
+      const moreInfo = "more info";
+      const payload = { response: { errorMessage: "message", moreInfo } };
       const result = {
         message: Immutable.Map({ message: errorMessage, moreInfo }),
-        level: 'error'
+        level: "error",
       };
-      expect(actionUtils.humanizeNotificationMessage(errorMessage)(payload)).to.be.eql(result);
+      expect(
+        actionUtils.humanizeNotificationMessage(errorMessage)(payload)
+      ).to.be.eql(result);
     });
 
-    it('should set notification with errorMessage and moreInfo from payload when no errorMessage on first call', () => {
-      const moreInfo = 'more info';
-      const payload = { response: { errorMessage: 'message', moreInfo } };
+    it("should set notification with errorMessage and moreInfo from payload when no errorMessage on first call", () => {
+      const moreInfo = "more info";
+      const payload = { response: { errorMessage: "message", moreInfo } };
       const result = {
-        message: Immutable.Map({ message: 'message', moreInfo }),
-        level: 'error'
+        message: Immutable.Map({ message: "message", moreInfo }),
+        level: "error",
       };
-      expect(actionUtils.humanizeNotificationMessage()(payload)).to.be.eql(result);
+      expect(actionUtils.humanizeNotificationMessage()(payload)).to.be.eql(
+        result
+      );
     });
 
-    it('should set notification with default when there is no errorMessage and payload is empty ', () => {
+    it("should set notification with default when there is no errorMessage and payload is empty ", () => {
       const defaultMessage = DEFAULT_ERR_MSG;
       const payload = {};
       const result = {
         message: Immutable.Map({ message: defaultMessage }),
-        level: 'error'
+        level: "error",
       };
-      expect(actionUtils.humanizeNotificationMessage()(payload)).to.be.eql(result);
+      expect(actionUtils.humanizeNotificationMessage()(payload)).to.be.eql(
+        result
+      );
     });
 
     it('should set notification with message and moreInfo to "data has changed" when status = 409', () => {
-      const errorMessage = 'error';
-      const defaultMessage409 = 'The data has been changed since you last accessed it. Please reload the page.';
+      const errorMessage = "error";
+      const defaultMessage409 =
+        "The data has been changed since you last accessed it. Please reload the page.";
       const payload = { status: 409 };
       const result = {
-        message: Immutable.Map({ message: errorMessage, moreInfo: defaultMessage409 }),
-        level: 'error'
+        message: Immutable.Map({
+          message: errorMessage,
+          moreInfo: defaultMessage409,
+        }),
+        level: "error",
       };
-      expect(actionUtils.humanizeNotificationMessage(errorMessage)(payload)).to.be.eql(result);
+      expect(
+        actionUtils.humanizeNotificationMessage(errorMessage)(payload)
+      ).to.be.eql(result);
     });
   });
 });

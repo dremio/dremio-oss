@@ -53,6 +53,10 @@ public class PageBatchSlicer {
   private final Sizer sizer;
   private Page currentPage;
 
+  public PageBatchSlicer(PagePool pool, long sv2Addr, VectorAccessible incoming) {
+    this(pool, sv2Addr, incoming, null);
+  }
+
   public PageBatchSlicer(PagePool pool, long sv2Addr, VectorAccessible incoming, ImmutableBitSet includedColumns) {
     Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE);
     this.pool = pool;
@@ -61,7 +65,7 @@ public class PageBatchSlicer {
 
     int index = 0;
     for (VectorWrapper<?> vectorWrapper : incoming) {
-      if (includedColumns.get(index)) {
+      if (includedColumns == null || includedColumns.get(index)) {
         sizerList.add(Sizer.get(vectorWrapper.getValueVector()));
       }
       ++index;
@@ -75,17 +79,29 @@ public class PageBatchSlicer {
    * TODO: we can make this more efficient by starting at an estimated midpoint
    * and then moving backwards or forwards as necessary.
    *
-   * @return list of page batches if add was successful. null if can't fit the input batch.
+   * @return number of added records
    */
-  public List<RecordBatchData> addBatch(int records) {
-    LatePageSupplier supplier = new LatePageSupplier(currentPage, pool.getPageSize());
+  public int addBatch(int records, List<RecordBatchPage> batches) {
+    List<PagePlan> plans;
 
-    List<PagePlan> plans = generatePagePlan(supplier, records);
-    if (!supplier.tryAllocate(pool)) {
-      return null;
+    while (true) {
+      LatePageSupplier supplier = new LatePageSupplier(currentPage, pool.getPageSize());
+      plans = generatePagePlan(supplier, records);
+      if (supplier.tryAllocate(pool)) {
+        // successful allocation
+        break;
+      }
+
+      // trim the records, and retry with a smaller set
+      PagePlan last = plans.remove(plans.size() - 1);
+      records -= last.count;
+      if (records == 0) {
+        // cannot trim any further
+        return 0;
+      }
     }
 
-    List<RecordBatchData> batches = new ArrayList<>();
+    batches.clear();
     Page prevPage = currentPage;
     for (PagePlan pp : plans) {
       RecordBatchPage rbp = pp.copy();
@@ -98,7 +114,21 @@ public class PageBatchSlicer {
       }
       prevPage = currentPage;
     }
-    return batches;
+    return records;
+  }
+
+  /**
+   * Copy data from the SV2 to the page till it gets full.
+   * @param page page to copy to
+   * @param startIdx start index in sv2
+   * @param maxIdx end index in sv2
+   * @return RecordBatch of copied data
+   */
+  public RecordBatchData copyToPageTillFull(Page page, int startIdx, int maxIdx) {
+    long startAddr = sv2Addr + startIdx * SV2_SIZE_BYTES;
+    PageFitResult fitResult = countRecordsToFitInPage(page.getRemainingBytes() * BYTE_SIZE_BITS, startAddr, maxIdx - startIdx + 1);
+    PagePlan plan = new PagePlan(fitResult.sizeBits, startAddr, startIdx, fitResult.recordCount, new SupplierWithCapacity(page));
+    return plan.copy();
   }
 
   private List<PagePlan> generatePagePlan(LatePageSupplier supplier, final int totalRecordCount) {
@@ -110,43 +140,60 @@ public class PageBatchSlicer {
 
     sizer.reset();
     while (remaining > 0) { // a loop per page.
-      int recordSize = sizer.getEstimatedRecordSizeInBits();
 
       // target the lesser of either the estimated count or the actual record count.
       SupplierWithCapacity current = supplier.getNextPage();
-      int availableBits = current.getRemainingBits();
-      int recordCount = Math.min(recordSize == 0 ? remaining : availableBits / recordSize, remaining);
-      int sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
-
-      // step until we can't take a full step.
-      while (sizeBits < availableBits && recordCount < remaining) {
-        recordCount = Math.min(recordCount + STEP, remaining);
-        sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
-      }
-
-      // move backwards until we get within allowed bits.
-      while (sizeBits > availableBits) {
-        recordCount -= 1;
-        sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
-      }
+      PageFitResult fitResult = countRecordsToFitInPage(current.getRemainingBits(), startAddr, remaining);
 
       // if we haven't been able to add any data to this page and there is no data in the page, we have to fail..
-      if (recordCount == 0 && !current.isPartial()) {
+      if (fitResult.recordCount == 0 && !current.isPartial()) {
         int required = sizer.computeBitsNeeded(startAddr, 1);
         throw new IllegalStateException(String.format("Even a single record will not fit in one page. Page size %d, size of 1 record %d.",
-          availableBits, required));
+          current.getRemainingBits(), required));
       }
 
-      if (recordCount != 0) {
+      if (fitResult.recordCount != 0) {
         // We added data until we filled up this page and have data remaining. Move to the rack and move to the next step.
         int startIdx = (int)((startAddr - sv2Addr) / SV2_SIZE_BYTES);
-        plans.add(new PagePlan(sizeBits, startAddr, startIdx, recordCount, current));
+        plans.add(new PagePlan(fitResult.sizeBits, startAddr, startIdx, fitResult.recordCount, current));
       }
 
-      startAddr += (recordCount * SV2_SIZE_BYTES);
-      remaining -= recordCount;
+      startAddr += (fitResult.recordCount * SV2_SIZE_BYTES);
+      remaining -= fitResult.recordCount;
     }
     return plans;
+  }
+
+  private PageFitResult countRecordsToFitInPage(int availableBits, long startAddr, int remaining) {
+    sizer.reset();
+    int recordSize = sizer.getEstimatedRecordSizeInBits();
+
+    int recordCount = Math.min(recordSize == 0 ? remaining : availableBits / recordSize, remaining);
+    int sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
+
+    // step until we can't take a full step.
+    while (sizeBits < availableBits && recordCount < remaining) {
+      recordCount = Math.min(recordCount + STEP, remaining);
+      sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
+    }
+
+    // move backwards until we get within allowed bits.
+    while (sizeBits > availableBits && recordCount > 0) {
+      recordCount -= 1;
+      sizeBits = sizer.computeBitsNeeded(startAddr, recordCount);
+    }
+
+    return new PageFitResult(recordCount, sizeBits);
+  }
+
+  private static class PageFitResult {
+    final int recordCount;
+    final int sizeBits;
+
+    PageFitResult(int recordCount, int sizeBits) {
+      this.recordCount = recordCount;
+      this.sizeBits = sizeBits;
+    }
   }
 
   /**

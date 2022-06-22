@@ -13,13 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { isAuthorized, authInfoPropType, rulePropType, getAuthInfoSelector } from '@app/utils/authUtils';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import {
+  isAuthorized,
+  authInfoPropType,
+  rulePropType,
+  getAuthInfoSelector,
+} from "@app/utils/authUtils";
 
-const mapStateToProps = state => ({
-  authInfo: getAuthInfoSelector(state)
+const mapStateToProps = (state) => ({
+  authInfo: getAuthInfoSelector(state),
 });
 
 export class AuthorizationWrapperView extends Component {
@@ -29,16 +34,11 @@ export class AuthorizationWrapperView extends Component {
     scope: PropTypes.any, //a scope for children function
 
     // connected props
-    authInfo: authInfoPropType.isRequired
-  }
+    authInfo: authInfoPropType.isRequired,
+  };
 
   render() {
-    const {
-      rule,
-      authInfo,
-      children,
-      scope
-    } = this.props;
+    const { rule, authInfo, children, scope } = this.props;
 
     return children.call(scope, isAuthorized(rule, authInfo));
   }
@@ -49,23 +49,23 @@ const AuthorizationWrapper = connect(mapStateToProps)(AuthorizationWrapperView);
 export class RestrictedArea extends Component {
   static propTypes = {
     rule: rulePropType.isRequired,
-    children: PropTypes.any // will be path through
-  }
+    children: PropTypes.any, // will be path through
+  };
 
   renderInternal = (isAuthorizedFlag) => {
     if (isAuthorizedFlag) {
       return this.props.children;
     }
     return null;
-  }
+  };
 
   render() {
-    const {
-      rule
-    } = this.props;
+    const { rule } = this.props;
 
-    return (<AuthorizationWrapper rule={rule}>
-      {this.renderInternal}
-    </AuthorizationWrapper>);
+    return (
+      <AuthorizationWrapper rule={rule}>
+        {this.renderInternal}
+      </AuthorizationWrapper>
+    );
   }
 }

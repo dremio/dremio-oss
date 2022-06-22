@@ -81,6 +81,7 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
@@ -143,6 +144,7 @@ public class JobInfoDetailsUI {
   private boolean resultsAvailable;
   private long totalMemory;
   private long cpuUsed;
+  private Boolean isOutputLimited;
 
   public JobInfoDetailsUI() {
   }
@@ -154,6 +156,7 @@ public class JobInfoDetailsUI {
     @JsonProperty("queryType") QueryType queryType,
     @JsonProperty("queryUser") String queryUser,
     @JsonProperty("queryText") String queryText,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @JsonProperty("wlmQueue") String wlmQueue,
     @JsonProperty("startTime") Long startTime,
     @JsonProperty("endTime") Long endTime,
@@ -187,12 +190,14 @@ public class JobInfoDetailsUI {
     @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
     @JsonProperty("datasetVersion") String datasetVersion,
     @JsonProperty("resultsAvailable") Boolean resultsAvailable,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @JsonProperty("engine") String engine,
     @JsonProperty("isComplete") boolean isComplete,
     @JsonProperty("rowsScanned") Long rowsScanned,
     @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
     @JsonProperty("totalMemory") Long totalMemory,
-    @JsonProperty("cpuUsed") Long cpuUsed) {
+    @JsonProperty("cpuUsed") Long cpuUsed,
+    @JsonProperty("isOutputLimited") Boolean isOutputLimited) {
     this.id = id;
     this.jobStatus = jobStatus;
     this.queryType = queryType;
@@ -237,6 +242,7 @@ public class JobInfoDetailsUI {
     this.resultsAvailable = resultsAvailable;
     this.totalMemory = totalMemory;
     this.cpuUsed = cpuUsed;
+    this.isOutputLimited = isOutputLimited;
   }
 
   public JobInfoDetailsUI of(JobDetails jobDetails, UserBitShared.QueryProfile profile, CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, int detailLevel, int attemptIndex) throws NamespaceException {
@@ -313,6 +319,7 @@ public class JobInfoDetailsUI {
     resultsAvailable = jobDetails.getHasResults() && currentUser.equals(queryUser);
     totalMemory = jobAttempt.getDetails().getTotalMemory();
     cpuUsed = jobAttempt.getDetails().getCpuUsed();
+    isOutputLimited = jobAttempt.getStats().getIsOutputLimited();
     return new JobInfoDetailsUI(
       id,
       jobStatus,
@@ -357,7 +364,8 @@ public class JobInfoDetailsUI {
       rowsScanned,
       plannerEstimatedCost,
       totalMemory,
-      cpuUsed
+      cpuUsed,
+      isOutputLimited
     );
   }
 
@@ -538,6 +546,8 @@ public class JobInfoDetailsUI {
   public long getCpuUsed() {
     return cpuUsed;
   }
+
+  public boolean getIsOutputLimited() {return isOutputLimited;}
 
 
   private void convertReflectionListToMap(List<Reflection> reflectionsUsed, List<Reflection> reflectionsMatched) {
@@ -893,5 +903,8 @@ public class JobInfoDetailsUI {
       }
       reflectionList.add(reflection);
     }
+  }
+  public void setWlmQueue(String wlmQueue) {
+    this.wlmQueue = wlmQueue;
   }
 }

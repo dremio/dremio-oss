@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-import {
-  ENGINE_FILTER_ITEMS
-} from 'dyn-load/constants/provisioningPage/provisioningConstants';
+import { ENGINE_FILTER_ITEMS } from "dyn-load/constants/provisioningPage/provisioningConstants";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getFilterItems() {
       return ENGINE_FILTER_ITEMS;
     },
 
     renderSearch() {
       return null;
-    }
+    },
   });
 }

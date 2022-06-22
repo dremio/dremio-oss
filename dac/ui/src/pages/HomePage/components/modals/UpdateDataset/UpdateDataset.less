@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .dataset-warning {
-    background-color: #FEE799;
+    background-color: #fee799;
     font-size: 12px;
     width: 100%;
     position: relative;
@@ -27,14 +30,14 @@
       top: 2px;
       left: 5px;
       font-size: 32px;
-      color: #FC8007;
+      color: #fc8007;
     }
 
     .dependent-datasets {
       margin-top: 10px;
 
       .and-more {
-        color: #1180FF;
+        color: #1180ff;
         cursor: pointer;
       }
     }
@@ -56,6 +59,11 @@
     height: 100%;
     background-color: #fff;
 
+    .error-message-updateDataset {
+      position: absolute;
+      width: 100%;
+    }
+
     .update-dataset-content {
       margin: 15px 15px 0 15px;
 
@@ -63,14 +71,14 @@
         font-size: 14px;
       }
       .property {
-
         label {
           display: block;
           margin-bottom: 0;
         }
 
-        input, .treeview {
-          border: 1px solid #A3E2FF;
+        input,
+        .treeview {
+          border: 1px solid #a3e2ff;
           border-radius: 3px;
           display: block;
           box-shadow: none;
@@ -101,5 +109,10 @@
       }
     }
 
+    .graphLink {
+      &:hover {
+        .gray-icon-hover();
+      }
+    }
   }
 }

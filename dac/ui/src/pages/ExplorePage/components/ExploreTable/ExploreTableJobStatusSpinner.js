@@ -13,25 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-import Spinner from '@app/components/Spinner';
-import socket from '@inject/utils/socket';
+import Spinner from "@app/components/Spinner";
+import socket from "@inject/utils/socket";
 
-import { isWorking, JOB_STATUS } from './ExploreTableJobStatus';
+import { isWorking, JOB_STATUS } from "./ExploreTableJobStatus";
 
 export default class ExploreTableJobStatusSpinner extends Component {
   static propTypes = {
     jobProgress: PropTypes.object,
     jobId: PropTypes.string,
     action: PropTypes.string,
-    message: PropTypes.string
+    message: PropTypes.string,
   };
 
   prevState = {
     status: null,
-    recordCount: 0
+    recordCount: 0,
   };
 
   componentDidUpdate(prevProps) {
@@ -40,10 +40,17 @@ export default class ExploreTableJobStatusSpinner extends Component {
 
     const { jobProgress: prevJobProgress } = prevProps;
     const { status } = jobProgress;
-    if (status === JOB_STATUS.running && (!prevJobProgress || prevJobProgress.status !== JOB_STATUS.running)) {
+    if (
+      status === JOB_STATUS.running &&
+      (!prevJobProgress || prevJobProgress.status !== JOB_STATUS.running)
+    ) {
       // if switched to running start listen to row count
       jobId && socket.startListenToJobRecords(jobId);
-    } else if (status !== JOB_STATUS.running && (prevJobProgress && prevJobProgress.status === JOB_STATUS.running)) {
+    } else if (
+      status !== JOB_STATUS.running &&
+      prevJobProgress &&
+      prevJobProgress.status === JOB_STATUS.running
+    ) {
       // if switched from running stop listen to row count
       prevProps.jobId && socket.stopListenToJobRecords(prevProps.jobId);
     }
@@ -54,8 +61,14 @@ export default class ExploreTableJobStatusSpinner extends Component {
       return null;
     }
 
-    if (action === 'run') {
-      return <Spinner iconStyle={styles.iconSpinner} style={styles.spinnerBase} message={this.props.message} />;
+    if (action === "run") {
+      return (
+        <Spinner
+          iconStyle={styles.iconSpinner}
+          style={styles.spinnerBase}
+          message={this.props.message}
+        />
+      );
     }
 
     return null;
@@ -69,11 +82,11 @@ export default class ExploreTableJobStatusSpinner extends Component {
 
 const styles = {
   spinnerBase: {
-    position: 'relative',
+    position: "relative",
     width: 28,
-    height: 28
+    height: 28,
   },
   iconSpinner: {
-    marginRight: -3
-  }
+    marginRight: -3,
+  },
 };

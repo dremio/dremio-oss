@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import Radio from 'components/Fields/Radio';
+import Radio from "components/Fields/Radio";
 
-import { fixedWidthBold } from 'uiTheme/radium/typography';
+import { fixedWidthBold } from "uiTheme/radium/typography";
 
-@Radium
-export default class ExtractPositionPattern extends PureComponent {
-
+class ExtractPositionPattern extends PureComponent {
   static propTypes = {
     id: PropTypes.string.isRequired,
     handleTypeChange: PropTypes.func.isRequired,
-    type: PropTypes.string.isRequired
+    type: PropTypes.string.isRequired,
   };
 
   constructor(props) {
@@ -37,21 +35,25 @@ export default class ExtractPositionPattern extends PureComponent {
   render() {
     return (
       <div style={[styles.extract]}>
-        <span style={[fixedWidthBold]}>
-          Extract By
-        </span>
+        <span style={[fixedWidthBold]}>Extract By</span>
         <Radio
-          onChange={this.props.handleTypeChange.bind(this, 'position')}
-          radioValue='position'
-          value={this.props.type.indexOf('pattern') !== -1 ? 'pattern' : 'position'}
-          label='Position'
-          style={{...fixedWidthBold, ...styles.radio}}/>
+          onChange={this.props.handleTypeChange.bind(this, "position")}
+          radioValue="position"
+          value={
+            this.props.type.indexOf("pattern") !== -1 ? "pattern" : "position"
+          }
+          label="Position"
+          style={{ ...fixedWidthBold, ...styles.radio }}
+        />
         <Radio
-          onChange={this.props.handleTypeChange.bind(this, 'pattern')}
-          radioValue='position'
-          value={this.props.type.indexOf('pattern') === -1 ? 'pattern' : 'position'}
-          label='Pattern'
-          style={{...fixedWidthBold, ...styles.radio}}/>
+          onChange={this.props.handleTypeChange.bind(this, "pattern")}
+          radioValue="position"
+          value={
+            this.props.type.indexOf("pattern") === -1 ? "pattern" : "position"
+          }
+          label="Pattern"
+          style={{ ...fixedWidthBold, ...styles.radio }}
+        />
       </div>
     );
   }
@@ -62,19 +64,20 @@ const styles = {
     marginLeft: 15,
     width: 15,
     height: 15,
-    position: 'relative',
-    top: 3
+    position: "relative",
+    top: 3,
   },
   radio: {
     marginTop: 10,
-    display: 'inline-block',
-    width: 75
+    display: "inline-block",
+    width: 75,
   },
   extract: {
-    marginLeft: 15
+    marginLeft: 15,
   },
   text: {
     marginLeft: 5,
-    fontWeight: 400
-  }
+    fontWeight: 400,
+  },
 };
+export default Radium(ExtractPositionPattern);

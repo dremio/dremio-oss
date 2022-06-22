@@ -13,33 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { DevErrorView as DevError } from './DevError';
+import { DevErrorView as DevError } from "./DevError";
 
-describe('DevError', () => {
-
+describe("DevError", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      onDismiss: sinon.spy()
+      onDismiss: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DevError {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DevError {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render CustomRedBox only if props.error is set', () => {
-    const wrapper = shallow(<DevError {...commonProps}/>);
+  it("should render CustomRedBox only if props.error is set", () => {
+    const wrapper = shallow(<DevError {...commonProps} />);
     expect(wrapper.getElement()).to.be.null;
 
-    wrapper.setProps({error: new Error()});
-    expect(wrapper.getElement().type.displayName).to.eql('RedBox');
+    wrapper.setProps({ error: new Error() });
+    expect(wrapper.getElement().type.displayName).to.eql("RedBox");
   });
 });

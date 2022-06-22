@@ -138,7 +138,8 @@ public class DremioServlet implements Servlet {
       .setQueryBundleUsersEnabled(options.getOption(QueryLogBundleService.USERS_BUNDLE_DOWNLOAD))
       .setDownloadRecordsLimit(options.getOption(DatasetDownloadManager.DOWNLOAD_RECORDS_LIMIT))
       .setShowMetadataValidityCheckbox(options.getOption(CatalogOptions.SHOW_METADATA_VALIDITY_CHECKBOX))
-      .setShowNewJobsPage(options.getOption(UIOptions.JOBS_UI_CHECK));
+      .setShowNewJobsPage(options.getOption(UIOptions.JOBS_UI_CHECK))
+      .setAllowAutoComplete(options.getOption(UIOptions.ALLOW_AUTOCOMPLETE));
   }
 
   protected Provider<SupportService> getSupportService() {

@@ -300,6 +300,7 @@ public class TestAggregateFilterToCaseRule extends PlanTestBase {
         .go();
     }
   }
+
   @Test
   public void testMixedFilterNoFilterAggregates() throws Exception {
     final String withFilter = String.format(

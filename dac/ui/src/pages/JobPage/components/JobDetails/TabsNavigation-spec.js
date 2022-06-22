@@ -13,62 +13,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
-import TabsNavigation from './TabsNavigation';
-describe('TabsNavigation', () => {
+import { shallow, mount } from "enzyme";
+import { TabsNavigationItem } from "dremio-ui-lib";
+
+import TabsNavigation from "./TabsNavigation";
+
+describe("TabsNavigation", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      activeTab: 'overview',
-      changeTab: sinon.spy()
+      activeTab: "overview",
+      changeTab: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TabsNavigation {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TabsNavigation {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render Overview tab as active by default', () => {
-    const wrapper = mount(<TabsNavigation {...minimalProps}/>);
-    const activeTab = wrapper.find('.tab-link.active');
+  it("should render Overview tab as active by default", () => {
+    const wrapper = mount(<TabsNavigation {...minimalProps} />);
+    const activeTab = wrapper.find(".-active");
     expect(activeTab).to.have.length(1);
     expect(activeTab.text()).to.be.eql('{"0":{"id":"Common.Overview"}}');
   });
 
-  it('should render tabs: Overview, Details, Acceleration, and Profiles by default', () => {
-    const wrapper = mount(<TabsNavigation {...minimalProps}/>);
-    const tabs = wrapper.find('TabsNavigationItem');
+  it("should render tabs: Overview, Details, Acceleration, and Profiles by default", () => {
+    const wrapper = mount(<TabsNavigation {...minimalProps} />);
+    const tabs = wrapper.find(TabsNavigationItem);
     const expectedLabels = [
       '{"0":{"id":"Common.Overview"}}',
       '{"0":{"id":"Common.Details"}}',
       '{"0":{"id":"Acceleration.Acceleration"}}',
-      '{"0":{"id":"Job.Profiles"}}'
+      '{"0":{"id":"Job.Profiles"}}',
     ];
     expect(tabs).to.have.length(expectedLabels.length);
-    expect(tabs.map(i => i.text())).to.be.eql(expectedLabels);
+    expect(tabs.map((i) => i.text())).to.be.eql(expectedLabels);
   });
 
-  it('should render tabs: Overview, Details, Acceleration, and Profile when job has single profile', () => {
+  it("should render tabs: Overview, Details, Acceleration, and Profile when job has single profile", () => {
     const props = {
       ...commonProps,
-      attemptDetails: Immutable.fromJS([
-        {profileUrl: 'profileUrl'}
-      ])
+      attemptDetails: Immutable.fromJS([{ profileUrl: "profileUrl" }]),
     };
-    const wrapper = mount(<TabsNavigation {...props}/>);
-    const tabs = wrapper.find('TabsNavigationItem');
+    const wrapper = mount(<TabsNavigation {...props} />);
+    const tabs = wrapper.find(TabsNavigationItem);
     const expectedLabels = [
       '{"0":{"id":"Common.Overview"}}',
       '{"0":{"id":"Common.Details"}}',
       '{"0":{"id":"Acceleration.Acceleration"}}',
-      '{"0":{"id":"Job.Profile"}}'
+      '{"0":{"id":"Job.Profile"}}',
     ];
     expect(tabs).to.have.length(expectedLabels.length);
-    expect(tabs.map(i => i.text())).to.be.eql(expectedLabels);
+    expect(tabs.map((i) => i.text())).to.be.eql(expectedLabels);
   });
 });

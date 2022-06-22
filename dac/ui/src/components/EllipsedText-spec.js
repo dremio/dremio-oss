@@ -13,39 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import EllipsedText from './EllipsedText';
+import { shallow } from "enzyme";
+import EllipsedText from "./EllipsedText";
 
-describe('EllipsedText', () => {
-
+describe("EllipsedText", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {
-    };
+    minimalProps = {};
     commonProps = {
       ...minimalProps,
-      text: 'foo',
-      className: 'another'
+      text: "foo",
+      className: "another",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<EllipsedText {...minimalProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.props().className.trim()).to.be.equal('EllipsedText');
+    expect(wrapper.props().className.trim()).to.be.equal("EllipsedText");
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<EllipsedText {...commonProps}><span>bar</span></EllipsedText>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(
+      <EllipsedText {...commonProps}>
+        <span>bar</span>
+      </EllipsedText>
+    );
     expect(wrapper).to.have.length(1);
-    expect(wrapper.props().className).to.be.equal('EllipsedText another');
-    expect(wrapper.text()).to.be.equal('bar');
+    expect(wrapper.props().className).to.be.equal("EllipsedText another");
+    expect(wrapper.text()).to.be.equal("bar");
   });
 
-  it('should render with just text', () => {
+  it("should render with just text", () => {
     const wrapper = shallow(<EllipsedText {...commonProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.text()).to.be.equal('foo');
+    expect(wrapper.text()).to.be.equal("foo");
   });
 });

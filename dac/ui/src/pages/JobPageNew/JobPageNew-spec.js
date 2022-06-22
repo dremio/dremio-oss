@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import sinon from 'sinon';
+import { shallow } from "enzyme";
+import sinon from "sinon";
 
-import JobPage from './JobPageNew';
+import JobPage from "./JobPageNew";
 
-describe('JobPage', () => {
+describe("JobPage", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       intl: {
-        formatMessage: sinon.stub()
+        formatMessage: sinon.stub(),
       },
-      children: {}
+      children: {},
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<JobPage {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });

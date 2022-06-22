@@ -19,15 +19,16 @@ package com.dremio.sabot.op.join.vhash.spill.partition;
  * Partition of a hash-join.
  */
 public interface Partition extends AutoCloseable {
-  int INITIAL_VAR_FIELD_AVERAGE_SIZE = 10;
+  static final int INITIAL_VAR_FIELD_AVERAGE_SIZE = 10;
 
   /**
    * Handle pivoted (only keys are pivoted) records of a build batch.
    *
-   * @param records number of records
+   * @param records number of input records
+   * @return number of records successfully inserted.
    * @throws Exception
    */
-  void buildPivoted(int records) throws Exception;
+  int buildPivoted(int records) throws Exception;
 
   /**
    * Check if the build side table is empty.
@@ -35,17 +36,6 @@ public interface Partition extends AutoCloseable {
    * @return true if empty.
    */
   boolean isBuildSideEmpty();
-
-  /**
-   * Compute hash for given pivoted records (Build or probe)
-   *
-   * @param records number of records
-   * @param keyFixedVectorAddr start addr of fixed vector addr
-   * @param keyVarVectorAddr start addr of variable vector addr
-   * @param seed seed to use when computing the hash
-   * @param hashoutAddr8B start addr of hash vector for computed hash values
-   */
-  void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B);
 
   /**
    * Handle pivoted records (only keys are pivoted) of a probe batch, and optionally, produce output records.
@@ -74,6 +64,11 @@ public interface Partition extends AutoCloseable {
    * @return stats.
    */
   Stats getStats();
+
+  /**
+   * Reset the partition.
+   */
+  default void reset() {};
 
   interface Stats {
     long getBuildNumEntries();

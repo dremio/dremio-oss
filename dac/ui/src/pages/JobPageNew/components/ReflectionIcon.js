@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import Art from '@app/components/Art';
+import PropTypes from "prop-types";
+import Art from "@app/components/Art";
 
 export const getReflectionIcon = () => {
   return {
@@ -23,27 +23,27 @@ export const getReflectionIcon = () => {
     disableSort: true,
     label: <ReflectionIcon isAcceleration />,
     sortBy: undefined,
-    sortDirection: undefined
+    sortDirection: undefined,
   };
 };
 
 const ReflectionIcon = ({ isAcceleration }) => {
-
-  return <span className='jobsContent-dataset__accelerationIconWrapper'>
-    {
-      isAcceleration && <Art
-        src='Reflection.svg'
-        alt='Query was accelerated Icon'
-        title='Query was accelerated'
-        className='jobsContent-dataset__accelerationIcon'
-      />
-    }
-  </span>;
-
+  return (
+    <span className="jobsContent-dataset__accelerationIconWrapper">
+      {isAcceleration && (
+        <Art
+          src="Reflection.svg"
+          alt="Query was accelerated Icon"
+          title="Query was accelerated"
+          className="jobsContent-dataset__accelerationIcon"
+        />
+      )}
+    </span>
+  );
 };
 
 ReflectionIcon.propTypes = {
-  isAcceleration: PropTypes.bool
+  isAcceleration: PropTypes.bool,
 };
 
 export default ReflectionIcon;

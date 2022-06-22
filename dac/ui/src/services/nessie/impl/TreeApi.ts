@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import moize from 'moize';
+import moize from "moize";
 import {
   DefaultApi,
   GetAllReferencesRequest,
@@ -23,19 +23,22 @@ import {
   GetEntriesRequest,
   CreateReferenceRequest,
   DeleteBranchRequest,
-  MergeRefIntoBranchRequest
-} from '../client';
-import SwaggerConfig, { createSwaggerConfig } from './SwaggerConfig';
+  MergeRefIntoBranchRequest,
+} from "../client";
+import SwaggerConfig, { createSwaggerConfig } from "./SwaggerConfig";
 
 //Use default Atlantis project API
 const TreeApi = new DefaultApi(SwaggerConfig);
 
 //Get and cache (moize) endpoint-specific API (empty endpoint = default Atlantis API)
-export const getTreeApi = moize(function(endpoint?: string) {
-  return new DefaultApi(createSwaggerConfig(endpoint));
-}, {
-  maxSize: 10
-});
+export const getTreeApi = moize(
+  function (endpoint?: string) {
+    return new DefaultApi(createSwaggerConfig(endpoint));
+  },
+  {
+    maxSize: 10,
+  }
+);
 
 export function getDefaultBranch() {
   return TreeApi.getDefaultBranch();

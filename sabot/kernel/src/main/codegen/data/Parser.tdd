@@ -25,7 +25,6 @@
     "org.apache.calcite.sql.SqlBasicCall",
     "org.apache.calcite.util.*",
     "com.dremio.exec.catalog.TableVersionType",
-    "com.dremio.exec.catalog.TableVersionOperator",
     "com.dremio.exec.tablefunctions.TableMacroNames",
     "com.dremio.exec.util.*",
     "com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType",
@@ -42,6 +41,7 @@
     "ARROW",
     "CACHE",
     "TABLES",
+    "VIEWS",
     "USE",
     "FILES",
     "PARTITIONS",
@@ -90,6 +90,7 @@
     "HISTORY",
     "REFLECTIONS",
     "FOLDER",
+    "FUNCTIONS",
     "MODIFY",
     "MANAGE",
     "GRANTS",
@@ -108,6 +109,8 @@
     "QUEUE",
     "ENGINE",
     "PASSWORD",
+    "POLICY",
+    "ACCESS",
     "UNSET",
     "LEARNING",
     "BRANCH",
@@ -123,13 +126,19 @@
     "ASSIGN",
     "SNAPSHOT",
     "REFERENCE",
-    "LOCATION"
+    "LOCATION",
+    "FIELD",
+    "STRUCT",
+    "LIST",
+    "MASKING",
+    "UPLOAD"
   ]
 
   nonReservedKeywords: [
     "A"
     "ABSOLUTE"
     "ACCELERATION"
+    "ACCESS"
     "ACTION"
     "ADA"
     "ADD"
@@ -231,6 +240,8 @@
     "EXCEPTION"
     "EXCLUDE"
     "EXCLUDING"
+    "EXECUTE"
+    "FIELD"
     "FINAL"
     "FIRST"
     "FOLDER"
@@ -240,6 +251,7 @@
     "FORTRAN"
     "FOUND"
     "FRAC_SECOND"
+    "FUNCTIONS"
     "G"
     "GENERAL"
     "GENERATED"
@@ -278,6 +290,7 @@
     "LENGTH"
     "LEVEL"
     "LIBRARY"
+    "LIST"
     "LOCALSORT"
     "LOCATION"
     "LOCATOR"
@@ -286,6 +299,7 @@
     "MAINTAIN"
     "MANAGE"
     "MAP"
+    "MASKING"
     "MATCHED"
     "MATERIALIZATION"
     "MAXVALUE"
@@ -339,6 +353,7 @@
     "PLACING"
     "PLAN"
     "PLI"
+    "POLICY"
     "PRECEDING"
     "PRESERVE"
     "PRIOR"
@@ -449,6 +464,7 @@
     "STATUS"
     "STORE"
     "STRIPED"
+    "STRUCT"
     "STRUCTURE"
     "STYLE"
     "SUBCLASS_ORIGIN"
@@ -476,6 +492,7 @@
     "UNCOMMITTED"
     "UNDER"
     "UNNAMED"
+    "UPLOAD"
     "USAGE"
     "USER_DEFINED_TYPE_CATALOG"
     "USER_DEFINED_TYPE_CODE"
@@ -484,6 +501,7 @@
     "VDS"
     "VERSION"
     "VIEW"
+    "VIEWS"
     "WEEK"
     "WORK"
     "WRAPPER"
@@ -503,13 +521,16 @@
     "SqlDescribeTable()",
     "SqlUseVersion()",
     "SqlUseSchema()",
-    "SqlCreateOrReplaceView()",
+    "SqlCreateOrReplace()",
     "SqlDropView()",
     "SqlShowFiles()",
     "SqlCreateBranch()",
     "SqlCreateTable()",
     "SqlCreateTag()",
     "SqlInsertTable()",
+    "SqlDeleteFromTable()",
+    "SqlMergeIntoTable()",
+    "SqlUpdateTable()",
     "SqlDropBranch()",
     "SqlDropTag()",
     "SqlDropTable()",
@@ -530,8 +551,13 @@
     "SqlDropRole()",
     "SqlAnalyzeTableStatistics()",
     "SqlRefreshDataset()",
-    "SqlAlterBranch()",
-    "SqlAssignTag()"
+    "SqlAssignBranch()",
+    "SqlAssignTag()",
+    "SqlMergeBranch()",
+    "SqlDropFunction()"
+    "SqlShowViews()"
+    "SqlDescribeFunction()"
+    "SqlShowFunctions()"
   ]
 
   # List of methods for parsing custom literals.

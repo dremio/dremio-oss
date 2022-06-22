@@ -13,32 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import { CopyToClipboard } from 'react-copy-to-clipboard';
-import Tooltip from '@material-ui/core/Tooltip';
-import SvgIcon from '@material-ui/core/SvgIcon';
+import { CopyToClipboard } from "react-copy-to-clipboard";
+import Tooltip from "@material-ui/core/Tooltip";
+import SvgIcon from "@material-ui/core/SvgIcon";
 
-import { ReactComponent as CopyIcon } from '../../art/copy.svg';
+import { ReactComponent as CopyIcon } from "../../art/copy.svg";
 
-import './CopyToClipboard.scss';
+import "./CopyToClipboard.scss";
 
 const CopyText = (props) => {
-  const {
-    className,
-    placement,
-    value,
-    onCopy,
-    tooltipText
-  } = props;
+  const { className, placement, value, onCopy, tooltipText } = props;
 
   const [tooltipOpen, setTooltipOpen] = useState(false);
-  const [tooltipTitle, setTooltipTitle] = useState('');
+  const [tooltipTitle, setTooltipTitle] = useState("");
 
   const handleCopySuccess = () => {
-    if (onCopy && typeof onCopy === 'function') {
+    if (onCopy && typeof onCopy === "function") {
       onCopy();
     }
     setTooltipOpen(true);
@@ -48,19 +42,18 @@ const CopyText = (props) => {
     }, 1000);
   };
 
-  const iconClass = clsx('copy__icon', className);
+  const iconClass = clsx("copy__icon", className);
 
   return (
     <Tooltip
       arrow
       open={tooltipOpen}
       title={tooltipTitle}
-      placement={placement}>
+      placement={placement}
+    >
       <span className={iconClass}>
-        <CopyToClipboard
-          text={value}
-          onCopy={handleCopySuccess}>
-          <SvgIcon component={CopyIcon} fontSize='large' />
+        <CopyToClipboard text={value} onCopy={handleCopySuccess}>
+          <SvgIcon component={CopyIcon} fontSize="large" />
         </CopyToClipboard>
       </span>
     </Tooltip>
@@ -68,8 +61,8 @@ const CopyText = (props) => {
 };
 
 CopyText.defaultProps = {
-  placement: 'bottom',
-  tooltipText: 'Copied'
+  placement: "bottom",
+  tooltipText: "Copied",
 };
 
 CopyText.propTypes = {
@@ -77,7 +70,7 @@ CopyText.propTypes = {
   placement: PropTypes.string,
   value: PropTypes.string.isRequired,
   onCopy: PropTypes.func,
-  tooltipText: PropTypes.string
+  tooltipText: PropTypes.string,
 };
 
 export default CopyText;

@@ -13,36 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, put, takeLatest } from 'redux-saga/effects';
+import { call, put, takeLatest } from "redux-saga/effects";
 import {
-  afterLogin, handleLogin, handleAppInit,
-  checkAppState, resetAppInitState, handleAppStop
-} from '@app/sagas/loginLogout';
-import { LOGIN_USER_SUCCESS } from '@app/actions/account';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import { expect } from 'chai';
-import { default as handleAppInitHelper } from '@inject/sagas/utils/handleAppInit';
-import { isAuthorized } from '@inject/sagas/utils/isAuthorized';
-import { appInitComplete } from '@app/actions/app';
+  afterLogin,
+  handleLogin,
+  handleAppInit,
+  checkAppState,
+  resetAppInitState,
+  handleAppStop,
+} from "@app/sagas/loginLogout";
+import { LOGIN_USER_SUCCESS } from "@app/actions/account";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { expect } from "chai";
+import { default as handleAppInitHelper } from "@inject/sagas/utils/handleAppInit";
+import { isAuthorized } from "@inject/sagas/utils/isAuthorized";
+import { appInitComplete } from "@app/actions/app";
 
-describe('login', () => {
-  it('afterLogin calls handleLogin saga if LOGIN_USER_SUCCESS is dispatched', () => {
+describe("login", () => {
+  it("afterLogin calls handleLogin saga if LOGIN_USER_SUCCESS is dispatched", () => {
     const gen = afterLogin();
-    expect(gen.next().value).to.be.eql(takeLatest(LOGIN_USER_SUCCESS, handleLogin));
+    expect(gen.next().value).to.be.eql(
+      takeLatest(LOGIN_USER_SUCCESS, handleLogin)
+    );
     expect(gen.next().done).to.be.true;
   });
 
-  it('handleLogin sets user data, boots an app and go to home page', () => {
-    const userData = { name: 'a test user name' };
+  it("handleLogin sets user data, boots an app and go to home page", () => {
+    const userData = { name: "a test user name" };
     const gen = handleLogin({ payload: userData });
 
-    expect(gen.next().value).to.be.eql(call([localStorageUtils, localStorageUtils.setUserData], userData));
+    expect(gen.next().value).to.be.eql(
+      call([localStorageUtils, localStorageUtils.setUserData], userData)
+    );
     expect(gen.next().value).to.be.eql(call(handleAppInit));
 
     expect(gen.next().done).to.be.true;
   });
 
-  describe('handleAppBoot', () => {
+  describe("handleAppBoot", () => {
     let gen;
 
     beforeEach(() => {
@@ -55,13 +63,14 @@ describe('login', () => {
       expect(gen.next().done).to.be.true;
     };
 
-    it('has effect only once until handleAppStop is called', () => {
+    it("has effect only once until handleAppStop is called", () => {
       testBoot();
       // call app init several times. Saga should be completed immediately
       expect(handleAppInit().next().done).to.be.true;
       expect(handleAppInit().next().done).to.be.true;
       const stopAppGen = handleAppStop();
-      while (!stopAppGen.next().done) { // execute full stopAppGen saga
+      while (!stopAppGen.next().done) {
+        // execute full stopAppGen saga
         // noop
       }
       // standard flow should be enabled
@@ -69,7 +78,7 @@ describe('login', () => {
     });
   });
 
-  describe('checkAppState', () => {
+  describe("checkAppState", () => {
     let gen = null;
 
     beforeEach(() => {
@@ -81,13 +90,13 @@ describe('login', () => {
       expect(gen.next().done).to.be.true;
     });
 
-    it('clears current user data is a user in not authorized anymore', () => {
-      expect(gen.next(false).value).to.be
-        .eql(call([localStorageUtils, localStorageUtils.clearUserData]));
+    it("clears current user data is a user in not authorized anymore", () => {
+      expect(gen.next(false).value).to.be.eql(
+        call([localStorageUtils, localStorageUtils.clearUserData])
+      );
       expect(gen.next(true).value).to.be.eql(put(appInitComplete()));
-
     });
-    it('runs handleAppBoot if user is valid', () => {
+    it("runs handleAppBoot if user is valid", () => {
       expect(gen.next(true).value).to.be.eql(call(handleAppInit));
       expect(gen.next(true).value).to.be.eql(put(appInitComplete()));
     });

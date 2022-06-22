@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import { APP_INIT_COMPLETE } from '@app/actions/app';
+import { APP_INIT_COMPLETE } from "@app/actions/app";
 
 export const initialState = {
-  complete: false
+  complete: false,
 };
 
 export default function init(state = initialState, action) {
   switch (action.type) {
-  /* eslint-disable indent */
+    /* eslint-disable indent */
     case APP_INIT_COMPLETE:
       return {
         ...state,
-        complete: true
+        complete: true,
       };
     default:
       return state;

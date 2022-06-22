@@ -13,36 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { APIV2Call } from '@app/core/APICall';
-import { API_V2, API_V3 } from '@app/constants/Api';
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
+import { APIV2Call } from "@app/core/APICall";
+import { API_V2, API_V3 } from "@app/constants/Api";
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 
 class TokenUtils {
   getTempToken({ params, requestApiVersion }) {
     const { request } = params;
     const version = requestApiVersion === 2 ? API_V2 : API_V3;
     let cleanedRequest = request;
-    if (request.indexOf('/') === 0) {
+    if (request.indexOf("/") === 0) {
       cleanedRequest = request.substring(1);
     }
     const updatedRequest = `/${version}/${cleanedRequest}`;
     const updatedParams = {
       ...params,
-      request: updatedRequest
+      request: updatedRequest,
     };
     const tempApiCall = new APIV2Call()
-      .path('temp-token')
+      .path("temp-token")
       .params(updatedParams);
     return fetch(tempApiCall.toString(), {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': localStorageUtils.getAuthToken()
-      }
-    })
-      .then(res => res.json());
+        "Content-Type": "application/json",
+        Authorization: localStorageUtils.getAuthToken(),
+      },
+    }).then((res) => res.json());
   }
 }
-
 
 export default new TokenUtils();

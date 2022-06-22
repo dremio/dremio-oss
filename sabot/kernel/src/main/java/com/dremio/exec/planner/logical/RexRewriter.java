@@ -56,7 +56,7 @@ public class RexRewriter {
   /**
    * Rule which defines how a RexNode should be rewritten
    */
-  public static abstract class RewriteRule {
+  public abstract static class RewriteRule {
     protected final RexBuilder builder;
 
     public RewriteRule(RexBuilder builder) {

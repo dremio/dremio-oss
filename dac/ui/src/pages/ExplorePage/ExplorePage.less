@@ -16,7 +16,8 @@
 @import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
 //but the change is in better direction. Duplicated styles from typography are not loaded
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   @gray: #aaa;
   #grid-page {
@@ -24,12 +25,13 @@
     display: grid;
     grid-template-rows: auto 1fr;
 
-    .fixed-data-table .public_fixedDataTable_header, .fixed-data-table .public_fixedDataTable_hasBottomBorder {
-      border-color: #E8E8E8;
+    .fixed-data-table .public_fixedDataTable_header,
+    .fixed-data-table .public_fixedDataTable_hasBottomBorder {
+      border-color: #e8e8e8;
     }
 
     .fixedDataTableCellLayout_columnResizerContainer {
-      border-color: #E8E8E8;
+      border-color: #e8e8e8;
     }
 
     .move-right {
@@ -51,20 +53,19 @@
       z-index: 99;
     }
 
-
-    .wrap{
+    .wrap {
       display: flex;
     }
 
     .closed {
       transform: translateX(300px);
-      transition: all .15s ease-out;
+      transition: all 0.15s ease-out;
       width: 0;
     }
 
     .opened {
       transform: translateX(0);
-      transition:all .15s ease-out;
+      transition: all 0.15s ease-out;
       display: block;
     }
 
@@ -73,7 +74,7 @@
     }
 
     .table-control-wrap .selected-text {
-      background: #F2F2F2;
+      background: #f2f2f2;
       position: fixed;
       left: 0;
       top: 0;

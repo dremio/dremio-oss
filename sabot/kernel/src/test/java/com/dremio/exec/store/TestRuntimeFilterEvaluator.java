@@ -53,7 +53,7 @@ import com.dremio.test.AllocatorRule;
  * Tests for {@link RuntimeFilterEvaluator}
  */
 public class TestRuntimeFilterEvaluator {
-  private final static String TEST_NAME = "20ed4177-87c7-91cc-c869-82b1d90cd300:frag:1:3";
+  private static final String TEST_NAME = "20ed4177-87c7-91cc-c869-82b1d90cd300:frag:1:3";
 
   private BufferAllocator testAllocator;
 

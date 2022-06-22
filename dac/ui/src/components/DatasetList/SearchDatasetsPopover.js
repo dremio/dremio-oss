@@ -13,27 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createRef, PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import Immutable  from 'immutable';
-import Radium from 'radium';
-import {injectIntl} from 'react-intl';
+import { createRef, PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
 
-import { loadSearchData } from 'actions/search.js';
-import { getSearchResult } from 'selectors/resources';
-import { Popover } from '@app/components/Popover';
-import SearchDatasetsComponent from '@inject/components/DatasetList/SearchDatasetsComponent';
+import { loadSearchData } from "actions/search.js";
+import { getSearchResult } from "selectors/resources";
+import { Popover } from "@app/components/Popover";
+import SearchDatasetsComponent from "@inject/components/DatasetList/SearchDatasetsComponent";
 
-import { compose } from 'redux';
-import DatasetList from './DatasetList';
+import { compose } from "redux";
+import DatasetList from "./DatasetList";
 
-import './SearchDatasetsPopover.less';
+import "./SearchDatasetsPopover.less";
 
 const DELAY_SEARCH = 1000;
-@Radium
 class SearchDatasetsPopover extends PureComponent {
-
   static propTypes = {
     searchData: PropTypes.instanceOf(Immutable.List).isRequired,
     loadSearchData: PropTypes.func.isRequired,
@@ -42,17 +39,21 @@ class SearchDatasetsPopover extends PureComponent {
     shouldAllowAdd: PropTypes.bool,
     addtoEditor: PropTypes.func,
     style: PropTypes.object,
-    intl: PropTypes.object.isRequired
-  }
+    intl: PropTypes.object.isRequired,
+    starNode: PropTypes.func,
+    unstarNode: PropTypes.func,
+    isStarredLimitReached: PropTypes.bool,
+    starredItems: PropTypes.array,
+  };
 
   constructor(props) {
     super(props);
 
     this.state = {
-      filter: '',
+      filter: "",
       searchVisible: false,
       anchorEl: null,
-      closeVisible: false
+      closeVisible: false,
     };
 
     this.searchField = createRef();
@@ -67,17 +68,15 @@ class SearchDatasetsPopover extends PureComponent {
   }
 
   propsChange(prevProps, newProps) {
-    const {
-      searchText
-    } = newProps;
+    const { searchText } = newProps;
 
-    if (prevProps.searchText !== searchText && typeof searchText === 'string') {
+    if (prevProps.searchText !== searchText && typeof searchText === "string") {
       this.input.value = searchText;
       this.input.focus();
       this.onInput(); // simulate text change
     }
 
-    if (this.state.filter === '') {
+    if (this.state.filter === "") {
       this.setState({ closeVisible: false });
     } else {
       this.setState({ closeVisible: true });
@@ -91,7 +90,7 @@ class SearchDatasetsPopover extends PureComponent {
   handleSearchHide = () => {
     this.setState({ searchVisible: false, closeVisible: false });
     this.input.focus();
-  }
+  };
 
   startSearch(text) {
     this.props.loadSearchData(text);
@@ -103,7 +102,7 @@ class SearchDatasetsPopover extends PureComponent {
 
     this.setState({
       anchorEl: this.input,
-      filter: text
+      filter: text,
     });
 
     clearTimeout(this.updateSearch);
@@ -111,24 +110,35 @@ class SearchDatasetsPopover extends PureComponent {
     this.updateSearch = setTimeout(() => {
       this.startSearch(text);
     }, DELAY_SEARCH);
-  }
+  };
 
-  onInputRef = input => {
+  onInputRef = (input) => {
     this.input = input;
-  }
+  };
 
   clearFilter = () => {
-    this.input.value = '';
+    this.input.value = "";
     this.handleSearchHide();
-    this.setState({ filter: '' });
-  }
+    this.setState({ filter: "" });
+  };
 
   render() {
     const value = this.state.filter;
     const { searchVisible, anchorEl } = this.state;
-    const { dragType, searchData, changeSelectedNode } = this.props;
-    return  (
-      <div className='resource-tree' style={[styles.base, this.props.style]}>
+    const {
+      dragType,
+      searchData,
+      changeSelectedNode,
+      starNode,
+      unstarNode,
+      isStarredLimitReached,
+      starredItems,
+    } = this.props;
+    return (
+      <div
+        className="resource-tree"
+        style={{ ...styles.base, ...(this.props.style || {}) }}
+      >
         <SearchDatasetsComponent
           onInput={this.onInput}
           clearFilter={this.clearFilter}
@@ -140,6 +150,7 @@ class SearchDatasetsPopover extends PureComponent {
           anchorEl={searchVisible ? anchorEl : null}
           style={styles.searchStyle}
           onClose={this.handleSearchHide}
+          listClass={"search_draggable-row"}
         >
           <DatasetList
             dragType={dragType}
@@ -150,6 +161,10 @@ class SearchDatasetsPopover extends PureComponent {
             isInProgress={false}
             showParents
             shouldAllowAdd
+            starNode={starNode}
+            unstarNode={unstarNode}
+            isStarredLimitReached={isStarredLimitReached}
+            starredItems={starredItems}
           />
         </Popover>
       </div>
@@ -159,42 +174,46 @@ class SearchDatasetsPopover extends PureComponent {
 
 const styles = {
   base: {
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative'
+    display: "flex",
+    flexDirection: "column",
+    position: "relative",
   },
   location: {
-    margin: '7px 0 0'
+    margin: "7px 0 0",
   },
   searchStyle: {
-    margin: '9px 0 0 -18px',
-    zIndex: 1001
+    width: 500,
+    margin: "9px 0 0 -18px",
+    zIndex: 1001,
   },
   fontIcon: {
-    'Icon': {
+    Icon: {
       width: 24,
-      height: 24
+      height: 24,
     },
-    'Container': {
+    Container: {
       width: 24,
-      height: 24
-    }
+      height: 24,
+    },
   },
   clearIcon: {
     Icon: {
       width: 22,
-      height: 22
+      height: 22,
     },
     Container: {
-      cursor: 'pointer',
+      cursor: "pointer",
       width: 22,
-      height: 22
-    }
-  }
+      height: 22,
+    },
+  },
 };
 
 const mapStateToProps = (state) => ({
-  searchData: getSearchResult(state) || Immutable.List()
+  searchData: getSearchResult(state) || Immutable.List(),
 });
 
-export default compose(connect(mapStateToProps, { loadSearchData }), injectIntl)(SearchDatasetsPopover);
+export default compose(
+  connect(mapStateToProps, { loadSearchData }),
+  injectIntl
+)(SearchDatasetsPopover);

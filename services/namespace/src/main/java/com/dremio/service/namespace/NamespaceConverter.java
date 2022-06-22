@@ -44,6 +44,7 @@ import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
@@ -150,6 +151,11 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
         writer.write(NamespaceIndexKeys.LAST_MODIFIED, spaceConfig.getCtime());
         break;
       }
+    case FUNCTION:{
+        final FunctionConfig udfConfig = container.getFunction();
+        writer.write(NamespaceIndexKeys.UDF_ID, udfConfig.getId().getId());
+        break;
+    }
 
       case FOLDER: {
         final FolderConfig folderConfig = container.getFolder();

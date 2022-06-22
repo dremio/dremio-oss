@@ -32,15 +32,15 @@ import com.dremio.test.DremioTest;
  * Class-level unit test for {@link ResultsListener}.
  */
 public class ResultsListenerTest extends DremioTest {
-  private final static QueryDataBatch INSERTED_BATCH = new QueryDataBatch(QueryData.getDefaultInstance(), null);
+  private static final QueryDataBatch INSERTED_BATCH = new QueryDataBatch(QueryData.getDefaultInstance(), null);
   // Both the batchQueue.poll() timeout and EXPECTED_TIME_ELAPSED_MS have been
   // increased to 10s and 5s respectively to reduce the test flakiness
   // and to be absolutely sure that we are not waiting the full duration
   // of the poll timeout.
-  private final static long BATCH_QUEUE_POLL_TIMEOUT_MS = 10000;
-  private final static long EXPECTED_TIME_ELAPSED_MS = 5000;
-  private final static int DELAY_MS = 5;
-  private final static int THROTTLING_THRESHOLD = 100;
+  private static final long BATCH_QUEUE_POLL_TIMEOUT_MS = 10000;
+  private static final long EXPECTED_TIME_ELAPSED_MS = 5000;
+  private static final int DELAY_MS = 5;
+  private static final int THROTTLING_THRESHOLD = 100;
 
   @Test
   public void testEndOfStreamMessageWithQueryCompleted()

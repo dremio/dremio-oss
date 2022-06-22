@@ -28,6 +28,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.adl.AdlConfKeys;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -124,12 +125,23 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
 
+
+  @Tag(13)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
   @Override
   public AzureDataLakeStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be set.");
     Preconditions.checkNotNull(clientId, "Client ID must be set.");
     Preconditions.checkNotNull(mode, "Authentication mode must be set.");
     return new AzureDataLakeStoragePlugin(this, context, name, pluginIdProvider);
+  }
+
+  @Override
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
   }
 
   @Override

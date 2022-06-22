@@ -25,9 +25,12 @@ class JobsMapper {
   }
 
   mapDatasetsJobs(payload) {
-    return payload && payload.jobs.map((item) => {
-      return item.jobAttempt.info.dataset;
-    });
+    return (
+      payload &&
+      payload.jobs.map((item) => {
+        return item.jobAttempt.info.dataset;
+      })
+    );
   }
 
   jobDetails(json) {
@@ -38,29 +41,34 @@ class JobsMapper {
       id: json.id,
       user: json.user,
       path: json.path,
-      state: json.state
+      state: json.state,
     };
   }
 
   mapTableDatasetProfiles(datasetList) {
-    return datasetList && datasetList.map((item) => {
-      const { datasetProfile } = item;
-      return {
-        datasetPathsList: datasetProfile.datasetPathsList,
-        parallelism: datasetProfile.parallelism,
-        waitOnSource: datasetProfile.waitOnSource,
-        bytesRead: datasetProfile.bytesRead,
-        recordsRead: datasetProfile.recordsRead,
-        accelerated: datasetProfile.accelerated, // not received pending DX-5519
-        pushdownQuery: item.pushdownQuery
-      };
-    });
+    return (
+      datasetList &&
+      datasetList.map((item) => {
+        const { datasetProfile } = item;
+        return {
+          datasetPathsList: datasetProfile.datasetPathsList,
+          parallelism: datasetProfile.parallelism,
+          waitOnSource: datasetProfile.waitOnSource,
+          bytesRead: datasetProfile.bytesRead,
+          recordsRead: datasetProfile.recordsRead,
+          accelerated: datasetProfile.accelerated, // not received pending DX-5519
+          pushdownQuery: item.pushdownQuery,
+        };
+      })
+    );
   }
 
   mapJobDetails(json) {
     // @TODO move jobs to normalize
     if (json) {
-      json.tableDatasetList = this.mapTableDatasetProfiles(json.tableDatasetProfiles);
+      json.tableDatasetList = this.mapTableDatasetProfiles(
+        json.tableDatasetProfiles
+      );
       return json;
     }
   }

@@ -88,7 +88,7 @@ public class TestHdfs extends BaseTestMiniDFS {
   @ClassRule
   public static final TemporaryFolder folder = new TemporaryFolder();
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void init() throws Exception {

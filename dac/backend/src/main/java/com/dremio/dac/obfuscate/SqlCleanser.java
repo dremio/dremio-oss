@@ -31,7 +31,6 @@ import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlWith;
 import org.apache.calcite.sql.SqlWithItem;
-import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.SqlShuttle;
 
@@ -46,7 +45,7 @@ import com.dremio.exec.planner.sql.ParserConfig;
  */
 class SqlCleanser {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SqlCleanser.class);
-  private static final ParserConfig CONFIG = new ParserConfig(Quoting.DOUBLE_QUOTE, 256, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+  private static final ParserConfig CONFIG = new ParserConfig(Quoting.DOUBLE_QUOTE, 1000, true, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
   private final FromVisitor fromVisitor = new FromVisitor();
   private final IdentifierAndLiteralFinder finder = new IdentifierAndLiteralFinder();
@@ -60,9 +59,10 @@ class SqlCleanser {
       SqlCleanser cleanser = new SqlCleanser();
       SqlNode cleansedTree = sqlNodeList.get(0).accept(cleanser.fromVisitor);
       cleansedSql = SqlNodes.toSQLString(cleansedTree);
-    } catch (SqlParseException e) {
-      LOGGER.error("Exception while parsing sql, so obfuscating whole sql with a random hex string.", e);
-      cleansedSql = ObfuscationUtils.obfuscatePartial(sql);
+    } catch (Exception e) {
+      String errorMsg = "Exception while parsing sql, so obfuscating whole sql with a random hex string. ";
+      LOGGER.error(errorMsg, e);
+      cleansedSql = errorMsg + ObfuscationUtils.obfuscatePartial(sql);
     }
     return cleansedSql;
   }

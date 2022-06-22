@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 :global {
   .Breadcrumbs {
     display: inline-flex;
@@ -21,7 +21,7 @@
     overflow: hidden;
     white-space: nowrap;
     max-width: 100%; // do not let to exceed parent width
-    .icon-container{
+    .icon-container {
       display: flex;
       cursor: pointer;
       font-weight: 600;
@@ -32,16 +32,24 @@
     span {
       font-weight: 600;
     }
+    .addMinWidth {
+      min-width: fit-content;
+    }
     .crumb {
-      max-width: 80px;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: @FIGMA_TEXT_LINK;
+      color: var(--dremio--color--link);
     }
     .long-crumb {
-      max-width: 350px;
+      // these will need to be removed once a character limit is added.
+      max-width: 600px;
       overflow: hidden;
       text-overflow: ellipsis;
+      a,
+      span {
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
     }
   }
   .menu-crumb {
@@ -54,14 +62,13 @@
   }
   .paper {
     overflow-x: hidden !important;
-    overflow-y: scroll !important;
+    overflow-y: auto !important;
     width: 240px;
     box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15) !important;
     max-height: 300px !important;
   }
-  .menu-item-no-hover {
-    &:hover {
-      background-color: @FIGMA_NEUTRAL_0 !important;
-    }
+
+  .shortMaxWidth {
+    max-width: 280px;
   }
 }

@@ -1,0 +1,316 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "START OF SUBQUERY"
+  input: "SELECT (^"
+  output:
+    completions:
+     -
+      data: "$HISTOGRAM"
+      detail: "$HISTOGRAM"
+      insertText: "$HISTOGRAM()"
+      kind: "Function"
+      label: "$HISTOGRAM"
+     -
+      data: "$HISTOGRAM_FIRST_VALUE"
+      detail: "$HISTOGRAM_FIRST_VALUE"
+      insertText: "$HISTOGRAM_FIRST_VALUE()"
+      kind: "Function"
+      label: "$HISTOGRAM_FIRST_VALUE"
+     -
+      data: "$HISTOGRAM_LAST_VALUE"
+      detail: "$HISTOGRAM_LAST_VALUE"
+      insertText: "$HISTOGRAM_LAST_VALUE()"
+      kind: "Function"
+      label: "$HISTOGRAM_LAST_VALUE"
+     -
+      data: "$HISTOGRAM_MAX"
+      detail: "$HISTOGRAM_MAX"
+      insertText: "$HISTOGRAM_MAX()"
+      kind: "Function"
+      label: "$HISTOGRAM_MAX"
+     -
+      data: "$HISTOGRAM_MIN"
+      detail: "$HISTOGRAM_MIN"
+      insertText: "$HISTOGRAM_MIN()"
+      kind: "Function"
+      label: "$HISTOGRAM_MIN"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "START OF SUBQUERY WITHOUT SOURCE"
+  input: "SELECT * FROM (^"
+  output:
+    completions:
+     -
+      data:
+        name: "DEPT"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "DEPT"
+      kind: "CatalogEntry"
+      label: "DEPT"
+     -
+      data:
+        name: "EMP"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "EMP"
+      kind: "CatalogEntry"
+      label: "EMP"
+     -
+      data:
+        name: "physical dataset"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "\"physical dataset\""
+      kind: "CatalogEntry"
+      label: "physical dataset"
+     -
+      data:
+        name: "SALGRADE"
+        type: "Virtual Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "SALGRADE"
+      kind: "CatalogEntry"
+      label: "SALGRADE"
+     -
+      data:
+        name: "virtual dataset"
+        type: "Virtual Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "\"virtual dataset\""
+      kind: "CatalogEntry"
+      label: "virtual dataset"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COLUMN in INNER query"
+  input:
+   - "SELECT DEPTNO, ("
+   - " SELECT MAX(EMP.SAL), ^ "
+   - " FROM EMP"
+   - ")"
+   - "FROM DEPT"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "DEPT"
+      detail: "Some Column"
+      insertText: "DEPT.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "NAME"
+          type: "VARCHAR"
+        tableAlias: "DEPT"
+      detail: "Some Column"
+      insertText: "DEPT.NAME"
+      kind: "Column"
+      label: "NAME"
+     -
+      data:
+        column:
+          name: "COMM"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.COMM"
+      kind: "Column"
+      label: "COMM"
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "EMPNO"
+          type: "INTEGER"
+        tableAlias: "EMP"
+      detail: "Some Column"
+      insertText: "EMP.EMPNO"
+      kind: "Column"
+      label: "EMPNO"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "COLUMN in OUTER query"
+  input:
+   - "SELECT DEPTNO, ^, ("
+   - " SELECT MAX(EMP.SAL) "
+   - " FROM EMP"
+   - ")"
+   - "FROM DEPT"
+  output:
+    completions:
+     -
+      data:
+        column:
+          name: "DEPTNO"
+          type: "INTEGER"
+        tableAlias: "DEPT"
+      detail: "Some Column"
+      insertText: "DEPT.DEPTNO"
+      kind: "Column"
+      label: "DEPTNO"
+     -
+      data:
+        column:
+          name: "NAME"
+          type: "VARCHAR"
+        tableAlias: "DEPT"
+      detail: "Some Column"
+      insertText: "DEPT.NAME"
+      kind: "Column"
+      label: "NAME"
+     -
+      data: "$HISTOGRAM"
+      detail: "$HISTOGRAM"
+      insertText: "$HISTOGRAM()"
+      kind: "Function"
+      label: "$HISTOGRAM"
+     -
+      data: "$HISTOGRAM_FIRST_VALUE"
+      detail: "$HISTOGRAM_FIRST_VALUE"
+      insertText: "$HISTOGRAM_FIRST_VALUE()"
+      kind: "Function"
+      label: "$HISTOGRAM_FIRST_VALUE"
+     -
+      data: "$HISTOGRAM_LAST_VALUE"
+      detail: "$HISTOGRAM_LAST_VALUE"
+      insertText: "$HISTOGRAM_LAST_VALUE()"
+      kind: "Function"
+      label: "$HISTOGRAM_LAST_VALUE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "CATALOGENTRY in INNER query"
+  input:
+   - "SELECT DEPTNO, ("
+   - " SELECT * "
+   - " FROM ^)"
+   - "FROM DEPT"
+  output:
+    completions:
+     -
+      data:
+        name: "DEPT"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "DEPT"
+      kind: "CatalogEntry"
+      label: "DEPT"
+     -
+      data:
+        name: "EMP"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "EMP"
+      kind: "CatalogEntry"
+      label: "EMP"
+     -
+      data:
+        name: "physical dataset"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "\"physical dataset\""
+      kind: "CatalogEntry"
+      label: "physical dataset"
+     -
+      data:
+        name: "SALGRADE"
+        type: "Virtual Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "SALGRADE"
+      kind: "CatalogEntry"
+      label: "SALGRADE"
+     -
+      data:
+        name: "virtual dataset"
+        type: "Virtual Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "\"virtual dataset\""
+      kind: "CatalogEntry"
+      label: "virtual dataset"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "CATALOGENTRY in OUTER query"
+  input:
+   - "SELECT ("
+   - " SELECT * "
+   - " FROM EMP"
+   - ")"
+   - "FROM ^"
+  output:
+    completions:
+     -
+      data:
+        name: "DEPT"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "DEPT"
+      kind: "CatalogEntry"
+      label: "DEPT"
+     -
+      data:
+        name: "EMP"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "EMP"
+      kind: "CatalogEntry"
+      label: "EMP"
+     -
+      data:
+        name: "physical dataset"
+        type: "Physical Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "\"physical dataset\""
+      kind: "CatalogEntry"
+      label: "physical dataset"
+     -
+      data:
+        name: "SALGRADE"
+        type: "Virtual Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "SALGRADE"
+      kind: "CatalogEntry"
+      label: "SALGRADE"
+     -
+      data:
+        name: "virtual dataset"
+        type: "Virtual Dataset"
+      detail: "Some CatalogEntry"
+      insertText: "\"virtual dataset\""
+      kind: "CatalogEntry"
+      label: "virtual dataset"
+    functionContext: null
+    hasMoreResults: true

@@ -43,7 +43,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.assertj.core.api.Assertions;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;

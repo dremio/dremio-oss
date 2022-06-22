@@ -13,22 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
-import ColumnDragItem from 'utils/ColumnDragItem';
+import DragColumnMenu from "components/DragComponents/DragColumnMenu";
+import ColumnDragItem from "utils/ColumnDragItem";
 
-import { base, inner, leftBorder, fullHeight, contentPadding } from '@app/uiTheme/less/Aggregate/AggregateContent.less';
-import ColumnDragArea from './components/ColumnDragArea';
-import MeasureDragArea, { MEASURE_DRAG_AREA_TEXT } from './components/MeasureDragArea';
+import {
+  base,
+  inner,
+  leftBorder,
+  fullHeight,
+  contentPadding,
+} from "@app/uiTheme/less/Aggregate/AggregateContent.less";
+import ColumnDragArea from "./components/ColumnDragArea";
+import MeasureDragArea, {
+  MEASURE_DRAG_AREA_TEXT,
+} from "./components/MeasureDragArea";
 
-export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST', 'STRUCT']);
+export const NOT_SUPPORTED_TYPES = new Set(["MAP", "LIST", "STRUCT"]);
 
-@Radium
 class AggregateContent extends Component {
   static propTypes = {
     fields: PropTypes.object,
@@ -45,13 +51,13 @@ class AggregateContent extends Component {
     style: PropTypes.object,
     dragItem: PropTypes.instanceOf(ColumnDragItem),
     className: PropTypes.string,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
   };
 
   static defaultProps = {
     allColumns: Immutable.List(),
     canSelectMeasure: true,
-    canUseFieldAsBothDimensionAndMeasure: true
+    canUseFieldAsBothDimensionAndMeasure: true,
   };
 
   disabledColumnNames = undefined;
@@ -67,7 +73,12 @@ class AggregateContent extends Component {
 
   receiveProps(nextProps, oldProps) {
     // disabledColumnNames is wholly derived from these props, so only recalculate it when one of them has changed
-    const propKeys = ['allColumns', 'fields', 'canSelectMeasure', 'canUseFieldAsBothDimensionAndMeasure'];
+    const propKeys = [
+      "allColumns",
+      "fields",
+      "canSelectMeasure",
+      "canUseFieldAsBothDimensionAndMeasure",
+    ];
     if (propKeys.some((key) => nextProps[key] !== oldProps[key])) {
       this.disabledColumnNames = this.getDisabledColumnNames(nextProps);
     }
@@ -75,27 +86,43 @@ class AggregateContent extends Component {
 
   getDisabledColumnNames(props) {
     const {
-      allColumns, fields, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure
+      allColumns,
+      fields,
+      canSelectMeasure,
+      canUseFieldAsBothDimensionAndMeasure,
     } = props;
-    const dimensionColumnNames = Immutable.Set(fields.columnsDimensions.map(col => col.column.value));
-    const measuresColumnNames = Immutable.Set(fields.columnsMeasures.map(col => col.column.value));
+    const dimensionColumnNames = Immutable.Set(
+      fields.columnsDimensions.map((col) => col.column.value)
+    );
+    const measuresColumnNames = Immutable.Set(
+      fields.columnsMeasures.map((col) => col.column.value)
+    );
     const columnsInEither = dimensionColumnNames.concat(measuresColumnNames);
     const columnsInBoth = dimensionColumnNames.intersect(measuresColumnNames);
 
     const disabledColumns = allColumns.filter(
       (column) =>
-        NOT_SUPPORTED_TYPES.has(column.get('type')) ||
-        (!canSelectMeasure && columnsInBoth.has(column.get('name'))) ||
-        (!canUseFieldAsBothDimensionAndMeasure && columnsInEither.has(column.get('name')))
+        NOT_SUPPORTED_TYPES.has(column.get("type")) ||
+        (!canSelectMeasure && columnsInBoth.has(column.get("name"))) ||
+        (!canUseFieldAsBothDimensionAndMeasure &&
+          columnsInEither.has(column.get("name")))
     );
-    return Immutable.Set(disabledColumns.map((column) => column.get('name')));
+    return Immutable.Set(disabledColumns.map((column) => column.get("name")));
   }
 
   render() {
     const {
-      allColumns, onDrop, fields, dragType, isDragInProgress, dragItem,
-      handleDragStart, onDragEnd, canUseFieldAsBothDimensionAndMeasure,
-      className, canAlter
+      allColumns,
+      onDrop,
+      fields,
+      dragType,
+      isDragInProgress,
+      dragItem,
+      handleDragStart,
+      onDragEnd,
+      canUseFieldAsBothDimensionAndMeasure,
+      className,
+      canAlter,
     } = this.props;
     const commonDragAreaProps = {
       allColumns,
@@ -106,28 +133,31 @@ class AggregateContent extends Component {
       dragType,
       isDragInProgress,
       dragItem,
-      canUseFieldAsBothDimensionAndMeasure
+      canUseFieldAsBothDimensionAndMeasure,
     };
-    const measurementCls = classNames(['aggregate-measurement', fullHeight]);
+    const measurementCls = classNames(["aggregate-measurement", fullHeight]);
 
     return (
-      <div className={classNames(['aggregate-content', base, className])} style={this.props.style}>
+      <div
+        className={classNames(["aggregate-content", base, className])}
+        style={this.props.style}
+      >
         <div className={inner}>
           <DragColumnMenu
             items={allColumns}
             className={fullHeight}
             disabledColumnNames={this.disabledColumnNames}
-            columnType='column'
+            columnType="column"
             handleDragStart={handleDragStart}
             onDragEnd={onDragEnd}
             dragType={dragType}
-            name={`${this.props.path} (${la('Current')})`}
+            name={`${this.props.path} (${la("Current")})`}
             canAlter={canAlter}
           />
         </div>
         <div className={leftBorder}>
           <ColumnDragArea
-            className={classNames(['aggregate-dimension', fullHeight])}
+            className={classNames(["aggregate-dimension", fullHeight])}
             dragContentCls={contentPadding}
             {...commonDragAreaProps}
             columnsField={fields.columnsDimensions}
@@ -135,25 +165,25 @@ class AggregateContent extends Component {
           />
         </div>
         <div className={leftBorder}>
-          {
-            this.props.canSelectMeasure ?
-              <MeasureDragArea
-                dragContentCls={contentPadding}
-                className={measurementCls}
-                {...commonDragAreaProps}
-                columnsField={fields.columnsMeasures}/> :
-              <ColumnDragArea
-                dragContentCls={contentPadding}
-                className={measurementCls}
-                {...commonDragAreaProps}
-                dragOrigin='measures'
-                dragAreaText={MEASURE_DRAG_AREA_TEXT}
-                columnsField={fields.columnsMeasures}
-                canAlter={canAlter}
-              />
-          }
+          {this.props.canSelectMeasure ? (
+            <MeasureDragArea
+              dragContentCls={contentPadding}
+              className={measurementCls}
+              {...commonDragAreaProps}
+              columnsField={fields.columnsMeasures}
+            />
+          ) : (
+            <ColumnDragArea
+              dragContentCls={contentPadding}
+              className={measurementCls}
+              {...commonDragAreaProps}
+              dragOrigin="measures"
+              dragAreaText={MEASURE_DRAG_AREA_TEXT}
+              columnsField={fields.columnsMeasures}
+              canAlter={canAlter}
+            />
+          )}
         </div>
-
       </div>
     );
   }

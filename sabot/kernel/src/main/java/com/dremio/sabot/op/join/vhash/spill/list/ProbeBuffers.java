@@ -29,11 +29,6 @@ public class ProbeBuffers implements AutoCloseable {
   private final BufferAllocator allocator;
 
   /**
-   * SV2 offsets in the probe batch that are valid for this partition.
-   */
-  private final long inProbeSV2Offsets2B;
-
-  /**
    * A list of 4B offsets that describe which value each ordinal matches.
    */
   private ArrowBuf inTableMatchOrdinals4B;
@@ -66,8 +61,7 @@ public class ProbeBuffers implements AutoCloseable {
    */
   private final ArrowBuf outInvalidBuildKeyOffsets2B;
 
-  public ProbeBuffers(long inProbeSV2Offsets2B, int targetRecordsPerBatch, BufferAllocator allocator) {
-    this.inProbeSV2Offsets2B = inProbeSV2Offsets2B;
+  public ProbeBuffers(int targetRecordsPerBatch, BufferAllocator allocator) {
     this.allocator = allocator;
     this.inTableMatchOrdinals4B = allocator.buffer(targetRecordsPerBatch * 4);
     this.outProbeProjectOffsets2B = allocator.buffer(targetRecordsPerBatch * 2);
@@ -85,10 +79,6 @@ public class ProbeBuffers implements AutoCloseable {
       inTableMatchOrdinals4B.close();
       inTableMatchOrdinals4B = allocator.buffer(records * 4);
     }
-  }
-
-  public long getInProbeSV2Offsets2B() {
-    return inProbeSV2Offsets2B;
   }
 
   public ArrowBuf getInTableMatchOrdinals4B() {

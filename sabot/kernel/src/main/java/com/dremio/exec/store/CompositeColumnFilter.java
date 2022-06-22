@@ -31,7 +31,8 @@ public class CompositeColumnFilter implements AutoCloseable {
 
   public enum RuntimeFilterType {
     BLOOM_FILTER,
-    VALUE_LIST
+    VALUE_LIST,
+    VALUE_LIST_WITH_BLOOM_FILTER
   }
 
   private RuntimeFilterType filterType;

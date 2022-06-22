@@ -26,7 +26,7 @@ import com.dremio.exec.proto.UserBitShared.StackTraceElementWrapper;
 public class ErrorHelper {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ErrorHelper.class);
 
-  private final static Pattern IGNORE = Pattern.compile("^(sun|com\\.sun|java).*");
+  private static final Pattern IGNORE = Pattern.compile("^(sun|com\\.sun|java).*");
 
   /**
    * Constructs the root error message in the form [root exception class name]: [root exception message]

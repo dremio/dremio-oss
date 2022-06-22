@@ -72,7 +72,8 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
   private static final boolean PRINT_OUTPUT = false;
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchRecordReader.class);
-  public static final String MATCH_ALL_QUERY = QueryBuilders.matchAllQuery().buildAsBytes().utf8ToString();
+  public static final String MATCH_ALL_QUERY = QueryBuilders.matchAllQuery().toString(false);
+
   public static final String MATCH_ALL_REQUEST = String.format("{\"query\": %s }", MATCH_ALL_QUERY);
   private static final int STREAM_COUNT_BREAK_MULTIPLIER = 3;
   private static final String TIMED_OUT = "\"timed_out\": true";

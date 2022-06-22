@@ -21,6 +21,7 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleN
 
 import org.projectnessie.api.params.FetchOption;
 import org.projectnessie.api.params.GetReferenceParams;
+import org.projectnessie.api.params.GetReferenceParamsBuilder;
 import org.projectnessie.client.api.GetReferenceBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Reference;
@@ -30,7 +31,7 @@ import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingSt
 final class GrpcGetReference implements GetReferenceBuilder {
 
   private final TreeServiceBlockingStub stub;
-  private final GetReferenceParams.Builder builder = GetReferenceParams.builder();
+  private final GetReferenceParamsBuilder builder = GetReferenceParams.builder();
 
   public GrpcGetReference(TreeServiceBlockingStub stub) {
     this.stub = stub;
@@ -44,7 +45,7 @@ final class GrpcGetReference implements GetReferenceBuilder {
 
   @Override
   public GetReferenceBuilder fetch(FetchOption fetchOption) {
-    builder.fetch(fetchOption);
+    builder.fetchOption(fetchOption);
     return this;
   }
 

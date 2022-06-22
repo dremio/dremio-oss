@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
 
   <groupId>com.dremio</groupId>
@@ -101,15 +101,6 @@
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
           </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
-        <executions>
           <execution>
             <id>generate-proto</id>
             <phase>generate-sources</phase>
@@ -117,6 +108,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
+              <clearOutputDirectory>false</clearOutputDirectory>
               <protoSourceRoot>${project.basedir}/src/main/proto3</protoSourceRoot>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
@@ -129,6 +121,7 @@
               <goal>compile-custom</goal>
             </goals>
             <configuration>
+              <clearOutputDirectory>false</clearOutputDirectory>
               <protoSourceRoot>${project.basedir}/src/main/proto3</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
               <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>

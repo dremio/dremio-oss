@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -15,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/mixins.less";
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global {
-    .namespaceItem {
-        font-size: 14px;
-        &:hover, &:focus {
-            text-decoration: none !important;
-        }
-        color: @font-color1;
-        .font-icon {
-            display: flex !important;
-            margin-right: 4px;
-        }
-        user-select: none;
-        .flex-center;
+:global {
+  .namespaceItem {
+    font-size: 14px;
+    &:hover,
+    &:focus {
+      text-decoration: none !important;
     }
+    color: @font-color1;
+    .font-icon {
+      display: flex !important;
+      margin-right: 4px;
+    }
+    user-select: none;
+    .flex-center;
+  }
 }

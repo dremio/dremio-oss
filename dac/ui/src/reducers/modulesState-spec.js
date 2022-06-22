@@ -13,51 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { initModuleState, resetModuleState } from '@app/actions/modulesState';
-import reducer, { getData } from './modulesState';
+import { initModuleState, resetModuleState } from "@app/actions/modulesState";
+import reducer, { getData } from "./modulesState";
 
-const fakeAction = 'ACTION';
+const fakeAction = "ACTION";
 const fakeReducer = (state = true, { type }) => {
   switch (type) {
-  case fakeAction:
-    return false;
-  default:
-    return state;
+    case fakeAction:
+      return false;
+    default:
+      return state;
   }
 };
 
 const defaultState = reducer(undefined, {});
-const key = 'module_key';
-const initModule = () => reducer(defaultState, initModuleState(key, fakeReducer));
+const key = "module_key";
+const initModule = () =>
+  reducer(defaultState, initModuleState(key, fakeReducer));
 
-describe('modulesState', () => {
-  it('getData returns null, if module was not initialized', () => {
+describe("modulesState", () => {
+  it("getData returns null, if module was not initialized", () => {
     expect(getData(defaultState, key)).to.be.null;
   });
 
   (() => {
     let nextState = initModule();
 
-    it('inits data correctly', () => {
+    it("inits data correctly", () => {
       expect(getData(nextState, key)).to.be.true; // default value from fakeReducer is applied
     });
 
     // uses a state from previous test
-    it('resets data correctly', () => {
+    it("resets data correctly", () => {
       nextState = reducer(nextState, resetModuleState(key));
       expect(getData(nextState)).to.be.null;
     });
   })();
 
-  it('updates underlied data correctly', () => {
+  it("updates underlied data correctly", () => {
     let nextState = initModule();
     nextState = reducer(nextState, { type: fakeAction });
     expect(getData(nextState, key)).to.be.false; // a value from fakeReducer in case of action
   });
 
-  it('throws an error if different reducer is provided for the same key', () => {
+  it("throws an error if different reducer is provided for the same key", () => {
     const nextState = initModule();
 
-    expect(() => reducer(nextState, initModuleState(key, () => {}))).to.throw(); // error should be thrown in this case
+    expect(() =>
+      reducer(
+        nextState,
+        initModuleState(key, () => {})
+      )
+    ).to.throw(); // error should be thrown in this case
   });
 });

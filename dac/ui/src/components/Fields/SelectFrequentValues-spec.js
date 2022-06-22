@@ -13,51 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import ExploreCellLargeOverlay from '@app/pages/ExplorePage/components/ExploreTable/ExploreCellLargeOverlay';
-import SelectFrequentValues from './SelectFrequentValues';
+import { shallow } from "enzyme";
+import ExploreCellLargeOverlay from "@app/pages/ExplorePage/components/ExploreTable/ExploreCellLargeOverlay";
+import SelectFrequentValues from "./SelectFrequentValues";
 
-describe('SelectFrequentValues', () => {
+describe("SelectFrequentValues", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       field: {
         value: [],
-        onChange: sinon.spy((obj) => minimalProps.field.value = obj)
-      }
+        onChange: sinon.spy((obj) => (minimalProps.field.value = obj)),
+      },
     };
     commonProps = {
       ...minimalProps,
       options: [
-        { percent: 25, value: 'foo' },
-        { percent: 25, value: 'bar' },
-        { percent: 25, value: 'baz' },
-        { percent: 25, value: '' }
-      ]
+        { percent: 25, value: "foo" },
+        { percent: 25, value: "bar" },
+        { percent: 25, value: "baz" },
+        { percent: 25, value: "" },
+      ],
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SelectFrequentValues {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SelectFrequentValues {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render SelectFrequentValuesOption component for each props.options', () => {
-    const wrapper = shallow(<SelectFrequentValues {...commonProps}/>);
-    expect(wrapper.find('SelectFrequentValuesOption')).to.have.length(commonProps.options.length);
+  it("should render SelectFrequentValuesOption component for each props.options", () => {
+    const wrapper = shallow(<SelectFrequentValues {...commonProps} />);
+    expect(wrapper.find("SelectFrequentValuesOption")).to.have.length(
+      commonProps.options.length
+    );
   });
-  it('should render ExploreCellLargeOverlay if activeCell is defined', () => {
-    const wrapper = shallow(<SelectFrequentValues {...commonProps}/>);
+  it("should render ExploreCellLargeOverlay if activeCell is defined", () => {
+    const wrapper = shallow(<SelectFrequentValues {...commonProps} />);
     wrapper.setState({
-      activeCell: { cellValue: 'foo', anchor: document.createElement('span') }
+      activeCell: { cellValue: "foo", anchor: document.createElement("span") },
     });
     expect(wrapper.find(ExploreCellLargeOverlay)).to.have.length(1);
   });
-  describe('#handleCheck', () => {
-    it('should return call onChange with checked values', () => {
-      const instance = shallow(<SelectFrequentValues {...commonProps}/>).instance();
-      instance.handleCheck('foo', true);
-      expect(commonProps.field.onChange).to.be.calledWith(['foo']);
-      instance.handleCheck('foo', false);
+  describe("#handleCheck", () => {
+    it("should return call onChange with checked values", () => {
+      const instance = shallow(
+        <SelectFrequentValues {...commonProps} />
+      ).instance();
+      instance.handleCheck("foo", true);
+      expect(commonProps.field.onChange).to.be.calledWith(["foo"]);
+      instance.handleCheck("foo", false);
       expect(commonProps.field.onChange).to.be.calledWith([]);
     });
   });

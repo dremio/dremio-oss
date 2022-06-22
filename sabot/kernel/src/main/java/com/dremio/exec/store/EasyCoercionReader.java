@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -36,12 +37,12 @@ import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 /**
  * FilteringCoercionReader for excel, json and mongo sources
  */
-public class EasyCoercionReader extends FilteringFileCoercionReader {
+public class EasyCoercionReader extends FilteringFileCoercionReader implements SupportsTypeCoercionsAndUpPromotions {
   private static final Logger logger = LoggerFactory.getLogger(EasyCoercionReader.class);
-  private final List<String> tableSchemaPath;
-  private final boolean isSchemaLearningDisabledByUser;
-  private List<Field> droppedColumns = Collections.emptyList();
-  private List<Field> updatedColumns = Collections.emptyList();
+  protected final List<String> tableSchemaPath;
+  protected final boolean isSchemaLearningDisabledByUser;
+  protected List<Field> droppedColumns = Collections.emptyList();
+  protected List<Field> updatedColumns = Collections.emptyList();
 
   public EasyCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
                             BatchSchema targetSchema, List<String> tableSchemaPath, UserDefinedSchemaSettings userDefinedSchemaSettings) {
@@ -71,7 +72,7 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
 
     final BatchSchema resolvedSchema = getFinalSchema(incoming.getSchema(), originalSchema);
     if (!resolvedSchema.equalsTypesWithoutPositions(originalSchema)) {
-      notifySchemaChange(resolvedSchema, tableSchemaPath);
+      notifySchemaChange(originalSchema, resolvedSchema, tableSchemaPath);
     }
 
     for (Field field : originalSchema.getFields()) {
@@ -97,7 +98,7 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
       BatchSchema outgoingSchema = outgoing.getSchema().removeNullFields();
       BatchSchema finalSchema = getFinalSchema(incoming.getSchema(), outgoingSchema);
       if (!finalSchema.equalsTypesWithoutPositions(outgoingSchema)) {
-        notifySchemaChange(finalSchema, tableSchemaPath);
+        notifySchemaChange(outgoingSchema, finalSchema, tableSchemaPath);
 
         // schema of field after merge is not same as original schema, remove old schema and add new one
         outgoingSchema.getFields().forEach(field -> outputMutator.removeField(field));
@@ -121,9 +122,9 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
     return recordCount;
   }
 
-  private BatchSchema getFinalSchema(BatchSchema newSchema, BatchSchema outgoingSchema) {
+  protected BatchSchema getFinalSchema(BatchSchema newSchema, BatchSchema outgoingSchema) {
     boolean isUserDefinedSchemaEnabled = context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
-    return outgoingSchema.applyUserDefinedSchemaAfterSchemaLearning(newSchema, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, this.inner.getFilePath(), tableSchemaPath);
+    return outgoingSchema.applyUserDefinedSchemaAfterSchemaLearning(newSchema, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, this.inner.getFilePath(), tableSchemaPath, this);
   }
 
   private static FileTypeCoercion toTypeCoercion(BatchSchema targetSchema) {
@@ -133,6 +134,6 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
   /**
    * Callback to run if the schema from a new batch or the schema that was evaluated differs from the original schema.
    */
-  protected void notifySchemaChange(BatchSchema newSchema, List<String> tableSchemaPath) {
+  protected void notifySchemaChange(BatchSchema originalSchema, BatchSchema newSchema, List<String> tableSchemaPath) {
   }
 }

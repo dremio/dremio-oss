@@ -168,7 +168,7 @@ public class ReflectionAnalyzer {
         .setVersionedDataset(VersionedDatasetPath.newBuilder().addAllPath(NONE_PATH.getPathComponents()).build())
         .build(),
       completionListener
-    );
+    ).getJobId();
     completionListener.awaitUnchecked();
     try (JobDataFragment data = JobDataClientUtils.getJobData(jobsService, bufferAllocator, jobId, 0, 1)) {
       final List<ColumnStats> columns = FluentIterable.from(fields)
@@ -488,4 +488,3 @@ public class ReflectionAnalyzer {
     }
   }
 }
-

@@ -13,38 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import moment from 'moment';
-import * as ActionTypes from 'actions/serverStatus';
-import socket, {WS_CONNECTION_OPEN, WS_CONNECTION_CLOSE} from '@inject/utils/socket';
+import Immutable from "immutable";
+import moment from "@app/utils/dayjs";
+import * as ActionTypes from "actions/serverStatus";
+import socket, {
+  WS_CONNECTION_OPEN,
+  WS_CONNECTION_CLOSE,
+} from "@inject/utils/socket";
 
-import config from 'dyn-load/utils/config';
+import config from "dyn-load/utils/config";
 
 const initialState = Immutable.Map({
   status: config.serverStatus,
-  socketIsOpen: false
+  socketIsOpen: false,
 });
 
 export default function serverStatus(state = initialState, action) {
-
   switch (action.type) {
-  case ActionTypes.SCHEDULE_CHECK_SERVER_STATUS:
-    return state.filter((v, k) => k === 'status');
-  case ActionTypes.CHECK_SERVER_STATUS_START:
-    if (!action.error) {
-      const result = state.set('lastCheckMoment', moment());
-      if (action.meta.delay) {
-        return result.set('delay', action.meta.delay);
+    case ActionTypes.SCHEDULE_CHECK_SERVER_STATUS:
+      return state.filter((v, k) => k === "status");
+    case ActionTypes.CHECK_SERVER_STATUS_START:
+      if (!action.error) {
+        const result = state.set("lastCheckMoment", moment());
+        if (action.meta.delay) {
+          return result.set("delay", action.meta.delay);
+        }
+        return result;
       }
-      return result;
-    }
-    return state;
-  case ActionTypes.CHECK_SERVER_STATUS_SUCCESS:
-    return state.set('status', action.payload);
-  case WS_CONNECTION_OPEN:
-  case WS_CONNECTION_CLOSE:
-    return state.set('socketIsOpen', socket.isOpen);
-  default:
-    return state;
+      return state;
+    case ActionTypes.CHECK_SERVER_STATUS_SUCCESS:
+      return state.set("status", action.payload);
+    case WS_CONNECTION_OPEN:
+    case WS_CONNECTION_CLOSE:
+      return state.set("socketIsOpen", socket.isOpen);
+    default:
+      return state;
   }
 }

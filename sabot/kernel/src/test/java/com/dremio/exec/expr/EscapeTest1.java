@@ -159,7 +159,7 @@ public final class EscapeTest1 extends ExecTest{
   }
 
 
-  public final static class Monkey{
+  public static final class Monkey{
     final IntBuffer buf;
 
     public Monkey(){

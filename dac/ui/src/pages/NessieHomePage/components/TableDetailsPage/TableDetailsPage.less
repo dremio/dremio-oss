@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -15,103 +13,104 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/mixins.less";
- @import "~@app/uiTheme/less/color-schema.less";
- 
- :global {
-     .tableDetailsPage {
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
+
+:global {
+  .tableDetailsPage {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    &-content {
+      padding: 16px;
+      padding-top: 0;
+    }
+    &-header {
+      margin-left: 16px;
+      padding-left: 12px;
+      padding-right: 16px;
+    }
+
+    &-content {
+      display: flex;
+
+      min-height: 0;
+      flex: 1;
+    }
+
+    &-commits {
+      flex-shrink: 0;
+
+      width: 352px;
+      border-right: 1px solid @SECONDARY_200;
+    }
+
+    &-info {
+      flex: 1;
+      height: 100%;
+    }
+
+    &-header {
+      .flex-center;
+      border-bottom: 1px solid @SECONDARY_200;
+
+      height: 64px;
+    }
+
+    &-tableHeader {
+      .flex-center;
+      height: 100%;
+      width: 352px;
+    }
+
+    &-tableFullName {
+      min-width: 0;
+      flex: 1;
+
+      margin-left: 8px;
+
+      cursor: default;
+    }
+
+    &-tableName {
+      font-weight: 500;
+    }
+    &-tableNamespace {
+      color: @SECONDARY_600;
+    }
+
+    &-tabs {
+      user-select: none;
+    }
+
+    &-tabs,
+    &-historyTab {
+      height: 100%;
+    }
+
+    &-historyTab {
+      padding-left: 10px;
+      padding-right: 10px;
+
+      position: relative;
+      .flex-center;
+      font-size: 13px;
+      color: @SECONDARY_600;
+      .font-icon {
+        margin-right: 4px;
+      }
+      &:after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+
         width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        
-        &-content {
-            padding: 16px;
-            padding-top: 0;
-        }
-        &-header {
-            margin-left: 16px;
-            padding-left: 12px;
-            padding-right: 16px;
-        }
-
-        &-content {
-            display: flex;
-            
-            min-height: 0;
-            flex: 1;
-        }
-
-        &-commits {
-            flex-shrink: 0;
-
-            width: 352px;
-            border-right: 1px solid @SECONDARY_200;
-        }
-
-        &-info {
-            flex: 1;
-            height: 100%;
-        }
-
-        &-header {
-            .flex-center;   
-            border-bottom: 1px solid @SECONDARY_200;
-
-            height: 64px;
-        }
-
-        &-tableHeader {
-            .flex-center;
-            height: 100%;
-            width: 352px;
-        }
-
-        &-tableFullName {
-            min-width: 0;
-            flex: 1;
-
-            margin-left: 8px;
-            
-            cursor: default;
-        }
-
-        &-tableName {
-            font-weight: 500;
-        }
-        &-tableNamespace {
-            color: @SECONDARY_600;
-        }
-
-        &-tabs {
-            user-select: none;
-        }
-
-        &-tabs, &-historyTab {
-            height: 100%;
-        }
-
-        &-historyTab {
-            padding-left: 10px;
-            padding-right: 10px;
-
-            position: relative;
-            .flex-center;
-            font-size: 13px;
-            color: @SECONDARY_600;
-            .font-icon {
-                margin-right: 4px;
-            }
-            &:after {
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: 0;
-
-                width: 100%;
-                height: 4px;
-                background-color: @PRIMARY_900;
-            }
-        }
-     }
- }
+        height: 4px;
+        background-color: @PRIMARY_900;
+      }
+    }
+  }
+}

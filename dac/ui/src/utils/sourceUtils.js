@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 export function sourceTypesIncludeS3(sourceTypes) {
-  return sourceTypes && !!sourceTypes.find(type => type.sourceType === 'S3');
+  return sourceTypes && !!sourceTypes.find((type) => type.sourceType === "S3");
 }

@@ -16,8 +16,12 @@
 
 package com.dremio.common.expression;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Class to capture the supported execution engines
@@ -56,19 +60,70 @@ public class SupportedEngines {
 
   public enum Engine {
     JAVA,
-    GANDIVA;
+    GANDIVA
   }
 
-  public final Set<Engine> supportedEngines;
+  // creating static engine set to avoid large number of duplicate set in a very large code gen tree.
+  private static final Set<Engine> BOTH_ENGINES = new HashSet<>(Arrays.asList(Engine.JAVA, Engine.GANDIVA));
+  private static final Set<Engine> JAVA_ENGINE_ONLY = Collections.singleton(Engine.JAVA);
+  private static final Set<Engine> GANDIVA_ENGINE_ONLY = Collections.singleton(Engine.GANDIVA);
+
+  private enum EngineSet {
+    EMPTY(Collections.emptySet()),
+    BOTH(BOTH_ENGINES),
+    JAVA(JAVA_ENGINE_ONLY),
+    GANDIVA(GANDIVA_ENGINE_ONLY);
+
+    private final Set<Engine> matchingEngineSet;
+    private final int engineSetSize;
+    private Function<Engine, EngineSet> addFunction;
+    private Function<Engine, EngineSet> removeFunction;
+
+    static {
+      EMPTY.addFunction = (engine) -> engine == Engine.GANDIVA ? GANDIVA : JAVA;
+      EMPTY.removeFunction = (engine) -> EMPTY;
+      BOTH.addFunction = (engine) -> BOTH;
+      BOTH.removeFunction = (engine) -> engine == Engine.GANDIVA ? JAVA : GANDIVA;
+      JAVA.addFunction = (engine) -> engine == Engine.GANDIVA ? BOTH : JAVA;
+      JAVA.removeFunction = (engine) -> engine == Engine.JAVA ? EMPTY : JAVA;
+      GANDIVA.addFunction = (engine) -> engine == Engine.JAVA ? BOTH : GANDIVA;
+      GANDIVA.removeFunction = (engine) -> engine == Engine.GANDIVA ? EMPTY : GANDIVA;
+    }
+
+    EngineSet(Set<Engine> engineSet) {
+      this.matchingEngineSet = engineSet;
+      this.engineSetSize = engineSet.size();
+    }
+
+    private Set<Engine> getMatchingEngineSet() {
+      return matchingEngineSet;
+    }
+
+    private EngineSet onAdd(Engine engine) {
+      return addFunction.apply(engine);
+    }
+
+    private EngineSet onRemove(Engine engine) {
+      return removeFunction.apply(engine);
+    }
+
+    private int getEngineSetSize() {
+      return engineSetSize;
+    }
+  }
+
+  private EngineSet currentEngineSet;
 
   public SupportedEngines() {
-    this.supportedEngines = new HashSet<>();
+    this.currentEngineSet = EngineSet.EMPTY;
+  }
+
+  private SupportedEngines(EngineSet currentEngineSet) {
+    this.currentEngineSet = currentEngineSet;
   }
 
   public SupportedEngines duplicate() {
-    final SupportedEngines duplicate = new SupportedEngines();
-    duplicate.supportedEngines.addAll(supportedEngines);
-    return duplicate;
+    return new SupportedEngines(currentEngineSet);
   }
 
   /**
@@ -77,7 +132,7 @@ public class SupportedEngines {
    * @return true if evaluation type is supported
    */
   public boolean contains(Engine engine) {
-    return supportedEngines.contains(engine);
+    return currentEngineSet.matchingEngineSet.contains(engine);
   }
 
   /**
@@ -85,7 +140,7 @@ public class SupportedEngines {
    * @param engine Evaluation type to be added
    */
   public void add(Engine engine) {
-    supportedEngines.add(engine);
+    currentEngineSet = currentEngineSet.onAdd(engine);
   }
 
   /**
@@ -93,17 +148,42 @@ public class SupportedEngines {
    * @param engine Engine to be removed
    */
   public void remove(Engine engine) {
-    supportedEngines.remove(engine);
+    currentEngineSet = currentEngineSet.onRemove(engine);
   }
 
   /**
    * Clears all supported engines.
    */
   public void clear() {
-    supportedEngines.clear();
+    currentEngineSet = EngineSet.EMPTY;
   }
 
   public boolean isEmpty() {
-    return supportedEngines.isEmpty();
+    return currentEngineSet.getMatchingEngineSet().isEmpty();
+  }
+
+  public Set<Engine> supportedEngines() {
+    return currentEngineSet.getMatchingEngineSet();
+  }
+
+  public int size() {
+    return currentEngineSet.getEngineSetSize();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SupportedEngines engines = (SupportedEngines) o;
+    return currentEngineSet == engines.currentEngineSet;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(currentEngineSet);
   }
 }

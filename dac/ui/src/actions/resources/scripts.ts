@@ -14,112 +14,142 @@
  * limitations under the License.
  */
 // @ts-ignore
-import { RSAA } from 'redux-api-middleware';
-import { APIV3Call } from '@app/core/APICall';
+import { RSAA } from "redux-api-middleware";
+import { APIV3Call } from "@app/core/APICall";
 
-export const FETCH_SCRIPTS_START = 'FETCH_SCRIPTS_START';
-export const FETCH_SCRIPTS_SUCCESS = 'FETCH_SCRIPTS_SUCCESS';
-export const FETCH_SCRIPTS_FAILURE = 'FETCH_SCRIPTS_FAILURE';
+export const FETCH_SCRIPTS_START = "FETCH_SCRIPTS_START";
+export const FETCH_SCRIPTS_SUCCESS = "FETCH_SCRIPTS_SUCCESS";
+export const FETCH_SCRIPTS_FAILURE = "FETCH_SCRIPTS_FAILURE";
 
-export function fetchScripts(): any {
-  const meta = { viewId: 'AllScripts' };
+export const FETCH_MINE_SCRIPTS_START = "FETCH_MINE_SCRIPTS_START";
+export const FETCH_MINE_SCRIPTS_SUCCESS = "FETCH_MINE_SCRIPTS_SUCCESS";
+export const FETCH_MINE_SCRIPTS_FAILURE = "FETCH_MINE_SCRIPTS_FAILURE";
+
+export function fetchScripts({
+  maxResults,
+  searchTerm,
+  createdBy,
+}: {
+  maxResults: number;
+  searchTerm?: string | null;
+  createdBy: string | null;
+}): any {
+  const meta = { viewId: "AllScripts" };
   const apiCall = new APIV3Call()
-    .path('scripts')
-    .params({ orderBy: '-modifiedAt' })
-    .params({ maxResults: 100 });
+    .path("scripts")
+    .params({ orderBy: "-modifiedAt" })
+    .params({ maxResults: maxResults });
+
+  if (searchTerm) {
+    apiCall.params({ search: searchTerm });
+  }
+  if (createdBy) {
+    apiCall.params({ createdBy: createdBy });
+  }
 
   return {
     [RSAA]: {
       types: [
-        { type: FETCH_SCRIPTS_START, meta },
-        { type: FETCH_SCRIPTS_SUCCESS, meta },
-        { type: FETCH_SCRIPTS_FAILURE, meta: { ...meta, notification: true } }
+        {
+          type: createdBy ? FETCH_MINE_SCRIPTS_START : FETCH_SCRIPTS_START,
+          meta,
+        },
+        {
+          type: createdBy ? FETCH_MINE_SCRIPTS_SUCCESS : FETCH_SCRIPTS_SUCCESS,
+          meta,
+        },
+        {
+          type: createdBy ? FETCH_MINE_SCRIPTS_FAILURE : FETCH_SCRIPTS_FAILURE,
+          meta: { ...meta, notification: true },
+        },
       ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 }
 
-
-export const CREATE_SCRIPT_START = 'CREATE_SCRIPT_START';
-export const CREATE_SCRIPT_SUCCESS = 'CREATE_SCRIPT_SUCCESS';
-export const CREATE_SCRIPT_FAILURE = 'CREATE_SCRIPT_FAILURE';
+export const CREATE_SCRIPT_START = "CREATE_SCRIPT_START";
+export const CREATE_SCRIPT_SUCCESS = "CREATE_SCRIPT_SUCCESS";
+export const CREATE_SCRIPT_FAILURE = "CREATE_SCRIPT_FAILURE";
 
 export function createScript(payload: any): any {
-  const meta = { viewId: 'AllScripts' };
-  const apiCall = new APIV3Call().path('scripts');
+  const meta = { viewId: "AllScripts" };
+  const apiCall = new APIV3Call().path("scripts");
 
   return {
     [RSAA]: {
       types: [
         { type: CREATE_SCRIPT_START, meta },
         { type: CREATE_SCRIPT_SUCCESS, meta },
-        { type: CREATE_SCRIPT_FAILURE, meta }
+        { type: CREATE_SCRIPT_FAILURE, meta },
       ],
-      method: 'POST',
+      method: "POST",
       endpoint: apiCall,
-      body: JSON.stringify(payload)
-    }
+      body: JSON.stringify(payload),
+    },
   };
 }
 
-export const UPDATE_SCRIPT_START = 'UPDATE_SCRIPT_START';
-export const UPDATE_SCRIPT_SUCCESS = 'UPDATE_SCRIPT_SUCCESS';
-export const UPDATE_SCRIPT_FAILURE = 'UPDATE_SCRIPT_FAILURE';
+export const UPDATE_SCRIPT_START = "UPDATE_SCRIPT_START";
+export const UPDATE_SCRIPT_SUCCESS = "UPDATE_SCRIPT_SUCCESS";
+export const UPDATE_SCRIPT_FAILURE = "UPDATE_SCRIPT_FAILURE";
 
-export function updateScript(payload: any, scriptId: string, hideFail: boolean): any {
-  const meta = { viewId: 'AllScripts' };
-  const apiCall = new APIV3Call()
-    .path('scripts')
-    .path(scriptId);
+export function updateScript(
+  payload: any,
+  scriptId: string,
+  hideFail: boolean
+): any {
+  const meta = { viewId: "AllScripts" };
+  const apiCall = new APIV3Call().path("scripts").path(scriptId);
 
   return {
     [RSAA]: {
       types: [
         { type: UPDATE_SCRIPT_START, meta },
         { type: UPDATE_SCRIPT_SUCCESS, meta },
-        { type: UPDATE_SCRIPT_FAILURE, meta: { ...meta, notification: !hideFail } }
+        {
+          type: UPDATE_SCRIPT_FAILURE,
+          meta: { ...meta, notification: !hideFail },
+        },
       ],
-      method: 'PUT',
+      method: "PUT",
       endpoint: apiCall,
-      body: JSON.stringify(payload)
-    }
+      body: JSON.stringify(payload),
+    },
   };
 }
 
-export const DELETE_SCRIPT_START = 'DELETE_SCRIPT_START';
-export const DELETE_SCRIPT_SUCCESS = 'DELETE_SCRIPT_SUCCESS';
-export const DELETE_SCRIPT_FAILURE = 'DELETE_SCRIPT_FAILURE';
+export const DELETE_SCRIPT_START = "DELETE_SCRIPT_START";
+export const DELETE_SCRIPT_SUCCESS = "DELETE_SCRIPT_SUCCESS";
+export const DELETE_SCRIPT_FAILURE = "DELETE_SCRIPT_FAILURE";
 
 export function deleteScript(scriptId: string): any {
-  const meta = { viewId: 'AllScripts' };
-  const apiCall = new APIV3Call()
-    .path('scripts')
-    .path(scriptId);
+  const meta = { viewId: "AllScripts" };
+  const apiCall = new APIV3Call().path("scripts").path(scriptId);
 
   return {
     [RSAA]: {
       types: [
         { type: DELETE_SCRIPT_START, meta },
         { type: DELETE_SCRIPT_SUCCESS, meta },
-        { type: DELETE_SCRIPT_FAILURE, meta: { ...meta, notification: true } }
+        { type: DELETE_SCRIPT_FAILURE, meta: { ...meta, notification: true } },
       ],
-      method: 'DELETE',
-      endpoint: apiCall
-    }
+      method: "DELETE",
+      endpoint: apiCall,
+    },
   };
 }
 
-export const SELECT_ACTIVE_SCRIPT = 'SELECT_ACTIVE_SCRIPT';
+export const SELECT_ACTIVE_SCRIPT = "SELECT_ACTIVE_SCRIPT";
 
 export const setActiveScript = (script: any) => ({
   type: SELECT_ACTIVE_SCRIPT,
-  script
+  script,
 });
 
-export const CLEAR_SCRIPT_STATE = 'CLEAR_SCRIPT_STATE';
+export const CLEAR_SCRIPT_STATE = "CLEAR_SCRIPT_STATE";
 
 export const clearActiveScript = () => ({
-  type: CLEAR_SCRIPT_STATE
+  type: CLEAR_SCRIPT_STATE,
 });

@@ -40,12 +40,12 @@ public class TestCalciteArrowHelper {
 
   private static final ImmutableSet<String> blackList = ImmutableSet.of("utf8_field");
 
-  private final static BatchSchema schema = BatchSchema.newBuilder()
+  private static final BatchSchema schema = BatchSchema.newBuilder()
     .addField(UTF8_FIELD)
     .addField(NULL_FIELD)
     .build();
 
-  private final static BatchSchema intervalSchema = BatchSchema.newBuilder()
+  private static final BatchSchema intervalSchema = BatchSchema.newBuilder()
     .addField(UTF8_FIELD)
     .addField(INTERVAL_DAY_TIME_FIELD)
     .addField(INTERVAL_YEAR_MONTH_FIELD)

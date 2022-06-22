@@ -13,56 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 
-import { SORTABLE_TYPES } from './../../../../constants/columnTypeGroups';
+import { SORTABLE_TYPES } from "./../../../../constants/columnTypeGroups";
 
-@Radium
-export default class SortGroup extends PureComponent {
+class SortGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    columnType: PropTypes.string
-  }
+    columnType: PropTypes.string,
+  };
   static renderMenuItems(columnType, onClick) {
     return [
       <ColumnMenuItem
-        key='ASC'
-        actionType='ASC'
+        key="ASC"
+        actionType="ASC"
         columnType={columnType}
-        title={la('Sort Ascending')}
+        title={la("Sort Ascending")}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
       />,
       <ColumnMenuItem
-        key='DESC'
-        actionType='DESC'
+        key="DESC"
+        actionType="DESC"
         columnType={columnType}
-        title={la('Sort Descending')}
+        title={la("Sort Descending")}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
       />,
       <ColumnMenuItem
-        key='MULTIPLE'
-        actionType='MULTIPLE'
+        key="MULTIPLE"
+        actionType="MULTIPLE"
         columnType={columnType}
-        title={la('Sort Multiple…')}
+        title={la("Sort Multiple…")}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
-      />
+      />,
     ];
   }
   render() {
     const { columnType, makeTransform } = this.props;
     const menuItems = SortGroup.renderMenuItems(columnType, makeTransform);
-    return (
-      <div>
-        {menuItems}
-      </div>
-    );
+    return <div>{menuItems}</div>;
   }
 }
+export default SortGroup;

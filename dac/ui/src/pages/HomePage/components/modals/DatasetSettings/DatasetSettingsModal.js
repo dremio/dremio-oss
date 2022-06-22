@@ -13,20 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Modal from 'components/Modals/Modal';
-import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
-import { injectIntl } from 'react-intl';
+import Modal from "components/Modals/Modal";
+import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
+import { injectIntl } from "react-intl";
 
-import DatasetSettings from './DatasetSettings.js';
-import './../Modal.less';
+import DatasetSettings from "./DatasetSettings.js";
+import "./../Modal.less";
 
 @injectIntl
 export class DatasetSettingsModal extends Component {
-
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
@@ -37,18 +36,23 @@ export class DatasetSettingsModal extends Component {
     // connected from FormUnsavedWarningHOC
     updateFormDirtyState: PropTypes.func,
     location: PropTypes.object,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
-    const {isOpen, updateFormDirtyState, intl, ...datasetSettingsProps} = this.props;
+    const { isOpen, updateFormDirtyState, intl, ...datasetSettingsProps } =
+      this.props;
     return (
       <Modal
-        size='large'
-        title={intl.formatMessage({ id: 'Dataset.Settings' })}
+        size="large"
+        title={intl.formatMessage({ id: "Dataset.Settings" })}
         isOpen={isOpen}
-        hide={datasetSettingsProps.hide}>
-        <DatasetSettings {...datasetSettingsProps} updateFormDirtyState={updateFormDirtyState}/>
+        hide={datasetSettingsProps.hide}
+      >
+        <DatasetSettings
+          {...datasetSettingsProps}
+          updateFormDirtyState={updateFormDirtyState}
+        />
       </Modal>
     );
   }

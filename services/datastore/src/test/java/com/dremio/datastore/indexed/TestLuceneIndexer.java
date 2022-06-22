@@ -31,7 +31,6 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.queries.TermsQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
@@ -104,7 +103,11 @@ public class TestLuceneIndexer {
       builder.add(new BooleanClause(new TermQuery(new Term("ds", "space1.ds1")), BooleanClause.Occur.MUST));
       builder.add(new BooleanClause(new TermQuery(new Term("version", "v2")), BooleanClause.Occur.MUST));
       assertEquals(0, index.count(builder.build()));
-      assertEquals(1, index.count(new TermsQuery(new Term("ds", "space1.ds1"), new Term("version1", "v2"))));
+      assertEquals(1, index.count(
+        new BooleanQuery.Builder()
+          .add(new TermQuery(new Term("ds", "space1.ds1")), BooleanClause.Occur.SHOULD)
+          .add(new TermQuery(new Term("version1", "v2")), BooleanClause.Occur.SHOULD)
+          .build()));
 
       index.add(doc2);
       index.add(doc3);
@@ -429,4 +432,3 @@ public class TestLuceneIndexer {
     assertEquals(opens.get(), closes.get());
   }
 }
-

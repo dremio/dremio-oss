@@ -15,14 +15,24 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+
 import org.apache.calcite.sql.SqlNode;
+import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
+import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -32,9 +42,12 @@ import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
 
 public class TestIcebergCtasPlan extends PlanTestBase {
 
@@ -43,7 +56,7 @@ public class TestIcebergCtasPlan extends PlanTestBase {
     try (AutoCloseable c = enableIcebergTables()) {
       final String workingPath = TestTools.getWorkingPath();
       final String path = workingPath + "/src/test/resources/parquet/ctasint";
-      String sql = String.format("CREATE TABLE %s.tbl as select * from dfs.\"%s\"", TEMP_SCHEMA, path);
+      String sql = String.format("CREATE TABLE %s.tbl as select * from dfs.\"%s\"", TEMP_SCHEMA_HADOOP, path);
       final SabotContext context = getSabotContext();
       final OptionManager optionManager = getSabotContext().getOptionManager();
       optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "dremio.iceberg.enabled", true));
@@ -74,7 +87,9 @@ public class TestIcebergCtasPlan extends PlanTestBase {
       final SqlHandlerConfig config = new SqlHandlerConfig(queryContext, converter, observer, null);
 
       CreateTableHandler createTableHandler = new CreateTableHandler();
-      createTableHandler.getPlan(config, sql, node);
+      PhysicalPlan plan = createTableHandler.getPlan(config, sql, node);
+
+      Assert.assertNotNull(plan.getCleaner());
 
       testMatchingPatterns(createTableHandler.getTextPlan(), new String[] {
         // We should have all these operators
@@ -96,5 +111,33 @@ public class TestIcebergCtasPlan extends PlanTestBase {
           "Writer.*" +
           "IcebergManifestList.*"});
     }
+  }
+
+  @Test
+  public void testCTASCleaner() {
+    DatasetCatalog datasetCatalog = Mockito.mock(DatasetCatalog.class);
+    DremioFileIO dremioFileIO = Mockito.mock(DremioFileIO.class);
+
+    final String tableFolderToDelete = "dummyTableFolderToDelete";
+    final NamespaceKey tableName = new NamespaceKey(ImmutableList.of("dummyTable"));
+    final String[] actualTableFolderDeleted = new String[1];
+
+    doAnswer(new Answer<Void>() {
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        Assert.assertEquals(args.length, 3);
+
+        // table location
+        actualTableFolderDeleted[0] = (String)args[0];
+
+        // "recursive" flag
+        Assert.assertTrue((boolean)args[1]);
+        return null;
+      }
+    }).when(dremioFileIO).deleteFile(anyString(), anyBoolean(), anyBoolean());
+
+    CreateTableHandler.cleanUpImpl(dremioFileIO, datasetCatalog, tableName, tableFolderToDelete);
+
+    Assert.assertEquals(tableFolderToDelete, actualTableFolderDeleted[0]);
   }
 }

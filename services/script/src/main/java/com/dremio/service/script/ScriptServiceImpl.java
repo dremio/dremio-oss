@@ -33,6 +33,7 @@ import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.service.script.proto.ScriptProto;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
 import com.dremio.service.users.UserNotFoundException;
@@ -53,16 +54,14 @@ public class ScriptServiceImpl implements ScriptService {
   private static final Long DESCRIPTION_MAX_LENGTH = 1024L;
   private static final Long MAX_SCRIPTS_PER_USER = 100L;
   private static final Long NAME_MAX_LENGTH = 128L;
-
-  private final ScriptStore scriptStore;
-  private final SecurityContext securityContext;
-  private final UserService userService;
-
   private static final Map<String, IndexKey> sortParamToIndex = new HashMap<String, IndexKey>() {{
     put("name", ScriptStoreIndexedKeys.NAME);
     put("createdAt", ScriptStoreIndexedKeys.CREATED_AT);
     put("modifiedAt", ScriptStoreIndexedKeys.MODIFIED_AT);
   }};
+  private final ScriptStore scriptStore;
+  private final SecurityContext securityContext;
+  private final UserService userService;
 
   @Inject
   public ScriptServiceImpl(Provider<ScriptStore> scriptStoreProvider,
@@ -78,14 +77,11 @@ public class ScriptServiceImpl implements ScriptService {
                                  int limit,
                                  String search,
                                  String orderBy,
-                                 String filter) {
+                                 String filter,
+                                 String createdBy) {
     ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder();
     FindByCondition condition =
-      builder.setCondition(
-          SearchQueryUtils.and(
-            SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.CREATED_BY, getCurrentUserId()),
-            SearchQueryUtils.newContainsTerm(ScriptStoreIndexedKeys.NAME, search)
-          ))
+      builder.setCondition(getConditionForAccessibleScripts(search, filter, createdBy))
         .setOffset(offset)
         .setLimit(limit)
         .setSort(getSortCondition(orderBy))
@@ -124,8 +120,10 @@ public class ScriptServiceImpl implements ScriptService {
   @Override
   public Script createScript(ScriptRequest scriptRequest)
     throws DuplicateScriptNameException {
+    // check if current logged in user has create permission
+    checkCreatePermission();
     // create script entry
-    Preconditions.checkArgument(getCountOfMatchingScripts("", "") < MAX_SCRIPTS_PER_USER,
+    Preconditions.checkArgument(getCountOfScriptsByCurrentUser() < MAX_SCRIPTS_PER_USER,
                                 String.format("Maximum %s scripts are allowed per user.",
                                               MAX_SCRIPTS_PER_USER));
     Preconditions.checkArgument(scriptRequest.getName().length() <= NAME_MAX_LENGTH,
@@ -144,10 +142,24 @@ public class ScriptServiceImpl implements ScriptService {
     return scriptStore.create(script.getScriptId(), script);
   }
 
+  private long getCountOfScriptsByCurrentUser() {
+    SearchTypes.SearchQuery
+      condition = getConditionForAccessibleScripts("", "", getCurrentUserId());
+    return scriptStore.getCountByCondition(condition);
+  }
+
+
+  protected void checkCreatePermission() {
+  }
+
   @Override
   public Script updateScript(String scriptId,
                              ScriptRequest scriptRequest)
     throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible {
+
+    // check if scriptId is valid
+    validateScriptId(scriptId);
+
     Preconditions.checkArgument(scriptRequest.getContent().length() <= CONTENT_MAX_LENGTH,
                                 String.format("Maximum %s characters allowed in script content.",
                                               CONTENT_MAX_LENGTH));
@@ -159,6 +171,7 @@ public class ScriptServiceImpl implements ScriptService {
                                               DESCRIPTION_MAX_LENGTH));
 
     Script existingScript = getScriptById(scriptId);
+    checkUpdatePermission(existingScript);
 
     // check if new name entered already exists.
     if (!existingScript.getName().equals(scriptRequest.getName())) {
@@ -176,6 +189,69 @@ public class ScriptServiceImpl implements ScriptService {
     return scriptStore.update(script.getScriptId(), script);
   }
 
+  protected void checkUpdatePermission(ScriptProto.Script script) throws ScriptNotAccessible {
+    if (!script.getCreatedBy().equals(getCurrentUserId())) {
+      logger.error("User : {} not authorized to update Script : {}.",
+                   getCurrentUserId(),
+                   script.getScriptId());
+      throw new ScriptNotAccessible(script.getScriptId(), getCurrentUserId());
+    }
+  }
+
+  @Override
+  public Script getScriptById(String scriptId) throws ScriptNotFoundException, ScriptNotAccessible {
+    // check if scriptId is valid
+    validateScriptId(scriptId);
+
+    Optional<Script> script = scriptStore.get(scriptId);
+    if (!script.isPresent()) {
+      throw new ScriptNotFoundException(scriptId);
+    }
+    checkViewPermission(script.get());
+    return script.get();
+  }
+
+  protected void checkViewPermission(ScriptProto.Script script)
+    throws ScriptNotAccessible {
+    // for OSS only creator can have access to script
+    if (!script.getCreatedBy().equals(getCurrentUserId())) {
+      logger.error("User : {} not authorized to view Script : {}.",
+                   getCurrentUserId(),
+                   script.getScriptId());
+      throw new ScriptNotAccessible(script.getScriptId(), getCurrentUserId());
+    }
+  }
+
+  @Override
+  public void deleteScriptById(String scriptId)
+    throws ScriptNotFoundException, ScriptNotAccessible {
+
+    // check if scriptId is valid
+    validateScriptId(scriptId);
+
+    Script script = getScriptById(scriptId);
+    checkDeletePermission(script);
+    scriptStore.delete(scriptId);
+  }
+
+  protected void checkDeletePermission(ScriptProto.Script script) throws ScriptNotAccessible {
+    if (!script.getCreatedBy().equals(getCurrentUserId())) {
+      logger.error("User : {} not authorized to delete Script : {}.",
+                   getCurrentUserId(),
+                   script.getScriptId());
+      throw new ScriptNotAccessible(script.getScriptId(), getCurrentUserId());
+    }
+  }
+
+  @Override
+  public Long getCountOfMatchingScripts(String search,
+                                        String filter,
+                                        String createdBy) {
+    SearchTypes.SearchQuery
+      condition = getConditionForAccessibleScripts(search, filter, createdBy);
+    return scriptStore.getCountByCondition(condition);
+  }
+
   private void checkDuplicateScriptName(String name)
     throws DuplicateScriptNameException {
     try {
@@ -187,35 +263,6 @@ public class ScriptServiceImpl implements ScriptService {
     } catch (ScriptNotFoundException ignored) {
 
     }
-  }
-
-  @Override
-  public Script getScriptById(String scriptId) throws ScriptNotFoundException, ScriptNotAccessible {
-    Optional<Script> script = scriptStore.get(scriptId);
-    if (!script.isPresent()) {
-      throw new ScriptNotFoundException(scriptId);
-    }
-    if (!script.get().getCreatedBy().equals(getCurrentUserId())) {
-      throw new ScriptNotAccessible();
-    }
-    return script.get();
-  }
-
-  @Override
-  public void deleteScriptById(String scriptId)
-    throws ScriptNotFoundException, ScriptNotAccessible {
-    getScriptById(scriptId);
-    scriptStore.delete(scriptId);
-  }
-
-  @Override
-  public Long getCountOfMatchingScripts(String search, String filter) {
-    SearchTypes.SearchQuery
-      condition = SearchQueryUtils.and(
-      SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.CREATED_BY, getCurrentUserId()),
-      SearchQueryUtils.newContainsTerm(ScriptStoreIndexedKeys.NAME, search)
-    );
-    return scriptStore.getCountByCondition(condition);
   }
 
   private Script newScriptFromScriptRequest(ScriptRequest scriptRequest) {
@@ -253,6 +300,22 @@ public class ScriptServiceImpl implements ScriptService {
       .build();
   }
 
+  protected SearchTypes.SearchQuery getConditionForAccessibleScripts(String search,
+                                                                     String filter,
+                                                                     String createdBy) {
+    // in oss only scripts created by current user are accessible.
+    List<SearchTypes.SearchQuery> conditions = new ArrayList<>();
+    conditions.add(SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.CREATED_BY,
+                                                 getCurrentUserId()));
+    conditions.add(SearchQueryUtils.newContainsTerm(ScriptStoreIndexedKeys.NAME,
+                                                    search));
+
+    if (createdBy != null) {
+      conditions.add(SearchQueryUtils.newTermQuery(ScriptStoreIndexedKeys.CREATED_BY, createdBy));
+    }
+    return SearchQueryUtils.and(conditions);
+  }
+
   protected String getCurrentUserId() {
     try {
       return userService.getUser(securityContext.getUserPrincipal().getName()).getUID().getId();
@@ -262,6 +325,17 @@ public class ScriptServiceImpl implements ScriptService {
                    securityContext.getUserPrincipal().getName(),
                    exception.getMessage());
       return null;
+    }
+  }
+
+  public void validateScriptId(String scriptId) {
+    Preconditions.checkNotNull(scriptId, "scriptId must be provided.");
+    try {
+      UUID.fromString(scriptId);
+    } catch (IllegalArgumentException exception) {
+      logger.error("scriptId : {} is not a valid UUID.", scriptId);
+      throw new IllegalArgumentException(String.format("scriptId %s must be valid UUID.",
+                                                       scriptId));
     }
   }
 }

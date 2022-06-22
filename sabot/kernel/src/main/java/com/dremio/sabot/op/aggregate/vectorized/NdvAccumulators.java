@@ -29,7 +29,7 @@ import org.apache.datasketches.hll.HllSketch;
 
 import io.netty.util.internal.PlatformDependent;
 
-final public class NdvAccumulators {
+public final class NdvAccumulators {
 
   private NdvAccumulators(){};
 

@@ -13,23 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import './OverView.less';
+import PropTypes from "prop-types";
+import "./OverView.less";
 
 const JobDetailsErrorInfo = ({ failureInfo }) => {
-  if (!failureInfo ||
-    (!failureInfo.has('message') &&
-      (!failureInfo.has('errors') || !failureInfo.get('errors').size))) return null;
+  if (
+    !failureInfo ||
+    (!failureInfo.has("message") &&
+      (!failureInfo.has("errors") || !failureInfo.get("errors").size))
+  )
+    return null;
   let error;
-  if (failureInfo.has('errors') && failureInfo.get('errors').size > 0) {
+  if (failureInfo.has("errors") && failureInfo.get("errors").size > 0) {
     // errors is a list, get the first
-    error = failureInfo.get('errors').get(0).get('message');
+    error = failureInfo.get("errors").get(0).get("message");
   } else {
-    error = failureInfo.get('message');
+    error = failureInfo.get("message");
   }
   return (
-    <div className='failureInfo'>
-      <div className='failureInfo__messageContent'>
+    <div className="failureInfo">
+      <div className="failureInfo__messageContent">
         <div>{error}</div>
       </div>
     </div>
@@ -37,7 +40,7 @@ const JobDetailsErrorInfo = ({ failureInfo }) => {
 };
 
 JobDetailsErrorInfo.propTypes = {
-  failureInfo: PropTypes.object.isRequired
+  failureInfo: PropTypes.object.isRequired,
 };
 
 export default JobDetailsErrorInfo;

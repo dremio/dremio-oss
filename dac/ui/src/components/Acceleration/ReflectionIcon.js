@@ -13,41 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import Art from 'components/Art';
-import { formatMessage } from 'utils/locale';
+import Art from "components/Art";
+import { formatMessage } from "utils/locale";
 
 export default class ReflectionIcon extends Component {
   static propTypes = {
     reflection: PropTypes.object.isRequired,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   render() {
     const { reflection, style } = this.props;
 
-    let icon = '';
-    let text = '';
+    let icon = "";
+    let text = "";
 
-    const type = Immutable.Map.isMap(reflection) ? reflection.get('type') : reflection.type;
+    const type = Immutable.Map.isMap(reflection)
+      ? reflection.get("type")
+      : reflection.type;
 
-    if (type === 'RAW') {
-      text = 'Reflection.Raw';
-      icon = 'RawMode';
-    } else if (type === 'AGGREGATION') {
-      text = 'Reflection.Aggregation';
-      icon = 'Aggregate';
-    } else if (type === 'EXTERNAL') {
-      text = 'Reflection.External';
-      icon = 'PhysicalDatasetGray';
+    if (type === "RAW") {
+      text = "Reflection.Raw";
+      icon = "RawMode";
+    } else if (type === "AGGREGATION") {
+      text = "Reflection.Aggregation";
+      icon = "Aggregate";
+    } else if (type === "EXTERNAL") {
+      text = "Reflection.External";
+      icon = "PhysicalDatasetGray";
     }
 
-    return <Art src={`${icon}.svg`}
-      style={{height: 24, ...style}}
-      alt={formatMessage(text)}
-      title />;
+    return (
+      <Art
+        src={`${icon}.svg`}
+        style={{ height: 24, ...style }}
+        alt={formatMessage(text)}
+        title
+      />
+    );
   }
 }

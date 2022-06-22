@@ -13,69 +13,71 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import TransformForm from 'pages/ExplorePage/components/forms/TransformForm';
+import TransformForm from "pages/ExplorePage/components/forms/TransformForm";
 
-import { SplitTypeForm } from './SplitTypeForm';
+import { SplitTypeForm } from "./SplitTypeForm";
 
-describe('SplitTypeForm', () => {
-
+describe("SplitTypeForm", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    const selectedTypesList = {value: ['INTEGER']};
+    const selectedTypesList = { value: ["INTEGER"] };
     selectedTypesList.onChange = sinon.spy();
     minimalProps = {
       fields: {
-        selectedTypesList
+        selectedTypesList,
       },
       availableValuesCount: 0,
-      availableValues: []
+      availableValues: [],
     };
 
     commonProps = {
       ...minimalProps,
-      dataTypes: [{type: 'TEXT', matchingPercent: 20}, {type: 'INTEGER', matchingPercent: 50}]
+      dataTypes: [
+        { type: "TEXT", matchingPercent: 20 },
+        { type: "INTEGER", matchingPercent: 50 },
+      ],
     };
   });
 
-  describe('render', () => {
-    it('should render with minimal props without exploding', () => {
-      const wrapper = shallow(<SplitTypeForm {...minimalProps}/>);
+  describe("render", () => {
+    it("should render with minimal props without exploding", () => {
+      const wrapper = shallow(<SplitTypeForm {...minimalProps} />);
       expect(wrapper).to.have.length(1);
     });
 
-    it('should render TransformForm, NonMatchingValues and NewFieldSection', () => {
-      const wrapper = shallow(<SplitTypeForm {...commonProps}/>);
+    it("should render TransformForm, NonMatchingValues and NewFieldSection", () => {
+      const wrapper = shallow(<SplitTypeForm {...commonProps} />);
       expect(wrapper.find(TransformForm)).to.have.length(1);
-      expect(wrapper.find('NonMatchingValues')).to.have.length(1);
-      expect(wrapper.find('NewFieldSection')).to.have.length(1);
+      expect(wrapper.find("NonMatchingValues")).to.have.length(1);
+      expect(wrapper.find("NewFieldSection")).to.have.length(1);
     });
 
-    it('should render one row per data type', () => {
-      const wrapper = shallow(<SplitTypeForm {...commonProps}/>);
-      expect(wrapper.find('table')).to.have.length(1);
-      expect(wrapper.find('tr')).to.have.length(2);
+    it("should render one row per data type", () => {
+      const wrapper = shallow(<SplitTypeForm {...commonProps} />);
+      expect(wrapper.find("table")).to.have.length(1);
+      expect(wrapper.find("tr")).to.have.length(2);
     });
 
-    it('should check selected checkboxes', () => {
-      const wrapper = shallow(<SplitTypeForm {...commonProps}/>);
-      expect(wrapper.find('Checkbox').at(0).prop('checked')).to.be.false;
-      expect(wrapper.find('Checkbox').at(1).prop('checked')).to.be.true;
+    it("should check selected checkboxes", () => {
+      const wrapper = shallow(<SplitTypeForm {...commonProps} />);
+      expect(wrapper.find("Checkbox").at(0).prop("checked")).to.be.false;
+      expect(wrapper.find("Checkbox").at(1).prop("checked")).to.be.true;
     });
   });
 
-  describe('toggleType', () => {
-    it('should onChange if not already selected', () => {
-      const instance = shallow(<SplitTypeForm {...commonProps}/>).instance();
-      instance.toggleType('TEXT');
+  describe("toggleType", () => {
+    it("should onChange if not already selected", () => {
+      const instance = shallow(<SplitTypeForm {...commonProps} />).instance();
+      instance.toggleType("TEXT");
       expect(commonProps.fields.selectedTypesList.onChange).to.have.been.called;
     });
 
-    it('should onChange if selected', () => {
-      const instance = shallow(<SplitTypeForm {...commonProps}/>).instance();
-      instance.toggleType('INTEGER');
+    it("should onChange if selected", () => {
+      const instance = shallow(<SplitTypeForm {...commonProps} />).instance();
+      instance.toggleType("INTEGER");
       expect(commonProps.fields.selectedTypesList.onChange).to.have.been.called;
     });
   });

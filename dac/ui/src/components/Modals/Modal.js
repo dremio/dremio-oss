@@ -13,30 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import ReactModal from 'react-modal';
-import ReactDOMServer from 'react-dom/server';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import ReactModal from "react-modal";
+import ReactDOMServer from "react-dom/server";
 
-import {smallModal, mediumModal, largeModal, tallModal, smallestModal, modalBody} from 'uiTheme/radium/modal';
+import {
+  smallModal,
+  mediumModal,
+  largeModal,
+  tallModal,
+  smallestModal,
+  modalBody,
+} from "uiTheme/radium/modal";
 
-import ModalHeader from './ModalHeader';
-import './Modals.less';
+import ModalHeader from "./ModalHeader";
+import "./Modals.less";
 
 // react-modal recommends to set app element. It put warnings in console without this.
 ReactModal.setAppElement(document.body);
 
 export const ModalSize = {
-  small: 'small',
-  large: 'large',
-  tall: 'tall',
-  medium: 'medium',
-  smallest: 'smallest'
+  small: "small",
+  large: "large",
+  tall: "tall",
+  medium: "medium",
+  smallest: "smallest",
 };
 
 export const MODAL_CLOSE_ANIMATION_DURATION = 150;
 export default class Modal extends Component {
-
+  constructor(props) {
+    super(props);
+    this.state = {
+      addHeaderShadow: false,
+    };
+  }
   static propTypes = {
     size: PropTypes.oneOf(Object.values(ModalSize)).isRequired,
     isOpen: PropTypes.bool,
@@ -53,13 +65,13 @@ export default class Modal extends Component {
     headerClassName: PropTypes.string,
     headerEndChildren: PropTypes.node,
     closeButtonType: PropTypes.string,
-    headerIcon: PropTypes.node
+    headerIcon: PropTypes.node,
   };
 
   static defaultProps = {
-    title: '',
-    classQa: '',
-    hideCloseButton: false
+    title: "",
+    classQa: "",
+    hideCloseButton: false,
   };
 
   render() {
@@ -78,33 +90,53 @@ export default class Modal extends Component {
       headerClassName,
       headerEndChildren,
       closeButtonType,
-      headerIcon
+      headerIcon,
     } = this.props;
     const content = {
       ...smallModal.content,
       height: this.props.modalHeight || smallModal.content.height,
-      ...style
+      ...style,
     };
+
     const smallModalUpdated = { ...smallModal, content };
-    const smallestModalUpdated = { ...smallestModal, content: { ...smallestModal.content, ...style}};
-    const mediumModalUpdated = { ...mediumModal, content: { ...mediumModal.content, ...style}};
-    const largeModalUpdated = { ...largeModal, content: { ...largeModal.content, ...style}};
-    const tallModalUpdated = { ...tallModal, content: { ...tallModal.content, ...style}};
+    const smallestModalUpdated = {
+      ...smallestModal,
+      content: { ...smallestModal.content, ...style },
+    };
+    const mediumModalUpdated = {
+      ...mediumModal,
+      content: { ...mediumModal.content, ...style },
+    };
+    const largeModalUpdated = {
+      ...largeModal,
+      content: { ...largeModal.content, ...style },
+    };
+    const tallModalUpdated = {
+      ...tallModal,
+      content: { ...tallModal.content, ...style },
+    };
     const styles = {
       [ModalSize.small]: smallModalUpdated,
       [ModalSize.medium]: mediumModalUpdated,
       [ModalSize.large]: largeModalUpdated,
       [ModalSize.tall]: tallModalUpdated,
-      [ModalSize.smallest]: smallestModalUpdated
+      [ModalSize.smallest]: smallestModalUpdated,
     };
 
     let stringTitle = title;
-    if (typeof stringTitle === 'object') {
+    if (typeof stringTitle === "object") {
       const html = ReactDOMServer.renderToStaticMarkup(stringTitle);
-      const tmp = document.createElement('div');
+      const tmp = document.createElement("div");
       tmp.innerHTML = html;
       stringTitle = tmp.textContent;
     }
+
+    const onScroll = (e) => {
+      const scrollTop = e.currentTarget.scrollTop;
+      scrollTop > 0
+        ? this.setState({ addHeaderShadow: true })
+        : this.setState({ addHeaderShadow: false });
+    };
 
     return (
       <ReactModal
@@ -116,7 +148,7 @@ export default class Modal extends Component {
         closeTimeoutMS={MODAL_CLOSE_ANIMATION_DURATION}
         className={className}
       >
-        {stringTitle &&
+        {stringTitle && (
           <ModalHeader
             title={stringTitle}
             hide={onClickCloseButton || hide}
@@ -125,10 +157,10 @@ export default class Modal extends Component {
             endChildren={headerEndChildren}
             type={closeButtonType}
             headerIcon={headerIcon}
-          >
-          </ModalHeader>
-        }
-        <div style={modalBody} data-qa={dataQa}>
+            addShadow={this.state.addHeaderShadow}
+          ></ModalHeader>
+        )}
+        <div style={modalBody} data-qa={dataQa} onScroll={(e) => onScroll(e)}>
           {children}
         </div>
       </ReactModal>

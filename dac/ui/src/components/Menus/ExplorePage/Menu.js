@@ -13,36 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import MenuList from '@material-ui/core/MenuList';
+import MenuList from "@material-ui/core/MenuList";
 
-@Radium
 class ExploreMenu extends PureComponent {
   static propTypes = {
-    children: PropTypes.node
-  }
+    children: PropTypes.node,
+  };
 
   render() {
-    return (
-      <MenuList
-        style={styles.base}>
-        {this.props.children}
-      </MenuList>
-    );
+    return <MenuList style={styles.base}>{this.props.children}</MenuList>;
   }
 }
 
 const styles = {
   base: {
-    position: 'relative',
+    position: "relative",
     minWidth: 110,
-    paddingTop: 5,
-    paddingBottom: 5
-  }
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
 };
 
 export default ExploreMenu;

@@ -15,7 +15,7 @@
  */
 
 export const passDataBetweenModalTabs = (state = {}, action) => {
-  if (action.type === 'PASS_DATA_BETWEEN_TABS') {
+  if (action.type === "PASS_DATA_BETWEEN_TABS") {
     return action.payload;
   }
   return state;

@@ -16,11 +16,15 @@
 
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -32,23 +36,28 @@ import org.apache.calcite.tools.RelConversionException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.ischema.Column;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
+import com.google.common.base.Throwables;
 
 public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandler.DescribeResult> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DescribeTableHandler.class);
-  private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final DremioCatalogReader catalog;
+  protected final QueryContext context;
 
-  public DescribeTableHandler(DremioCatalogReader catalog) {
+  public DescribeTableHandler(DremioCatalogReader catalog, QueryContext context) {
     super();
     this.catalog = catalog;
+    this.context = context;
   }
 
   @Override
@@ -88,8 +97,8 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
           final Integer scale = column.NUMERIC_SCALE;
           final List<ColumnExtendedProperty> columnExtendedProperties = getColumnExtendedProperties(column.COLUMN_NAME, extendedPropertyColumns);
           final String extendedPropertiesString = columnExtendedPropertiesToString(columnExtendedProperties);
-
-          DescribeResult describeResult = new DescribeResult(field.getName(), column.DATA_TYPE, precision, scale, extendedPropertiesString);
+          String columnPolicies = getColumnPoliciesForColumn(path, column.COLUMN_NAME);
+          DescribeResult describeResult = new DescribeResult(field.getName(), column.DATA_TYPE, precision, scale, extendedPropertiesString, columnPolicies);
           columns.add(describeResult);
         }
       }
@@ -124,6 +133,23 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     }
   }
 
+  @Nullable
+  protected String getColumnPoliciesForColumn(NamespaceKey key, String columnName) throws NamespaceException {
+    return null;
+  }
+
+  public static DescribeTableHandler create(DremioCatalogReader dremioCatalogReader, QueryContext context) {
+    try {
+      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseDescribeTableHandler");
+      final Constructor<?> ctor = cl.getConstructor(DremioCatalogReader.class, QueryContext.class);
+      return (DescribeTableHandler) ctor.newInstance(dremioCatalogReader, context);
+    } catch (ClassNotFoundException e) {
+      return new DescribeTableHandler(dremioCatalogReader, context);
+    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e2) {
+      throw Throwables.propagate(e2);
+    }
+  }
+
   public static class DescribeResult {
     public final String COLUMN_NAME;
     public final String DATA_TYPE;
@@ -131,14 +157,21 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     public final Integer NUMERIC_PRECISION;
     public final Integer NUMERIC_SCALE;
     public final String EXTENDED_PROPERTIES;
+    public final String MASKING_POLICY;
 
-    public DescribeResult(String columnName, String dataType, Integer numericPrecision, Integer numericScale, String extendedProperties) {
+    public DescribeResult(String columnName,
+      String dataType,
+      Integer numericPrecision,
+      Integer numericScale,
+      String extendedProperties,
+      String columnPolicies) {
       super();
       COLUMN_NAME = columnName;
       DATA_TYPE = dataType;
       NUMERIC_PRECISION = numericPrecision;
       NUMERIC_SCALE = numericScale;
       EXTENDED_PROPERTIES = extendedProperties;
+      MASKING_POLICY = columnPolicies;
     }
   }
 

@@ -18,10 +18,11 @@ export const cacheValidators = () => {
   return {};
 };
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderCacheSection() {
       return null;
-    }
+    },
   });
 }

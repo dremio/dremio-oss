@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Select } from 'components/Fields';
+import { Select } from "components/Fields";
 
 const items = [
   {
-    label: 'false',
-    option: 'false'
+    label: "false",
+    option: "false",
   },
   {
-    label: 'true',
-    option: 'true'
-  }
+    label: "true",
+    option: "true",
+  },
 ];
-
 
 const BooleanSelect = (props) => {
   return <Select items={items} {...props} {...styles} />;
@@ -34,11 +33,12 @@ const BooleanSelect = (props) => {
 export default BooleanSelect;
 
 const styles = {
-  style: { // todo move to less and apply mixin for select height
+  style: {
+    // todo move to less and apply mixin for select height
     height: 24,
-    lineHeight: '24px'
+    lineHeight: "24px",
   },
   iconStyle: {
-    paddingTop: 0
-  }
+    paddingTop: 0,
+  },
 };

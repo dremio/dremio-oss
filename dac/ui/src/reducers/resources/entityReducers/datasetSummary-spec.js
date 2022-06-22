@@ -13,51 +13,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import {NEW_UNTITLED_FAILURE, NEW_UNTITLED_SUCCESS} from '@app/actions/explore/dataset/new';
-import {LOAD_EXPLORE_ENTITIES_FAILURE, LOAD_EXPLORE_ENTITIES_SUCCESS} from '@app/actions/explore/dataset/get';
-import data from './datasetSummary';
+import Immutable from "immutable";
+import {
+  NEW_UNTITLED_FAILURE,
+  NEW_UNTITLED_SUCCESS,
+} from "@app/actions/explore/dataset/new";
+import {
+  LOAD_EXPLORE_ENTITIES_FAILURE,
+  LOAD_EXPLORE_ENTITIES_SUCCESS,
+} from "@app/actions/explore/dataset/get";
+import data from "./datasetSummary";
 
-describe('datasetSummary reducer', () => {
-
+describe("datasetSummary reducer", () => {
   const initialState = Immutable.fromJS({
-    datasetSummary: null
+    datasetSummary: null,
   });
 
-  it('returns unaltered state by default', () => {
-    const result = data(initialState, {type: 'foo'});
+  it("returns unaltered state by default", () => {
+    const result = data(initialState, { type: "foo" });
     expect(result).to.equal(initialState);
   });
 
-  it('should set datasetSummary to null for new success', () => {
-    const result = data(initialState, {type: NEW_UNTITLED_SUCCESS});
-    expect(result.get('datasetSummary')).to.be.null;
+  it("should set datasetSummary to null for new success", () => {
+    const result = data(initialState, { type: NEW_UNTITLED_SUCCESS });
+    expect(result.get("datasetSummary")).to.be.null;
   });
-  it('should set datasetSummary to null for load success', () => {
-    const result = data(initialState, {type: LOAD_EXPLORE_ENTITIES_SUCCESS});
-    expect(result.get('datasetSummary')).to.be.null;
+  it("should set datasetSummary to null for load success", () => {
+    const result = data(initialState, { type: LOAD_EXPLORE_ENTITIES_SUCCESS });
+    expect(result.get("datasetSummary")).to.be.null;
   });
-  it('should set datasetSummary to null for load failure w/o payload prop', () => {
-    const result = data(initialState, {type: NEW_UNTITLED_FAILURE, payload: {response: {}}});
-    expect(result.get('datasetSummary')).to.be.null;
-  });
-  it('should set datasetSummary to null for load failure w/o payload prop', () => {
-    const result = data(initialState, {type: LOAD_EXPLORE_ENTITIES_FAILURE, payload: {response: {details: {}}}});
-    expect(result.get('datasetSummary')).to.be.null;
-  });
-
-  it('should set datasetSummary if new failure and payload prop', () => {
+  it("should set datasetSummary to null for load failure w/o payload prop", () => {
     const result = data(initialState, {
       type: NEW_UNTITLED_FAILURE,
-      payload: {response: {details: {datasetSummary: 'foo'}}}
+      payload: { response: {} },
     });
-    expect(result.get('datasetSummary')).to.equal('foo');
+    expect(result.get("datasetSummary")).to.be.null;
   });
-  it('should set datasetSummary if load failure and payload prop', () => {
+  it("should set datasetSummary to null for load failure w/o payload prop", () => {
     const result = data(initialState, {
       type: LOAD_EXPLORE_ENTITIES_FAILURE,
-      payload: {response: {details: {datasetSummary: 'foo'}}}
+      payload: { response: { details: {} } },
     });
-    expect(result.get('datasetSummary')).to.equal('foo');
+    expect(result.get("datasetSummary")).to.be.null;
+  });
+
+  it("should set datasetSummary if new failure and payload prop", () => {
+    const result = data(initialState, {
+      type: NEW_UNTITLED_FAILURE,
+      payload: { response: { details: { datasetSummary: "foo" } } },
+    });
+    expect(result.get("datasetSummary")).to.equal("foo");
+  });
+  it("should set datasetSummary if load failure and payload prop", () => {
+    const result = data(initialState, {
+      type: LOAD_EXPLORE_ENTITIES_FAILURE,
+      payload: { response: { details: { datasetSummary: "foo" } } },
+    });
+    expect(result.get("datasetSummary")).to.equal("foo");
   });
 });

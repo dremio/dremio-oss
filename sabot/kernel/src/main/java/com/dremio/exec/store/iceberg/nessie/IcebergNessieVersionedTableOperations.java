@@ -83,7 +83,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient.commitOperation(tableKey, newMetadataLocation, metadata, version);
+      nessieClient.commitTable(tableKey, newMetadataLocation, metadata, version);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {
@@ -91,7 +91,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
       }
     } finally {
       if (threw) {
-        logger.debug("Deleting metadata file {} of table {}", tableKey, newMetadataLocation);
+        logger.debug("Deleting metadata file {} of table {}", newMetadataLocation, tableKey);
         io().deleteFile(newMetadataLocation);
       }
     }

@@ -13,40 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import GroupBy from 'pages/ExplorePage/components/GroupBy/GroupBy';
+import GroupBy from "pages/ExplorePage/components/GroupBy/GroupBy";
 
-@Radium
-export default class GroupByController extends PureComponent {
+class GroupByController extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     columns: PropTypes.instanceOf(Immutable.List),
     changeFormType: PropTypes.func.isRequired,
     submit: PropTypes.func,
     cancel: PropTypes.func,
-    canSelect: PropTypes.any
-  }
+    canSelect: PropTypes.any,
+  };
 
   static contextTypes = {
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   render() {
-    const {
-      canSelect,
-      dataset,
-      columns,
-      submit,
-      cancel,
-      changeFormType
-    } = this.props;
+    const { canSelect, dataset, columns, submit, cancel, changeFormType } =
+      this.props;
 
     return (
-      <div className='group-by'>
+      <div className="group-by">
         <GroupBy
           dataset={dataset}
           columns={columns}
@@ -60,3 +53,4 @@ export default class GroupByController extends PureComponent {
     );
   }
 }
+export default Radium(GroupByController);

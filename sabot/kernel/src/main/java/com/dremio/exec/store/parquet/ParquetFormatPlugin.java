@@ -117,7 +117,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
   @Override
   public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) throws IOException {
-    return new ParquetWriter(props, child, location, options, plugin, this);
+    return new ParquetWriter(props, child, location, options, plugin);
   }
 
   public RecordWriter getRecordWriter(OperatorContext context, ParquetWriter writer) throws IOException, OutOfMemoryException {

@@ -13,24 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import './MetricBar.less';
+import "./MetricBar.less";
 
 const MetricBar = ({ progress, className, isProgressBar, isLarge }) => {
   return (
-    <div className={isProgressBar ? null : 'metricContainer'} data-qa='metricContainer'>
-      {
-        isProgressBar
-          ? <progress className={classNames('progressBar', className, isLarge ? '--large' : '--small')} value={progress} max='100' />
-          : <div
-            className={`metricContainer __metricBar ${isLarge ? '--large' : '--small'}`}
-            style={{
-              width: `${progress}%`
-            }}
-          />
-      }
+    <div
+      className={isProgressBar ? null : "metricContainer"}
+      data-qa="metricContainer"
+    >
+      {isProgressBar ? (
+        <progress
+          className={classNames(
+            "progressBar",
+            className,
+            isLarge ? "--large" : "--small"
+          )}
+          value={progress}
+          max="100"
+        />
+      ) : (
+        <div
+          className={`metricContainer __metricBar ${
+            isLarge ? "--large" : "--small"
+          }`}
+          style={{
+            width: `${progress}%`,
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -39,7 +52,7 @@ MetricBar.propTypes = {
   progress: PropTypes.number,
   className: PropTypes.string,
   isProgressBar: PropTypes.bool,
-  isLarge: PropTypes.bool
+  isLarge: PropTypes.bool,
 };
 
 export default MetricBar;

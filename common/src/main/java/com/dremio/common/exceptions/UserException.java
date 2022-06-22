@@ -48,7 +48,12 @@ public class UserException extends RuntimeException {
 
   public static final String OOM_MSG = "Query canceled - out of memory, check the query profile for details";
 
+  public static final String SYSTEM_ERROR_MSG = "Unexpected error occurred.";
+
   public static final String QUERY_REJECTED_MSG = "Rejecting query because it exceeded the maximum allowed number of live queries in a single coordinator";
+
+  public static final String REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG = "Unable to refresh metadata for the dataset (due to concurrent updates). Please retry.";
+
   /**
    * Creates a new INVALID_DATASET_METADATA exception builder.
    *

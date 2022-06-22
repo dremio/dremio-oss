@@ -13,47 +13,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const GREY = '#6A7781';
-export const NAVY = '#2A394A';
-export const BLUE = '#43B8C9';
-export const TEAL = '#5ED7B9';
-export const ORANGE = '#FFBB57';
-export const BLACK = '#000000';
-export const PALE_NAVY = '#E4F2F7';
-export const PALE_BLUE = '#F5FCFF';
-export const PALE_ORANGE = '#FFF5DC';
-export const PALE_GREY = '#F6F6F6';
-export const LIGHT_GREY = '#ECECEC';
-export const BORDER = '#C2C2C2';
-export const BORDER_TABLE = '#E1E1E1';
-export const RED = '#DA3030';
-export const GREEN = '#81D94A';
-export const CHARCOAL = '#505050;';
-export const BACKGROUND = '#F9F9F9';
-export const HIGHLIGHTED_TABLE = '#DCF4FF';
-export const WHITE = '#FFFFFF';
-export const WARNING = '#FEEAEA';
-export const ACTIVE_DRAG_AREA = '#EBF9F6';
-export const BORDER_ACTIVE_DRAG_AREA = '#92E2D0';
-export const SECONDARY = 'rgba(0,0,0,0.04)';
-export const SECONDARY_BORDER = 'rgba(0,0,0,0.05)';
-export const SHADOW = 'rgba(129,209,235,0.20)';
-export const DIVIDER = '#E4E4E4';
+export const GREY = "#6A7781";
+export const NAVY = "#2A394A";
+export const BLUE = "#43B8C9";
+export const TEAL = "#5ED7B9";
+export const ORANGE = "#FFBB57";
+export const BLACK = "#000000";
+export const PALE_NAVY = "#E4F2F7";
+export const PALE_BLUE = "#F5FCFF";
+export const PALE_ORANGE = "#FFF5DC";
+export const PALE_GREY = "#F6F6F6";
+export const LIGHT_GREY = "#ECECEC";
+export const BORDER = "#C2C2C2";
+export const BORDER_TABLE = "#E1E1E1";
+export const RED = "#DA3030";
+export const GREEN = "#81D94A";
+export const CHARCOAL = "#505050;";
+export const BACKGROUND = "#F9F9F9";
+export const HIGHLIGHTED_TABLE = "#DCF4FF";
+export const WHITE = "#FFFFFF";
+export const WARNING = "#FEEAEA";
+export const ACTIVE_DRAG_AREA = "#EBF9F6";
+export const BORDER_ACTIVE_DRAG_AREA = "#92E2D0";
+export const SECONDARY = "rgba(0,0,0,0.04)";
+export const SECONDARY_BORDER = "rgba(0,0,0,0.05)";
+export const SHADOW = "rgba(129,209,235,0.20)";
+export const DIVIDER = "#E4E4E4";
 
-export const HISTORY_ITEM_COLOR = '#DDDDDD';
+export const HISTORY_ITEM_COLOR = "#DDDDDD";
 
 // todo maybe will change
-export const EXPLORE_HEADER_BUTTON_COLOR = '#dbe8ed';
-export const EXPLORE_SQL_BUTTON_COLOR = '#E5F2F7';
-export const EXPLORE_BORDER_COLOR = '#e8eff2';
-export const EXPLORE_HOVER_COLOR = '#E6E6E6';
-export const CELL_EXPANSION_HEADER = '#F3F3F3';
-export const CELL_EXPANSION = '#E9E9E9';
+export const EXPLORE_HEADER_BUTTON_COLOR = "#dbe8ed";
+export const EXPLORE_SQL_BUTTON_COLOR = "#E5F2F7";
+export const EXPLORE_BORDER_COLOR = "#e8eff2";
+export const EXPLORE_HOVER_COLOR = "#E6E6E6";
+export const CELL_EXPANSION_HEADER = "#F3F3F3";
+export const CELL_EXPANSION = "#E9E9E9";
 
 // menu
-export const MENU_SELECTED = '#d2edf2';
+export const MENU_SELECTED = "#d2edf2";
 
-export const MALIBU = '#63DAFF';
+export const MALIBU = "#63DAFF";
+
+export const PRIMARY_500 = "#43B8C9";
+export const PRIMARY_600 = "#2E92A1";
+export const PRIMARY_700 = "#206771";
+
+export const NETURAL_150 = "#EEEFF1";
+export const NETURAL_200 = "#D2D6DA";
+export const NETURAL_300 = "#B0B7BF";
+
+export const TEXT_MAIN = "#202124";
+export const TEXT_DISABLED = "#B0B7BF";
+export const LESS_IMPORTANT_TEXT = "#505862";
+
+export const RIBBON = "#F6F7F8";
 
 export default {
   GREY,
@@ -81,5 +95,12 @@ export default {
   WARNING,
   ACTIVE_DRAG_AREA,
   BORDER_ACTIVE_DRAG_AREA,
-  BORDER_TABLE
+  BORDER_TABLE,
+  PRIMARY_600,
+  PRIMARY_700,
+  NETURAL_150,
+  NETURAL_200,
+  TEXT_DISABLED,
+  LESS_IMPORTANT_TEXT,
+  RIBBON,
 };

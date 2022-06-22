@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting;
 import com.dremio.resource.common.ReflectionRoutingManager;
@@ -44,9 +45,11 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
   private final Catalog catalog;
   protected final ReflectionRoutingManager reflectionRoutingManager;
   private final NamespaceService namespaceService;
+  private final QueryContext context;
 
   public CommonReflectionRoutingHandler(QueryContext context){
     this.catalog = context.getCatalog();
+    this.context = context;
     reflectionRoutingManager = context.getReflectionRoutingManager();
     this.namespaceService = context.getNamespaceService(SYSTEM_USERNAME);
   }
@@ -64,14 +67,22 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
 
     String successMessage;
 
+    boolean routingInheritanceEnabled = context.getOptions().getOption(PlannerSettings.REFLECTION_ROUTING_INHERITANCE_ENABLED);
+
     switch(RoutingType.valueOf(reflectionRouting.getType().toString())) {
       case TABLE:
         successMessage = setRoutingForTable(reflectionRouting, destinationName);
         break;
       case FOLDER:
+        if (!routingInheritanceEnabled) {
+          throw new UnsupportedOperationException("This feature is unavailable at this time.");
+        }
         successMessage = setRoutingForFolder(reflectionRouting, destinationName);
         break;
       case SPACE:
+        if (!routingInheritanceEnabled) {
+          throw new UnsupportedOperationException("This feature is unavailable at this time.");
+        }
         successMessage = setRoutingForSpace(reflectionRouting, destinationName);
         break;
       default:

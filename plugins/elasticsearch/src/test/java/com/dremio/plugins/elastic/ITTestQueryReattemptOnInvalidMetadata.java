@@ -29,7 +29,7 @@ import com.google.common.collect.Lists;
 public class ITTestQueryReattemptOnInvalidMetadata extends ElasticBaseTestQuery {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public static ColumnData[] getGodFather(String title, int year) {
     return new ColumnData[]{

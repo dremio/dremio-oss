@@ -16,14 +16,12 @@
 package com.dremio.common.expression;
 
 import java.util.Iterator;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 public class IfExpression extends LogicalExpressionBase {
   static final Logger logger = LoggerFactory.getLogger(IfExpression.class);
@@ -99,12 +97,26 @@ public class IfExpression extends LogicalExpressionBase {
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    List<LogicalExpression> children = Lists.newLinkedList();
+    return new Iterator<LogicalExpression>() {
+      private int currentExprIdx = 0;
+      @Override
+      public boolean hasNext() {
+        return currentExprIdx < 3;
+      }
 
-    children.add(ifCondition.condition);
-    children.add(ifCondition.expression);
-    children.add(this.elseExpression);
-    return children.iterator();
+      @Override
+      public LogicalExpression next() {
+        switch (currentExprIdx++) {
+          case 0:
+            return ifCondition.condition;
+          case 1:
+            return ifCondition.expression;
+          case 2:
+            return elseExpression;
+        }
+        return null;
+      }
+    };
   }
 
   @Override

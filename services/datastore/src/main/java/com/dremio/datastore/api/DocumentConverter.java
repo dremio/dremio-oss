@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore.api;
 
+import com.dremio.datastore.indexed.IndexKey;
+
 /**
  * Converter that converts a value into a indexable document.
  *
@@ -22,8 +24,26 @@ package com.dremio.datastore.api;
  * @param <V> The value type to convert.
  */
 public interface DocumentConverter<K, V> {
+  IndexKey VERSION_INDEX_KEY = IndexKey.newBuilder("version", "version", Integer.class).build();
+
   /**
-   * Convert the key/value pair using the providing writer
+   * Does the actual conversion after pre conversion step.
+   * Callers of conversion logic should call this method instead of
+   * {@link #convert(DocumentWriter, Object, Object)} convert}
+   *
+   * @param writer the document writer.
+   * @param key the key of the document.
+   * @param record the value of the document.
+   */
+  default void doConvert(DocumentWriter writer, K key, V record) {
+    writer.write(VERSION_INDEX_KEY, getVersion());
+    convert(writer, key, record);
+  }
+
+  /**
+   * Convert the key/value pair using the providing writer. All
+   * implementations should implement convert and may not override
+   * {@link #doConvert(DocumentWriter, Object, Object)}
    *
    * @param writer the document writer.
    * @param key the key of the document.
@@ -38,4 +58,3 @@ public interface DocumentConverter<K, V> {
    */
   Integer getVersion();
 }
-

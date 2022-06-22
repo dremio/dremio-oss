@@ -47,7 +47,7 @@ public class HadoopCompressionCodecFactory implements CompressionCodecFactory {
   /**
    * Default factory instance
    */
-  public final static CompressionCodecFactory DEFAULT = new HadoopCompressionCodecFactory(new Configuration());
+  public static final CompressionCodecFactory DEFAULT = new HadoopCompressionCodecFactory(new Configuration());
 
   private final org.apache.hadoop.io.compress.CompressionCodecFactory factory;
 

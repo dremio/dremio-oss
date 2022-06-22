@@ -25,7 +25,9 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.AWSRegionSelection;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.DoNotDisplay;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
@@ -89,6 +91,16 @@ public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWS
   @Tag(11)
   @DisplayMetadata(label = "AWS Profile")
   public String awsProfile;
+
+  @Tag(12)
+  @NotMetadataImpacting
+  @DoNotDisplay
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
+  }
 
   @Override
   public AWSGlueStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {

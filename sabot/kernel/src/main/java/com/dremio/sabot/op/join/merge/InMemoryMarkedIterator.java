@@ -51,7 +51,7 @@ class InMemoryMarkedIterator implements MarkedAsyncIterator {
   private final VectorContainer dummyBatch;
 
   // special value -1 means we use batchNotStored
-  private final static int BATCH_NOT_STORED_INDEX = -1;
+  private static final int BATCH_NOT_STORED_INDEX = -1;
 
   // current position of the iterator
   private Integer currentBatchIndex = BATCH_NOT_STORED_INDEX;

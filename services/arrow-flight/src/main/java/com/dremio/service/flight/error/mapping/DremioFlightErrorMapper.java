@@ -15,6 +15,9 @@
  */
 package com.dremio.service.flight.error.mapping;
 
+import java.util.LinkedHashSet;
+import java.util.List;
+
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightRuntimeException;
 
@@ -39,17 +42,13 @@ public final class DremioFlightErrorMapper {
 
     switch(userException.getErrorType()) {
       case PARSE:
+      case VALIDATION:
         status = CallStatus.INVALID_ARGUMENT;
         break;
       case PERMISSION:
         status = CallStatus.UNAUTHORIZED;
         break;
       case RESOURCE:
-        status = CallStatus.UNAVAILABLE;
-        break;
-      case VALIDATION:
-        status = CallStatus.INVALID_ARGUMENT;
-        break;
       case OUT_OF_MEMORY:
       case IO_EXCEPTION:
       case CONCURRENT_MODIFICATION:
@@ -62,6 +61,19 @@ public final class DremioFlightErrorMapper {
         status = CallStatus.INTERNAL;
     }
 
-    return status.withCause(userException).withDescription(userException.getMessage()).toRuntimeException();
+    // We add the context inside #withDescription to provide the additional information that exists in certain scenarios
+    // like the start/end of a line/column in an invalid query when a validation/parse error happens.
+    final List<String> userExceptionContext = userException.getContextStrings();
+    if (userExceptionContext != null && !userExceptionContext.isEmpty()) {
+      return status.withCause(userException)
+        .withDescription(userException.getMessage() +
+          "\n" +  // better readability
+          String.join("\n", new LinkedHashSet<>(userException.getContextStrings())))  // avoid repeated K=Vs
+        .toRuntimeException();
+    } else {
+      return status.withCause(userException)
+        .withDescription(userException.getMessage())
+        .toRuntimeException();
+    }
   }
 }

@@ -13,103 +13,103 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { getAllProvisions, getProvision } from './provision';
+import Immutable from "immutable";
+import { getAllProvisions, getProvision } from "./provision";
 
 const state = {
   resources: {
     entities: Immutable.fromJS({
       provision: {
-        '5': {
+        5: {
           id: {
-            id: '5'
+            id: "5",
           },
-          name: 'foo',
-          clusterType: 'YARN'
+          name: "foo",
+          clusterType: "YARN",
         },
-        '3': {
+        3: {
           id: {
-            id: '3'
+            id: "3",
           },
-          name: 'foo',
-          clusterType: 'YARN'
+          name: "foo",
+          clusterType: "YARN",
         },
-        '4': {
+        4: {
           id: {
-            id: '4'
+            id: "4",
           },
-          name: 'baz',
-          clusterType: 'YARN'
+          name: "baz",
+          clusterType: "YARN",
         },
-        '1': {
+        1: {
           id: {
-            id: '1'
+            id: "1",
           },
-          name: 'bar',
-          clusterType: 'MESOS'
+          name: "bar",
+          clusterType: "MESOS",
         },
-        '2': {
+        2: {
           id: {
-            id: '2'
+            id: "2",
           },
-          name: 'abc',
-          clusterType: 'AMAZON'
-        }
-      }
-    })
-  }
+          name: "abc",
+          clusterType: "AMAZON",
+        },
+      },
+    }),
+  },
 };
 
-describe('provision selectors', () => {
-  describe('getProvision', () => {
-    it('should get provision by id', () => {
-      const provision = getProvision(state, '2').toJS();
+describe("provision selectors", () => {
+  describe("getProvision", () => {
+    it("should get provision by id", () => {
+      const provision = getProvision(state, "2").toJS();
       expect(provision).to.eql({
         id: {
-          id: '2'
+          id: "2",
         },
-        name: 'abc',
-        clusterType: 'AMAZON'
+        name: "abc",
+        clusterType: "AMAZON",
       });
     });
   });
-  describe('getAllProvisions', () => {
-    it('should be sorted by name and then by clusterType then by id', () => {
+  describe("getAllProvisions", () => {
+    it("should be sorted by name and then by clusterType then by id", () => {
       const provisions = getAllProvisions(state);
       expect(provisions.get(0).toJS()).to.eql({
         id: {
-          id: '2'
+          id: "2",
         },
-        name: 'abc',
-        clusterType: 'AMAZON'
+        name: "abc",
+        clusterType: "AMAZON",
       });
       expect(provisions.get(1).toJS()).to.eql({
         id: {
-          id: '1'
+          id: "1",
         },
-        name: 'bar',
-        clusterType: 'MESOS'
+        name: "bar",
+        clusterType: "MESOS",
       });
       expect(provisions.get(2).toJS()).to.eql({
         id: {
-          id: '4'
+          id: "4",
         },
-        name: 'baz',
-        clusterType: 'YARN'
+        name: "baz",
+        clusterType: "YARN",
       });
       expect(provisions.get(3).toJS()).to.eql({
         id: {
-          id: '3'
+          id: "3",
         },
-        name: 'foo',
-        clusterType: 'YARN'
+        name: "foo",
+        clusterType: "YARN",
       });
       expect(provisions.get(4).toJS()).to.eql({
         id: {
-          id: '5'
+          id: "5",
         },
-        name: 'foo',
-        clusterType: 'YARN'
+        name: "foo",
+        clusterType: "YARN",
       });
     });
   });

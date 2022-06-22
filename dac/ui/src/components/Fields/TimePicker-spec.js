@@ -13,32 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { TIME } from '@app/constants/DataTypes';
-import TimePicker from './TimePicker';
+import { shallow } from "enzyme";
+import { TIME } from "@app/constants/DataTypes";
+import TimePicker from "./TimePicker";
 
-describe('TimePicker', () => {
-  const timeTest = '10:10:32.123';
+describe("TimePicker", () => {
+  const timeTest = "10:10:32.123";
   const commonProps = {
     columnType: TIME,
-    value: timeTest
+    value: timeTest,
   };
-  it('should render <input>', () => {
+  it("should render <input>", () => {
     const wrapper = shallow(<TimePicker {...commonProps} />);
-    expect(wrapper.find('input')).to.have.length(1);
+    expect(wrapper.find("input")).to.have.length(1);
   });
-  it('should run onBlur from props if value is valid', () => {
+  it("should run onBlur from props if value is valid", () => {
     commonProps.onBlur = sinon.spy();
     const wrapper = shallow(<TimePicker {...commonProps} />);
     const instance = wrapper.instance();
     instance.onBlur();
     expect(commonProps.onBlur.called).to.be.true;
   });
-  it('should not run onBlur if value is not valid', () => {
+  it("should not run onBlur if value is not valid", () => {
     commonProps.onBlur = sinon.spy();
     const wrapper = shallow(<TimePicker {...commonProps} />);
     wrapper.setState({
-      value: 'not valid time'
+      value: "not valid time",
     });
     const instance = wrapper.instance();
     instance.onBlur();

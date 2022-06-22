@@ -16,14 +16,15 @@
 
 export const getSortItems = () => [
   // todo: `la` loc not building correctly here
-  {id: 'usr', label: ('User')},
-  {id: 'st', label: ('Start Time')},
-  {id: 'dur', label: ('Duration')},
-  {id: 'et', label: ('End Time')}
+  { id: "usr", label: "User" },
+  { id: "st", label: "Start Time" },
+  { id: "dur", label: "Duration" },
+  { id: "et", label: "End Time" },
 ];
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
-    prepareQueuesFilter() {}
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
+    prepareQueuesFilter() {},
   });
 }

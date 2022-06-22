@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
 import {
   getImmutableTable,
   getNewDatasetFromState,
-  getIntialDatasetFromState
-} from './explore';
+  getIntialDatasetFromState,
+} from "./explore";
 
 const emptyTable = Immutable.fromJS({
   columns: [],
-  rows: []
+  rows: [],
 });
 
 // TODO should be refactored and updated, here used old mocked data
-describe('explore selectors', () => {
-  describe('getImmutableTable', () => {
+describe("explore selectors", () => {
+  describe("getImmutableTable", () => {
     let entities;
 
     beforeEach(() => {
@@ -36,93 +36,104 @@ describe('explore selectors', () => {
         tableData: {
           someVersion: {
             columns: [],
-            rows: []
-          }
+            rows: [],
+          },
         },
         table: {
           previewVersion: {
             columns: [],
-            rows: []
-          }
-        }
+            rows: [],
+          },
+        },
       });
     });
 
-    it('returns empty table for unknown version', () => {
-      expect(getImmutableTable({resources: {entities}}, 'unknown', {})).to.eql(emptyTable);
+    it("returns empty table for unknown version", () => {
+      expect(
+        getImmutableTable({ resources: { entities } }, "unknown", {})
+      ).to.eql(emptyTable);
     });
 
-    it('returns tableData for version', () => {
+    it("returns tableData for version", () => {
       expect(
-        getImmutableTable({resources: {entities}}, 'someVersion', {})
-      ).to.eql(entities.getIn(['tableData', 'someVersion']));
+        getImmutableTable({ resources: { entities } }, "someVersion", {})
+      ).to.eql(entities.getIn(["tableData", "someVersion"]));
     });
 
-    it('returns previewTable for version', () => {
+    it("returns previewTable for version", () => {
       expect(
-        getImmutableTable({resources: {entities}}, 'someVersion', {
-          query: {type: 'default'}, state: {previewVersion: 'previewVersion'}
+        getImmutableTable({ resources: { entities } }, "someVersion", {
+          query: { type: "default" },
+          state: { previewVersion: "previewVersion" },
         })
-      ).to.eql(entities.getIn(['table', 'previewVersion']));
+      ).to.eql(entities.getIn(["table", "previewVersion"]));
     });
   });
 
-  describe('getExplorePageDataset', () => {
-
-    describe('getNewDatasetFromState', () => {
-
-      it('new dataset should be initialized', () => {
-        const state = {routing: {locationBeforeTransitions: {query: {context: 'a.b'}}}};
+  describe("getExplorePageDataset", () => {
+    describe("getNewDatasetFromState", () => {
+      it("new dataset should be initialized", () => {
+        const state = {
+          routing: { locationBeforeTransitions: { query: { context: "a.b" } } },
+        };
         const newDataset = getNewDatasetFromState(state);
-        expect(newDataset.get('isNewQuery')).to.equal(true);
-        expect(newDataset.get('fullPath').toJS()).to.eql(['tmp', 'UNTITLED']);
-        expect(newDataset.get('displayFullPath').toJS()).to.eql(['tmp', 'New Query']);
-        expect(newDataset.get('context').toJS()).to.eql(['a', 'b']);
-        expect(newDataset.get('sql')).to.equal('');
-        expect(newDataset.get('datasetType')).to.equal('SCRIPT');
-        expect(newDataset.get('apiLinks').get('self')).to.equal('/dataset/tmp/UNTITLED/new_untitled_sql');
-        expect(newDataset.get('needsLoad')).to.equal(false);
+        expect(newDataset.get("isNewQuery")).to.equal(true);
+        expect(newDataset.get("fullPath").toJS()).to.eql(["tmp", "UNTITLED"]);
+        expect(newDataset.get("displayFullPath").toJS()).to.eql([
+          "tmp",
+          "New Query",
+        ]);
+        expect(newDataset.get("context").toJS()).to.eql(["a", "b"]);
+        expect(newDataset.get("sql")).to.equal("");
+        expect(newDataset.get("datasetType")).to.equal("SCRIPT");
+        expect(newDataset.get("apiLinks").get("self")).to.equal(
+          "/dataset/tmp/UNTITLED/new_untitled_sql"
+        );
+        expect(newDataset.get("needsLoad")).to.equal(false);
       });
 
-      it('Query context is decoded correctly', () => {
+      it("Query context is decoded correctly", () => {
         // test data is taken from the bug // DX-12354
         const space = '"   tomer 12# $"';
         const folder = '"_ nested $"';
         const contextInput = `${space}.${folder}`;
         const location = {
           query: {
-            context: encodeURIComponent(contextInput) // url parameter should be encoded. See NewQueryButton.getNewQueryHref
-          }
+            context: encodeURIComponent(contextInput), // url parameter should be encoded. See NewQueryButton.getNewQueryHref
+          },
         };
-        const state = {routing: {locationBeforeTransitions: location}};
+        const state = { routing: { locationBeforeTransitions: location } };
 
         const newDataset = getNewDatasetFromState(state);
-        const contextResult = newDataset.get('context').toJS();
+        const contextResult = newDataset.get("context").toJS();
         expect(contextResult).to.deep.eql([space, folder]);
       });
-
     });
 
-    describe('getIntialDatasetFromState', () => {
-      it('Should parse resouce and table id properly.', () => {
+    describe("getIntialDatasetFromState", () => {
+      it("Should parse resouce and table id properly.", () => {
         // test data is taken from the bug // DX-12354
-        const space = '@dremio.test';
+        const space = "@dremio.test";
         const folder = '"systr.dataset"';
         const pathname = `/home/${space}/${folder}`;
         const query = {
-          mode: 'edit',
-          version: '1'
+          mode: "edit",
+          version: "1",
         };
         const location = {
           pathname,
-          query
+          query,
         };
-        const state = {routing: {locationBeforeTransitions: location}};
+        const state = { routing: { locationBeforeTransitions: location } };
 
         const dataset = getIntialDatasetFromState(state);
-        const apiLinks = dataset.get('apiLinks').toJS();
-        const resourceURL = [space, folder].map((a) => encodeURIComponent(`"${a.replace(/"/g, '')}"`));
-        expect(apiLinks.self).to.deep.eql(`/dataset/${resourceURL.join('.')}/version/${query.version}`);
+        const apiLinks = dataset.get("apiLinks").toJS();
+        const resourceURL = [space, folder].map((a) =>
+          encodeURIComponent(`"${a.replace(/"/g, "")}"`)
+        );
+        expect(apiLinks.self).to.deep.eql(
+          `/dataset/${resourceURL.join(".")}/version/${query.version}`
+        );
       });
     });
   });

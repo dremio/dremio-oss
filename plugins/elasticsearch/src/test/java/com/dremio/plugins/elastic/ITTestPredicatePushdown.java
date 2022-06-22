@@ -41,7 +41,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
   }
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void testPredicate_IntegerEquality() throws Exception {
@@ -104,11 +104,12 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                    \"fuzzy_transpositions\" : false,\n" +
       "                    \"lenient\" : false,\n" +
       "                    \"zero_terms_query\" : \"NONE\",\n" +
+      "                    \"auto_generate_synonyms_phrase_query\": true,\n" +
       "                    \"boost\" : 1.0\n" +
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" + disableCoordOrBlank +
+      "            ],\n" +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -116,13 +117,13 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "        {\n" +
       "          \"script\" : {\n" +
       "            \"script\" : {\n" +
-      "              \"inline\" : \"(def) ((doc[\\\"integer_field\\\"].empty) ? false : ( ( 0 == doc[\\\"integer_field\\\"].value ) && ((!doc[\\\"long_field\\\"].empty) && ( 7701633953967831279L != doc[\\\"long_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )) ))\",\n" +
+      "              \"source\" : \"(def) ((doc[\\\"integer_field\\\"].empty) ? false : ( ( 0 == doc[\\\"integer_field\\\"].value ) && ((!doc[\\\"long_field\\\"].empty) && ( 7701633953967831279L != doc[\\\"long_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )) ))\",\n" +
       "              \"lang\" : \"painless\"\n" +
       "            },\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" + disableCoordOrBlank +
+      "      ],\n" +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -174,7 +175,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "      }, {\n" +
         "        \"script\" : {\n" +
         "          \"script\" : {\n" +
-        "             \"inline\" : \"(_source.text_field == null || _source.integer_field == null || _source.long_field == null || _source.float_field == null) ? false : ( ( _source.text_field == 'string_value_0' ) && ( 0 == ((Integer)_source.integer_field) ) && ( ( 7701633953967831279 != ((Long)_source.long_field) ) || ( ((Float)_source.float_field) == ((Float) (((Integer)_source.integer_field))) ) ) )\"\n" +
+        "             \"source\" : \"(_source.text_field == null || _source.integer_field == null || _source.long_field == null || _source.float_field == null) ? false : ( ( _source.text_field == 'string_value_0' ) && ( 0 == ((Integer)_source.integer_field) ) && ( ( 7701633953967831279 != ((Long)_source.long_field) ) || ( ((Float)_source.float_field) == ((Float) (((Integer)_source.integer_field))) ) ) )\"\n" +
         "          }\n" +
         "        }\n" +
         "      } ]\n" +
@@ -222,11 +223,12 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                    \"fuzzy_transpositions\" : false,\n" +
       "                    \"lenient\" : false,\n" +
       "                    \"zero_terms_query\" : \"NONE\",\n" +
+      "                    \"auto_generate_synonyms_phrase_query\": true,\n" +
       "                    \"boost\" : 1.0\n" +
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" + disableCoordOrBlank +
+      "            ],\n" +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -234,13 +236,13 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "        {\n" +
       "          \"script\" : {\n" +
       "            \"script\" : {\n" +
-      "              \"inline\" : \"(def) ((doc[\\\"integer_field\\\"].empty) ? false : ( ((!doc[\\\"long_field\\\"].empty) && ( 7701633953967831279L != doc[\\\"long_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )) && ( 0 == doc[\\\"integer_field\\\"].value ) ))\",\n" +
+      "              \"source\" : \"(def) ((doc[\\\"integer_field\\\"].empty) ? false : ( ((!doc[\\\"long_field\\\"].empty) && ( 7701633953967831279L != doc[\\\"long_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )) && ( 0 == doc[\\\"integer_field\\\"].value ) ))\",\n" +
       "              \"lang\" : \"painless\"\n" +
       "            },\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" + disableCoordOrBlank +
+      "      ],\n" +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -290,7 +292,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "      }, {\n" +
         "        \"script\" : {\n" +
         "          \"script\" : {\n" +
-        "            \"inline\" : \"(doc[\\\"text_field\\\"] == null || doc[\\\"integer_field\\\"] == null || doc[\\\"long_field\\\"] == null || doc[\\\"float_field\\\"] == null) ? false : ( ( doc[\\\"text_field\\\"].value == 'string_value_0' ) && ( 0 == doc[\\\"integer_field\\\"].value ) && ( ( 7701633953967831279 != doc[\\\"long_field\\\"].value ) || ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) ) ) )\"\n" +
+        "            \"source\" : \"(doc[\\\"text_field\\\"] == null || doc[\\\"integer_field\\\"] == null || doc[\\\"long_field\\\"] == null || doc[\\\"float_field\\\"] == null) ? false : ( ( doc[\\\"text_field\\\"].value == 'string_value_0' ) && ( 0 == doc[\\\"integer_field\\\"].value ) && ( ( 7701633953967831279 != doc[\\\"long_field\\\"].value ) || ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) ) ) )\"\n" +
         "          }\n" +
         "        }\n" +
         "      } ]\n" +
@@ -344,11 +346,12 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                    \"fuzzy_transpositions\" : false,\n" +
       "                    \"lenient\" : false,\n" +
       "                    \"zero_terms_query\" : \"NONE\",\n" +
+      "                    \"auto_generate_synonyms_phrase_query\": true,\n" +
       "                    \"boost\" : 1.0\n" +
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" + disableCoordOrBlank +
+      "            ],\n" +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -356,13 +359,13 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "        {\n" +
       "          \"script\" : {\n" +
       "            \"script\" : {\n" +
-      "              \"inline\" : \"(def) ((doc[\\\"integer_field\\\"].empty) ? false : ( ((!doc[\\\"long_field\\\"].empty) && ( 7701633953967831279L == doc[\\\"long_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )) && ( 0 == doc[\\\"integer_field\\\"].value ) ))\",\n" +
+      "              \"source\" : \"(def) ((doc[\\\"integer_field\\\"].empty) ? false : ( ((!doc[\\\"long_field\\\"].empty) && ( 7701633953967831279L == doc[\\\"long_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )) && ( 0 == doc[\\\"integer_field\\\"].value ) ))\",\n" +
       "              \"lang\" : \"painless\"\n" +
       "            },\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" + disableCoordOrBlank +
+      "      ],\n" +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -406,7 +409,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "      }, {\n" +
         "        \"script\" : {\n" +
         "          \"script\" : {\n" +
-        "            \"inline\" : \"(_source.long_field == null || _source.float_field == null || _source.integer_field == null || _source.text_field == null) ? false : ( ( ( 7701633953967831279 == ((Long)_source.long_field) ) || ( ((Float)_source.float_field) == ((Float) (((Integer)_source.integer_field))) ) ) && ( _source.text_field == 'string_value_0' ) && ( 0 == ((Integer)_source.integer_field) ) )\"\n" +
+        "            \"source\" : \"(_source.long_field == null || _source.float_field == null || _source.integer_field == null || _source.text_field == null) ? false : ( ( ( 7701633953967831279 == ((Long)_source.long_field) ) || ( ((Float)_source.float_field) == ((Float) (((Integer)_source.integer_field))) ) ) && ( _source.text_field == 'string_value_0' ) && ( 0 == ((Integer)_source.integer_field) ) )\"\n" +
         "          }\n" +
         "        }\n" +
         "      } ]\n" +
@@ -436,7 +439,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) (((!doc[\\\"integer_field\\\"].empty) && ( 0 == doc[\\\"integer_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )))\",\n" +
+        "        \"source\" : \"(def) (((!doc[\\\"integer_field\\\"].empty) && ( 0 == doc[\\\"integer_field\\\"].value )) || ((!doc[\\\"float_field\\\"].empty) && (!doc[\\\"integer_field\\\"].empty) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) )))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -483,11 +486,12 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "                    \"fuzzy_transpositions\" : false,\n" +
       "                    \"lenient\" : false,\n" +
       "                    \"zero_terms_query\" : \"NONE\",\n" +
+      "                    \"auto_generate_synonyms_phrase_query\": true,\n" +
       "                    \"boost\" : 1.0\n" +
       "                  }\n" +
       "                }\n" +
       "              }\n" +
-      "            ],\n" + disableCoordOrBlank +
+      "            ],\n" +
       "            \"adjust_pure_negative\" : true,\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
@@ -495,13 +499,13 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "        {\n" +
       "          \"script\" : {\n" +
       "            \"script\" : {\n" +
-      "              \"inline\" : \"(def) ((doc[\\\"integer_field\\\"].empty || doc[\\\"float_field\\\"].empty) ? false : ( ( 0 == doc[\\\"integer_field\\\"].value ) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) ) ))\",\n" +
+      "              \"source\" : \"(def) ((doc[\\\"integer_field\\\"].empty || doc[\\\"float_field\\\"].empty) ? false : ( ( 0 == doc[\\\"integer_field\\\"].value ) && ( doc[\\\"float_field\\\"].value == ((float)(doc[\\\"integer_field\\\"].value)) ) ))\",\n" +
       "              \"lang\" : \"painless\"\n" +
       "            },\n" +
       "            \"boost\" : 1.0\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" + disableCoordOrBlank +
+      "      ],\n" +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -541,7 +545,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "      }, {\n" +
         "        \"script\" : {\n" +
         "          \"script\" : {\n" +
-        "            \"inline\" : \"(_source.text_field == null || _source.float_field == null || _source.integer_field == null) ? false : ( ( _source.text_field == 'string_value_0' ) && ( ((Float)_source.float_field) == ((Float) (((Integer)_source.integer_field))) ) )\"\n" +
+        "            \"source\" : \"(_source.text_field == null || _source.float_field == null || _source.integer_field == null) ? false : ( ( _source.text_field == 'string_value_0' ) && ( ((Float)_source.float_field) == ((Float) (((Integer)_source.integer_field))) ) )\"\n" +
         "          }\n" +
         "        }\n" +
         "      } ]\n" +
@@ -613,7 +617,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -658,7 +662,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            }\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" + disableCoordOrBlank +
+      "      ],\n" +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -709,7 +713,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
       "            }\n" +
       "          }\n" +
       "        }\n" +
-      "      ],\n" + disableCoordOrBlank +
+      "      ],\n" +
       "      \"adjust_pure_negative\" : true,\n" +
       "      \"boost\" : 1.0\n" +
       "    }\n" +
@@ -826,6 +830,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\": true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -840,7 +845,7 @@ public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
         "            }\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +

@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { formDefault } from 'uiTheme/radium/typography';
+import { formDefault } from "uiTheme/radium/typography";
 
-@Radium
-export default class MenuLabel extends Component {
+class MenuLabel extends Component {
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   constructor(props) {
@@ -31,22 +30,20 @@ export default class MenuLabel extends Component {
   }
 
   render() {
-    return (
-      <div style={styles.base}>
-        {this.props.children}
-      </div>
-    );
+    return <div style={styles.base}>{this.props.children}</div>;
   }
 }
 
 const styles = {
   base: {
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     paddingLeft: 8,
     paddingRight: 8,
-    height: 24,
+    height: 32,
     ...formDefault,
-    fontWeight: '500'
-  }
+    fontSize: 14,
+    fontWeight: "600",
+  },
 };
+export default Radium(MenuLabel);

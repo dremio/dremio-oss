@@ -83,7 +83,7 @@ public class DremioTest {
 
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
   @Rule
   public final TestLogReporter logOutcome = LOG_OUTCOME;

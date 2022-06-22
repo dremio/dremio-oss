@@ -94,7 +94,7 @@ import com.google.protobuf.ByteString;
  * Tests for {@link PrefetchingIterator}
  */
 public class TestPrefetchingIterator {
-    private final static String TEST_NAME = "TestPrefetchingIterator";
+    private static final String TEST_NAME = "TestPrefetchingIterator";
 
     private BufferAllocator testAllocator;
 

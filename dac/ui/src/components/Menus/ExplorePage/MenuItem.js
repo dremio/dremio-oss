@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import classnames from 'classnames';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import classnames from "classnames";
+import PropTypes from "prop-types";
+import { Tooltip } from "dremio-ui-lib";
 
-import { PALE_BLUE } from 'uiTheme/radium/colors';
-import { formDefault } from 'uiTheme/radium/typography';
-import DefaultMenuItem from '@app/components/Menus/MenuItem';
+import { formDefault } from "uiTheme/radium/typography";
+import DefaultMenuItem from "@app/components/Menus/MenuItem";
+
+import "./MenuItem.less";
 
 export default class MenuItem extends PureComponent {
   static propTypes = {
@@ -28,60 +30,83 @@ export default class MenuItem extends PureComponent {
     onClick: PropTypes.func,
     href: PropTypes.string,
     title: PropTypes.string,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
+    tooltipPlacement: PropTypes.string,
+    showTooltip: PropTypes.bool,
   };
 
   renderDiv = (className, style) => {
-    const { onClick, children, title, disabled } = this.props;
+    const { onClick, children, disabled, title, showTooltip } = this.props;
     return (
       <div
-        className={classnames('dropdown-menu-item', className)}
-        title={title}
-        onClick={disabled ? undefined : onClick} >
-        <DefaultMenuItem disabled={disabled} style={style}>{children}</DefaultMenuItem>
+        className={classnames("dropdown-menu-item", className, {
+          "--disabled": disabled,
+        })}
+        title={!showTooltip && title}
+        onClick={disabled ? undefined : onClick}
+      >
+        <DefaultMenuItem disabled={disabled} style={style}>
+          {children}
+        </DefaultMenuItem>
       </div>
     );
   };
 
   renderLink = (className, style) => {
-    const { href, children, title, onClick, disabled } = this.props;
+    const { href, children, onClick, disabled, title, showTooltip } =
+      this.props;
     return (
       <a
         href={href}
-        title={title}
+        title={!showTooltip && title}
         onClick={onClick}
-        className={classnames('menu-item-link', className)}
+        className={classnames("menu-item-link", className, {
+          "--disabled": disabled,
+        })}
       >
-        <DefaultMenuItem disabled={disabled} style={style}>{children}</DefaultMenuItem>
+        <DefaultMenuItem disabled={disabled} style={style}>
+          {children}
+        </DefaultMenuItem>
       </a>
     );
   };
 
   render() {
-    const { className, href, disabled } = this.props;
-    const style = {...styles.base, ...(disabled && styles.disabled)};
-    return (href && !disabled) ? this.renderLink(className, style) : this.renderDiv(className, style);
+    const { className, href, disabled, title, tooltipPlacement, showTooltip } =
+      this.props;
+    const style = { ...styles.base, ...(disabled && styles.disabled) };
+    return showTooltip ? (
+      <Tooltip
+        placement={tooltipPlacement || "left"}
+        title={title}
+        enterDelay={500}
+        enterNextDelay={500}
+      >
+        {href && !disabled
+          ? this.renderLink(className, style)
+          : this.renderDiv(className, style)}
+      </Tooltip>
+    ) : href && !disabled ? (
+      this.renderLink(className, style)
+    ) : (
+      this.renderDiv(className, style)
+    );
   }
 }
 
 const styles = {
   base: {
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     paddingLeft: 8,
     paddingRight: 8,
-    cursor: 'pointer',
-    height: 24,
+    cursor: "pointer",
+    height: 32,
     ...formDefault,
-    ':hover': {
-      backgroundColor: PALE_BLUE
-    }
+    fontSize: 14,
   },
   disabled: {
-    ':hover': {
-      backgroundColor: '#fff'
-    },
-    cursor: 'default',
-    'color': '#DDDDDD'
-  }
+    cursor: "default",
+    color: "#DDDDDD",
+  },
 };

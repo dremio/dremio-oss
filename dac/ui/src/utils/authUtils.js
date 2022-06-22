@@ -13,40 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import userUtils from '@app/utils/userUtils';
-import config from 'dyn-load/utils/config';
-import { getUser } from '@app/reducers';
+import PropTypes from "prop-types";
+import userUtils from "@app/utils/userUtils";
+import config from "dyn-load/utils/config";
+import { getUser } from "@app/reducers";
 
 export const Capabilities = {
-  manageSpaces: 'MANAGE_SPACES',
-  manageSources: 'MANAGE_SOURCES'
+  manageSpaces: "MANAGE_SPACES",
+  manageSources: "MANAGE_SOURCES",
 };
 
 export const authInfoPropType = PropTypes.shape({
   isAdmin: PropTypes.bool,
-  allowSpaceManagement: PropTypes.bool
+  allowSpaceManagement: PropTypes.bool,
 });
 
 //state selector
-export const getAuthInfoSelector = state => {
+export const getAuthInfoSelector = (state) => {
   const user = getUser(state);
   //should corresponds to authInfoPropType
   return {
     isAdmin: userUtils.isAdmin(user),
-    allowSpaceManagement: config.allowSpaceManagement
+    allowSpaceManagement: config.allowSpaceManagement,
   };
 };
 
 export const rulePropType = PropTypes.shape({
   capabilities: PropTypes.arrayOf(PropTypes.oneOf(Object.values(Capabilities))),
-  isAdmin: PropTypes.bool
+  isAdmin: PropTypes.bool,
 });
 
-export const isAuthorized = (/* rule */ {
-  isAdmin = false
-}, // see authInfoPropType for format
-authInfo // see rulePropType for format
+export const isAuthorized = (
+  /* rule */ { isAdmin = false }, // see authInfoPropType for format
+  authInfo // see rulePropType for format
 ) => {
   return isAdmin && authInfo.isAdmin;
 };
@@ -56,10 +55,10 @@ authInfo // see rulePropType for format
  */
 export const manageSpaceRule = {
   capabilities: [Capabilities.manageSpaces],
-  isAdmin: true
+  isAdmin: true,
 };
 
 export const manageSourceRule = {
   capabilities: [Capabilities.manageSources],
-  isAdmin: true // only admins are allowed to edit/remove source
+  isAdmin: true, // only admins are allowed to edit/remove source
 };

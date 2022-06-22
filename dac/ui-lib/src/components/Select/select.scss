@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 
-.selectRoot { // Naming this as selectRoot to avoid conflicts with select
+.selectRoot {
+  // Naming this as selectRoot to avoid conflicts with select
   padding: 4px 0px;
   &__select {
     @include input-size();
@@ -29,12 +30,17 @@
     }
   }
 
+  &__no-padding {
+    padding: 0px;
+  }
+
   .MuiInputBase-root {
     display: flex;
     background-color: $white;
   }
 
-  .MuiInput-underline:before, .MuiInput-underline:after {
+  .MuiInput-underline:before,
+  .MuiInput-underline:after {
     border-bottom: none !important;
   }
 
@@ -44,6 +50,8 @@
   }
 
   &__option {
+    height: 32px;
+    font-size: 14px !important;
     &.--selected {
       background-color: $iceberg !important;
     }

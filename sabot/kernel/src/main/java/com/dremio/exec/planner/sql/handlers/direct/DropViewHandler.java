@@ -23,7 +23,12 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.physical.base.ViewOptions;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlDropView;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -33,9 +38,11 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropViewHandler.class);
 
   private final Catalog catalog;
+  private final SqlHandlerConfig config;
 
-  public DropViewHandler(Catalog catalog) {
-    this.catalog = catalog;
+  public DropViewHandler(SqlHandlerConfig config) {
+    this.config = config;
+    this.catalog = config.getContext().getCatalog();
   }
 
   @Override
@@ -48,20 +55,40 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
       if(table == null) {
         throw UserException.validationError()
           .message("Unknown view [%s].", path)
-          .build(logger);
+          .buildSilently();
       } else if(table.getJdbcTableType() != TableType.VIEW) {
         throw UserException.validationError()
             .message("[%s] is not a VIEW", table.getPath())
-            .build(logger);
+            .buildSilently();
       }
     } else if(table == null) {
       return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
     } else if(table.getJdbcTableType() != TableType.VIEW) {
       return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
     }
-
-    catalog.dropView(path);
+    if(isVersioned(path)){
+      catalog.dropView(path, getViewOptions(path));
+    } else {
+      catalog.dropView(path, null);
+    }
     return Collections.singletonList(SimpleCommandResult.successful("View [%s] deleted successfully.", path));
+  }
+
+  protected ViewOptions getViewOptions(NamespaceKey viewPath){
+    final String sourceName = viewPath.getRoot();
+
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, viewPath.getRoot(), sessionVersion);
+
+    ViewOptions viewOptions = new ViewOptions.ViewOptionsBuilder()
+      .version(version)
+      .build();
+
+    return viewOptions;
+  }
+
+  protected boolean isVersioned(NamespaceKey path){
+    return CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
   }
 
   @Override

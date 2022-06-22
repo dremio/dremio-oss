@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .large_overlay_tree {
     font-family: Menlo, monospace;
     font-weight: 500;
@@ -30,7 +31,8 @@
     }
 
     &.overlay-object > ul {
-      .Object-node.expanded, .Array-node.expanded {
+      .Object-node.expanded,
+      .Array-node.expanded {
         padding-right: 5px !important;
         & > label::after {
           padding-left: 5px;
@@ -66,12 +68,12 @@
       }
     }
 
-
     label {
       margin-right: 0px !important;
     }
 
-    .Object-node, .Array-node {
+    .Object-node,
+    .Array-node {
       font-family: Menlo, monospace;
       font-weight: 700;
       font-size: 11px;
@@ -103,7 +105,8 @@
       }
     }
 
-    .Object-node.expanded, .Array-node.expanded {
+    .Object-node.expanded,
+    .Array-node.expanded {
       padding-right: 5px !important;
       & > ul {
         & > li:not(.expanded) {

@@ -1,0 +1,144 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "NO FROM CLAUSE"
+  input: "SELECT *^"
+  output: "SELECT QUERY: SELECT * ^ "
+ -
+  description: "ONLY FROM CLAUSE"
+  input: "SELECT * FROM EMP^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP^ "
+   - "  FROM: FROM EMP^ "
+   - "    CATALOG PATHS: [EMP^ ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM + WHERE"
+  input: "SELECT * FROM EMP WHERE age < 10^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP WHERE age < 10^ "
+   - "  FROM: FROM EMP "
+   - "    CATALOG PATHS: [EMP ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM + ORDER BY"
+  input: "SELECT * FROM EMP ORDER BY age^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP ORDER BY age^ "
+   - "  FROM: FROM EMP "
+   - "    CATALOG PATHS: [EMP ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM + LIMIT"
+  input: "SELECT * FROM EMP LIMIT 10^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP LIMIT 10^ "
+   - "  FROM: FROM EMP "
+   - "    CATALOG PATHS: [EMP ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM + OFFSET"
+  input: "SELECT * FROM EMP OFFSET 10^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP OFFSET 10^ "
+   - "  FROM: FROM EMP "
+   - "    CATALOG PATHS: [EMP ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM + FETCH"
+  input: "SELECT * FROM EMP FETCH FIRST 10 ONLY^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP FETCH FIRST 10 ONLY^ "
+   - "  FROM: FROM EMP "
+   - "    CATALOG PATHS: [EMP ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "MULTIPLE CLAUSES"
+  input: "SELECT * FROM EMP WHERE age < 10 ORDER by age LIMIT 10 OFFSET 10 FETCH FIRST 10 ONLY^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP WHERE age < 10 ORDER by age LIMIT 10 OFFSET 10 FETCH FIRST 10 ONLY^ "
+   - "  FROM: FROM EMP "
+   - "    CATALOG PATHS: [EMP ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM CLAUSE WITH COMMAS"
+  input: "SELECT * FROM EMP, DEPT^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP , DEPT^ "
+   - "  FROM: FROM EMP , DEPT^ "
+   - "    CATALOG PATHS: [EMP ,,DEPT^ ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "FROM CLAUSE WITH JOINS"
+  input: "SELECT * FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP JOIN DEPT ON EMP . DEPTNO = DEPT . DEPTNO^ "
+   - "  FROM: FROM EMP JOIN DEPT ON EMP . DEPTNO = DEPT . DEPTNO^ "
+   - "    CATALOG PATHS: [EMP ,,DEPT ,,]"
+   - "    JOIN CONDITIONS: [EMP . DEPTNO = DEPT . DEPTNO^ ,]"
+ -
+  description: "FROM CLAUSE WITH INCOMPLETE JOIN CONDITION"
+  input: "SELECT * FROM EMP JOIN DEPT ON EMP.DEPTNO = ^"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP JOIN DEPT ON EMP . DEPTNO = ^ "
+   - "  FROM: FROM EMP JOIN DEPT ON EMP . DEPTNO = ^ "
+   - "    CATALOG PATHS: [EMP ,,DEPT ,,]"
+   - "    JOIN CONDITIONS: [EMP . DEPTNO = ^ ,]"
+ -
+  description: "FROM CLAUSE WITH MULTIPLE JOINS"
+  input: "SELECT * FROM EMP JOIN DEPT ON EMP.DEPTNO = ^ JOIN SALGRADE ON SALGRADE.GRADE = DEPT.DEPTNO"
+  output:
+   - "SELECT QUERY: SELECT * FROM EMP JOIN DEPT ON EMP . DEPTNO = ^ JOIN SALGRADE ON SALGRADE . GRADE = DEPT . DEPTNO "
+   - "  FROM: FROM EMP JOIN DEPT ON EMP . DEPTNO = ^ JOIN SALGRADE ON SALGRADE . GRADE = DEPT . DEPTNO "
+   - "    CATALOG PATHS: [EMP ,,DEPT ,,SALGRADE ,,]"
+   - "    JOIN CONDITIONS: [EMP . DEPTNO = ^ ,SALGRADE . GRADE = DEPT . DEPTNO ,]"
+ -
+  description: "SUBQUERY WITH CURSOR IN OUTER QUERY"
+  input:
+   - "SELECT DEPTNO, ^, NAME, (SELECT MAX(EMP.SAL)"
+   - " FROM EMP"
+   - " WHERE EMP.DEPTNO = DEPT.DEPTNO) AS MAX_SAL_IN_DEPTNO"
+   - "FROM DEPT"
+  output:
+   - "SELECT QUERY: SELECT DEPTNO , ^ , NAME , ( SELECT MAX ( EMP . SAL ) FROM EMP WHERE EMP . DEPTNO = DEPT . DEPTNO ) AS MAX_SAL_IN_DEPTNO FROM DEPT "
+   - "  SELECT QUERY: SELECT MAX ( EMP . SAL ) FROM EMP WHERE EMP . DEPTNO = DEPT . DEPTNO "
+   - "    FROM: FROM EMP "
+   - "      CATALOG PATHS: [EMP ,,]"
+   - "      JOIN CONDITIONS: []"
+   - ""
+   - "  FROM: FROM DEPT "
+   - "    CATALOG PATHS: [DEPT ,,]"
+   - "    JOIN CONDITIONS: []"
+ -
+  description: "Cursor after subselect"
+  input: "SELECT * FROM (SELECT * FROM ORGS), (SELECT * FROM SALES), ^"
+  output:
+   - "SELECT QUERY: SELECT * FROM ( SELECT * FROM ORGS ) , ( SELECT * FROM SALES ) , ^ "
+   - "  SELECT QUERY: SELECT * FROM ORGS "
+   - "    FROM: FROM ORGS "
+   - "      CATALOG PATHS: [ORGS ,,]"
+   - "      JOIN CONDITIONS: []"
+   - ""
+   - "  SELECT QUERY: SELECT * FROM SALES "
+   - "    FROM: FROM SALES "
+   - "      CATALOG PATHS: [SALES ,,]"
+   - "      JOIN CONDITIONS: []"
+   - ""
+   - "  FROM: FROM ( SELECT * FROM ORGS ) , ( SELECT * FROM SALES ) , ^ "
+   - "    CATALOG PATHS: [( SELECT * FROM ORGS ) ,,( SELECT * FROM SALES ) ,,^ ,,]"
+   - "    JOIN CONDITIONS: []"

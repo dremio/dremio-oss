@@ -13,48 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
-import HoverHelp from 'components/HoverHelp';
-import FormSection from 'components/Forms/FormSection';
-import { tabTitle, tabSections, tabTallSections } from 'uiTheme/less/forms.less';
+import PropTypes from "prop-types";
+import HoverHelp from "components/HoverHelp";
+import FormSection from "components/Forms/FormSection";
+import {
+  tabTitle,
+  tabSections,
+  tabTallSections,
+} from "uiTheme/less/forms.less";
 
 export default class FormTab extends Component {
-
   static propTypes = {
     tabConfig: PropTypes.object,
     fields: PropTypes.object,
     formConfig: PropTypes.object,
-    disabled: PropTypes.bool
+    showTabTitle: PropTypes.bool,
+    disabled: PropTypes.bool,
   };
 
   render() {
-    const { fields, formConfig, tabConfig, disabled } = this.props;
+    const {
+      fields,
+      formConfig,
+      tabConfig,
+      showTabTitle = false,
+      disabled,
+    } = this.props;
     const tabConfigJson = tabConfig.getConfig();
     const tabTitleText = tabConfig.getTitle(formConfig);
-    const tabSectionsClass = (tabConfigJson.layout === 'tall') ? tabTallSections : tabSections;
+    const tabSectionsClass =
+      tabConfigJson.layout === "tall" ? tabTallSections : tabSections;
 
     const isSectionDisabled = (section, propsFields, propDisabled) => {
       const controller = section.getConfig().checkboxController;
-      return propDisabled || (
-        controller && propsFields.config && propsFields.config[controller] && !propsFields.config[controller].value
+      return (
+        propDisabled ||
+        (controller &&
+          propsFields.config &&
+          propsFields.config[controller] &&
+          !propsFields.config[controller].value)
       );
     };
     return (
       <div>
-        {!!tabTitleText &&
-        <div className={tabTitle}>
-          {tabTitleText}
-          {tabConfigJson.tooltip &&
-          <HoverHelp content={tabConfigJson.tooltip} />
-          }
-        </div>
-        }
+        {showTabTitle && !!tabTitleText && (
+          <div className={tabTitle}>
+            {tabTitleText}
+            {tabConfigJson.tooltip && (
+              <HoverHelp content={tabConfigJson.tooltip} />
+            )}
+          </div>
+        )}
         <div className={tabSectionsClass}>
           {tabConfig.getSections().map((section, index) => (
             <FormSection
-              fields={fields} key={index} sectionConfig={section}
+              fields={fields}
+              key={index}
+              sectionConfig={section}
+              tabTitleText={showTabTitle ? null : tabTitleText}
               disabled={isSectionDisabled(section, fields, disabled)}
             />
           ))}

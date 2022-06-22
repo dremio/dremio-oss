@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { UPDATE_HISTORY_WITH_JOB_STATE } from 'actions/explore/history';
+import { UPDATE_HISTORY_WITH_JOB_STATE } from "actions/explore/history";
 
 export default function data(state, action) {
   switch (action.type) {
-  case UPDATE_HISTORY_WITH_JOB_STATE: {
-    const { datasetVersion, jobState } = action.meta;
-    const historyItem = state.getIn(['historyItem', datasetVersion]);
-    if (historyItem) {
-      return state.setIn(['historyItem', datasetVersion, 'state'], jobState);
+    case UPDATE_HISTORY_WITH_JOB_STATE: {
+      const { datasetVersion, jobState } = action.meta;
+      const historyItem = state.getIn(["historyItem", datasetVersion]);
+      if (historyItem) {
+        return state.setIn(["historyItem", datasetVersion, "state"], jobState);
+      }
+      return state;
     }
-    return state;
-  }
-  default:
-    return state;
+    default:
+      return state;
   }
 }

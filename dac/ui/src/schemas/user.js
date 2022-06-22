@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
-const user = new Schema('user', {
-  idAttribute: 'id'
+const user = new Schema("user", {
+  idAttribute: "id",
 });
 
 export default user;

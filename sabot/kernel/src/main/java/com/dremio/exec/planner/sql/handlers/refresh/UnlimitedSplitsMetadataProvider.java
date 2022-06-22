@@ -33,7 +33,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Throwables;
 
 /**
  * Given a table's logical name should interact with the KV-store to get schema, partition columns and other metadata
@@ -50,21 +49,26 @@ public class UnlimitedSplitsMetadataProvider {
   private List<String> partitionCols = new ArrayList<>();
   private DatasetConfig config;
 
+  private final NamespaceService nsService;
+
   public UnlimitedSplitsMetadataProvider(SqlHandlerConfig config, NamespaceKey tableNSKey) {
     sqlHandlerConfig = config;
     this.tableNSKey = tableNSKey;
-    final NamespaceService nsService = config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
-    try {
-      evaluateExistingMetadata(nsService);
-    } catch (NamespaceException e) {
-      Throwables.propagateIfPossible(e, RuntimeException.class);
-    }
+    nsService = config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    evaluateExistingMetadata();
   }
 
-  private void evaluateExistingMetadata(NamespaceService nsService) throws NamespaceException {
+  private void evaluateExistingMetadata() {
     config = null;
-    if (nsService.exists(tableNSKey, NameSpaceContainer.Type.DATASET)) {
-      config = nsService.getDataset(tableNSKey);
+
+    try {
+      if (nsService.exists(tableNSKey, NameSpaceContainer.Type.DATASET)) {
+        config = nsService.getDataset(tableNSKey);
+      }
+    } catch (NamespaceException e) {
+      String errorMessage = String.format("Error while getting metadata of [%s] from catalog", tableNSKey.getSchemaPath());
+      logger.error(errorMessage, e);
+      throw new RuntimeException(errorMessage, e);
     }
 
     if (config == null) {
@@ -105,12 +109,8 @@ public class UnlimitedSplitsMetadataProvider {
   }
 
   public void resetMetadata() {
-    final NamespaceService nsService = sqlHandlerConfig.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
-    try {
-      evaluateExistingMetadata(nsService);
-    } catch (NamespaceException e) {
-      Throwables.propagateIfPossible(e, RuntimeException.class);
-    }
+    // get dataset config again from namespace service and reinitialize schema and partitionCols fields
+    evaluateExistingMetadata();
   }
 
 }

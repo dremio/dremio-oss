@@ -13,49 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import mergeWith from 'lodash/mergeWith';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import mergeWith from "lodash/mergeWith";
 
-import { createSource, loadSource, removeSource, updateSourcePrivileges } from 'actions/resources/sources';
-import sourcesMapper from 'utils/mappers/sourcesMapper';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import FormUtils from 'utils/FormUtils/FormUtils';
-import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
-import { showConfirmationDialog } from 'actions/confirmation';
-import { passDataBetweenTabs } from 'actions/modals/passDataBetweenTabs.js';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import Message from 'components/Message';
-import ConfigurableSourceForm from 'pages/HomePage/components/modals/ConfigurableSourceForm';
+import {
+  createSource,
+  loadSource,
+  removeSource,
+  updateSourcePrivileges,
+} from "actions/resources/sources";
+import sourcesMapper from "utils/mappers/sourcesMapper";
+import ApiUtils from "utils/apiUtils/apiUtils";
+import FormUtils from "utils/FormUtils/FormUtils";
+import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
+import { showConfirmationDialog } from "actions/confirmation";
+import { passDataBetweenTabs } from "actions/modals/passDataBetweenTabs.js";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import Message from "components/Message";
+import ConfigurableSourceForm from "pages/HomePage/components/modals/ConfigurableSourceForm";
 
 import EditSourceViewMixin, {
   mapStateToProps,
   additionalMapDispatchToProps,
   getFinalSubmit,
-  ENABLE_USE_LEGACY_DIALECT_OPTION
-} from '@inject/pages/HomePage/components/modals/EditSourceViewMixin';
-import { isExternalSourceType, USE_LEGACY_DIALECT_PROPERTY_NAME } from '@app/constants/sourceTypes';
+  ENABLE_USE_LEGACY_DIALECT_OPTION,
+} from "@inject/pages/HomePage/components/modals/EditSourceViewMixin";
+import {
+  isExternalSourceType,
+  USE_LEGACY_DIALECT_PROPERTY_NAME,
+} from "@app/constants/sourceTypes";
 
-import { viewStateWrapper } from 'uiTheme/less/forms.less';
+import { viewStateWrapper } from "uiTheme/less/forms.less";
+import { trimObjectWhitespace } from "./utils";
 
-export const VIEW_ID = 'EditSourceView';
-
+export const VIEW_ID = "EditSourceView";
 
 export const processUiConfig = (uiConfig) => {
   if (!uiConfig || !uiConfig.elements) return uiConfig;
   let elements = uiConfig.elements;
   if (!ENABLE_USE_LEGACY_DIALECT_OPTION) {
-    elements = elements.filter((el) => el.propertyName !== USE_LEGACY_DIALECT_PROPERTY_NAME);
+    elements = elements.filter(
+      (el) => el.propertyName !== USE_LEGACY_DIALECT_PROPERTY_NAME
+    );
   }
   elements = elements.map((el) => ({
     ...el,
-    propertyName: FormUtils.addFormPrefixToPropName(el.propertyName)
+    propertyName: FormUtils.addFormPrefixToPropName(el.propertyName),
   }));
   return {
     ...uiConfig,
-    elements
+    elements,
   };
 };
 
@@ -75,7 +85,7 @@ export class EditSourceView extends PureComponent {
     initialFormValues: PropTypes.object,
     updateFormDirtyState: PropTypes.func,
     showConfirmationDialog: PropTypes.func,
-    passDataBetweenTabs: PropTypes.func
+    dispatchPassDataBetweenTabs: PropTypes.func,
   };
 
   constructor() {
@@ -83,54 +93,83 @@ export class EditSourceView extends PureComponent {
     this.state = {
       isConfigLoaded: false,
       selectedFormType: {},
-      isFileSystemSource: false
+      isFileSystemSource: false,
     };
   }
 
   static contextTypes = {
     location: PropTypes.object.isRequired,
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   state = {
     didLoadFail: false,
-    errorMessage: 'Failed to load source configuration.'
+    errorMessage: "Failed to load source configuration.",
   };
 
-  componentDidMount() {
+  async componentDidMount() {
     const { sourceName, sourceType } = this.props;
-    this.props.loadSource(sourceName, VIEW_ID);
+    await this.props.loadSource(sourceName, VIEW_ID);
     this.fetchData();
     this.setStateWithSourceTypeConfigFromServer(sourceType);
   }
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
-    ApiUtils.fetchJson(`source/type/${typeCode}`, json => {
-      const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(json));
-      const isFileSystemSource = combinedConfig.metadataRefresh;
-      this.setState({isTypeSelected: true, isConfigLoaded: true, selectedFormType: combinedConfig, isFileSystemSource: isFileSystemSource.isFileSystemSource, isExternalQueryAllowed: json.externalQueryAllowed});
-    }, () => {
-      this.setState({didLoadFail: true});
-    })
-      .finally(() => {
-        this.props.passDataBetweenTabs({isFileSystemSource: this.state.isFileSystemSource, isExternalQueryAllowed: this.state.isExternalQueryAllowed});
+    const { dispatchPassDataBetweenTabs } = this.props;
+    return ApiUtils.fetchJson(
+      `source/type/${typeCode}`,
+      (json) => {
+        const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(
+          typeCode,
+          processUiConfig(json)
+        );
+        const isFileSystemSource = combinedConfig.metadataRefresh;
+        this.setState({
+          isTypeSelected: true,
+          isConfigLoaded: true,
+          selectedFormType: combinedConfig,
+          isFileSystemSource: isFileSystemSource.isFileSystemSource,
+          isExternalQueryAllowed: json.externalQueryAllowed,
+          isHive:
+            combinedConfig.sourceType === "HIVE3" ||
+            combinedConfig.sourceType === "HIVE",
+          isGlue: combinedConfig.sourceType === "AWSGLUE",
+        });
+      },
+      () => {
+        this.setState({ didLoadFail: true });
+      }
+    ).finally(() => {
+      dispatchPassDataBetweenTabs({
+        isFileSystemSource: this.state.isFileSystemSource,
+        isExternalQueryAllowed: this.state.isExternalQueryAllowed,
+        isHive: this.state.isHive,
+        isGlue: this.state.isGlue,
       });
+    });
   }
 
   reallySubmitEdit = (form, sourceType) => {
-    const url = isExternalSourceType(sourceType) ? '/sources/external/list' : '/sources/datalake/list';
+    const url = isExternalSourceType(sourceType)
+      ? "/sources/external/list"
+      : "/sources/datalake/list";
     return ApiUtils.attachFormSubmitHandlers(
       getFinalSubmit(form, sourceType, this.props)
     ).then(() => {
       this.context.router.replace(url);
+      return null;
     });
   };
 
   checkIsMetadataImpacting = (sourceModel) => {
-    return ApiUtils.fetch('sources/isMetadataImpacting', {
-      method: 'POST',
-      body: JSON.stringify(sourceModel)
-    }, 2)
+    return ApiUtils.fetch(
+      "sources/isMetadataImpacting",
+      {
+        method: "POST",
+        body: JSON.stringify(sourceModel),
+      },
+      2
+    )
       .then((response) => response.json())
       .catch((response) => {
         return response.json().then((error) => {
@@ -142,76 +181,114 @@ export class EditSourceView extends PureComponent {
   submitEdit = (form) => {
     const { sourceType } = this.props;
 
-    const formData = this.mutateFormValues(form);
+    const formData = trimObjectWhitespace(this.mutateFormValues(form), [
+      "appSecret",
+      "accessSecret",
+      "password",
+    ]);
 
-    return ApiUtils.attachFormSubmitHandlers(new Promise((resolve, reject) => {
-      const sourceModel = sourcesMapper.newSource(sourceType, formData);
-      this.checkIsMetadataImpacting(sourceModel)
-        .then((data) => {
-          if (data && data.isMetadataImpacting) {
-            this.props.showConfirmationDialog({
-              title: la('Warning'),
-              text: la('You made a metadata impacting change.  This change will cause Dremio to clear permissions, formats and reflections on all datasets in this source.'),
-              confirmText: la('Confirm'),
-              dataQa: 'metadata-impacting',
-              confirm: () => {
-                this.reallySubmitEdit(formData, sourceType).then(resolve).catch(reject);
-              },
-              cancel: reject
-            });
-          } else {
-            this.reallySubmitEdit(formData, sourceType).then(resolve).catch(reject);
-          }
-        }).catch(reject);
-    }));
+    return ApiUtils.attachFormSubmitHandlers(
+      new Promise((resolve, reject) => {
+        const sourceModel = sourcesMapper.newSource(sourceType, formData);
+        this.checkIsMetadataImpacting(sourceModel)
+          .then((data) => {
+            if (data && data.isMetadataImpacting) {
+              this.props.showConfirmationDialog({
+                title: la("Warning"),
+                text: la(
+                  "You made a metadata impacting change.  This change will cause Dremio to clear permissions, formats and reflections on all datasets in this source."
+                ),
+                confirmText: la("Confirm"),
+                dataQa: "metadata-impacting",
+                confirm: () => {
+                  this.reallySubmitEdit(formData, sourceType)
+                    .then(resolve)
+                    .catch(reject);
+                },
+                cancel: reject,
+              });
+            } else {
+              this.reallySubmitEdit(formData, sourceType)
+                .then(resolve)
+                .catch(reject);
+            }
+            return null;
+          })
+          .catch(reject);
+      })
+    );
   };
 
   renderMessages() {
     const { messages } = this.props;
-    return messages && messages.map((message, i) => {
-      const type = message.get('level') === 'WARN' ? 'warning' : message.get('level').toLowerCase();
-      return (
-        <Message
-          messageType={type}
-          message={message.get('message')}
-          messageId={i.toString()}
-          key={i.toString()}
-          style={{ width: '100%' }}
-        />
-      );
-    });
+    return (
+      messages &&
+      messages.map((message, i) => {
+        const type =
+          message.get("level") === "WARN"
+            ? "warning"
+            : message.get("level").toLowerCase();
+        return (
+          <Message
+            messageType={type}
+            message={message.get("message")}
+            messageId={i.toString()}
+            key={i.toString()}
+            style={{ width: "100%" }}
+          />
+        );
+      })
+    );
   }
 
   render() {
-    const {updateFormDirtyState, initialFormValues, source, sourceType, viewState, hide} = this.props;
-    const initValues = mergeWith(source && source.size > 1 ? source.toJS() : {}, initialFormValues, arrayAsPrimitiveMerger);
+    const {
+      updateFormDirtyState,
+      initialFormValues,
+      source,
+      sourceType,
+      viewState,
+      hide,
+    } = this.props;
+    const initValues = mergeWith(
+      source && source.size > 1 ? source.toJS() : {},
+      initialFormValues,
+      arrayAsPrimitiveMerger
+    );
 
     let vs = viewState;
 
     if (this.state.didLoadFail) {
-      vs = new Immutable.fromJS({isFailed: true, error: {message: this.state.errorMessage}});
+      vs = new Immutable.fromJS({
+        isFailed: true,
+        error: { message: this.state.errorMessage },
+      });
     }
 
-    return <ViewStateWrapper viewState={vs} className={viewStateWrapper}>
-      {this.renderMessages()}
-      {this.state.isConfigLoaded &&
-      <ConfigurableSourceForm sourceFormConfig={this.state.selectedFormType}
-        ref='form'
-        onFormSubmit={this.submitEdit}
-        onCancel={hide}
-        key={sourceType}
-        editing
-        updateFormDirtyState={updateFormDirtyState}
-        fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
-        validate={FormUtils.getValidationsFromConfig(this.state.selectedFormType)}
-        initialValues={initValues}
-        permissions={source.get('permissions')}
-        EntityType='source'
-      />}
-    </ViewStateWrapper>;
+    return (
+      <ViewStateWrapper viewState={vs} className={viewStateWrapper}>
+        {this.renderMessages()}
+        {this.state.isConfigLoaded && (
+          <ConfigurableSourceForm
+            sourceFormConfig={this.state.selectedFormType}
+            onFormSubmit={this.submitEdit}
+            onCancel={hide}
+            key={sourceType}
+            editing
+            updateFormDirtyState={updateFormDirtyState}
+            fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
+            validate={FormUtils.getValidationsFromConfig(
+              this.state.selectedFormType
+            )}
+            initialValues={initValues}
+            permissions={source.get("permissions")}
+            EntityType="source"
+          />
+        )}
+      </ViewStateWrapper>
+    );
   }
 }
-
 
 export default connect(mapStateToProps, {
   loadSource,
@@ -219,8 +296,8 @@ export default connect(mapStateToProps, {
   updateSourcePrivileges,
   removeSource,
   showConfirmationDialog,
-  passDataBetweenTabs,
-  ...additionalMapDispatchToProps
+  dispatchPassDataBetweenTabs: passDataBetweenTabs,
+  ...additionalMapDispatchToProps,
 })(EditSourceView);
 
 function arrayAsPrimitiveMerger(objValue, srcValue) {
@@ -228,4 +305,3 @@ function arrayAsPrimitiveMerger(objValue, srcValue) {
     return srcValue;
   }
 }
-

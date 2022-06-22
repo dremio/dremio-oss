@@ -33,6 +33,7 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.sql.SqlExplainLevel;
 
+import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
@@ -76,11 +77,15 @@ public final class SubstitutionUtils {
     return usedVdsPaths;
   }
 
+  public static boolean isSubstitutableScan(RelNode node) {
+    return node instanceof TableScan && !(node instanceof ScanCrel && !((ScanCrel) node).isSubstitutable());
+  }
+
   public static Set<List<String>> findTables(final RelNode node) {
     final Set<List<String>> usedTables = Sets.newLinkedHashSet();
     final RelVisitor visitor = new RelVisitor() {
       @Override public void visit(final RelNode node, final int ordinal, final RelNode parent) {
-        if (node instanceof TableScan) {
+        if (isSubstitutableScan(node)) {
           usedTables.add(node.getTable().getQualifiedName());
         }
         super.visit(node, ordinal, parent);
@@ -226,5 +231,3 @@ public final class SubstitutionUtils {
   }
 
 }
-
-

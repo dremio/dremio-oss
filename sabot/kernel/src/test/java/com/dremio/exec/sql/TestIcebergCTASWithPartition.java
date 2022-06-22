@@ -29,6 +29,7 @@ import org.junit.Test;
 import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.google.common.collect.Iterators;
 
 public class TestIcebergCTASWithPartition extends PlanTestBase {
   private final int NUM_COLUMNS = 9; // orders table has 9 columns.
@@ -39,7 +40,7 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
 
     try (AutoCloseable c = enableIcebergTables()) {
       final String tableLowerCreate = String.format("CREATE TABLE %s.%s(id int, code int) partition by (name, region)",
-        TEMP_SCHEMA, tableLower);
+        TEMP_SCHEMA_HADOOP, tableLower);
       errorMsgTestHelper(tableLowerCreate, "Partition column(s) [name, region] are not found in table.");
 
     } finally {
@@ -56,7 +57,7 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
         final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/supplier";
         final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY (col_time)  " +
                         " AS SELECT to_time(s_suppkey) as col_time from dfs.\"" + parquetFiles + "\" limit 1",
-                TEMP_SCHEMA, newTblName);
+                TEMP_SCHEMA_HADOOP, newTblName);
         errorMsgTestHelper(ctasQuery, "Partition type TIME for column 'col_time' is not supported");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
@@ -91,7 +92,6 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   @Test
   public void ctasWithIntPartition() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      verifyCtasWithIntPartition("ctas_with_int_partition", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       verifyCtasWithIntPartition("ctas_with_int_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -124,7 +124,6 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   public void ctasWithStringPartition() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       verifyCtasWithStringPartition("ctas_with_string_partition", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
-      verifyCtasWithStringPartition("ctas_with_string_partition_v2", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
     }
   }
 
@@ -155,7 +154,6 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   @Test
   public void ctasWithDoublePartition() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      verifyCtasWithDoublePartition("ctas_with_double_partition", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       verifyCtasWithDoublePartition("ctas_with_double_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -188,7 +186,6 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   public void ctasWithDatePartition() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String newTblName = "ctas_with_date_partition";
-      verifyCtasWithDatePartition("ctas_with_date_partition", "dfs", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       verifyCtasWithDatePartition("ctas_with_date_partition_v2", "dfs_hadoop", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -239,7 +236,6 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
   public void ctasWithNullPartitionValues() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       final String newTblName = "ctas_with_null_partition";
-      verifyCtasWithNullPartition("ctas_with_null_partition", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
       verifyCtasWithNullPartition("ctas_with_null_partition_v2", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
     }
   }
@@ -249,6 +245,38 @@ public class TestIcebergCTASWithPartition extends PlanTestBase {
     for (FileScanTask fileScanTask : table.newScan().planFiles()) {
       StructLike structLike = fileScanTask.file().partition();
       Assert.assertEquals(structLike.get(0, expectedClass), expectedValue);
+    }
+  }
+
+  @Test
+  public void testCtasWithPartitionTransformation() throws Exception {
+    String selectTable = "select_partition_transform";
+    String ctasTable = "partition_transform";
+    try (AutoCloseable c = enableIcebergTables()) {
+      String schema = TEMP_SCHEMA_HADOOP;
+      IcebergCatalogType catalogType = IcebergCatalogType.HADOOP;
+      String createQuery = String.format("CREATE TABLE %s.%s (col1 varchar, col2 int)",
+              schema, selectTable);
+      test(createQuery);
+      Thread.sleep(1001);
+      String insertQuery = String.format("INSERT INTO %s.%s values ('abcdefg', 12), ('abc', 10), ('pq', 20)",
+              schema, selectTable);
+      test(insertQuery);
+      Thread.sleep(1001);
+      String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY (truncate(3, col1))  " +
+                      " AS SELECT * from %s.%s",
+              schema, ctasTable, schema, selectTable);
+      test(ctasQuery);
+      Thread.sleep(1001);
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), ctasTable);
+      Table table = getIcebergTable(tableFolder, catalogType);
+      Assert.assertEquals(2, Iterators.size(table.newScan().planFiles().iterator()));
+      FileScanTask[] fileScanTasks = Iterators.toArray(table.newScan().planFiles().iterator(), FileScanTask.class);
+      Assert.assertEquals(fileScanTasks[0].file().partition().get(0, String.class), "abc");
+      Assert.assertEquals(fileScanTasks[1].file().partition().get(0, String.class), "pq");
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), selectTable));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), ctasTable));
     }
   }
 }

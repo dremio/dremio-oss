@@ -238,4 +238,3 @@ public class TestHasherOutput {
     Assert.assertEquals("41d805e613efbe1acb36eaa0127a35da4a1faa1ac97985d078e50d1fd96055fd", result);
   }
 }
-

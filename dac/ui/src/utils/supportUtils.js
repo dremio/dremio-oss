@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-import config from './config';
+import config from "./config";
 
 export const getSupport = (isAdmin) => {
-  if (config.edition === 'OSS') {
+  if (config.edition === "OSS") {
     return config.queryBundleUsersEnabled;
-  } else if (config.edition !== 'OSS') {
-    return isAdmin ? config.queryBundleAdminsEnabled : config.queryBundleUsersEnabled;
+  } else if (config.edition !== "OSS") {
+    return isAdmin
+      ? config.queryBundleAdminsEnabled
+      : config.queryBundleUsersEnabled;
   }
 };

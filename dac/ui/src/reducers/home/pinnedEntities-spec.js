@@ -13,19 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import pinnedEntitiesReducer, { setEntityActiveState, isPinned } from './pinnedEntities';
+import pinnedEntitiesReducer, {
+  setEntityActiveState,
+  isPinned,
+} from "./pinnedEntities";
 
-describe('pinnedEntities reducer', () => {
-  const defaultState = pinnedEntitiesReducer(undefined, { type: '__init' });
+describe("pinnedEntities reducer", () => {
+  const defaultState = pinnedEntitiesReducer(undefined, { type: "__init" });
 
-  it('sets isActive state to a state', () => {
-    const newState = pinnedEntitiesReducer(defaultState, setEntityActiveState('1', true));
-    expect(isPinned(newState, '1')).to.be.true;
+  it("sets isActive state to a state", () => {
+    const newState = pinnedEntitiesReducer(
+      defaultState,
+      setEntityActiveState("1", true)
+    );
+    expect(isPinned(newState, "1")).to.be.true;
   });
 
-  it('removes current entity from state if isActive = false', () => {
-    const newState = pinnedEntitiesReducer({ '1': true }, setEntityActiveState('1', false));
-    expect(isPinned(newState, '1')).to.be.false;
+  it("removes current entity from state if isActive = false", () => {
+    const newState = pinnedEntitiesReducer(
+      { 1: true },
+      setEntityActiveState("1", false)
+    );
+    expect(isPinned(newState, "1")).to.be.false;
     expect(newState).to.be.eql({});
   });
 });

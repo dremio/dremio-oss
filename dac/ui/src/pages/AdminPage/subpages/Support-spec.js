@@ -13,26 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { ApiError } from 'redux-api-middleware/lib/errors';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { ApiError } from "redux-api-middleware/lib/errors";
+import { Support } from "./Support";
+import { LABELS } from "./settingsConfig";
 
-import { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
-import { RESERVED as INTERNAL_SUPPORT_RESERVED } from '@app/pages/AdminPage/subpages/InternalSupportEmail';
-import { RESERVED as SUPPORT_ACCESS_RESERVED } from '@inject/pages/AdminPage/subpages/SupportAccess';
-
-import {Support, RESERVED} from './Support';
-import { LABELS } from './settingsConfig';
-
-describe('Support', () => {
-
+describe("Support", () => {
   let minimalProps;
   let commonProps;
 
   beforeEach(() => {
-    LABELS.$c = 'C Label';
-    LABELS.$zBefore = '1 Before Label';
-    LABELS.$aAfter = '2 After Label';
+    LABELS.$c = "C Label";
+    LABELS.$zBefore = "1 Before Label";
+    LABELS.$aAfter = "2 After Label";
 
     minimalProps = {
       getDefinedSettings: sinon.stub(),
@@ -41,34 +35,30 @@ describe('Support', () => {
       getSetting: sinon.stub().returns(Promise.resolve({ payload: {} })), // empty action without error
       viewState: new Immutable.Map(),
       settings: new Immutable.Map(),
-      setChildDirtyState: sinon.spy()
+      setChildDirtyState: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
 
       settings: Immutable.fromJS({
-        '$a': {
-          id: '$a',
+        $a: {
+          id: "$a",
           value: 1,
-          type: 'INTEGER'
+          type: "INTEGER",
         },
-        '$b': {
-          id: '$b',
-          value: 'bar',
-          type: 'TEXT'
+        $b: {
+          id: "$b",
+          value: "bar",
+          type: "TEXT",
         },
-        'support.email.addr': { // canary for RESERVED
-          id: 'support.email.addr',
+        "support.email.addr": {
+          // canary for RESERVED
+          id: "support.email.addr",
           value: true,
-          type: 'BOOLEAN'
+          type: "BOOLEAN",
         },
-        'exec.queue.enable': { // canary for sections & empty string label
-          id: 'exec.queue.enable',
-          value: true,
-          type: 'BOOLEAN'
-        }
       }),
-      updateFormDirtyState: sinon.spy()
+      updateFormDirtyState: sinon.spy(),
     };
   });
 
@@ -78,88 +68,91 @@ describe('Support', () => {
     delete LABELS.$a_last;
   });
 
-
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Support {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should getAllSettings on mount', () => {
+  it("should getAllSettings on mount", () => {
     shallow(<Support {...commonProps} />);
     expect(commonProps.getDefinedSettings).to.have.been.called;
   });
 
-  describe('#settingExists', () => {
-    it('not loaded', () => {
+  describe("#settingExists", () => {
+    it("not loaded", () => {
       const instance = shallow(<Support {...minimalProps} />).instance();
-      expect(instance.settingExists('$a')).to.be.false;
+      expect(instance.settingExists("$a")).to.be.false;
     });
 
-    it('true', () => {
+    it("true", () => {
       const instance = shallow(<Support {...commonProps} />).instance();
-      expect(instance.settingExists('$a')).to.be.true;
+      expect(instance.settingExists("$a")).to.be.true;
     });
 
-    it('false', () => {
+    it("false", () => {
       const instance = shallow(<Support {...commonProps} />).instance();
-      expect(instance.settingExists('n/a', 'user')).to.be.false;
+      expect(instance.settingExists("n/a", "user")).to.be.false;
     });
   });
 
-  describe('#getShownSettings', () => {
-    it('not loaded', () => {
+  describe("#getShownSettings", () => {
+    it("not loaded", () => {
       const instance = shallow(<Support {...minimalProps} />).instance();
       expect(instance.getShownSettings()).to.eql([]);
     });
 
-    it('should not return reserved items', () => {
+    it("should not return reserved items", () => {
       const instance = shallow(<Support {...commonProps} />).instance();
 
       // no support.email.addr because it's RESERVED
-      expect(instance.getShownSettings().map(e => e.id)).to.eql('$a $b exec.queue.enable'.split(' '));
+      expect(instance.getShownSettings().map((e) => e.id)).to.eql(
+        "$a $b".split(" ")
+      );
     });
 
-    it('should skip items in sections for includeSections:false', () => {
+    it("should skip items in sections for includeSections:false", () => {
       const instance = shallow(<Support {...commonProps} />).instance();
-      instance.setState(function(state) {
+      instance.setState(function (state) {
         return {
-          tempShown: state.tempShown.add('$b')
+          tempShown: state.tempShown.add("$b"),
         };
       });
 
       // no support.email.addr because it's RESERVED
       // no exec.queue.enable because it's in a section
-      expect(instance.getShownSettings({includeSections:false}).map(e => e.id)).to.eql('$a $b'.split(' '));
+      expect(
+        instance.getShownSettings({ includeSections: false }).map((e) => e.id)
+      ).to.eql("$a $b".split(" "));
     });
   });
 
-  describe('#sortSettings', () => {
-    it('should sort tempShown, labeled, unlabeled (and alphabetaical within each)', () => {
+  describe("#sortSettings", () => {
+    it("should sort tempShown, labeled, unlabeled (and alphabetaical within each)", () => {
       const instance = shallow(<Support {...minimalProps} />).instance();
-      instance.setState({tempShown: Immutable.OrderedSet(['$a', '$b'])});
+      instance.setState({ tempShown: Immutable.OrderedSet(["$a", "$b"]) });
 
       const settingsArray = commonProps.settings.toList().toJS();
       instance.sortSettings(settingsArray);
 
       // $b, $a: tempShown, insertion order
       // exec.queue.enable, support.email.addr: alpha order of labels
-      const order = '$b $a exec.queue.enable support.email.addr'.split(' ');
-      expect(settingsArray.map(e => e.id)).to.eql(order);
+      const order = "$b $a support.email.addr".split(" ");
+      expect(settingsArray.map((e) => e.id)).to.eql(order);
     });
   });
 
-  describe('#addAdvanced', () => {
+  describe("#addAdvanced", () => {
     let evt;
     let input;
     beforeEach(() => {
-      input = {value: '$d'};
+      input = { value: "$d" };
       evt = {
         preventDefault: sinon.stub(),
         persist: sinon.stub(),
         target: {
           children: [input],
-          reset: sinon.stub()
-        }
+          reset: sinon.stub(),
+        },
       };
     });
 
@@ -167,18 +160,17 @@ describe('Support', () => {
       expect(evt.preventDefault).to.have.been.called;
     });
 
-
-    it('add', async () => {
+    it("add", async () => {
       const instance = shallow(<Support {...commonProps} />).instance();
       await instance.addAdvanced(evt);
-      expect(Array.from(instance.state.tempShown)).to.eql(['$d']);
+      expect(Array.from(instance.state.tempShown)).to.eql(["$d"]);
 
       expect(evt.target.reset).to.have.been.called;
       expect(minimalProps.addNotification).to.have.not.been.called;
     });
 
-    it('should do nothing when input value is empty string', async () => {
-      input.value = '';
+    it("should do nothing when input value is empty string", async () => {
+      input.value = "";
 
       const instance = shallow(<Support {...commonProps} />).instance();
       await instance.addAdvanced(evt);
@@ -188,11 +180,13 @@ describe('Support', () => {
       expect(minimalProps.addNotification).to.have.not.been.called;
     });
 
-    it('non-existing', async () => {
-      input.value = 'n/a';
+    it("non-existing", async () => {
+      input.value = "n/a";
       const props = {
         ...commonProps,
-        getSetting: sinon.stub().returns(Promise.resolve({ payload: new ApiError('test') }))
+        getSetting: sinon
+          .stub()
+          .returns(Promise.resolve({ payload: new ApiError("test") })),
       };
       const instance = shallow(<Support {...props} />).instance();
       await instance.addAdvanced(evt);
@@ -202,8 +196,8 @@ describe('Support', () => {
       expect(minimalProps.addNotification).to.have.been.called;
     });
 
-    it('pre-existing', async () => {
-      input.value = '$a';
+    it("pre-existing", async () => {
+      input.value = "$a";
 
       const instance = shallow(<Support {...commonProps} />).instance();
       await instance.addAdvanced(evt);
@@ -213,28 +207,21 @@ describe('Support', () => {
     });
   });
 
-  describe('#resetSetting', () => {
-    it('should call the correct methods)', (done) => {
+  describe("#resetSetting", () => {
+    it("should call the correct methods)", () => {
       const instance = shallow(<Support {...minimalProps} />).instance();
 
-      instance.setState(function(state) {
+      instance.setState(function (state) {
         return {
-          tempShown: state.tempShown.add('foo')
+          tempShown: state.tempShown.add("foo"),
         };
       });
 
-      instance.resetSetting('foo').then(() => {
+      return instance.resetSetting("foo").then(() => {
         expect(instance.props.resetSetting).to.have.been.called;
         expect(Array.from(instance.state.tempShown)).to.eql([]);
-        done();
+        return null;
       });
     });
-  });
-
-});
-
-describe('RESERVED', () => {
-  it('should include only email and analyze tools fields', () => {
-    expect(RESERVED.size).to.equal(ANALYZE_TOOLS_RESERVED.length + INTERNAL_SUPPORT_RESERVED.length + (SUPPORT_ACCESS_RESERVED || []).length);
   });
 });

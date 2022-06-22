@@ -13,37 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
 
-import Modal from 'components/Modals/Modal';
-import { getProvision } from '@app/selectors/provision';
+import Modal from "components/Modals/Modal";
+import { getProvision } from "@app/selectors/provision";
 
-import ProvisionInfoTable from '../../subpages/Provisioning/components/ProvisionInfoTable';
+import ProvisionInfoTable from "../../subpages/Provisioning/components/ProvisionInfoTable";
 
 export class MoreInfoProvisionModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
-    provision: PropTypes.instanceOf(Immutable.Map)
+    provision: PropTypes.instanceOf(Immutable.Map),
   };
 
   static defaultProps = {
-    provision: Immutable.Map()
+    provision: Immutable.Map(),
   };
 
   render() {
     const { isOpen, hide, provision } = this.props;
 
     return (
-      <Modal
-        title={la('More Info')}
-        size='small'
-        isOpen={isOpen}
-        hide={hide}
-      >
+      <Modal title={la("More Info")} size="small" isOpen={isOpen} hide={hide}>
         <ProvisionInfoTable provision={provision} />
       </Modal>
     );
@@ -51,7 +46,7 @@ export class MoreInfoProvisionModal extends Component {
 }
 
 const mapStateToProps = (state, ownProps) => ({
-  provision: getProvision(state, ownProps.entityId)
+  provision: getProvision(state, ownProps.entityId),
 });
 
 export default connect(mapStateToProps)(MoreInfoProvisionModal);

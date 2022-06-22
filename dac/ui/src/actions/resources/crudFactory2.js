@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-import { CALL_MOCK_API } from 'mockApi';
-import Immutable from 'immutable';
-import APICall from '@app/core/APICall';
+import { RSAA } from "redux-api-middleware";
+import { CALL_MOCK_API } from "mockApi";
+import Immutable from "immutable";
+import APICall from "@app/core/APICall";
 
-const COMMON = {headers: {'Content-Type': 'application/json'}};
+const COMMON = { headers: { "Content-Type": "application/json" } };
 
-const METHODS_WITH_REQUEST_BODY = new Set(['PUT', 'POST']);
+const METHODS_WITH_REQUEST_BODY = new Set(["PUT", "POST"]);
 
 function extractEntities(data) {
   const response = {
-    entities: {}
+    entities: {},
   };
-  if ('type' in data) {
+  if ("type" in data) {
     // assume a single object
-    response.entities[data.entityType] = {[data.id]: data};
+    response.entities[data.entityType] = { [data.id]: data };
     return Immutable.fromJS(response);
   }
 
@@ -36,7 +36,7 @@ function extractEntities(data) {
     const entity = data[key];
     if (Array.isArray(entity)) {
       for (const item of entity) {
-        if ('entityType' in item) {
+        if ("entityType" in item) {
           const type = item.entityType;
           if (!response.entities[type]) {
             response.entities[type] = {};
@@ -45,11 +45,12 @@ function extractEntities(data) {
           response.entities[type][item.id] = item;
         }
       }
-    } else if (typeof entity === 'boolean') { //This'll put the canAlterReflections value within the reflections object, in case there are no reflections yet. It allows for new users to make reflections.
+    } else if (typeof entity === "boolean") {
+      //This'll put the canAlterReflections value within the reflections object, in case there are no reflections yet. It allows for new users to make reflections.
       if (response.entities.reflection === undefined) {
         response.entities.reflection = {};
         response.entities.reflection[0] = {
-          canAlter: entity
+          canAlter: entity,
         };
       }
     }
@@ -61,42 +62,42 @@ function extractEntities(data) {
 export default (entityName, extras) => {
   const upper = entityName.toUpperCase();
   const path = entityName.toLowerCase();
-  const idAttribute = 'id';
+  const idAttribute = "id";
 
   const apiCallFactory = (method, overrides = {}) => {
     return function call(...args) {
       let idOrObject, meta, opts;
-      if (method === 'GET_LIST') {
+      if (method === "GET_LIST") {
         [meta, opts] = args;
       } else {
         [idOrObject, meta, opts] = args;
       }
 
       let id = idOrObject;
-      if (typeof idOrObject === 'object') {
+      if (typeof idOrObject === "object") {
         id = get(idOrObject, idAttribute);
       }
 
       // overrides
-      const callPath = opts && opts.path || overrides.path || path;
+      const callPath = (opts && opts.path) || overrides.path || path;
 
-      const apiCall = new APICall().paths( `${callPath}/${id || ''}`);
+      const apiCall = new APICall().paths(`${callPath}/${id || ""}`);
 
       const entityNameToUse = overrides.entityName || entityName;
 
       let successMeta = meta;
-      if (method === 'DELETE') {
+      if (method === "DELETE") {
         successMeta = {
           ...successMeta,
           success: true, // view reducer duck-type happiness
-          entityRemovePaths: [[entityNameToUse, id]] // if we succeed, it should be gone
+          entityRemovePaths: [[entityNameToUse, id]], // if we succeed, it should be gone
         };
-        const version = get(idOrObject, 'version');
+        const version = get(idOrObject, "version");
         if (version !== undefined) {
-          apiCall.params({version});
+          apiCall.params({ version });
         }
-      } else if (method === 'GET_LIST') {
-        successMeta = {...meta, entityClears: [entityNameToUse]}; // trigger a clear, since records may now be gone;
+      } else if (method === "GET_LIST") {
+        successMeta = { ...meta, entityClears: [entityNameToUse] }; // trigger a clear, since records may now be gone;
       }
 
       if (opts && opts.query) {
@@ -109,36 +110,38 @@ export default (entityName, extras) => {
         [call.mock ? CALL_MOCK_API : RSAA]: {
           ...COMMON,
           types: [
-            {type: `${upper}_${method}_START`, meta},
+            { type: `${upper}_${method}_START`, meta },
             {
               type: `${upper}_${method}_SUCCESS`,
               meta: successMeta,
               payload: (action, state, res) => {
-                const contentType = res.headers.get('Content-Type');
-                if (contentType && contentType.includes('json')) {
+                const contentType = res.headers.get("Content-Type");
+                if (contentType && contentType.includes("json")) {
                   return res.json().then((pureJSON) => {
                     return extractEntities(pureJSON);
                   });
                 }
-              }
+              },
             },
-            {type: `${upper}_${method}_FAILURE`, meta} // todo: failure not called? start called instead?!
+            { type: `${upper}_${method}_FAILURE`, meta }, // todo: failure not called? start called instead?!
           ],
-          method: method === 'GET_LIST' ? 'GET' : method,
-          body: METHODS_WITH_REQUEST_BODY.has(method) ? JSON.stringify(idOrObject) : undefined,
+          method: method === "GET_LIST" ? "GET" : method,
+          body: METHODS_WITH_REQUEST_BODY.has(method)
+            ? JSON.stringify(idOrObject)
+            : undefined,
           endpoint: apiCall,
-          ...call.mock
-        }
+          ...call.mock,
+        },
       };
       return req;
     };
   };
 
   const calls = {};
-  for (const call of ['GET', 'POST', 'PUT', 'DELETE']) {
+  for (const call of ["GET", "POST", "PUT", "DELETE"]) {
     calls[call.toLowerCase()] = apiCallFactory(call);
   }
-  calls.getList = apiCallFactory('GET_LIST');
+  calls.getList = apiCallFactory("GET_LIST");
   if (extras) {
     for (const name of Object.keys(extras)) {
       const extra = extras[name];
@@ -147,14 +150,15 @@ export default (entityName, extras) => {
   }
 
   for (const call of Object.values(calls)) {
-    call.dispatch = function() {
-      return dispatch => dispatch(call(...arguments));
+    call.dispatch = function () {
+      return (dispatch) => dispatch(call(...arguments));
     };
   }
 
   return calls;
 };
 
-function get(obj, key) { // todo: kill this
+function get(obj, key) {
+  // todo: kill this
   return Immutable.Iterable.isIterable(obj) ? obj.get(key) : obj[key];
 }

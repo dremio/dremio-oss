@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.copier;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.exec.physical.config.SelectionVectorRemover;
@@ -25,8 +26,9 @@ import com.dremio.sabot.CustomGeneratorWithSV2.SelectionVariant;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.copier.VectorizedCopyOperator.Metric;
 
+@Ignore("DX-50441")
 public class TestVectorizedCopyOperator extends BaseTestOperator {
-  final static int NUM_ROWS = 200;
+  static final int NUM_ROWS = 200;
 
   private void testWithBatchSize(int batchSize, CustomGeneratorWithSV2.SelectionVariant variant) throws Exception {
     try (CustomGeneratorWithSV2 generator = new CustomGeneratorWithSV2(NUM_ROWS, getTestAllocator(), variant)) {

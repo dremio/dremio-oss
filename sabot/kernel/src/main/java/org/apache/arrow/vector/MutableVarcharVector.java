@@ -53,7 +53,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   private int head; //the index at which a new value may be appended
   private int numCompactions = 0;
   private Stopwatch compactionTimer = Stopwatch.createUnstarted();
-  static private int DEFAULT_MAX_VECTOR_USAGE_PERCENT = 95;
+  private static int DEFAULT_MAX_VECTOR_USAGE_PERCENT = 95;
   private int maxVarWidthVecUsagePercent;
 
   /**
@@ -444,7 +444,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /* Actual api that does compaction */
-  final private void compactInternal() {
+  private final void compactInternal() {
     ++numCompactions;
     compactionTimer.start();
 

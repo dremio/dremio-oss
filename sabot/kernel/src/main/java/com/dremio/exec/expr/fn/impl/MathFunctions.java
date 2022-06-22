@@ -22,8 +22,10 @@ import javax.inject.Inject;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.IntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.ObjectHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
@@ -84,6 +86,24 @@ public class MathFunctions{
     public void eval() {
       out.isSet = 1;
       out.value = random.nextDouble();
+    }
+  }
+
+  @FunctionTemplate(names = {"sample"}, isDeterministic = false)
+  public static class Sample implements SimpleFunction {
+    @Param Float8Holder rate;
+    @Output private NullableBitHolder out;
+    @Workspace private ObjectHolder random;
+    @Workspace private IntHolder samplingRate;
+
+    public void setup() {
+      random = new ObjectHolder();
+      random.obj = new java.util.SplittableRandom();
+    }
+
+    public void eval() {
+      out.isSet = 1;
+      out.value = ((java.util.SplittableRandom) random.obj).nextDouble() * 100  < rate.value ? 1 : 0;
     }
   }
 

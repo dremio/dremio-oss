@@ -13,6 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const CALL_MOCK_API = Symbol('Call Mock API');
+const CALL_MOCK_API = Symbol("Call Mock API");
 
 export default CALL_MOCK_API;

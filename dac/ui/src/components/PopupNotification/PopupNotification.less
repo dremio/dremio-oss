@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
-:global { 
+:global {
   .popupNotification {
     .MuiSnackbarContent {
       &-root {
@@ -24,15 +24,18 @@
         color: @DARK_900;
         border: none;
         font-size: 12px;
-        font-family: 'Inter var';
-        height: 32px;
+        font-family: "Inter var";
         border-radius: 4px;
         padding: 6px 16px 6px 12px !important;
+        display: flex;
+        flex-wrap: nowrap;
       }
-      
-      &-message, &-action {
-        padding: 0 0 6px 0;
+
+      &-message,
+      &-action {
+        padding: 0 0 0 0;
       }
+
       &-message {
         display: flex;
         align-items: center;
@@ -42,15 +45,16 @@
     &__close {
       padding: 0 !important;
 
-      .font-icon, .XBig {
+      .font-icon,
+      .XBig {
         height: 20px !important;
         width: 20px !important;
       }
     }
 
     .type-icon {
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       margin-right: 8px;
     }
 
@@ -59,7 +63,7 @@
     }
 
     &.--success .MuiSnackbarContent-root {
-      background-color: #EDF7ED;
+      background-color: #edf7ed;
     }
 
     &.--error .MuiSnackbarContent-root {
@@ -67,7 +71,7 @@
     }
 
     &.--warning .MuiSnackbarContent-root {
-      background-color: #FEE799;
+      background-color: #fee799;
     }
   }
 }

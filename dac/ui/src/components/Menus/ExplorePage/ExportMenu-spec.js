@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils.js';
-import config from 'dyn-load/utils/config';
-import { ExportMenu } from './ExportMenu';
+import { shallow } from "enzyme";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils.js";
+import config from "dyn-load/utils/config";
+import { ExportMenu } from "./ExportMenu";
 
-describe('ExportMenu', () => {
+describe("ExportMenu", () => {
   let minimalProps;
   let commonProps;
 
   before(() => {
-    sinon.stub(localStorageUtils, 'getAuthToken').returns('test_token');
+    sinon.stub(localStorageUtils, "getAuthToken").returns("test_token");
   });
 
   after(() => {
@@ -33,12 +33,13 @@ describe('ExportMenu', () => {
   beforeEach(() => {
     minimalProps = {
       action: sinon.spy(),
-      jobId: 'abc123',
-      addNotification: sinon.spy()
+      jobId: "abc123",
+      addNotification: sinon.spy(),
+      queryStatuses: [],
     };
     commonProps = {
       ...minimalProps,
-      datasetColumns: ['TEXT']
+      datasetColumns: ["TEXT"],
     };
   });
 
@@ -46,19 +47,19 @@ describe('ExportMenu', () => {
     config.downloadRecordsLimit = 2000;
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ExportMenu {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ExportMenu {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('render', () => {
+  describe("render", () => {
     let wrapper;
     beforeEach(() => {
-      wrapper = shallow(<ExportMenu {...commonProps}/>);
+      wrapper = shallow(<ExportMenu {...commonProps} />);
     });
 
-    it('should render export menu items when passed', () => {
-      expect(wrapper.find('MenuItem')).to.have.length(3);
+    it("should render export menu items when passed", () => {
+      expect(wrapper.find("MenuItem")).to.have.length(3);
     });
 
     //TODO
@@ -68,8 +69,10 @@ describe('ExportMenu', () => {
     //   expect(menuItem.props().href).to.equal('///apiv2/job/abc123/download/?downloadFormat=JSON&Authorization=test_token');
     // });
 
-    it('should render appropriate menu item label', () => {
-      expect(wrapper.find('MenuItem').at(0).children().text()).to.be.eql('JSON');
+    it("should render appropriate menu item label", () => {
+      expect(wrapper.find("MenuItem").at(0).children().text()).to.be.eql(
+        "JSON"
+      );
     });
 
     // it('should render disabled menu item when dataset columns one of MAP, LIST or MIXED', () => {
@@ -84,10 +87,13 @@ describe('ExportMenu', () => {
     //   expect(commonProps.action).to.be.not.called;
     // });
 
-    it('should render disabled menu items when sql has changed', () => {
-      const getCsvMenuItem = () => wrapper.find('MenuItem').at(1);
+    it("should render disabled menu items when sql has changed", () => {
+      const getCsvMenuItem = () => wrapper.find("MenuItem").at(1);
       expect(getCsvMenuItem().props().disabled).to.be.false;
-      wrapper.setProps({ datasetSql: 'select * from a', currentSql: 'select * from b'});
+      wrapper.setProps({
+        datasetSql: "select * from a",
+        currentSql: "select * from b",
+      });
       expect(getCsvMenuItem().props().disabled).to.be.true;
     });
   });

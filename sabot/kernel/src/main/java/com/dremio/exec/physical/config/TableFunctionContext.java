@@ -43,7 +43,8 @@ import io.protostuff.ByteString;
 @JsonSubTypes({
   @JsonSubTypes.Type(value = FooterReaderTableFunctionContext.class, name = "footer-reader"),
   @JsonSubTypes.Type(value = BoostTableFunctionContext.class, name = "boost"),
-  @JsonSubTypes.Type(value = SplitGenManifestScanTableFunctionContext.class, name = "split-gen-manifest-scan")}
+  @JsonSubTypes.Type(value = ManifestScanTableFunctionContext.class, name = "manifest-scan"),
+  @JsonSubTypes.Type(value = PartitionTransformTableFunctionContext.class, name = "partition-transform-table")}
 )
 public class TableFunctionContext {
   private final List<SchemaPath> columns;
@@ -94,6 +95,28 @@ public class TableFunctionContext {
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
     this.isIcebergMetadata = isIcebergMetadata;
     this.userDefinedSchemaSettings = userDefinedSchemaSettings;
+  }
+
+  public TableFunctionContext(BatchSchema batchSchema, List<SchemaPath> columns, boolean isIcebergMetadata) {
+    this(null,
+      batchSchema,
+      null,
+      null,
+      null,
+      null,
+      null,
+      columns,
+      null,
+      null,
+      null,
+      false,
+      false,
+      isIcebergMetadata,
+      null);
+  }
+
+  public TableFunctionContext(BatchSchema batchSchema, List<SchemaPath> columns) {
+    this(batchSchema, columns, false);
   }
 
   public FileConfig getFormatSettings(){

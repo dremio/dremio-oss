@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import urlParse from 'url-parse';
-import copy from 'copy-to-clipboard';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import urlParse from "url-parse";
+import copy from "copy-to-clipboard";
 
-import { removeDataset, removeFile } from 'actions/resources/spaceDetails';
-import { showConfirmationDialog } from 'actions/confirmation';
-import { constructFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
-import { UpdateMode } from 'pages/HomePage/components/modals/UpdateDataset/UpdateDatasetView';
+import { removeDataset, removeFile } from "actions/resources/spaceDetails";
+import { showConfirmationDialog } from "actions/confirmation";
+import { constructFullPath, getFullPathListFromEntity } from "utils/pathUtils";
+import { UpdateMode } from "pages/HomePage/components/modals/UpdateDataset/UpdateDatasetView";
 
-import DatasetMenuMixin from 'dyn-load/components/Menus/HomePage/DatasetMenuMixin';
+import DatasetMenuMixin from "dyn-load/components/Menus/HomePage/DatasetMenuMixin";
 
 // todo: all these entities have a lot of similarities (they are all Datasets of some sort)
 // but do not share a protocol/interface. This code *should* be able to
@@ -34,21 +34,22 @@ import DatasetMenuMixin from 'dyn-load/components/Menus/HomePage/DatasetMenuMixi
 export const getSettingsLocation = (location, entity, entityType) => ({
   ...location,
   state: {
-    modal: 'DatasetSettingsModal',
+    modal: "DatasetSettingsModal",
 
     // todo: normalize
-    entityId: entity.get('versionedResourcePath') // VDS
-      || entity.get('id'), // file, folder, PDS (see resourceDecorators)
+    entityId:
+      entity.get("versionedResourcePath") || // VDS
+      entity.get("id"), // file, folder, PDS (see resourceDecorators)
 
     entityType,
-    isHomePage: true
-  }
+    isHomePage: true,
+  },
 });
 
 @DatasetMenuMixin
 export class DatasetMenu extends Component {
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   static propTypes = {
@@ -58,13 +59,13 @@ export class DatasetMenu extends Component {
     closeMenu: PropTypes.func.isRequired,
     removeDataset: PropTypes.func.isRequired,
     removeFile: PropTypes.func.isRequired,
-    showConfirmationDialog: PropTypes.func
+    showConfirmationDialog: PropTypes.func,
   };
 
   getMenuItemUrl(itemCode) {
     const { entity } = this.props;
     // todo: seems very brittle, and it should be a computed prop of the entity
-    const url = entity.getIn(['links', 'query']);
+    const url = entity.getIn(["links", "query"]);
     const parseUrl = urlParse(url);
     return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
   }
@@ -75,15 +76,15 @@ export class DatasetMenu extends Component {
       ...this.context.location,
       state: {
         ...this.context.location.state,
-        modal: 'UpdateDataset',
+        modal: "UpdateDataset",
         item: entity,
         query: {
-          fullPath: entity.get('fullPath'),
-          name: entity.get('datasetName'),
+          fullPath: entity.get("fullPath"),
+          name: entity.get("datasetName"),
           getGraphLink: this.getGraphLink(),
-          mode
-        }
-      }
+          mode,
+        },
+      },
     };
   };
   // only tested with VDS
@@ -113,23 +114,25 @@ export class DatasetMenu extends Component {
   handleRemoveFile = () => {
     const { closeMenu, entity } = this.props;
     this.props.showConfirmationDialog({
-      text: la(`Are you sure you want to remove file "${entity.get('name')}"?`),
-      confirmText: la('Remove'),
+      text: la(`Are you sure you want to remove file "${entity.get("name")}"?`),
+      confirmText: la("Remove"),
       confirm: () => this.props.removeFile(entity),
-      title: la('Remove File')
+      title: la("Remove File"),
     });
     closeMenu();
   };
 
   copyPath = () => {
-    const fullPath = constructFullPath(getFullPathListFromEntity(this.props.entity));
+    const fullPath = constructFullPath(
+      getFullPathListFromEntity(this.props.entity)
+    );
     copy(fullPath);
     this.props.closeMenu();
-  }
+  };
 }
 
 export default connect(null, {
   removeDataset,
   removeFile,
-  showConfirmationDialog
+  showConfirmationDialog,
 })(DatasetMenu);

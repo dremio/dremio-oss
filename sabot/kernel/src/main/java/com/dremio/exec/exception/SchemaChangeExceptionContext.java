@@ -32,8 +32,8 @@ import com.google.common.base.Preconditions;
 @JsonTypeName("schema-change")
 public class SchemaChangeExceptionContext extends JsonAdditionalExceptionContext {
 
-  final private List<String> tableSchemaPath;
-  final private BatchSchema newSchema;
+  private final List<String> tableSchemaPath;
+  private final BatchSchema newSchema;
 
   public SchemaChangeExceptionContext(@JsonProperty("tableSchemaPath") List<String> tableSchemaPath,
                                       @JsonProperty("newSchema") BatchSchema newSchema) {

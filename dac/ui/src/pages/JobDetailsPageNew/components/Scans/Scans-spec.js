@@ -13,55 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount, shallow } from 'enzyme';
-import Sinon from 'sinon';
-import Immutable from 'immutable';
-import Scans from './Scans';
+import { mount, shallow } from "enzyme";
+import Sinon from "sinon";
+import Immutable from "immutable";
+import Scans from "./Scans";
 
-describe('Scans', () => {
-
+describe("Scans", () => {
   const minimalProps = {
     scansForFilter: [],
-    scans: new Immutable.List()
+    scans: new Immutable.List(),
   };
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Scans {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('renders child correctly', () => {
+  it("renders child correctly", () => {
     const scansForFilter = [
-      { label: 'Scans.SourceType', content: 'Managed Reflection(Parque)' },
-      { label: 'Scans.ScanThread', content: '115' },
-      { label: 'Scans.ScanTime', content: '00:00:01.50' },
-      { label: 'Scans.IoWaitTime', content: '00:00:00.75' },
-      { label: 'Scans.RowScanned', content: '143K' },
-      { label: 'Scans.FilesScanned', content: '796' },
-      { label: 'Scans.SplitsScanned', content: '3753' },
-      { label: 'Scans.PruningRatio', content: '65%' },
-      { label: 'Scans.RuntimeFiltering', content: 'No' },
-      { label: 'Scans.LocalityPercentage', content: 'N/A' },
-      { label: 'Scans.FilterPushdown', content: 'Managed Reflection(Parque)' }
+      { label: "Scans.SourceType", content: "Managed Reflection(Parque)" },
+      { label: "Scans.ScanThread", content: "115" },
+      { label: "Scans.ScanTime", content: "00:00:01.50" },
+      { label: "Scans.IoWaitTime", content: "00:00:00.75" },
+      { label: "Scans.RowScanned", content: "143K" },
+      { label: "Scans.FilesScanned", content: "796" },
+      { label: "Scans.SplitsScanned", content: "3753" },
+      { label: "Scans.PruningRatio", content: "65%" },
+      { label: "Scans.RuntimeFiltering", content: "No" },
+      { label: "Scans.LocalityPercentage", content: "N/A" },
+      { label: "Scans.FilterPushdown", content: "Managed Reflection(Parque)" },
     ];
     const scans = Immutable.fromJS([
       {
-        sourceType: 'Managed Reflection(Parque)',
-        nrScanThreads: '115',
-        totalScanDurationMs: '00:00:01.50',
-        ioWaitDurationMs:  '00:00:00.75',
-        nrScannedRows: '143K',
-        filterScanned: '796',
-        splitsScanned:  '3753',
-        pruningRatio: '65%',
-        runtimeFilterApplied: 'No',
-        loyaltyPercentage: 'N/A',
-        pushdownFilter: 'Managed Reflection(Parque)'
-      }
+        sourceType: "Managed Reflection(Parque)",
+        nrScanThreads: "115",
+        totalScanDurationMs: "00:00:01.50",
+        ioWaitDurationMs: "00:00:00.75",
+        nrScannedRows: "143K",
+        filterScanned: "796",
+        splitsScanned: "3753",
+        pruningRatio: "65%",
+        runtimeFilterApplied: "No",
+        loyaltyPercentage: "N/A",
+        pushdownFilter: "Managed Reflection(Parque)",
+      },
     ]);
     const intl = { formatMessage: Sinon.spy() };
-    const wrapper = mount(<Scans scansForFilter={scansForFilter} scans={scans} intl={intl} />);
-    const account = wrapper.find('[data-qa="dropdown-customer"]').simulate('click');
+    const wrapper = mount(
+      <Scans scansForFilter={scansForFilter} scans={scans} intl={intl} />
+    );
+    const account = wrapper
+      .find('[data-qa="dropdown-customer"]')
+      .simulate("click");
     expect(account).to.have.length(1);
   });
 });

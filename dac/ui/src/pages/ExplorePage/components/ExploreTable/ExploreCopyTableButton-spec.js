@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { ExploreCopyTableButton } from './ExploreCopyTableButton';
+import { ExploreCopyTableButton } from "./ExploreCopyTableButton";
 
-describe('ExploreCopyTableButton', () => {
+describe("ExploreCopyTableButton", () => {
   let minimalProps;
   let commonProps;
 
@@ -27,41 +27,43 @@ describe('ExploreCopyTableButton', () => {
       addNotification: () => {},
       location: {},
       tableData: Immutable.fromJS({
-        columns: [{name: 'col1'}, {name: 'col2'}],
+        columns: [{ name: "col1" }, { name: "col2" }],
         rows: [
-          {row: [{v: 'val1-1'}, {v: 'val1-2'}]},
-          {row: [{v: 'val2-1'}, {v: 'val2-2'}]}
-        ]
-      })
+          { row: [{ v: "val1-1" }, { v: "val1-2" }] },
+          { row: [{ v: "val2-1" }, { v: "val2-2" }] },
+        ],
+      }),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ExploreCopyTableButton {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ExploreCopyTableButton {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<ExploreCopyTableButton {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<ExploreCopyTableButton {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should make copy text from tableData', () => {
-    const result = ExploreCopyTableButton.makeCopyTextFromTableData(commonProps.tableData.toJS());
-    const colRow = 'col1\tcol2';
+  it("should make copy text from tableData", () => {
+    const result = ExploreCopyTableButton.makeCopyTextFromTableData(
+      commonProps.tableData.toJS()
+    );
+    const colRow = "col1\tcol2";
     expect(result.startsWith(colRow)).to.equal(true);
-    expect(result.endsWith('val2-1\tval2-2')).to.equal(true);
-    expect(result.substring(colRow.length, colRow.length + 2)).to.equal('\r\n');
+    expect(result.endsWith("val2-1\tval2-2")).to.equal(true);
+    expect(result.substring(colRow.length, colRow.length + 2)).to.equal("\r\n");
   });
 
-  it('should escape double quoutes', () => {
+  it("should escape double quoutes", () => {
     const tableDataObj = commonProps.tableData.toJS();
     tableDataObj.rows[1].row[1].v = 'val\t"2-2"';
-    const result = ExploreCopyTableButton.makeCopyTextFromTableData((tableDataObj));
+    const result =
+      ExploreCopyTableButton.makeCopyTextFromTableData(tableDataObj);
     expect(result.endsWith('val2-1\t"val\t""2-2"""')).to.equal(true);
   });
-
 });

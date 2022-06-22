@@ -13,16 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { NessieRootState, NessieState } from '@app/reducers/nessie/nessie';
+import { COMMIT_TYPE, NESSIE_REF_PREFIX } from "@app/constants/nessie";
+import { NESSIE } from "@app/constants/sourceTypes";
+import { NessieRootState, NessieState } from "@app/reducers/nessie/nessie";
+import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import { store } from "@app/store/store";
+import apiUtils from "@app/utils/apiUtils/apiUtils";
+import moize from "moize";
 
 export function getShortHash(hash: string) {
   return hash.length > 6 ? hash.substring(0, 6) : hash;
 }
 
 export function getIconByType(refType: string, hash?: string | null) {
-  if (hash) return 'NessieCommit.svg';
-  else if (refType === 'TAG') return 'NessieTag.svg';
-  else return 'GitBranch.svg';
+  if (hash) return "NessieCommit.svg";
+  else if (refType === "TAG") return "NessieTag.svg";
+  else return "GitBranch.svg";
 }
 
 export function getFullPathByType(refName: string, hash?: string | null) {
@@ -36,13 +42,13 @@ export function getTypeAndValue(state?: NessieState | null) {
   if (!state) return null;
   if (state.hash) {
     value = {
-      type: 'COMMIT',
-      value: state.hash
+      type: COMMIT_TYPE,
+      value: state.hash,
     };
   } else if (state.reference) {
     value = {
       type: state.reference.type,
-      value: state.reference.name
+      value: state.reference.name,
     };
   }
   return value;
@@ -50,9 +56,7 @@ export function getTypeAndValue(state?: NessieState | null) {
 
 function getNessieState(nessie: NessieRootState, stateKey: string) {
   if (!nessie || !stateKey) return null;
-  const state = nessie[stateKey]; //Send reference if it exists in Nessie State
-  if (!state || !state.reference) return null;
-  return state;
+  return nessie[stateKey]; //Send reference if it exists in Nessie State
 }
 
 //Ref parameter object that is sent to endpoints
@@ -75,7 +79,89 @@ export function getRefQueryParams(nessie: NessieRootState, stateKey: string) {
   } else {
     return {
       refType: value.type,
-      refValue: value.value
+      refValue: value.value,
     };
   }
+}
+
+export function getRefQueryParamsFromPath(
+  fullPath: string | string[],
+  nessie: NessieRootState,
+  sep = "."
+) {
+  const [sourceName] =
+    typeof fullPath === "string" ? fullPath.split(sep) : fullPath;
+  return getRefQueryParams(nessie, sourceName.replace(/"/g, ""));
+}
+
+export function getRefQueryParamsFromDataset(fullPath: string[]) {
+  const { nessie } = store.getState();
+  return getRefQueryParamsFromPath(fullPath, nessie);
+}
+
+export function getNessieReferencePayload(nessie?: NessieRootState | null) {
+  if (!nessie) return {};
+
+  const stateKeys = Object.keys(nessie).filter(
+    (key) => key && key.startsWith(NESSIE_REF_PREFIX)
+  );
+  return stateKeys.reduce((acc, key) => {
+    const refState = nessie[key];
+    const source = key.substring(NESSIE_REF_PREFIX.length, key.length);
+
+    const value = getTypeAndValue(refState);
+    if (value != null && source) acc[source] = value;
+
+    return acc;
+  }, {} as any);
+}
+
+export function getReferenceListForTransform(
+  referencePayload = {} as { [key: string]: any } | null
+) {
+  if (referencePayload == null) return [];
+  return Object.keys(referencePayload).map((key) => {
+    const values = referencePayload[key];
+    return {
+      sourceName: key,
+      reference: values,
+    };
+  });
+}
+
+export function getProjectUrl(id?: string) {
+  //@ts-ignore
+  return `${window.location.protocol}${apiUtils.getAPIVersion("NESSIE", {
+    projectId: id,
+  })}`;
+}
+
+export function getProjectIdFromUrl(url?: any) {
+  if (!url || typeof url !== "string") return "";
+  const value = url.substring(url.lastIndexOf("/") + 1, url.length) || "";
+  return value.replace("/", "");
+}
+
+export function isBranchSelected(state?: NessieState) {
+  if (!state) return false;
+
+  const isLoading = isDefaultReferenceLoading(state);
+  if (isLoading) return false; //Still loading, return false
+
+  if (state.hash || state.reference?.type !== "BRANCH") return false;
+  return state?.reference?.type === "BRANCH";
+}
+
+export const getSourceByName = moize(function (
+  name: string,
+  sources?: Array<{ name: string; type: string }>
+) {
+  return (sources || []).find(
+    (cur) => cur.type === NESSIE && cur.name === name
+  );
+});
+
+export function parseNamespaceUrl(url: string, path: string) {
+  if (url === "/") return undefined;
+  return url.replace(`/${path}/`, "").split("/");
 }

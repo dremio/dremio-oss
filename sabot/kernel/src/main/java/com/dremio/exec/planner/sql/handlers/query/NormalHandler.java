@@ -45,6 +45,7 @@ import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 
 /**
@@ -73,7 +74,8 @@ public class NormalHandler implements SqlToPlanHandler {
         config.getContext().getExecutorService().submit(viewAccessEvaluator);
       }
       final Catalog catalog = config.getContext().getCatalog();
-      CachedPlan cachedPlan = (planCache != null) ? planCache.getIfPresentAndValid(catalog, cachedKey) : null;
+      final CatalogService catalogService = config.getContext().getCatalogService();
+      CachedPlan cachedPlan = (planCache != null) ? planCache.getIfPresentAndValid(catalog, catalogService, cachedKey) : null;
       Prel prel;
       if (!plannerSettings.isPlanCacheEnabled() || cachedPlan == null) {
         final Rel drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
@@ -83,13 +85,8 @@ public class NormalHandler implements SqlToPlanHandler {
         textPlan = convertToPrel.getValue();
 
         //after we generate a physical plan, save it in the plan cache if plan cache is present
-        boolean supportPlanCache = config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable();
-        if (plannerSettings.isPlanCacheEnabled() && planCache != null && supportPlanCache) {
-          if (planCache.addCacheToDatasetMap(catalog, cachedKey)) {
-            CachedPlan newCachedPlan = CachedPlan.createCachedPlan(sql, prel, textPlan, prel.getEstimatedSize());
-            config.getObserver().setCachedAccelDetails(newCachedPlan);
-            planCache.getCachePlans().put(cachedKey, newCachedPlan);
-          }
+        if (PlanCache.supportPlanCache(planCache, config, sqlNode)) {
+          planCache.createNewCachedPlan(catalog, cachedKey, sql, prel, textPlan, config);
         }
       } else {
         prel = cachedPlan.getPrel();

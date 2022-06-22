@@ -15,30 +15,38 @@
  */
 // import Immutable from 'immutable';
 
-import * as ActionTypes from 'actions/resources/scripts';
+import * as ActionTypes from "actions/resources/scripts";
 
 type ScriptsState = {
-  scripts: any[];
-}
+  all: any[];
+  mine: any[];
+};
 
 type ScriptActions = {
   type: string;
   payload: any;
   meta: any;
-}
+};
 
 function getInitialState(): ScriptsState {
   return {
-    scripts: []
+    all: [],
+    mine: [],
   };
 }
 
-export default function scripts(state = getInitialState(), action: ScriptActions): ScriptsState {
+export default function scripts(
+  state = getInitialState(),
+  action: ScriptActions
+): ScriptsState {
+  const data =
+    action && action.payload && action.payload.data ? action.payload.data : [];
   switch (action.type) {
-  case ActionTypes.FETCH_SCRIPTS_SUCCESS:
-    return { ...state, scripts: action.payload.data };
-
-  default:
-    return state;
+    case ActionTypes.FETCH_SCRIPTS_SUCCESS:
+      return { ...state, all: data };
+    case ActionTypes.FETCH_MINE_SCRIPTS_SUCCESS:
+      return { ...state, mine: data };
+    default:
+      return state;
   }
 }

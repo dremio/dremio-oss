@@ -13,46 +13,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable  from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/explore/sqlActions';
-import gridTableMapper from 'utils/mappers/gridTableMapper';
+import * as ActionTypes from "actions/explore/sqlActions";
+import gridTableMapper from "utils/mappers/gridTableMapper";
 
 const initialState = Immutable.fromJS({
   newDateset: {
     dataset: {},
     isInProgress: false,
-    isFailed: false
+    isFailed: false,
   },
-  gridHelpData: {}
+  gridHelpData: {},
 });
 
 export default function grid(state = initialState, action) {
   switch (action.type) {
+    case ActionTypes.CREATE_DATASET_FROM_EXISTING_START:
+    case ActionTypes.CREATE_DATASET_START:
+      return state
+        .setIn(["newDateset", "isInProgress"], true)
+        .setIn(["newDateset", "isFailed"], false);
 
-  case ActionTypes.CREATE_DATASET_FROM_EXISTING_START:
-  case ActionTypes.CREATE_DATASET_START:
-    return state.setIn(['newDateset', 'isInProgress'], true).setIn(['newDateset', 'isFailed'], false);
+    case ActionTypes.CREATE_DATASET_FROM_EXISTING_SUCCESS:
+    case ActionTypes.CREATE_DATASET_SUCCESS: {
+      const newDataset = Immutable.fromJS(action.payload);
+      return state
+        .setIn(["newDateset", "dataset"], newDataset)
+        .setIn(["newDateset", "isInProgress"], false)
+        .setIn(["newDateset", "isFailed"], false);
+    }
+    case ActionTypes.CREATE_DATASET_FROM_EXISTING_FAILURE:
+    case ActionTypes.CREATE_DATASET_FAILURE:
+      return state
+        .setIn(["newDateset", "isInProgress"], false)
+        .setIn(["lookup", "isFailed"], true);
 
-  case ActionTypes.CREATE_DATASET_FROM_EXISTING_SUCCESS:
-  case ActionTypes.CREATE_DATASET_SUCCESS: {
-    const newDataset = Immutable.fromJS(action.payload);
-    return state.setIn(['newDateset', 'dataset'], newDataset)
-      .setIn(['newDateset', 'isInProgress'], false)
-      .setIn(['newDateset', 'isFailed'], false);
-  }
-  case ActionTypes.CREATE_DATASET_FROM_EXISTING_FAILURE:
-  case ActionTypes.CREATE_DATASET_FAILURE:
-    return state.setIn(['newDateset', 'isInProgress'], false).setIn(['lookup', 'isFailed'], true);
+    case ActionTypes.SQL_HELP_FUNC_SUCCESS:
+      return state.set(
+        "gridHelpData",
+        Immutable.fromJS({
+          items: gridTableMapper.mapHelpFunctions(action.meta.sqlFuncs),
+          isInProgress: false,
+          isFailed: false,
+        })
+      );
 
-  case ActionTypes.SQL_HELP_FUNC_SUCCESS:
-    return state.set('gridHelpData', Immutable.fromJS({
-      items: gridTableMapper.mapHelpFunctions(action.meta.sqlFuncs),
-      isInProgress: false,
-      isFailed: false
-    }));
-
-  default:
-    return state;
+    default:
+      return state;
   }
 }

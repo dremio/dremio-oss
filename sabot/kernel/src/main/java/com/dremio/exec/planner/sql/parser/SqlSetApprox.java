@@ -100,4 +100,3 @@ public class SqlSetApprox extends SqlSystemCall {
 
   public SqlIdentifier getTable() { return table; }
 }
-

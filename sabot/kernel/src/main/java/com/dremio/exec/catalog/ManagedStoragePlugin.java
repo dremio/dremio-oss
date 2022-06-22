@@ -42,6 +42,7 @@ import com.dremio.common.VM;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
+import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
@@ -733,19 +734,33 @@ public class ManagedStoragePlugin implements AutoCloseable {
   }
 
   private class FixFailedToStart extends Thread {
-
     public FixFailedToStart() {
       super("fix-fail-to-start-" + sourceKey.getRoot());
+
       setDaemon(true);
     }
 
     @Override
     public void run() {
-      try {
-        while(true) {
-          final long nextRefresh = Math.min(metadataPolicy.getNamesRefreshMs(), metadataPolicy.getDatasetDefinitionRefreshAfterMs());
-          Thread.sleep(nextRefresh);
+      final int baseMs =
+          (int)
+              Math.min(
+                  Math.min(
+                      metadataPolicy.getNamesRefreshMs(),
+                      metadataPolicy.getDatasetDefinitionRefreshAfterMs()),
+                  Integer.MAX_VALUE);
+      final Retryer<Void> retryer =
+          new Retryer.Builder()
+              .retryIfExceptionOfType(BadSourceStateException.class)
+              .setWaitStrategy(
+                  Retryer.WaitStrategy.EXPONENTIAL,
+                  baseMs,
+                  (int) CatalogService.DEFAULT_REFRESH_MILLIS)
+              .setInfiniteRetries(true)
+              .build();
 
+      try {
+        retryer.run(() -> {
           // something started the plugin successfully.
           if (state.getStatus() != SourceState.SourceStatus.bad) {
             return;
@@ -757,13 +772,17 @@ public class ManagedStoragePlugin implements AutoCloseable {
               return;
             }
           } catch (Exception e) {
-            // Failure to refresh state means that we should just reschedule the next fix
+            // Failure to refresh state means that we should just reschedule the next fix.
           }
-        }
-      } catch (InterruptedException e1) {
-        logger.info("Discontinuing attempts to start failing plugin {}.", name, e1);
-        return;
+
+          throw new BadSourceStateException();
+        });
+      } catch (Retryer.OperationFailedAfterRetriesException e) {
+        logger.error("Error while starting plugin {}: ", name, e);
       }
+    }
+
+    private final class BadSourceStateException extends RuntimeException {
     }
 
     @Override

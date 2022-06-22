@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import TagsModal from 'pages/HomePage/components/modals/TagsModal/TagsModal';
-import { Tag } from '@app/pages/ExplorePage/components/TagsEditor/Tag';
-import ImmutablePropTypes from 'react-immutable-proptypes';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import TagsModal from "pages/HomePage/components/modals/TagsModal/TagsModal";
+import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
+import ImmutablePropTypes from "react-immutable-proptypes";
 
-import { tag as tagClass} from './TagList.less';
+import { tag as tagClass } from "./TagList.less";
 
 export class TagListView extends Component {
   static propTypes = {
@@ -28,7 +28,7 @@ export class TagListView extends Component {
     onTagClick: PropTypes.func, // (tagName) => void
     className: PropTypes.string,
     style: PropTypes.object,
-    onMainContainerRef: PropTypes.func
+    onMainContainerRef: PropTypes.func,
   };
 
   render() {
@@ -38,7 +38,7 @@ export class TagListView extends Component {
       onTagClick,
       className,
       style,
-      onMainContainerRef
+      onMainContainerRef,
     } = this.props;
 
     const showModal = tags.size > visibleTagsNumber;
@@ -46,21 +46,23 @@ export class TagListView extends Component {
     const modalTags = showModal ? tags.slice(visibleTagsNumber) : null;
     return (
       <div ref={onMainContainerRef} className={className} style={style}>
-        {
-          visible.map(tag => <Tag key={tag}
+        {visible.map((tag) => (
+          <Tag
+            key={tag}
             onClick={onTagClick ? () => onTagClick(tag) : null}
             className={tagClass}
             text={tag}
             title
-          />)
-        }
-        {
-          showModal && <TagsModal key='tagsModal'
+          />
+        ))}
+        {showModal && (
+          <TagsModal
+            key="tagsModal"
             tags={modalTags.toJS()}
             onTagClick={onTagClick}
             mainTagClass={tagClass}
           />
-        }
+        )}
       </div>
     );
   }
@@ -72,18 +74,18 @@ export class TagList extends Component {
     tags: ImmutablePropTypes.listOf(PropTypes.string).isRequired,
     onTagClick: PropTypes.func, // (tagName) => void
     className: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   state = {
-    el: { clientWidth : null }
+    el: { clientWidth: null },
   };
 
   onRef = (el) => {
     this.setState({
-      el
+      el,
     });
-  }
+  };
 
   countVisibleTags = () => {
     const { tags } = this.props;
@@ -101,10 +103,15 @@ export class TagList extends Component {
 
     for (i = 0; i < totalCount; i++) {
       const tag = tags.get(i);
-      const currentTagWidth = Math.min(tag.length * PX_PER_CHAR + TAG_PADDING_PX, MAX_TAG_WIDTH);
+      const currentTagWidth = Math.min(
+        tag.length * PX_PER_CHAR + TAG_PADDING_PX,
+        MAX_TAG_WIDTH
+      );
 
-      if (currentTagWidth > remainingWidth) { // no more space
-        if (remainingWidth >= MIN_TAG_WIDTH_PX) { //there is enough space to show '...'
+      if (currentTagWidth > remainingWidth) {
+        // no more space
+        if (remainingWidth >= MIN_TAG_WIDTH_PX) {
+          //there is enough space to show '...'
           return i;
         }
         // not enough space for '...' button, so do not include current tag in result. I assume that

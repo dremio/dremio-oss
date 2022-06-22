@@ -192,11 +192,15 @@ public class ITTestShadedJar {
 
   public abstract static class AbstractLoaderThread extends Thread {
     private Exception ex;
-    protected final ClassLoader loader;
+    private final ClassLoader loader;
 
     public AbstractLoaderThread(ClassLoader loader) {
       this.setContextClassLoader(loader);
       this.loader = loader;
+    }
+
+    protected ClassLoader getClassLoader() {
+      return loader;
     }
 
     @Override
@@ -227,7 +231,7 @@ public class ITTestShadedJar {
 
     @Override
     protected void internalRun() throws Exception {
-      Class<?> clazz = loader.loadClass("com.dremio.BaseTestQuery");
+      Class<?> clazz = getClassLoader().loadClass("com.dremio.BaseTestQuery");
       clazz.getMethod("setupDefaultTestCluster").invoke(null);
 
       // loader.loadClass("com.dremio.exec.exception.SchemaChangeException");
@@ -248,7 +252,7 @@ public class ITTestShadedJar {
 
     @Override
     protected void internalRun() throws Exception {
-      Class<?> clazz = loader.loadClass("com.dremio.BaseTestQuery");
+      Class<?> clazz = getClassLoader().loadClass("com.dremio.BaseTestQuery");
       clazz.getMethod("closeClient").invoke(null);
     }
   }

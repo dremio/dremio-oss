@@ -13,20 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { all, put, select, takeEvery } from 'redux-saga/effects';
+import { all, put, select, takeEvery } from "redux-saga/effects";
 
-import { WS_MESSAGE_JOB_DETAILS, WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_QV_JOB_PROGRESS } from '@inject/utils/socket';
+import {
+  WS_MESSAGE_JOB_DETAILS,
+  WS_MESSAGE_JOB_PROGRESS,
+  WS_MESSAGE_QV_JOB_PROGRESS,
+} from "@inject/utils/socket";
 
-import { loadJobDetails, loadReflectionJobDetails, updateJobState, updateQVJobState } from 'actions/jobs/jobs';
+import {
+  loadJobDetails,
+  loadReflectionJobDetails,
+  updateJobState,
+  updateQVJobState,
+} from "actions/jobs/jobs";
 
-const getLocation = state => state.routing.locationBeforeTransitions;
+const getLocation = (state) => state.routing.locationBeforeTransitions;
 
-function *handleUpdateJobDetails(action) {
+function* handleUpdateJobDetails(action) {
   if (action.error) return;
 
   const location = yield select(getLocation);
-  if (location.pathname.indexOf('/jobs/reflection/') > -1) {
-    const split = location.pathname.split('/');
+  if (location.pathname.indexOf("/jobs/reflection/") > -1) {
+    const split = location.pathname.split("/");
     const reflectionId = split[split.length - 1];
     yield put(loadReflectionJobDetails(action.payload.jobId.id, reflectionId));
   } else {
@@ -34,7 +43,7 @@ function *handleUpdateJobDetails(action) {
   }
 }
 
-function *handleJobProgressChanged(action) {
+function* handleJobProgressChanged(action) {
   if (action.error) return;
   const { payload } = action;
   // const location = yield select(getLocation);
@@ -44,13 +53,14 @@ function *handleJobProgressChanged(action) {
   // }
 }
 
-function *handleQVJobProgressChange(action) {
+function* handleQVJobProgressChange(action) {
   if (action.error) return;
   const { payload } = action;
   // const location = yield select(getLocation);
   const id = payload.id.id;
+  //here add a condition to check if the SQLTab is also open
   // if (location.pathname.indexOf('jobs') !== -1) {
-  yield put(updateQVJobState(id, {...payload.update, id}));
+  yield put(updateQVJobState(id, { ...payload.update, id }));
   // }
 }
 
@@ -58,7 +68,7 @@ export function* entitie() {
   yield all([
     takeEvery(WS_MESSAGE_JOB_DETAILS, handleUpdateJobDetails),
     takeEvery(WS_MESSAGE_JOB_PROGRESS, handleJobProgressChanged),
-    takeEvery(WS_MESSAGE_QV_JOB_PROGRESS, handleQVJobProgressChange)
+    takeEvery(WS_MESSAGE_QV_JOB_PROGRESS, handleQVJobProgressChange),
     // takeEvery(RUN_LONG_TRANSFORMATION_SUCCESS, handleStartListenToJobProgress),
   ]);
 }

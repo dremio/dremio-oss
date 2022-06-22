@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import platform from 'platform';
-import localStorageUtils from './storageUtils/localStorageUtils';
+import platform from "platform";
+import localStorageUtils from "./storageUtils/localStorageUtils";
 
 const oldestSupportedBrowserVersions = {
-  'Chrome': '54',
-  'Firefox': '50',
-  'IE': '11',
-  'Microsoft Edge': '14',
-  'Safari': '11'
+  Chrome: "54",
+  Firefox: "50",
+  IE: "11",
+  "Microsoft Edge": "14",
+  Safari: "11",
 };
 
 const browserUtils = {
-  getPlatform() { // wrap for easy test stubbing
+  getPlatform() {
+    // wrap for easy test stubbing
     return platform;
   },
   compareVersions(a, b) {
-    const first = a.split('.');
-    const second = b.split('.');
+    const first = a.split(".");
+    const second = b.split(".");
     const minLength = Math.min(first.length, second.length);
     let result;
     for (let i = 0; i < minLength; i++) {
@@ -53,14 +54,14 @@ const browserUtils = {
     return this.compareVersions(version, supportedVersion) >= 0;
   },
   approveUnsupportedBrowser() {
-    localStorageUtils.setCustomValue('isApprovedUnsupportedBrowser', true);
+    localStorageUtils.setCustomValue("isApprovedUnsupportedBrowser", true);
   },
   isApprovedUnsupportedBrowser() {
-    return localStorageUtils.getCustomValue('isApprovedUnsupportedBrowser');
+    return localStorageUtils.getCustomValue("isApprovedUnsupportedBrowser");
   },
   isMSBrowser() {
-    return ['IE', 'Microsoft Edge'].includes(platform.name);
-  }
+    return ["IE", "Microsoft Edge"].includes(platform.name);
+  },
 };
 
 export default browserUtils;

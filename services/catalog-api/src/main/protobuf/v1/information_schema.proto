@@ -22,6 +22,9 @@ option java_generate_equals_and_hash = true;
 option java_multiple_files = true;
 option java_outer_classname = "InformationSchemaRPC";
 
+import "UserCoordRPC.proto";
+import "Search.proto";
+
 package dremio.catalog;
 
 // Service with an Information Schema like API
@@ -36,6 +39,12 @@ service InformationSchemaService {
   rpc ListViews (ListViewsRequest) returns (stream View);
 
   rpc ListTableSchemata (ListTableSchemataRequest) returns (stream TableSchema);
+
+  rpc ListSysCatalogs (ListSysCatalogsRequest) returns (stream exec.user.CatalogMetadata);
+
+  rpc ListSysSchemas (ListSysSchemasRequest) returns (stream exec.user.SchemaMetadata);
+
+  rpc ListSysColumns (ListSysColumnsRequest) returns (stream exec.user.ColumnMetadata);
 
 }
 
@@ -160,4 +169,22 @@ message TableSchema {
   string schema_name = 2;
   string table_name = 3;
   bytes batch_schema = 4; // a flat map of batch_schema yields rows in the "information_schema.columns" table
+}
+
+// request message to list catalogs in system table
+message ListSysCatalogsRequest {
+  exec.search.SearchQuery query = 1;
+  string username = 2;
+}
+
+// request message to list columns in system table
+message ListSysColumnsRequest {
+  exec.search.SearchQuery query = 1;
+  string username = 2;
+}
+
+// request message to list schemas in system table
+message ListSysSchemasRequest {
+  exec.search.SearchQuery query = 1;
+  string username = 2;
 }

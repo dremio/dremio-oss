@@ -62,6 +62,7 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.HashPrelUtil;
@@ -81,8 +82,8 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.CreateParquetTableEntry;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.dfs.RepairKvstoreFromIcebergMetadata;
@@ -257,7 +258,6 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
                 table,
                 child,
                 refreshExecTableMetadata,
-                ImmutableList.copyOf(cols),
                 readerFooterConfig,
                 footerReadTFRowType,
                 x -> getRowCountEstimates("FooterReadTableFunction"));
@@ -267,8 +267,8 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
       IcebergTableProps icebergTableProps = getIcebergTableProps();
       final WriterOptions writerOptions = new WriterOptions(null, null, null, null,
           null, false, Long.MAX_VALUE, null, null, icebergTableProps, readSignatureEnabled);
-      final FileSystemCreateTableEntry fsCreateTableEntry = new FileSystemCreateTableEntry(userName, metaStoragePlugin,
-          null, icebergTableProps.getTableLocation(), icebergTableProps, writerOptions, tableNSKey, storagePluginId);
+      final CreateTableEntry fsCreateTableEntry = new CreateParquetTableEntry(userName, metaStoragePlugin,
+        icebergTableProps.getTableLocation(), icebergTableProps, writerOptions, tableNSKey, storagePluginId);
 
       final DistributionTrait childDist = childPrel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
       final RelTraitSet childTraitSet = traitSet.plus(childDist).plus(Prel.PHYSICAL);
@@ -289,7 +289,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
       List<String> partitionPaths = readSignatureEnabled ? getPartitionPaths(() -> refreshExecTableMetadata.getSplits()) : new ArrayList<>(); // This is later used in the executors only when computing read signature
       final IcebergTableProps icebergTableProps = new IcebergTableProps(tableMappingPath, metadataProvider.getTableUUId(),
-        tableSchema, partitionCols, icebergCommandType, tableNSKey.getSchemaPath(), tableRootPath, null);
+        tableSchema, partitionCols, icebergCommandType, null,  tableNSKey.getSchemaPath(), tableRootPath, null, null, null);
       icebergTableProps.setPartitionPaths(partitionPaths);
       icebergTableProps.setDetectSchema(!plugin.canGetDatasetMetadataInCoordinator());
       icebergTableProps.setMetadataRefresh(true);

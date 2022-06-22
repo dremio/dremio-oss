@@ -24,30 +24,35 @@ import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<?>> {
+public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<?>>, AutoCloseable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestOutputMutator.class);
 
   private final VectorContainer container = new VectorContainer();
   private final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
   private final BufferAllocator allocator;
+  private final BufferManager bufferManager;
 
   public TestOutputMutator(BufferAllocator allocator) {
     this.allocator = allocator;
+    this.bufferManager = new BufferManagerImpl(allocator);
   }
 
   public void removeField(Field field) throws SchemaChangeException {
@@ -98,11 +103,14 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
 
   @Override
   public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
-    ValueVector v = TypeHelper.getNewVector(field, allocator);
-    if (!clazz.isAssignableFrom(v.getClass())) {
-      throw new SchemaChangeException(String.format("The class that was provided %s does not correspond to the expected vector type of %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
+    ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
+    if (v == null || v.getClass() != clazz) {
+      v = TypeHelper.getNewVector(field, allocator);
+      if (!clazz.isAssignableFrom(v.getClass())) {
+        throw new SchemaChangeException(String.format("The class that was provided %s does not correspond to the expected vector type of %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
+      }
+      addField(v);
     }
-    addField(v);
     return (T) v;
   }
 
@@ -124,7 +132,7 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
 
   @Override
   public ArrowBuf getManagedBuffer() {
-    return allocator.buffer(255);
+    return bufferManager.getManagedBuffer();
   }
 
   @Override
@@ -144,4 +152,12 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     return false;
   }
 
+  public Map<String,ValueVector> getFieldVectorMap() {
+    return fieldVectorMap;
+  }
+
+  @Override
+  public void close() throws Exception {
+    AutoCloseables.close(container, bufferManager);
+  }
 }

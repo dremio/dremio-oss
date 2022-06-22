@@ -17,18 +17,9 @@
 
 -->
 <!DOCTYPE suppressions PUBLIC
-    "-//Puppy Crawl//DTD Suppressions 1.1//EN"
-    "suppressions_1_1.dtd">
+  "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+  "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
-<!--  Checkstyle Suppressions for Dremio -->
 <suppressions>
-  <suppress files="[\\/]generated-sources[\\/]" checks="AvoidStarImport|NeedBraces"/>
-  <suppress files=".*" checks="NewlineAtEndOfFile|FileLength|RegexpMultiline|SuppressionCommentFilter"/>
-  <suppress files=".*" checks="FileContentsHolder|JavadocType|JavadocStyle"/>
-  <suppress files=".*" checks="ConstantName|LocalFinalVariableName|LocalVariableName|MemberName|MethodName"/>
-  <suppress files=".*" checks="ModifierOrder|EmptyBlock|RightCurly|EmptyStatement|EqualsAvoidNull|EqualsHashCode"/>
-  <suppress files=".*" checks="HiddenField|IllegalInstantiation|IllegalType|InnerAssignment|MissingSwitchDefault|MissingOverride"/>
-  <suppress files=".*" checks="SimplifyBooleanExpression|SimplifyBooleanReturn|StringLiteralEquality"/>
-  <suppress files=".*" checks="FinalClass|HideUtilityClassConstructor|InterfaceIsType|VisibilityModifier"/>
-  <suppress files=".*" checks="ArrayTypeStyle|TodoComment|UpperEll"/>
+  <suppress files=".*" checks="ArrayTypeStyle|EmptyBlock|EmptyStatement|EqualsAvoidNull|EqualsHashCode|FinalClass|IllegalType|InnerAssignment|LocalFinalVariableName|MemberName|MethodName|MissingSwitchDefault|RightCurly|UpperEll|VisibilityModifier"/>
 </suppressions>

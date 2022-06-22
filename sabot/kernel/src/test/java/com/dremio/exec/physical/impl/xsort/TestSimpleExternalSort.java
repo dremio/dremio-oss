@@ -47,7 +47,7 @@ import com.google.common.io.Files;
 public class TestSimpleExternalSort extends BaseTestQuery {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSimpleExternalSort.class);
 
-  @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
   @Test
   public void mergeSortWithSv2() throws Exception {

@@ -209,20 +209,20 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
                 gzos.write(("\n" + line).getBytes());
               } catch (IOException unexpected) {
                 // couldn't write a line to gzip
-                logger.error("Couldn't write to gzip. {}", unexpected.toString());
+                logger.error("Couldn't write to gzip", unexpected);
                 reachedRightBound = true;
                 break;
               }
             }
           }
         } catch (IOException e) {
-          logger.warn("Couldn't close file. {} {}", file.getAbsolutePath(), e);
+          logger.warn("Couldn't close file {}", file.getAbsolutePath(), e);
         }
       }
     } catch (FileNotFoundException e) {
-      logger.error("File not found {}. {}", gzipFile.toPath(), e);
+      logger.error("File not found {}", gzipFile.toPath(), e);
     } catch (IOException e) {
-      logger.error("Failed to close {}. {}", gzipFile, e);
+      logger.error("Failed to close {}", gzipFile, e);
     }
   }
 
@@ -236,9 +236,9 @@ public class CoordinatorLogService extends CoordinatorLogServiceGrpc.Coordinator
       // write plain text to a gzip file
       copyFromInputStreamToOutStream(fileStream, gzos);
     } catch (FileNotFoundException e) {
-      logger.warn("File not found: {}. {}", plainFilePath, e);
+      logger.warn("File not found: {}", plainFilePath, e);
     } catch (IOException e) {
-      logger.error("Failed to compress {}. {}", plainFilePath, e);
+      logger.error("Failed to compress {}", plainFilePath, e);
     }
 
     return outputGzipPath.toFile();

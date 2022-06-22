@@ -23,7 +23,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
-import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveOperationType;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,7 +62,7 @@ public class TestHiveAuthorizationHelper {
    * @param shouldBeCalled    A boolean controller to check if the method should be called.
    * @throws HiveAccessControlException in case of error.
    */
-  private void verifyAuthorizeCall(boolean shouldBeCalled) throws HiveAccessControlException {
+  private void verifyAuthorizeCall(boolean shouldBeCalled) throws Exception {
     if (shouldBeCalled) {
       verify(helperMock).authorize(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
     } else {
@@ -72,7 +71,7 @@ public class TestHiveAuthorizationHelper {
   }
 
   @Test
-  public void checkAuthEnableOnAuthorizeShowDatabases() throws HiveAccessControlException {
+  public void checkAuthEnableOnAuthorizeShowDatabases() throws Exception {
     authTrue();
     doCallRealMethod().when(helperMock).authorizeShowDatabases();
     helperMock.authorizeShowDatabases();
@@ -81,7 +80,7 @@ public class TestHiveAuthorizationHelper {
   }
 
   @Test
-  public void checkAuthDisableOnAuthorizeShowDatabases() throws HiveAccessControlException {
+  public void checkAuthDisableOnAuthorizeShowDatabases() throws Exception {
     authFalse();
     doCallRealMethod().when(helperMock).authorizeShowTables(any());
     helperMock.authorizeShowTables("_db_test_");
@@ -91,7 +90,7 @@ public class TestHiveAuthorizationHelper {
   }
 
   @Test
-  public void checkAuthEnableOnAuthorizeShowTables() throws HiveAccessControlException {
+  public void checkAuthEnableOnAuthorizeShowTables() throws Exception {
     authTrue();
     doCallRealMethod().when(helperMock).authorizeShowTables(any());
     helperMock.authorizeShowTables("_db_test_");
@@ -100,7 +99,7 @@ public class TestHiveAuthorizationHelper {
   }
 
   @Test
-  public void checkAuthDisableOnAuthorizeShowTables() throws HiveAccessControlException {
+  public void checkAuthDisableOnAuthorizeShowTables() throws Exception {
     authFalse();
     doCallRealMethod().when(helperMock).authorizeShowTables(any());
     helperMock.authorizeShowTables("_db_test_");
@@ -109,7 +108,7 @@ public class TestHiveAuthorizationHelper {
   }
 
   @Test
-  public void checkAuthEnableOnAuthorizeReadTable() throws HiveAccessControlException {
+  public void checkAuthEnableOnAuthorizeReadTable() throws Exception {
     authTrue();
     doCallRealMethod().when(helperMock).authorizeReadTable(any(), any());
     helperMock.authorizeReadTable("_dbTest_", "_table_name");
@@ -118,7 +117,7 @@ public class TestHiveAuthorizationHelper {
   }
 
   @Test
-  public void checkAuthDisableOnAuthorizeReadTable() throws HiveAccessControlException {
+  public void checkAuthDisableOnAuthorizeReadTable() throws Exception {
     authFalse();
     doCallRealMethod().when(helperMock).authorizeReadTable(any(), any());
     helperMock.authorizeReadTable("_dbTest_", "_table_name");

@@ -13,25 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import * as modals from 'dyn-load/pages/HomePage/components/modals';
-import ModalsContainer from '../../components/Modals/ModalsContainer';
-import * as exploreModals from './../ExplorePage/components/modals';
+import * as modals from "dyn-load/pages/HomePage/components/modals";
+import ModalsContainer from "../../components/Modals/ModalsContainer";
+import * as exploreModals from "./../ExplorePage/components/modals";
 
-const BODY_CLASS = 'body-modal-open';
+const BODY_CLASS = "body-modal-open";
 
 export default class HomeModals extends PureComponent {
-
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   render() {
     return (
-      <ModalsContainer modals={{...modals, ...exploreModals}} bodyClassName={BODY_CLASS}>
+      <ModalsContainer
+        modals={{ ...modals, ...exploreModals }}
+        bodyClassName={BODY_CLASS}
+      >
         {this.props.children}
       </ModalsContainer>
     );

@@ -13,40 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import SortMultiply from './SortMultiply';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import SortMultiply from "./SortMultiply";
 
-describe('SortMultiply', () => {
+describe("SortMultiply", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       dataset: Immutable.fromJS({
-        displayFullPath: ['Tpch-Sample', 'tpch03']
+        displayFullPath: ["Tpch-Sample", "tpch03"],
       }),
       handleDrop: () => {},
-      dragType: 'default',
+      dragType: "default",
       columnsField: [],
       columns: Immutable.List(),
       columnsInDragArea: Immutable.fromJS([]),
-      addEmptyColumnToSort: sinon.spy()
+      addEmptyColumnToSort: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SortMultiply {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SortMultiply {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render empty SortDragArea, Add button, DragColumnMenu', () => {
-    const wrapper = shallow(<SortMultiply {...commonProps}/>);
+  it("should render empty SortDragArea, Add button, DragColumnMenu", () => {
+    const wrapper = shallow(<SortMultiply {...commonProps} />);
 
-    expect(wrapper.find('SortDragArea')).to.length(1);
-    expect(wrapper.find('DragColumnMenu')).to.length(1);
-    expect(wrapper.find('FontIcon')).to.length(1);
+    expect(wrapper.find("SortDragArea")).to.length(1);
+    expect(wrapper.find("DragColumnMenu")).to.length(1);
+    expect(wrapper.find("FontIcon")).to.length(1);
   });
 });

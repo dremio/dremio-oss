@@ -44,6 +44,7 @@ import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.connector.ConnectorException;
@@ -108,7 +109,7 @@ import com.google.common.net.HostAndPort;
  * ReadDefinition and splits are computed as same time as dataset.
  */
 @Options
-public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
+public class ParquetFormatDatasetAccessor implements FileDatasetHandle, SupportsTypeCoercionsAndUpPromotions {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetFormatDatasetAccessor.class);
 
   public static final BooleanValidator PARQUET_TEST_SCHEMA_FALLBACK_ONLY_VALIDATOR = new BooleanValidator("dremio.test.parquet.schema.fallback.only", false);
@@ -232,8 +233,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
   private BatchSchema getSchema(BatchSchema oldSchema, SabotContext context, FileAttributes firstFile, List<Field> fields) {
     BatchSchema newSchema = BatchSchema.newBuilder().addFields(fields).build();
     try {
-      newSchema = newSchema.handleUnions();
-      return oldSchema != null ? oldSchema.mergeWithUpPromotion(newSchema) : newSchema;
+      newSchema = newSchema.handleUnions(this);
+      return oldSchema != null ? oldSchema.mergeWithUpPromotion(newSchema, this) : newSchema;
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(firstFile.getPath().toString());
       e.addDatasetPath(tableSchemaPath.getPathComponents());

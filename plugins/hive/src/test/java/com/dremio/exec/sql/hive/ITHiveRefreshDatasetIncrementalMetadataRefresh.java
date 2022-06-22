@@ -72,7 +72,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
   private static AutoCloseable enableUnlimitedSplitsSupportFlags;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(250, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(250, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void generateHiveWithoutData() throws Exception {

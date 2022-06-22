@@ -13,34 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { lightLink } from 'uiTheme/radium/typography';
+import { lightLink } from "uiTheme/radium/typography";
 
 export default class AdvancedOptionsExpandable extends Component {
   static propTypes = {
-    children: PropTypes.node.isRequired
-  }
+    children: PropTypes.node.isRequired,
+  };
 
   state = {
-    expanded: false
-  }
+    expanded: false,
+  };
 
   handleClick = () => {
-    this.setState((state) => ({expanded: !state.expanded}));
-  }
+    this.setState((state) => ({ expanded: !state.expanded }));
+  };
 
   render() {
     const { expanded } = this.state;
     return (
       <div>
         <a style={styles.link} onClick={this.handleClick}>
-          {!expanded ? la('Show advanced options…') : la('Hide advanced options…')}
+          {!expanded
+            ? la("Show advanced options…")
+            : la("Hide advanced options…")}
         </a>
-        <div style={{...styles.contents, ...(expanded ? styles.expanded : styles.collapsed)}}>
-          { this.props.children }
+        <div
+          style={{
+            ...styles.contents,
+            ...(expanded ? styles.expanded : styles.collapsed),
+          }}
+        >
+          {this.props.children}
         </div>
       </div>
     );
@@ -49,19 +56,19 @@ export default class AdvancedOptionsExpandable extends Component {
 
 const styles = {
   contents: {
-    transition: 'max-height 0.2s ease-in, overflow 0.2s 0.21s'
+    transition: "max-height 0.2s ease-in, overflow 0.2s 0.21s",
   },
   expanded: {
     maxHeight: 1000,
-    overflow: 'visible',
-    paddingTop: 10
+    overflow: "visible",
+    paddingTop: 10,
   },
   collapsed: {
     maxHeight: 0,
-    overflow: 'hidden'
+    overflow: "hidden",
   },
   link: {
     ...lightLink,
-    display: 'block'
-  }
+    display: "block",
+  },
 };

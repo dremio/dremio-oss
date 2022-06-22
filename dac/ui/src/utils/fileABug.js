@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import config from 'dyn-load/utils/config';
+import config from "dyn-load/utils/config";
 
-const fileABug = function(error) {
-  const data = {...config};
+const fileABug = function (error) {
+  const data = { ...config };
   data.ts = new Date(data.ts);
   data.ua = navigator.userAgent;
   data.location = window.location;
-  const pageData = Object.keys(data).map(function(key) {
-    return key + ': ' + data[key];
-  }).join('\n');
-  const errorText = !error ? '' : `\n\nError Message:
+  const pageData = Object.keys(data)
+    .map(function (key) {
+      return key + ": " + data[key];
+    })
+    .join("\n");
+  const errorText = !error
+    ? ""
+    : `\n\nError Message:
 {noformat}${truncate(error.message)}{noformat}
 
 Stack Trace:
@@ -41,13 +45,16 @@ Observed:
 ${errorText}
 `;
 
-  const env = 'Page data:\n{noformat}\n' + pageData + '\n{noformat}';
+  const env = "Page data:\n{noformat}\n" + pageData + "\n{noformat}";
 
-  const url = 'https://dremio.atlassian.net/secure/CreateIssueDetails!init.jspa?' +
-    'priority=10000&pid=10100&issuetype=10004&labels=filed_from_app&description=' +
-    encodeURIComponent(desc) + '&environment=' + encodeURIComponent(env);
+  const url =
+    "https://dremio.atlassian.net/secure/CreateIssueDetails!init.jspa?" +
+    "priority=10000&pid=10100&issuetype=10004&labels=filed_from_app&description=" +
+    encodeURIComponent(desc) +
+    "&environment=" +
+    encodeURIComponent(env);
 
-  window.open(url, '_blank');
+  window.open(url, "_blank");
 };
 
 export default fileABug;
@@ -55,8 +62,8 @@ export default fileABug;
 window.fileABug = fileABug; // expose for other tools (e.g. bookmarklet)
 
 // heuristic to avoid Jira showing a blank screen because the URL is too long
-function truncate(str = '') {
-  const lines = str.split('\n');
+function truncate(str = "") {
+  const lines = str.split("\n");
   if (lines.length <= 10) return str;
-  return lines.slice(0, 10).join('\n') + '\n…';
+  return lines.slice(0, 10).join("\n") + "\n…";
 }

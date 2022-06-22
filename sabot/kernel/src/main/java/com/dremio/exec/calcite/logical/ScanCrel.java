@@ -41,6 +41,7 @@ import com.google.common.base.Predicate;
 public class ScanCrel extends ScanRelBase implements CopyToCluster, IncrementallyUpdateable {
 
   private final boolean isDirectNamespaceDescendent;
+  private final boolean isSubstitutable;
 
   public ScanCrel(
       RelOptCluster cluster,
@@ -49,9 +50,11 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       TableMetadata metadata,
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
-      boolean isDirectNamespaceDescendent) {
+      boolean isDirectNamespaceDescendent,
+      boolean isSubstitutable) {
     super(cluster, traitSet, new RelOptNamespaceTable(metadata, cluster), pluginId, metadata, projectedColumns, observedRowcountAdjustment);
     this.isDirectNamespaceDescendent = isDirectNamespaceDescendent;
+    this.isSubstitutable = isSubstitutable;
   }
 
   @Override
@@ -73,12 +76,14 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       getTableMetadata(),
       getProjectedColumns(),
       observedRowcountAdjustment,
-      isDirectNamespaceDescendent
+      isDirectNamespaceDescendent,
+      isSubstitutable
     );
   }
 
   public ScanCrel applyRowDiscount(double additionalAdjustment) {
-    return new ScanCrel(getCluster(), traitSet, pluginId, getTableMetadata(), getProjectedColumns(), observedRowcountAdjustment * additionalAdjustment, isDirectNamespaceDescendent);
+    return new ScanCrel(getCluster(), traitSet, pluginId, getTableMetadata(), getProjectedColumns(),
+      observedRowcountAdjustment * additionalAdjustment, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   @Override
@@ -114,21 +119,32 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       return predicate.apply(path);
     }).collect(Collectors.toList());
 
-    return new ScanCrel(getCluster(), getTraitSet(), getPluginId(), getTableMetadata(), newProjection, observedRowcountAdjustment, isDirectNamespaceDescendent);
+    return new ScanCrel(getCluster(), getTraitSet(), getPluginId(), getTableMetadata(), newProjection,
+      observedRowcountAdjustment, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   @Override
   public ScanCrel cloneWithProject(List<SchemaPath> projection) {
-    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projection, observedRowcountAdjustment, isDirectNamespaceDescendent);
+    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projection, observedRowcountAdjustment,
+      isDirectNamespaceDescendent, isSubstitutable);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, isDirectNamespaceDescendent);
+    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, getProjectedColumns(),
+      observedRowcountAdjustment, isDirectNamespaceDescendent, isSubstitutable);
   }
 
   public boolean isDirectNamespaceDescendent() {
     return isDirectNamespaceDescendent;
   }
 
+  /**
+   * Returns true if this scan is substitutable. Currently, ScanCrel is not substitutable in following scenarios:
+   *        1. uses an explicit time travel context provided via the query or session.
+   *        2. as DML target table
+   */
+  public boolean isSubstitutable() {
+    return isSubstitutable;
+  }
 }

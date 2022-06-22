@@ -64,25 +64,47 @@ public class DefaultFunctionResolver implements FunctionResolver {
       //did not find a matched func implementation, either w/ or w/o implicit casts
       //TODO: raise exception here?
       return null;
-    } else {
-      if (AssertionUtil.isAssertionsEnabled() && bestMatchAlternatives.size() > 0) {
-        /*
-         * There are other alternatives to the best match function which could have been selected
-         * Log the possible functions and the chose implementation and raise an exception
-         */
-        logger.warn("Chosen function impl: " + bestmatch.toString());
+    }
 
-        // printing the possible matches
-        logger.warn("Printing all the possible functions that could have matched: ");
-        for (AbstractFunctionHolder holder: bestMatchAlternatives) {
-          logger.warn(holder.toString());
-        }
-
-        // TODO Figure out if this is needed
-//        throw new AssertionError("Multiple functions with best cost found");
-      }
+    if (bestMatchAlternatives.isEmpty()) {
       return bestmatch;
     }
+
+    if (AssertionUtil.isAssertionsEnabled()) {
+      /*
+       * There are other alternatives to the best match function which could have been selected
+       * Log the possible functions and the chose implementation and raise an exception
+       */
+      logger.warn("Chosen function impl: " + bestmatch.toString());
+
+      // printing the possible matches
+      logger.warn("Printing all the possible functions that could have matched: ");
+      for (AbstractFunctionHolder holder: bestMatchAlternatives) {
+        logger.warn(holder.toString());
+      }
+
+      // TODO Figure out if this is needed
+//        throw new AssertionError("Multiple functions with best cost found");
+    }
+
+    // Break the tie using the return type:
+    for (AbstractFunctionHolder bestMatchAlternative : bestMatchAlternatives) {
+      try {
+        CompleteType alternativeReturnType = bestMatchAlternative.getReturnType(call.args);
+        int alternativeReturnTypeRank = alternativeReturnType.getType().getTypeID().ordinal();
+
+        CompleteType currentReturnType = bestmatch.getReturnType(call.args);
+        int currentReturnTypeRank = currentReturnType.getType().getTypeID().ordinal();
+
+        if (alternativeReturnTypeRank < currentReturnTypeRank) {
+          bestmatch = bestMatchAlternative;
+        }
+      } catch (Exception ex) {
+        continue;
+      }
+    }
+
+    return bestmatch;
   }
 
 }

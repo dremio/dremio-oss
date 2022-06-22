@@ -222,4 +222,3 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
         return getNullCheckExpression(icebergExpression);
     }
 }
-

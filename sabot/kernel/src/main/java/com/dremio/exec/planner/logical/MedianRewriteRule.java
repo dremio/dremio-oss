@@ -159,4 +159,3 @@ public class MedianRewriteRule extends RelOptRule {
     return rewrittenAggregateCalls;
   }
 }
-

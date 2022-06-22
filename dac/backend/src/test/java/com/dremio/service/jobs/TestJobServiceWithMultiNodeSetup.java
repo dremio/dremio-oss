@@ -212,7 +212,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     // wait for it to be submitted
     submittedListener.await();
-    final JobId id = adapter.getJobId();
+    final JobId id = adapter.getJobSubmission().getJobId();
 
     final QueryProfileRequest req = QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
     //poll for the profile while the query is running
@@ -302,7 +302,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     // wait for it to be submitted
     submittedListener.await();
-    final JobId id = adapter.getJobId();
+    final JobId id = adapter.getJobSubmission().getJobId();
 
     final CountDownLatch queryLatch = new CountDownLatch(1);
     final DummyJobEventListener dummyJobEventListener = new DummyJobEventListener(queryLatch);
@@ -351,7 +351,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     // wait for it to submit
     submittedListener.await();
-    final JobId id = adapter.getJobId();
+    final JobId id = adapter.getJobSubmission().getJobId();
 
     // get details from the other node
     final JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
@@ -410,7 +410,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     // 2. wait for it to be submitted
     submittedListener.await();
-    final JobId id = adapter.getJobId();
+    final JobId id = adapter.getJobSubmission().getJobId();
 
     final JobSummaryRequest jobSummaryRequest = JobSummaryRequest.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(id))
@@ -476,7 +476,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     // wait for it to be submitted
     submittedListener.await();
-    final JobId id = adapter.getJobId();
+    final JobId id = adapter.getJobSubmission().getJobId();
 
     final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
       .setFilterString("(jst==RUNNING,jst==ENGINE_START,jst==QUEUED,jst==SETUP,jst==COMPLETED)")

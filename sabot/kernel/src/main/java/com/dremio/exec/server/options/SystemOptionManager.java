@@ -62,7 +62,7 @@ import com.google.inject.util.Providers;
 public class SystemOptionManager extends BaseOptionManager implements Service, ProjectOptionManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemOptionManager.class);
 
-  private static final String SYSTEM_OPTION_PREFIX = "dremio.debug.sysopt.";
+  public static final String SYSTEM_OPTION_PREFIX = "dremio.debug.sysopt.";
   private static final String STORE_NAME = "project_options";
   private static final String LEGACY_JACKSON_STORE_NAME = "sys.options";
   private static final String LEGACY_PROTO_STORE_NAME = "options";

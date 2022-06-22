@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { take, race, call, put } from 'redux-saga/effects';
-import { delay } from 'redux-saga';
+import { take, race, call, put } from "redux-saga/effects";
+import { delay } from "redux-saga";
 
 import {
   SCHEDULE_CHECK_SERVER_STATUS,
@@ -23,33 +23,38 @@ import {
   CHECK_SERVER_STATUS_START,
   CHECK_SERVER_STATUS_SUCCESS,
   CHECK_SERVER_STATUS_FAILURE,
-  checkServerStatus
-} from 'actions/serverStatus';
+  checkServerStatus,
+} from "actions/serverStatus";
 
 export const RETRY_TIME = 5000;
 export const MAX_RETRY_TIME = 120000;
 
-export default function *serverStatusWatcher() {
-  while (true) { // eslint-disable-line no-constant-condition
+export default function* serverStatusWatcher() {
+  while (true) {
+    // eslint-disable-line no-constant-condition
     yield take(SCHEDULE_CHECK_SERVER_STATUS);
     yield* scheduleCheckServerStatus();
   }
 }
 
-export function *scheduleCheckServerStatus() {
+export function* scheduleCheckServerStatus() {
   yield put(checkServerStatus(RETRY_TIME));
   let isCanceled = false;
   let attemptCount = 1;
   while (!isCanceled) {
-    const {cancel, manuallyCheck} = yield race({
+    const { cancel, manuallyCheck } = yield race({
       cancel: take(UNSCHEDULE_CHECK_SERVER_STATUS),
       manuallyCheck: take(MANUALLY_CHECK_SERVER_STATUS),
-      timeout: call(checkAfterDelay, attemptCount)
+      timeout: call(checkAfterDelay, attemptCount),
     });
     if (manuallyCheck) {
       yield put(checkServerStatus());
       yield take(CHECK_SERVER_STATUS_START);
-      yield take([CHECK_SERVER_STATUS_START, CHECK_SERVER_STATUS_SUCCESS, CHECK_SERVER_STATUS_FAILURE]);
+      yield take([
+        CHECK_SERVER_STATUS_START,
+        CHECK_SERVER_STATUS_SUCCESS,
+        CHECK_SERVER_STATUS_FAILURE,
+      ]);
     } else {
       attemptCount += 1;
     }
@@ -57,7 +62,7 @@ export function *scheduleCheckServerStatus() {
   }
 }
 
-export function *checkAfterDelay(attemptCount) {
+export function* checkAfterDelay(attemptCount) {
   yield call(delay, getDelay(attemptCount));
   yield put(checkServerStatus(getDelay(attemptCount + 1)));
 }

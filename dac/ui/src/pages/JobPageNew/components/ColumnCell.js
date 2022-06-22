@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useRef, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { Tooltip } from '@app/components/Tooltip';
-import './JobsContent.less';
+import { useState, useRef, useEffect } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { Tooltip } from "@app/components/Tooltip";
+import "./JobsContent.less";
 
 const ColumnCell = ({ data, isNumeric }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const cellRef = useRef(null);
   const TooltipInnerStyle = {
-    width: 'auto',
-    maxWidth: '33.31rem',
-    background: '#F4FAFC', //DX-34369
-    border: '1.5px solid #43B8C9'
+    width: "auto",
+    maxWidth: "33.31rem",
+    background: "#F4FAFC", //DX-34369
+    border: "1.5px solid #43B8C9",
   };
 
   const handleMouseEnter = () => {
@@ -37,7 +37,8 @@ const ColumnCell = ({ data, isNumeric }) => {
   };
 
   useEffect(() => {
-    const hasOverflowingDiv = cellRef.current.offsetWidth < cellRef.current.scrollWidth;
+    const hasOverflowingDiv =
+      cellRef.current.offsetWidth < cellRef.current.scrollWidth;
     setIsTruncated(hasOverflowingDiv);
   }, []);
 
@@ -47,41 +48,49 @@ const ColumnCell = ({ data, isNumeric }) => {
   return (
     <div
       ref={cellRef}
-      data-testid='testColumnCell'
+      data-testid="testColumnCell"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      data-qa='columnCell'
+      data-qa="columnCell"
       className={classNames({
-        'jobsContent__noDataCell': !data
+        jobsContent__noDataCell: !data,
       })}
     >
-      <div className={classNames(
-        { 'jobsContent__columnCell': isTruncated },
-        { 'jobsContent__numericContent': isNumeric })
-      }>{data}</div>
-      {
-        tooltipOpen && <Tooltip key='tooltip'
-          target={() => tooltipOpen ? cellRef.current : null}
-          placement='bottom-start'
-          type='custom'
-          className='jobsContent__tooltip'
-          tooltipArrowClass='textWithHelp__tooltipArrow --light'
+      <div
+        className={classNames(
+          { jobsContent__columnCell: isTruncated },
+          {
+            jobsContent__numericContent: isNumeric,
+            "dremio-typography-tabular-numeric": isNumeric,
+          }
+        )}
+      >
+        {data}
+      </div>
+      {tooltipOpen && (
+        <Tooltip
+          key="tooltip"
+          target={() => (tooltipOpen ? cellRef.current : null)}
+          placement="bottom-start"
+          type="custom"
+          className="jobsContent__tooltip"
+          tooltipArrowClass="textWithHelp__tooltipArrow --light"
           tooltipInnerStyle={TooltipInnerStyle}
         >
-          <div className='jobsContent__columnTooltipText'>{data}</div>
+          <div className="jobsContent__columnTooltipText">{data}</div>
         </Tooltip>
-      }
+      )}
     </div>
   );
 };
 
 ColumnCell.propTypes = {
   data: PropTypes.string,
-  isNumeric: PropTypes.bool
+  isNumeric: PropTypes.bool,
 };
 
 ColumnCell.defaultProps = {
-  data: ''
+  data: "",
 };
 
 export default ColumnCell;

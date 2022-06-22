@@ -16,22 +16,18 @@
     limitations under the License.
 
 -->
-<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
-    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
-    <title>Icon/File-Empty</title>
-    <desc>Created with Sketch.</desc>
-    <defs></defs>
-    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
-        <g id="Icon/File-Empty" sketch:type="MSArtboardGroup">
-            <g sketch:type="MSLayerGroup">
-                <g id="icon-box-24-copy-7" sketch:type="MSShapeGroup">
-                    <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
-                </g>
-                <g id="Group" transform="translate(5.000000, 3.000000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
-                    <path d="M14.5,17.5 L0.5,17.5 L0.5,0.5 L10.7666667,0.5 L14.5,4.5 L14.5,17.5 Z" id="Stroke-2837"></path>
-                    <path d="M10.5,0.5 L10.5,4.5 L14.5,4.5" id="Stroke-2838"></path>
-                </g>
-            </g>
-        </g>
-    </g>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.5 12H9V13.5H7.5V12Z" fill="#D2D6DA"/>
+<path d="M10 12H11.5V13.5H10V12Z" fill="#D2D6DA"/>
+<path d="M12.5 12H14V13.5H12.5V12Z" fill="#D2D6DA"/>
+<path d="M15 12H16.5V13.5H15V12Z" fill="#D2D6DA"/>
+<path d="M7.5 14.5H9V16H7.5V14.5Z" fill="#D2D6DA"/>
+<path d="M10 14.5H11.5V16H10V14.5Z" fill="#D2D6DA"/>
+<path d="M12.5 14.5H14V16H12.5V14.5Z" fill="#D2D6DA"/>
+<path d="M15 14.5H16.5V16H15V14.5Z" fill="#D2D6DA"/>
+<path d="M7.5 17H9V18.5H7.5V17Z" fill="#D2D6DA"/>
+<path d="M10 17H11.5V18.5H10V17Z" fill="#D2D6DA"/>
+<path d="M12.5 17H14V18.5H12.5V17Z" fill="#D2D6DA"/>
+<path d="M15 17H16.5V18.5H15V17Z" fill="#D2D6DA"/>
+<path d="M13.585 2.586L19.414 8.414C19.7891 8.78899 19.9999 9.29761 20 9.828V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V4C4 3.46957 4.21071 2.96086 4.58579 2.58579C4.96086 2.21071 5.46957 2 6 2H12.172C12.2 2 12.227 2.004 12.254 2.007C12.274 2.01 12.294 2.013 12.313 2.014C12.528 2.029 12.74 2.07 12.937 2.152C12.994 2.176 13.049 2.208 13.103 2.239L13.153 2.268L13.2 2.292C13.228 2.30474 13.2551 2.31944 13.281 2.336C13.359 2.389 13.429 2.452 13.5 2.516C13.5116 2.52644 13.5236 2.53645 13.536 2.546C13.5532 2.55827 13.5695 2.57163 13.585 2.586ZM18 20.5C18.1326 20.5 18.2598 20.4473 18.3536 20.3536C18.4473 20.2598 18.5 20.1326 18.5 20V10H14C13.4696 10 12.9609 9.78929 12.5858 9.41421C12.2107 9.03914 12 8.53043 12 8V3.5H6C5.86739 3.5 5.74021 3.55268 5.64645 3.64645C5.55268 3.74021 5.5 3.86739 5.5 4V20C5.5 20.1326 5.55268 20.2598 5.64645 20.3536C5.74021 20.4473 5.86739 20.5 6 20.5H18ZM17.378 8.5L13.5 4.621V8C13.5 8.13261 13.5527 8.25979 13.6464 8.35355C13.7402 8.44732 13.8674 8.5 14 8.5H17.378Z" fill="#505862"/>
 </svg>

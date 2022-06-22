@@ -15,6 +15,19 @@
  */
 package com.dremio.exec.rpc;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
+
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.MemoryDebugInfo;
+import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
+import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
+import com.google.protobuf.CodedInputStream;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.NettyArrowBuf;
@@ -23,18 +36,6 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.CorruptedFrameException;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.memory.MemoryDebugInfo;
-import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
-import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
-import com.google.protobuf.CodedInputStream;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
 
 /**
  * Frame decoder that decodes the rpc header of each message as it is available.
@@ -180,7 +181,7 @@ public class MessageDecoder extends ByteToMessageDecoder {
       }
 
       if (RpcConstants.EXTRA_DEBUGGING) {
-        logger.debug("Read raw body of length ", dBodyLength);
+        logger.debug("Read raw body of length {}", dBodyLength);
       }
 
     }else{

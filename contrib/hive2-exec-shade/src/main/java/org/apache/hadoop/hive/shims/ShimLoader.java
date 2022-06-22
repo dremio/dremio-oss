@@ -175,4 +175,3 @@ public abstract class ShimLoader {
     // prevent instantiation
   }
 }
-

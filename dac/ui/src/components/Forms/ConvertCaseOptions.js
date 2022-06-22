@@ -13,28 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Radio from 'components/Fields/Radio';
+import Radio from "components/Fields/Radio";
 
-import { formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from "uiTheme/radium/typography";
 
-@Radium
-export default class ConvertCaseOptions extends Component {
+class ConvertCaseOptions extends Component {
   static propTypes = {
-    fields: PropTypes.object
-  }
+    fields: PropTypes.object,
+  };
 
   static getFields() {
-    return ['action'];
+    return ["action"];
   }
 
   static getInitialValues() {
     return {
-      action: 'UPPERCASE'
+      action: "UPPERCASE",
     };
   }
 
@@ -43,26 +42,31 @@ export default class ConvertCaseOptions extends Component {
   }
 
   render() {
-    const { fields: { action } } = this.props;
+    const {
+      fields: { action },
+    } = this.props;
     return (
       <div style={[styles.base]}>
-        <h3 style={[styles.title, formLabel]}>{la('Options')}</h3>
+        <h3 style={[styles.title, formLabel]}>{la("Options")}</h3>
         <div style={[styles.items]}>
           <Radio
-            radioValue='UPPERCASE'
-            label='UPPERCASE'
+            radioValue="UPPERCASE"
+            label="UPPERCASE"
             style={styles.radio}
-            {...action}/>
+            {...action}
+          />
           <Radio
-            radioValue='lowercase'
-            label='lowercase'
+            radioValue="lowercase"
+            label="lowercase"
             style={styles.radio}
-            {...action}/>
+            {...action}
+          />
           <Radio
-            radioValue='TITLECASE'
-            label='Title Case'
+            radioValue="TITLECASE"
+            label="Title Case"
             style={styles.radio}
-            {...action}/>
+            {...action}
+          />
         </div>
       </div>
     );
@@ -73,13 +77,14 @@ const styles = {
   base: {
     marginLeft: 15,
     marginTop: 10,
-    marginBottom: 5
+    marginBottom: 5,
   },
   items: {
-    display: 'flex',
-    flexDirection: 'column'
+    display: "flex",
+    flexDirection: "column",
   },
   radio: {
-    marginTop: 10
-  }
+    marginTop: 10,
+  },
 };
+export default Radium(ConvertCaseOptions);

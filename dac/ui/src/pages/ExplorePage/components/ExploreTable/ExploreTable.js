@@ -13,49 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import ReactDOM from 'react-dom';
-import shallowEqual from 'shallowequal';
-import $ from 'jquery';
-import Immutable from 'immutable';
-import { connect } from 'react-redux';
-import { getIsExplorePreviewMode, getIsDatasetMetadataLoaded } from 'reducers';
-import { Column, Table } from 'fixed-data-table-2';
-import { AutoSizer } from 'react-virtualized';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import ReactDOM from "react-dom";
+import shallowEqual from "shallowequal";
+import $ from "jquery";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import { getIsExplorePreviewMode, getIsDatasetMetadataLoaded } from "reducers";
+import { Column, Table } from "fixed-data-table-2";
+import { AutoSizer } from "react-virtualized";
+import { injectIntl } from "react-intl";
 
-import { DEFAULT_ROW_HEIGHT, MIN_COLUMN_WIDTH } from 'uiTheme/radium/sizes';
+import { DEFAULT_ROW_HEIGHT, MIN_COLUMN_WIDTH } from "uiTheme/radium/sizes";
 
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import ViewCheckContent from 'components/ViewCheckContent';
-import { withLocation } from 'containers/dremioLocation';
-import { getViewState } from 'selectors/resources';
-import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
-import { loadNextRows } from 'actions/explore/dataset/data';
-import ExploreTableCell from './ExploreTableCell';
-import ColumnHeader from './ColumnHeader';
+import ViewStateWrapper from "components/ViewStateWrapper";
+import ViewCheckContent from "components/ViewCheckContent";
+import { withLocation } from "containers/dremioLocation";
+import { getViewState } from "selectors/resources";
+import { EXPLORE_TABLE_ID } from "reducers/explore/view";
+import { loadNextRows } from "actions/explore/dataset/data";
+import ExploreTableCell from "./ExploreTableCell";
+import ColumnHeader from "./ColumnHeader";
 
-import './ExploreTable.less';
+import "./ExploreTable.less";
 
 const TIME_BEFORE_SPINNER = 1500;
 export const RIGHT_TREE_OFFSET = 251;
 const SCROLL_BAR_WIDTH = 16;
-const DISABLE_BACK_ON_SCROLL_CLASSNAME = 'disable-back-on-scroll';
+const DISABLE_BACK_ON_SCROLL_CLASSNAME = "disable-back-on-scroll";
 
 const mapStateToProps = (state) => ({
   isPreviewMode: getIsExplorePreviewMode(state),
   tableViewState: getViewState(state, EXPLORE_TABLE_ID),
-  isDatasetMetadataLoaded: getIsDatasetMetadataLoaded(state)
+  isDatasetMetadataLoaded: getIsDatasetMetadataLoaded(state),
 });
 
 const mapDispatchToProps = {
-  loadNextRows
+  loadNextRows,
 };
 
-@injectIntl
-@Radium
 export class ExploreTableView extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -85,7 +82,9 @@ export class ExploreTableView extends PureComponent {
     height: PropTypes.number,
     isGrayed: PropTypes.bool,
     intl: PropTypes.object.isRequired,
-    shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
+    isMultiSql: PropTypes.bool,
+    isEdited: PropTypes.bool,
+    isCurrentQueryFinished: PropTypes.bool,
 
     // withLcoation props
     location: PropTypes.object,
@@ -93,16 +92,20 @@ export class ExploreTableView extends PureComponent {
     // connect properties
     isPreviewMode: PropTypes.bool,
     isDatasetMetadataLoaded: PropTypes.bool,
-    loadNextRows: PropTypes.func.isRequired
+    loadNextRows: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
     columns: new Immutable.List(),
-    rows: new Immutable.List()
+    rows: new Immutable.List(),
   };
 
   static getCellStyle(column) {
-    return { width: '100%', display: 'inline-block', backgroundColor: column.color };
+    return {
+      width: "100%",
+      display: "inline-block",
+      backgroundColor: column.color,
+    };
   }
 
   static getCellWidth(column, defaultWidth) {
@@ -110,36 +113,65 @@ export class ExploreTableView extends PureComponent {
   }
 
   static tableWidth(width, wrapper, widthScale, rightTreeVisible) {
-    return (width || wrapper && (wrapper.offsetWidth - (rightTreeVisible ? RIGHT_TREE_OFFSET : 0))) * widthScale;
+    return (
+      (width ||
+        (wrapper &&
+          wrapper.offsetWidth - (rightTreeVisible ? RIGHT_TREE_OFFSET : 0))) *
+      widthScale
+    );
   }
 
   static tableHeight(height, wrapper, nodeOffsetTop) {
-    return (height || wrapper && (wrapper.offsetHeight - nodeOffsetTop));
+    return height || (wrapper && wrapper.offsetHeight - nodeOffsetTop);
   }
 
   static getDefaultColumnWidth(widthThatWillBeSet, columns) {
     const size = columns.length || 1;
-    const numberOfColumnsWithNonDefaultWidth = columns.filter(col => col.width).length;
-    const widthReservedByUserActions = columns.map(col => col.width || 0).reduce((prev, cur) => prev + cur, 0);
-    const defaultColumnWidth = (widthThatWillBeSet - widthReservedByUserActions - SCROLL_BAR_WIDTH) /
-      ((size - numberOfColumnsWithNonDefaultWidth) || 1);
-    return defaultColumnWidth > MIN_COLUMN_WIDTH ? defaultColumnWidth : MIN_COLUMN_WIDTH;
+    const numberOfColumnsWithNonDefaultWidth = columns.filter(
+      (col) => col.width
+    ).length;
+    const widthReservedByUserActions = columns
+      .map((col) => col.width || 0)
+      .reduce((prev, cur) => prev + cur, 0);
+    const defaultColumnWidth =
+      (widthThatWillBeSet - widthReservedByUserActions - SCROLL_BAR_WIDTH) /
+      (size - numberOfColumnsWithNonDefaultWidth || 1);
+    return defaultColumnWidth > MIN_COLUMN_WIDTH
+      ? defaultColumnWidth
+      : MIN_COLUMN_WIDTH;
   }
 
-  static getTableSize({ widthScale = 1, width, height, maxHeight, rightTreeVisible }, wrappers, columns, nodeOffsetTop) {
+  static getTableSize(
+    { widthScale = 1, width, height, maxHeight, rightTreeVisible },
+    wrappers,
+    columns,
+    nodeOffsetTop
+  ) {
     if (!wrappers[0] && !wrappers[1] && !width && !height) {
-      console.error('Can\'t find wrapper element, size maybe wrong');
+      console.error("Can't find wrapper element, size maybe wrong");
     }
 
-    const widthThatWillBeSet = ExploreTableView.tableWidth(width, wrappers[0], widthScale, rightTreeVisible);
-    const heightThatWillBeSet = ExploreTableView.tableHeight(height, wrappers[1], nodeOffsetTop);
-    const defaultColumnWidth = ExploreTableView.getDefaultColumnWidth(widthThatWillBeSet, columns);
+    const widthThatWillBeSet = ExploreTableView.tableWidth(
+      width,
+      wrappers[0],
+      widthScale,
+      rightTreeVisible
+    );
+    const heightThatWillBeSet = ExploreTableView.tableHeight(
+      height,
+      wrappers[1],
+      nodeOffsetTop
+    );
+    const defaultColumnWidth = ExploreTableView.getDefaultColumnWidth(
+      widthThatWillBeSet,
+      columns
+    );
 
     return Immutable.Map({
       width: widthThatWillBeSet,
       height: heightThatWillBeSet,
       maxHeight,
-      defaultColumnWidth
+      defaultColumnWidth,
     });
   }
 
@@ -153,7 +185,7 @@ export class ExploreTableView extends PureComponent {
     this.state = {
       defaultColumnWidth: 0,
       size: Immutable.Map({ width: 0, height: 0, defaultColumnWidth: 0 }),
-      columns: columns || Immutable.List([])
+      columns: columns || Immutable.List([]),
     };
   }
 
@@ -172,18 +204,27 @@ export class ExploreTableView extends PureComponent {
     if (!shallowEqual(prevProps, this.props)) {
       this.updateSize();
     }
-    if (this.props.dataset.get('datasetVersion') !== prevProps.dataset.get('datasetVersion')) {
+    if (
+      this.props.dataset.get("datasetVersion") !==
+      prevProps.dataset.get("datasetVersion")
+    ) {
       this.lastLoaded = 0;
     }
 
     // https://dremio.atlassian.net/browse/DX-5848
     // https://github.com/facebook/fixed-data-table/issues/401
     // https://github.com/facebook/fixed-data-table/issues/415
-    $('.fixedDataTableCellLayout_columnResizerContainer').on('mousedown', this.removeResizerHiddenElem);
+    $(".fixedDataTableCellLayout_columnResizerContainer").on(
+      "mousedown",
+      this.removeResizerHiddenElem
+    );
   }
 
   componentWillUnmount() {
-    $('.fixedDataTableCellLayout_columnResizerContainer').off('mousedown', this.removeResizerHiddenElem);
+    $(".fixedDataTableCellLayout_columnResizerContainer").off(
+      "mousedown",
+      this.removeResizerHiddenElem
+    );
     this.removeNoBackBtnOnScroll();
   }
 
@@ -193,32 +234,32 @@ export class ExploreTableView extends PureComponent {
     }
     if (this.lastLoaded !== offset) {
       this.lastLoaded = offset;
-      const datasetVersion = this.props.dataset.get('datasetVersion');
+      const datasetVersion = this.props.dataset.get("datasetVersion");
       this.props.loadNextRows(datasetVersion, this.props.paginationUrl, offset);
     }
   }
 
   getScrollToColumn() {
     const columns = this.state.columns;
-    const index = columns.findIndex(val => {
-      return (val && val.get) ? val.get('status') === 'HIGHLIGHTED' : false;
+    const index = columns.findIndex((val) => {
+      return val && val.get ? val.get("status") === "HIGHLIGHTED" : false;
     });
 
     if (index === -1) {
       return null;
     }
 
-    const defaultColumnWidth = this.state.size.get('defaultColumnWidth');
-    const tableWidth = this.state.size.get('width');
+    const defaultColumnWidth = this.state.size.get("defaultColumnWidth");
+    const tableWidth = this.state.size.get("width");
     const visibleColumns = tableWidth / defaultColumnWidth;
     const offset = Math.floor(visibleColumns / 2);
-    return (index + offset) > columns.size - 1
+    return index + offset > columns.size - 1
       ? index + (columns.size - index - 1)
       : index + offset;
   }
 
   getColumnsToCompare(columns) {
-    return columns.map(c => {
+    return columns.map((c) => {
       const { hidden, index, name, type, status } = c.toJS();
       return Immutable.Map({ hidden, index, name, type, status });
     });
@@ -226,10 +267,12 @@ export class ExploreTableView extends PureComponent {
 
   shouldShowNoData(viewState) {
     const { rows, dataset } = this.props;
-    return !viewState.get('isInProgress') &&
-      !viewState.get('isFailed') &&
-      Boolean(dataset.get('datasetVersion') || dataset.get('isNewQuery')) &&
-      !rows.size;
+    return (
+      !viewState.get("isInProgress") &&
+      !viewState.get("isFailed") &&
+      Boolean(dataset.get("datasetVersion") || dataset.get("isNewQuery")) &&
+      !rows.size
+    );
   }
 
   needUpdateColumns(nextProps) {
@@ -240,7 +283,9 @@ export class ExploreTableView extends PureComponent {
     if (!this.state.columns.size) {
       return true;
     }
-    return !this.getColumnsToCompare(newColumns).equals(this.getColumnsToCompare(this.state.columns));
+    return !this.getColumnsToCompare(newColumns).equals(
+      this.getColumnsToCompare(this.state.columns)
+    );
   }
 
   updateColumns({ columns }) {
@@ -248,12 +293,12 @@ export class ExploreTableView extends PureComponent {
   }
 
   updateSize = (width) => {
-    const columns = this.state.columns.toJS().filter(col => !col.hidden);
+    const columns = this.state.columns.toJS().filter((col) => !col.hidden);
     const node = ReactDOM.findDOMNode(this);
     const nodeOffset = $(node).offset();
     const nodeOffsetTop = nodeOffset && nodeOffset.top;
-    const wrapperForWidth = $(node).parents('.explorePage')[0];
-    const wrapperForHeight = document.querySelector('#grid-page');
+    const wrapperForWidth = $(node).parents(".explorePage")[0];
+    const wrapperForHeight = document.querySelector("#grid-page");
     const wrappers = [wrapperForWidth, wrapperForHeight];
     //this need to fix DX-8244 due to re-render of table because of horizontal scroll clipping
     let height = this.props.height;
@@ -262,8 +307,13 @@ export class ExploreTableView extends PureComponent {
       height = this.props.getTableHeight(node);
     }
 
-    const size = ExploreTableView.getTableSize({ ...this.props, height, width }, wrappers, columns, nodeOffsetTop);
-    this.setState(state => {
+    const size = ExploreTableView.getTableSize(
+      { ...this.props, height, width },
+      wrappers,
+      columns,
+      nodeOffsetTop
+    );
+    this.setState((state) => {
       if (!state.size.equals(size)) {
         return { size };
       }
@@ -279,31 +329,37 @@ export class ExploreTableView extends PureComponent {
   handleColumnResizeEnd(width, columnKey) {
     const { columns } = this.state;
     const resizeColumns = this.state.columns.toJS();
-    const resizeColumnIndex = resizeColumns.findIndex(({ index }) => index === columnKey);
+    const resizeColumnIndex = resizeColumns.findIndex(
+      ({ index }) => index === columnKey
+    );
 
     // https://dremio.atlassian.net/browse/DX-5848
     // https://github.com/facebook/fixed-data-table/issues/401
     // https://github.com/facebook/fixed-data-table/issues/415
-    $('.fixedDataTableColumnResizerLineLayout_main').addClass('fixedDataTableColumnResizerLineLayout_hiddenElem');
+    $(".fixedDataTableColumnResizerLineLayout_main").addClass(
+      "fixedDataTableColumnResizerLineLayout_hiddenElem"
+    );
 
     this.setState({
-      columns: columns.setIn([resizeColumnIndex, 'width'], width)
+      columns: columns.setIn([resizeColumnIndex, "width"], width),
     });
 
     this.updateSize();
   }
 
   removeResizerHiddenElem = () => {
-    $('.fixedDataTableColumnResizerLineLayout_main').removeClass('fixedDataTableColumnResizerLineLayout_hiddenElem');
+    $(".fixedDataTableColumnResizerLineLayout_main").removeClass(
+      "fixedDataTableColumnResizerLineLayout_hiddenElem"
+    );
   };
 
   addNoBackBtnOnScroll = () => {
-    $('html').addClass(DISABLE_BACK_ON_SCROLL_CLASSNAME);
-  }
+    $("html").addClass(DISABLE_BACK_ON_SCROLL_CLASSNAME);
+  };
 
   removeNoBackBtnOnScroll = () => {
-    $('html').removeClass(DISABLE_BACK_ON_SCROLL_CLASSNAME);
-  }
+    $("html").removeClass(DISABLE_BACK_ON_SCROLL_CLASSNAME);
+  };
 
   renderColumnHeader(column, width) {
     return (
@@ -315,16 +371,17 @@ export class ExploreTableView extends PureComponent {
         updateColumnName={this.props.updateColumnName}
         column={column}
         width={width}
-        defaultColumnWidth={this.state.size.get('defaultColumnWidth')}
+        defaultColumnWidth={this.state.size.get("defaultColumnWidth")}
         openDetailsWizard={this.props.openDetailsWizard}
         makeTransform={this.props.makeTransform}
         preconfirmTransform={this.props.preconfirmTransform}
         isDumbTable={this.props.isDumbTable}
+        isEdited={this.props.isEdited}
       />
     );
   }
 
-  renderCell(column, renderInvisibleSymbols) {
+  renderCell(column) {
     const cellStyle = ExploreTableView.getCellStyle(column);
 
     return (
@@ -341,7 +398,6 @@ export class ExploreTableView extends PureComponent {
         onCellTextSelect={this.props.onCellTextSelect}
         columns={this.props.columns}
         isDumbTable={this.props.isDumbTable}
-        shouldRenderInvisibles={renderInvisibleSymbols}
       />
     );
   }
@@ -349,24 +405,11 @@ export class ExploreTableView extends PureComponent {
   renderColumns() {
     const columns = this.state.columns.toJS();
     const filteredColumns = columns.filter((column) => !column.hidden);
-    const {
-      shouldRenderInvisibles,
-      location
-    } = this.props;
 
-    return filteredColumns.map(column => {
-      const cellWidth = column.width || this.state.size.get('defaultColumnWidth');
-      const {
-        state: {
-          columnName,
-          toType,
-          transformType
-        } = {}
-      } = location || {};
-      const isTransformMode = toType || transformType;
+    return filteredColumns.map((column) => {
+      const cellWidth =
+        column.width || this.state.size.get("defaultColumnWidth");
 
-      const renderInvisible = shouldRenderInvisibles
-        || (isTransformMode && isTransformMode && columnName === column.name);
       return (
         <Column
           key={column.name}
@@ -375,7 +418,7 @@ export class ExploreTableView extends PureComponent {
           isResizable
           allowCellsRecycling
           columnKey={column.index}
-          cell={this.renderCell(column, renderInvisible)}
+          cell={this.renderCell(column)}
         />
       );
     });
@@ -383,7 +426,7 @@ export class ExploreTableView extends PureComponent {
 
   renderTable() {
     const { dataset, columns, rows } = this.props;
-    if ((!dataset.get('isNewQuery')) && columns.size) {
+    if (!dataset.get("isNewQuery") && columns.size) {
       const scrollToColumn = this.getScrollToColumn();
       return (
         <AutoSizer>
@@ -397,16 +440,16 @@ export class ExploreTableView extends PureComponent {
               >
                 <Table
                   rowHeight={DEFAULT_ROW_HEIGHT}
-                  ref='table'
                   rowsCount={rows.size}
                   width={width}
                   height={height}
-                  overflowX='auto'
-                  overflowY='auto'
+                  overflowX="auto"
+                  overflowY="auto"
                   scrollToColumn={scrollToColumn}
                   onColumnResizeEndCallback={this.handleColumnResizeEnd}
                   isColumnResizing={false}
-                  headerHeight={DEFAULT_ROW_HEIGHT}>
+                  headerHeight={DEFAULT_ROW_HEIGHT}
+                >
                   {this.renderColumns()}
                 </Table>
               </div>
@@ -418,48 +461,76 @@ export class ExploreTableView extends PureComponent {
   }
 
   getViewState() {
-    const { exploreViewState, cardsViewState, pageType, tableViewState } = this.props;
+    const { exploreViewState, cardsViewState, pageType, tableViewState } =
+      this.props;
 
-    if (tableViewState && (tableViewState.get('isInProgress') || tableViewState.get('error'))) {
+    if (
+      tableViewState &&
+      (tableViewState.get("isInProgress") || tableViewState.get("error"))
+    ) {
       return tableViewState;
     }
 
-    return pageType === 'default' || !(cardsViewState && cardsViewState.size)
-      || exploreViewState.get('isInProgress') ? exploreViewState : cardsViewState;
+    return pageType === "default" ||
+      !(cardsViewState && cardsViewState.size) ||
+      exploreViewState.get("isInProgress")
+      ? exploreViewState
+      : cardsViewState;
   }
 
   render() {
     const columns = this.state.columns;
-    const height = this.state.size.get('height');
-    const { pageType, intl, isPreviewMode, dataset, isDatasetMetadataLoaded } = this.props;
-    const showMessage = pageType === 'default';
+    const tableHeight = this.state.size.get("height");
+    const {
+      pageType,
+      intl,
+      isPreviewMode,
+      dataset,
+      isDatasetMetadataLoaded,
+      isMultiSql,
+      isCurrentQueryFinished,
+    } = this.props;
+    const showMessage = pageType === "default" && !isMultiSql;
     const viewState = this.getViewState();
-    const noDataMessageId = isPreviewMode ? 'Dataset.NoPreviewData' : 'Dataset.NoData';
-    const messageId = dataset.get('isNewQuery') ? 'Dataset.NewQueryNoData' : noDataMessageId;
+    const noDataMessageId = isPreviewMode
+      ? "Dataset.NoPreviewData"
+      : "Dataset.NoData";
+    const messageId = dataset.get("isNewQuery")
+      ? "Dataset.NewQueryNoData"
+      : noDataMessageId;
 
     // we should not block header if it is presented and actual metadata is loaded
-    const maskStyle = isDatasetMetadataLoaded && columns.size ? { top: DEFAULT_ROW_HEIGHT } : null;
+    const maskStyle =
+      isDatasetMetadataLoaded && columns.size
+        ? { top: DEFAULT_ROW_HEIGHT }
+        : null;
 
     return (
-      <div className='fixed-data-table' style={{ width: '100%' }}>
+      <div className="fixed-data-table" style={{ width: "100%" }}>
         <ViewStateWrapper
-          style={{ overflow: 'hidden', height: '100%' }}
+          style={{ overflow: "hidden", height: "100%" }}
           spinnerDelay={columns.size ? TIME_BEFORE_SPINNER : 0}
           viewState={viewState}
           showMessage={showMessage}
           hideChildrenWhenFailed={false}
           overlayStyle={maskStyle}
+          hideSpinner={isCurrentQueryFinished}
         >
-          {this.props.isGrayed && <div data-qa='table-grayed-out' style={{ ...styles.grayed, ...maskStyle }} />}
+          {this.props.isGrayed && (
+            <div
+              data-qa="table-grayed-out"
+              style={{ ...styles.grayed, ...(maskStyle || {}) }}
+            />
+          )}
           {this.renderTable()}
           <ViewCheckContent
             message={intl.formatMessage({ id: messageId })}
             viewState={viewState}
             dataIsNotAvailable={this.shouldShowNoData(viewState)}
             customStyle={{
-              bottom: height / 2,
-              position: 'absolute',
-              height: 0
+              bottom: tableHeight / 2,
+              position: "absolute",
+              height: 0,
             }}
           />
         </ViewStateWrapper>
@@ -467,16 +538,20 @@ export class ExploreTableView extends PureComponent {
     );
   }
 }
+ExploreTableView = injectIntl(ExploreTableView);
 
-export default connect(mapStateToProps, mapDispatchToProps)(withLocation(ExploreTableView));
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(withLocation(ExploreTableView));
 
 const styles = {
   grayed: {
-    position: 'absolute',
-    height: '100%',
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    position: "absolute",
+    height: "100%",
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
     zIndex: 2,
-    pointerEvents: 'none'
-  }
+    pointerEvents: "none",
+  },
 };

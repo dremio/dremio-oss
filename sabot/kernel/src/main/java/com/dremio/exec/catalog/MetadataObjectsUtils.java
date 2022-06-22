@@ -146,12 +146,29 @@ public final class MetadataObjectsUtils {
     if (newExtended instanceof SupportsIcebergMetadata) {
       final SupportsIcebergMetadata newMetadata = (SupportsIcebergMetadata) newExtended;
       final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
+      final DatasetStats deleteStats = newMetadata.getDeleteStats();
+      final DatasetStats deleteManifestStats = newMetadata.getDeleteManifestStats();
 
       final IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(newMetadata.getMetadataFileLocation());
-      icebergMetadata.setPartitionSpecs(toProtostuff(newMetadata.getPartitionSpecs()));
+      icebergMetadata.setJsonSchema(newMetadata.getIcebergSchema());
+      icebergMetadata.setPartitionSpecsJsonMap(toProtostuff(newMetadata.getPartitionSpecs()));
       if (newMetadata.getSnapshotId() > 0) {
         icebergMetadata.setSnapshotId(newMetadata.getSnapshotId());
+      }
+      if (deleteStats != null) {
+        icebergMetadata.setDeleteStats(new ScanStats()
+            .setScanFactor(deleteStats.getScanFactor())
+            .setType(deleteStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT :
+                ScanStatsType.NO_EXACT_ROW_COUNT)
+            .setRecordCount(deleteStats.getRecordCount()));
+      }
+      if (deleteManifestStats != null) {
+        icebergMetadata.setDeleteManifestStats(new ScanStats()
+            .setScanFactor(deleteManifestStats.getScanFactor())
+            .setType(deleteManifestStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT :
+                ScanStatsType.NO_EXACT_ROW_COUNT)
+            .setRecordCount(deleteManifestStats.getRecordCount()));
       }
       pds.setIcebergMetadata(icebergMetadata);
     } else { // TODO(DX-43317): try deprecated way of populating iceberg metadata, until DX-43317 is resolved.

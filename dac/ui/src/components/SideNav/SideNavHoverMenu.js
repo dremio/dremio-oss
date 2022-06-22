@@ -14,32 +14,41 @@
  * limitations under the License.
  */
 
-import React, { useState, useRef } from 'react';
-import {useIntl} from 'react-intl';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { Tooltip } from 'dremio-ui-lib';
-import Art from '@app/components/Art';
+import React, { useState, useRef } from "react";
+import { useIntl } from "react-intl";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { Tooltip } from "dremio-ui-lib";
+import Art from "@app/components/Art";
 
-import './SideNav.less';
-import './SideNavHoverMenu.less';
+import "./SideNav.less";
+import "./SideNavHoverMenu.less";
 
 const SideNavHoverMenu = (props) => {
-  const  {tooltipStringId, tooltipString, menu, icon, divBlob, menuDisplayUp, isActive} = props;
+  const {
+    tooltipStringId,
+    tooltipString,
+    menu,
+    icon,
+    divBlob,
+    menuDisplayUp,
+    isActive,
+  } = props;
 
   const intl = useIntl();
   const linkBtnRef = useRef();
   const menuRef = useRef();
-  const [popMenuExtraClass, popupMenuClass] = useState(' --hide');
+  const [popMenuExtraClass, popupMenuClass] = useState(" --hide");
   const [showPopup, setShowPopup] = useState(false);
   const showPopupWaitTime = 250;
   const hidePopupWaitTime = 250;
 
-  const menuPosition = '--narrow';
-  const menuLinkMenuDisplayed = popMenuExtraClass === ' --show' ? ' --menuDisplayed' : '';
+  const menuPosition = "--narrow";
+  const menuLinkMenuDisplayed =
+    popMenuExtraClass === " --show" ? " --menuDisplayed" : "";
 
   const mouseEnter = () => {
-    if (popMenuExtraClass === ' -show') {
+    if (popMenuExtraClass === " -show") {
       return;
     }
 
@@ -50,7 +59,7 @@ const SideNavHoverMenu = (props) => {
 
     linkBtnRef.current.showTimer = setTimeout(() => {
       setShowPopup(true);
-      popupMenuClass(' --show');
+      popupMenuClass(" --show");
       if (linkBtnRef.current) {
         linkBtnRef.current.showTimer = null;
       }
@@ -61,14 +70,14 @@ const SideNavHoverMenu = (props) => {
     if (linkBtnRef.current && linkBtnRef.current.showTimer) {
       clearTimeout(linkBtnRef.current.showTimer);
       linkBtnRef.current.showTimer = null;
-      popupMenuClass(' --hide');
+      popupMenuClass(" --hide");
       setShowPopup(false);
 
       //return;
     }
 
     linkBtnRef.current.hideTimer = setTimeout(() => {
-      popupMenuClass(' --hide');
+      popupMenuClass(" --hide");
       setShowPopup(false);
       if (linkBtnRef.current) {
         linkBtnRef.current.hideTimer = null;
@@ -76,19 +85,17 @@ const SideNavHoverMenu = (props) => {
     }, hidePopupWaitTime);
   };
 
-
-  const closeMenu = () => {
-  };
+  const closeMenu = () => {};
 
   // adjust the position of the menu
   let menuAdjustment = 0;
   if (menuDisplayUp) {
     menuAdjustment = linkBtnRef.current ? linkBtnRef.current.offsetTop : 0;
     menuAdjustment -= menuRef.current ? menuRef.current.clientHeight : 0;
-    menuAdjustment = {top: menuAdjustment + 64 + 'px'};
+    menuAdjustment = { top: menuAdjustment + 64 + "px" };
   } else {
     menuAdjustment = linkBtnRef.current ? linkBtnRef.current.offsetTop : 0;
-    menuAdjustment = {top: menuAdjustment + 'px'};
+    menuAdjustment = { top: menuAdjustment + "px" };
   }
 
   // get the tooltip
@@ -96,34 +103,46 @@ const SideNavHoverMenu = (props) => {
   if (tooltipStringId) {
     stringObj.id = tooltipStringId;
   }
-  const tooltip = tooltipString !== undefined ? tooltipString : intl.formatMessage(stringObj);
+  const tooltip =
+    tooltipString !== undefined ? tooltipString : intl.formatMessage(stringObj);
 
   return (
-    <div className={classNames('sideNav-item', isActive)} ref={linkBtnRef}>
+    <div className={classNames("sideNav-item", isActive)} ref={linkBtnRef}>
       <Tooltip title={tooltip}>
         <div
-          className={classNames('sideNav-item__hoverMenu', isActive, menuLinkMenuDisplayed)}
+          className={classNames(
+            "sideNav-item__hoverMenu",
+            isActive,
+            menuLinkMenuDisplayed
+          )}
           onMouseEnter={(e) => mouseEnter(e)}
           onMouseLeave={(e) => mouseLeave(e)}
         >
-          <div className='sideNav-items'>
-            {icon &&
-              <div className='sideNav-item__icon'>
-                <Art src={icon} alt={tooltip}  />
+          <div className="sideNav-items">
+            {icon && (
+              <div className="sideNav-item__icon">
+                <Art src={icon} alt={tooltip} />
               </div>
-            }
+            )}
             {divBlob && divBlob}
           </div>
         </div>
       </Tooltip>
-      {showPopup && <div ref={menuRef}
-        className={classNames('sideNav-menu', popMenuExtraClass, menuPosition)}
-        style={{...menuAdjustment}}
-        onMouseEnter={(e) => mouseEnter(e)}
-        onMouseLeave={(e) => mouseLeave(e)}
-      >
-        {React.cloneElement(menu, {closeMenu})}
-      </div>}
+      {showPopup && (
+        <div
+          ref={menuRef}
+          className={classNames(
+            "sideNav-menu",
+            popMenuExtraClass,
+            menuPosition
+          )}
+          style={{ ...menuAdjustment }}
+          onMouseEnter={(e) => mouseEnter(e)}
+          onMouseLeave={(e) => mouseLeave(e)}
+        >
+          {React.cloneElement(menu, { closeMenu })}
+        </div>
+      )}
     </div>
   );
 };
@@ -135,8 +154,7 @@ SideNavHoverMenu.propTypes = {
   icon: PropTypes.string,
   divBlob: PropTypes.object,
   isActive: PropTypes.string,
-  menuDisplayUp: PropTypes.bool
+  menuDisplayUp: PropTypes.bool,
 };
-
 
 export default SideNavHoverMenu;

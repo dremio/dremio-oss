@@ -13,31 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import LoginTitle from '@app/pages/AuthenticationPage/components/LoginTitle';
-import { welcomePage, contentWrapper } from './WelcomePage.less';
+import LoginTitle from "@app/pages/AuthenticationPage/components/LoginTitle";
+import { welcomePage, contentWrapper } from "./WelcomePage.less";
 
 export class WelcomePage extends Component {
   static propTypes = {
     title: PropTypes.node.isRequired,
     contentClassName: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   render() {
     const { title, children, contentClassName } = this.props;
 
     return (
-      <div className={classNames('page', welcomePage)}>
+      <div className={classNames("page", welcomePage)}>
         <div className={classNames(contentWrapper, contentClassName)}>
-          <LoginTitle key='title' subTitle={title} style={{marginBottom: 20}}/>
+          <LoginTitle
+            key="title"
+            subTitle={title}
+            style={{ marginBottom: 20 }}
+          />
           {children}
         </div>
       </div>
-
     );
   }
 }

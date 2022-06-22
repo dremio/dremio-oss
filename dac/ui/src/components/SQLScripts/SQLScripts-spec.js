@@ -13,49 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { render } from 'rtlUtils';
-import { fireEvent } from '@testing-library/react';
-import Immutable from 'immutable';
-import { TestSqlScripts as SQLScripts } from './SQLScripts';
+import { render } from "rtlUtils";
+import { fireEvent } from "@testing-library/react";
+import Immutable from "immutable";
+import { TestSqlScripts as SQLScripts } from "./SQLScripts";
 
 const testScripts = [
   {
-    'name':'NewScript1',
-    'createdAt':1643332135184,
-    'createdBy':'d13106f2-bd04-4bfe-aba7-e32d8e2f629a',
-    'description':'',
-    'modifiedAt':1643335392379,
-    'modifiedBy':'d13106f2-bd04-4bfe-aba7-e32d8e2f629a',
-    'context':[
-      '@dremio'
-    ],
-    'content':'SELECT * FROM NotaKoreanName',
-    'id':'b8233efa-0df2-4a53-bc79-d4ee8345d151'
+    name: "NewScript1",
+    createdAt: 1643332135184,
+    createdBy: "d13106f2-bd04-4bfe-aba7-e32d8e2f629a",
+    description: "",
+    modifiedAt: 1643335392379,
+    modifiedBy: "d13106f2-bd04-4bfe-aba7-e32d8e2f629a",
+    context: ["@dremio"],
+    content: "SELECT * FROM NotaKoreanName",
+    id: "b8233efa-0df2-4a53-bc79-d4ee8345d151",
   },
   {
-    'name':'NewQuery2',
-    'createdAt':1643331853618,
-    'createdBy':'d13106f2-bd04-4bfe-aba7-e32d8e2f629a',
-    'description':'',
-    'modifiedAt':1643332110158,
-    'modifiedBy':'d13106f2-bd04-4bfe-aba7-e32d8e2f629a',
-    'context':[
-      '@dremio',
-      'TestingsPath',
-      'Hello',
-      'OceanBottom',
-      'OceanVolcanoes'
+    name: "NewQuery2",
+    createdAt: 1643331853618,
+    createdBy: "d13106f2-bd04-4bfe-aba7-e32d8e2f629a",
+    description: "",
+    modifiedAt: 1643332110158,
+    modifiedBy: "d13106f2-bd04-4bfe-aba7-e32d8e2f629a",
+    context: [
+      "@dremio",
+      "TestingsPath",
+      "Hello",
+      "OceanBottom",
+      "OceanVolcanoes",
     ],
-    'content':'SELECT * FROM EarthCore limit 4',
-    'id':'3b81385d-d044-4247-acca-83855207148a'
-  }
+    content: "SELECT * FROM EarthCore limit 4",
+    id: "3b81385d-d044-4247-acca-83855207148a",
+  },
 ];
 
-describe('SQLScripts', () => {
+describe("SQLScripts", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       scripts: testScripts,
+      mineScripts: testScripts,
       user: Immutable.Map(),
       activeScript: {},
       currentSql: null,
@@ -63,52 +62,71 @@ describe('SQLScripts', () => {
       updateSQLScript: sinon.spy(),
       deleteScript: sinon.spy(),
       setActiveScript: sinon.spy(),
-      showConfirmationDialog: sinon.spy()
+      showConfirmationDialog: sinon.spy(),
+      router: { push: sinon.spy() },
+      resetQueryState: sinon.spy(),
     };
   });
 
-  it('should render with default/empty configs', () => {
-    const { container, getByTestId, queryByText } = render(<SQLScripts {...minimalProps} scripts={[]} />);
-    expect(getByTestId('sqlScripts')).to.exist;
-    expect(queryByText('Date')).to.exist;
-    expect(container.querySelector('.--sortArrow.--desc')).to.exist;
-    expect(container.querySelector('.sqlScripts__empty')).to.exist;
+  it("should render with default/empty configs", () => {
+    const { container, getByTestId, queryByText } = render(
+      <SQLScripts {...minimalProps} scripts={[]} />
+    );
+    expect(getByTestId("sqlScripts")).to.exist;
+    expect(queryByText("Date")).to.exist;
+    expect(container.querySelector(".--sortArrow.--desc")).to.exist;
+    expect(container.querySelector(".sqlScripts__empty")).to.exist;
   });
 
-  it('should render the scripts, none selected', () => {
+  it("should render the scripts, none selected", () => {
     const { container, getByTestId } = render(<SQLScripts {...minimalProps} />);
-    expect(getByTestId('sqlScripts')).to.exist;
-    expect(container.querySelector('.MuiList-root')).to.exist;
-    expect(container.querySelectorAll('.sqlScripts__menu-item').length).to.equal(2);
-    expect(container.querySelector('.sqlScripts__menu-item.--selected')).to.not.exist;
+    expect(getByTestId("sqlScripts")).to.exist;
+    expect(container.querySelector(".MuiList-root")).to.exist;
+    expect(
+      container.querySelectorAll(".sqlScripts__menu-item").length
+    ).to.equal(2);
+    expect(container.querySelector(".sqlScripts__menu-item.--selected")).to.not
+      .exist;
   });
 
   // keyDown fireEvent isn't working
-  it.skip('should render the filter the scripts by search key', async () => {
-    const { container, getByTestId, getByText, queryByText } = render(<SQLScripts {...minimalProps} />);
-    expect(getByTestId('sqlScripts')).to.exist;
-    expect(container.querySelector('.MuiList-root')).to.exist;
-    expect(container.querySelectorAll('.sqlScripts__menu-item').length).to.equal(2);
-    expect(getByText('NewScript1')).to.exist;
-    expect(getByText('NewQuery2')).to.exist;
+  it.skip("should render the filter the scripts by search key", async () => {
+    const { container, getByTestId, getByText, queryByText } = render(
+      <SQLScripts {...minimalProps} />
+    );
+    expect(getByTestId("sqlScripts")).to.exist;
+    expect(container.querySelector(".MuiList-root")).to.exist;
+    expect(
+      container.querySelectorAll(".sqlScripts__menu-item").length
+    ).to.equal(2);
+    expect(getByText("NewScript1")).to.exist;
+    expect(getByText("NewQuery2")).to.exist;
 
-    fireEvent.keyDown(getByTestId('sqlScripts__search'), { key: 's', code: 'KeyS' });
-    expect(container.querySelectorAll('.sqlScripts__menu-item').length).to.equal(1);
-    expect(getByText('NewScript1')).to.exist;
-    expect(queryByText('NewQuery2')).to.not.exist;
+    fireEvent.keyDown(getByTestId("sqlScripts__search"), {
+      key: "s",
+      code: "KeyS",
+    });
+    expect(
+      container.querySelectorAll(".sqlScripts__menu-item").length
+    ).to.equal(1);
+    expect(getByText("NewScript1")).to.exist;
+    expect(queryByText("NewQuery2")).to.not.exist;
   });
 
   // could only get setActiveScript to be recognized by excluding connect from SQLScripts
-  it('should select a script', () => {
+  it("should select a script", () => {
     const { container } = render(<SQLScripts {...minimalProps} />);
-    expect(container.querySelector('.MuiList-root')).to.exist;
-    expect(container.querySelectorAll('.sqlScripts__menu-item').length).to.equal(2);
-    fireEvent.click(container.querySelectorAll('.sqlScripts__menu-item')[0]);
-    expect(minimalProps.setActiveScript).to.be.calledWith({ script: {
-      ...testScripts[0],
-      colors: { backgroundColor: '#D02362', color: '#FFF' },
-      userNameFirst2: undefined
-    }});
+    expect(container.querySelector(".MuiList-root")).to.exist;
+    expect(
+      container.querySelectorAll(".sqlScripts__menu-item").length
+    ).to.equal(2);
+    fireEvent.click(container.querySelectorAll(".sqlScripts__menu-item")[0]);
+    expect(minimalProps.setActiveScript).to.be.calledWith({
+      script: {
+        ...testScripts[0],
+        colors: { backgroundColor: "#D02362", color: "#FFF" },
+        userNameFirst2: undefined,
+      },
+    });
   });
-
 });

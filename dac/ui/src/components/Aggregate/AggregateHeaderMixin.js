@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 function AggregateFooterMixin(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     checkToRenderClearAllConditionally() {
       return true;
-    }
+    },
   });
   return input;
 }

@@ -23,7 +23,6 @@ import org.apache.calcite.sql.SqlUnresolvedFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionOperator;
 import com.dremio.exec.catalog.TableVersionType;
 
 /**
@@ -38,10 +37,9 @@ public class SqlVersionedTableMacroCall extends SqlBasicCall {
   private final SqlIdentifier alias;
 
   public SqlVersionedTableMacroCall(SqlOperator operator, SqlNode[] operands, TableVersionType tableVersionType,
-                                    TableVersionOperator tableVersionOperator, SqlNode versionSpecifier,
-                                    SqlIdentifier alias, SqlParserPos pos) {
+                                    SqlNode versionSpecifier, SqlIdentifier alias, SqlParserPos pos) {
     super(operator, operands, pos);
-    this.tableVersionSpec = new TableVersionSpec(tableVersionType, tableVersionOperator, versionSpecifier);
+    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier);
     this.alias = alias;
   }
 

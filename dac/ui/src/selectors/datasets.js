@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createSelector } from 'reselect';
-import Immutable from 'immutable';
+import { createSelector } from "reselect";
+import Immutable from "immutable";
 
-import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from '@app/constants/Constants';
+import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from "@app/constants/Constants";
 
 function _getResourceName(resourceName) {
-  if (resourceName === 'home' || !resourceName) {
+  if (resourceName === "home" || !resourceName) {
     return HOME_SPACE_NAME;
-  } else if (resourceName === 'recent') {
+  } else if (resourceName === "recent") {
     return RECENT_SPACE_NAME;
   }
   return resourceName;
 }
 
 function _getPageType(pageType) {
-  if (pageType === 'home' || pageType === 'recent' || !pageType) {
-    return 'space';
+  if (pageType === "home" || pageType === "recent" || !pageType) {
+    return "space";
   }
   return pageType;
 }
@@ -46,24 +46,26 @@ function _getDataListToShow(state, props, name) {
 
 function getDatasetsList(state, props) {
   const { entities } = state.resources;
-  return _getDataListToShow(state, props, 'datasets').map(name => {
-    const dataset = entities.getIn(['dataset', name]);
-    return dataset.set('datasetConfig', entities.getIn(['datasetConfig', dataset.get('datasetConfig')]));
-  }
-  );
+  return _getDataListToShow(state, props, "datasets").map((name) => {
+    const dataset = entities.getIn(["dataset", name]);
+    return dataset.set(
+      "datasetConfig",
+      entities.getIn(["datasetConfig", dataset.get("datasetConfig")])
+    );
+  });
 }
 
 function getFoldersList(state, props) {
   const { entities } = state.resources;
-  return _getDataListToShow(state, props, 'folders').map(name => {
-    return entities.getIn(['folder', name]);
+  return _getDataListToShow(state, props, "folders").map((name) => {
+    return entities.getIn(["folder", name]);
   });
 }
 
 function getFileList(state, props) {
   const { entities } = state.resources;
-  return _getDataListToShow(state, props, 'files').map(name => {
-    return entities.getIn(['file', name]);
+  return _getDataListToShow(state, props, "files").map((name) => {
+    return entities.getIn(["file", name]);
   });
 }
 
@@ -75,12 +77,19 @@ function getResourceProgressState(state, props) {
   if (!resource) {
     return false;
   }
-  const filesSize = resource.get('files') && resource.get('files').size;
-  const folderssSize = resource.get('folders') && resource.get('folders').size;
-  const datasetsSize = resource.get('datasets') && resource.get('datasets').size;
-  const physicalDatasetsSize = resource.get('physicalDatasets') && resource.get('physicalDatasets').size;
-  return resource.get('isInProgress') && !filesSize &&
-    !folderssSize && !datasetsSize && !physicalDatasetsSize;
+  const filesSize = resource.get("files") && resource.get("files").size;
+  const folderssSize = resource.get("folders") && resource.get("folders").size;
+  const datasetsSize =
+    resource.get("datasets") && resource.get("datasets").size;
+  const physicalDatasetsSize =
+    resource.get("physicalDatasets") && resource.get("physicalDatasets").size;
+  return (
+    resource.get("isInProgress") &&
+    !filesSize &&
+    !folderssSize &&
+    !datasetsSize &&
+    !physicalDatasetsSize
+  );
 }
 
 // function _getRecentSpace(spaces) {
@@ -97,14 +106,19 @@ function getResourceProgressState(state, props) {
 // }
 
 function _isEntityExpanded(state, entity) {
-  return state.ui.getIn(['resourceTree', 'nodes', entity.get('id'), 'expanded']);
+  return state.ui.getIn([
+    "resourceTree",
+    "nodes",
+    entity.get("id"),
+    "expanded",
+  ]);
 }
 
 function createTreeNode(entity, expanded) {
   return Immutable.Map({
-    id: entity.get('id'),
+    id: entity.get("id"),
     entity,
-    expanded
+    expanded,
   });
 }
 
@@ -112,16 +126,22 @@ function _getTreeChildrenFromContents(state, contents) {
   if (!contents) {
     return Immutable.Map();
   }
-  const {entities} = state.resources;
+  const { entities } = state.resources;
   return Immutable.List().concat(
-    contents.get('folders').map(key =>
-      _getTreeNodeFromEntity(state, entities.getIn(['folder', key]))),
-    contents.get('files').map(key =>
-      createTreeNode(entities.getIn(['file', key]))),
-    contents.get('datasets').map(key =>
-      createTreeNode(entities.getIn(['dataset', key]))),
-    contents.get('physicalDatasets').map(key =>
-      createTreeNode(entities.getIn(['physicalDataset', key])))
+    contents
+      .get("folders")
+      .map((key) =>
+        _getTreeNodeFromEntity(state, entities.getIn(["folder", key]))
+      ),
+    contents
+      .get("files")
+      .map((key) => createTreeNode(entities.getIn(["file", key]))),
+    contents
+      .get("datasets")
+      .map((key) => createTreeNode(entities.getIn(["dataset", key]))),
+    contents
+      .get("physicalDatasets")
+      .map((key) => createTreeNode(entities.getIn(["physicalDataset", key])))
   );
 }
 
@@ -131,47 +151,43 @@ function _getTreeChildrenFromContents(state, contents) {
 function _getTreeNodeFromEntity(state, entity) {
   const expanded = _isEntityExpanded(state, entity);
   if (expanded) {
-    return createTreeNode(entity, expanded)
-      .set('children', _getTreeChildrenFromContents(state, entity.get('contents')));
+    return createTreeNode(entity, expanded).set(
+      "children",
+      _getTreeChildrenFromContents(state, entity.get("contents"))
+    );
   }
   return createTreeNode(entity);
 }
 
 const _getSummaryDataset = (state, fullPath) => {
-  return state.resources.entities.getIn(['summaryDataset', fullPath]) || Immutable.Map();
+  return (
+    state.resources.entities.getIn(["summaryDataset", fullPath]) ||
+    Immutable.Map()
+  );
 };
 
 export const getSummaryDataset = createSelector(
-  [ _getSummaryDataset ],
-  datasets => {
+  [_getSummaryDataset],
+  (datasets) => {
     return datasets;
   }
 );
 
-export const getDatasets = createSelector(
-  [ getDatasetsList ],
-  datasets => {
-    return datasets;
-  }
-);
+export const getDatasets = createSelector([getDatasetsList], (datasets) => {
+  return datasets;
+});
 
-export const getFolders = createSelector(
-  [ getFoldersList ],
-  folders => {
-    return folders;
-  }
-);
+export const getFolders = createSelector([getFoldersList], (folders) => {
+  return folders;
+});
 
-export const getFiles = createSelector(
-  [ getFileList ],
-  files => {
-    return files;
-  }
-);
+export const getFiles = createSelector([getFileList], (files) => {
+  return files;
+});
 
 export const isSpaceContentInProgress = createSelector(
-  [ getResourceProgressState ],
-  isInProgress => {
+  [getResourceProgressState],
+  (isInProgress) => {
     return isInProgress;
   }
 );

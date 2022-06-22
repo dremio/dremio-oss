@@ -22,8 +22,8 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.commons.lang3.tuple.Pair;
 
-import com.dremio.common.collections.Tuple;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ErrorCollector;
@@ -35,6 +35,8 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -103,13 +105,10 @@ public class ClassProducerImpl implements ClassProducer {
     }
   }
 
-  /**
-   * ONLY for Projector and Filter to use for setting up code generation to follow.
-   */
   @Override
-  public Tuple<LogicalExpression, LogicalExpression> materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
+  public LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch, boolean allowGandivaFunctions) {
     try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.materialize(options, expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
+      return ExpressionTreeMaterializer.materialize(expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true, allowGandivaFunctions);
     }
   }
 
@@ -130,6 +129,13 @@ public class ClassProducerImpl implements ClassProducer {
   @Override
   public FunctionLookupContext getFunctionLookupContext() {
     return functionLookupContext;
+  }
+
+  @Override
+  public LogicalExpression annotateTheExpression(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
+    try(ErrorCollector collector = new ErrorCollectorImpl()) {
+      return ExpressionTreeMaterializer.annotateTheExp(options, expr, functionLookupContext, collector, batch.getSchema());
+    }
   }
 
   public class ProducerFunctionContext implements FunctionContext {
@@ -226,5 +232,11 @@ public class ClassProducerImpl implements ClassProducer {
     public CompilationOptions getCompilationOptions() {
       return compilationOptions;
     }
+
+    @Override
+    public Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) {
+      return null;
+    }
   }
+
 }

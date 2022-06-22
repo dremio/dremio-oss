@@ -17,6 +17,8 @@ package com.dremio.exec.store.iceberg;
 
 import java.util.List;
 
+import org.apache.iceberg.ManifestContent;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -46,6 +48,7 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
     private final List<String> partitionColumns;
     private final IcebergExtendedProp icebergExtendedProp;
     private final String location;
+    private final ManifestContent manifestContent;
 
     @JsonIgnore
     private List<SplitAndPartitionInfo> splits;
@@ -60,9 +63,10 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
             @JsonProperty("columns") List<SchemaPath> columns,
             @JsonProperty("partitionColumns") List<String> partitionColumns,
             @JsonProperty("extendedProperty") ByteString extendedProperty,
-            @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp) {
+            @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
+            @JsonProperty("manifestContent") ManifestContent manifestContent) {
         this(props, location, fullSchema, null, tablePath, pluginId, datasourcePluginId,
-                columns, partitionColumns, extendedProperty, icebergExtendedProp);
+                columns, partitionColumns, extendedProperty, icebergExtendedProp, manifestContent);
     }
 
     public IcebergManifestListSubScan(
@@ -76,7 +80,8 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
             List<SchemaPath> columns,
             List<String> partitionColumns,
             ByteString extendedProperty,
-            IcebergExtendedProp icebergExtendedProp) {
+            IcebergExtendedProp icebergExtendedProp,
+            ManifestContent manifestContent) {
         super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
         this.location = location;
         this.pluginId = pluginId;
@@ -85,6 +90,7 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
         this.partitionColumns = partitionColumns;
         this.datasourcePluginId = datasourcePluginId;
         this.splits = splits;
+        this.manifestContent = manifestContent;
     }
 
     public String getLocation() {
@@ -113,6 +119,10 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
 
     public List<SplitAndPartitionInfo> getSplits() {
         return splits;
+    }
+
+    public ManifestContent getManifestContent() {
+      return manifestContent;
     }
 
     @Override

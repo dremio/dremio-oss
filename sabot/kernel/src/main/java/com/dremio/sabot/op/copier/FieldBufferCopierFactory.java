@@ -34,13 +34,13 @@ public class FieldBufferCopierFactory implements CopierFactory {
   }
 
   @Override
-  public List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs) {
+  public List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs, boolean isTargetVectorZeroedOut) {
     ImmutableList.Builder<FieldBufferCopier> copiers = ImmutableList.builder();
     Preconditions.checkArgument(inputs.size() == outputs.size(), "Input and output lists must be same size.");
     for (int i = 0; i < inputs.size(); i++) {
       final FieldVector input = inputs.get(i);
       final FieldVector output = outputs.get(i);
-      FieldBufferCopier2Util.addValueCopier(input, output, copiers, optionManager);
+      FieldBufferCopier2Util.addValueCopier(input, output, copiers, optionManager, isTargetVectorZeroedOut);
     }
     return copiers.build();
   }

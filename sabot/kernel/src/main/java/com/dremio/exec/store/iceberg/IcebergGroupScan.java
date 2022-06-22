@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -49,10 +50,15 @@ import io.protostuff.ByteString;
  * Iceberg dataset group scan
  */
 public class IcebergGroupScan extends EasyGroupScan {
+
   private final Expression icebergFilterExpression;
-  public IcebergGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns, Expression icebergFilterExpression) {
+  private final ManifestContent manifestContent;
+
+  public IcebergGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns,
+      Expression icebergFilterExpression, ManifestContent manifestContent) {
     super(props, dataset, columns);
     this.icebergFilterExpression = icebergFilterExpression;
+    this.manifestContent = manifestContent;
   }
 
   private String getMetadataLocation(TableMetadata dataset, SplitWork split) {
@@ -108,16 +114,19 @@ public class IcebergGroupScan extends EasyGroupScan {
     try {
       ByteString partitionSpecMap = null;
       long snapshotId = -1;
+      String schema = null;
 
       final IcebergMetadata icebergMetadata = getDataset().getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
       if (icebergMetadata != null) {
-        partitionSpecMap = icebergMetadata.getPartitionSpecs();
+        partitionSpecMap = icebergMetadata.getPartitionSpecs() == null ? icebergMetadata.getPartitionSpecsJsonMap(): icebergMetadata.getPartitionSpecs() ;
         snapshotId = icebergMetadata.getSnapshotId() == null ? -1 : icebergMetadata.getSnapshotId();
+        schema = icebergMetadata.getJsonSchema();
       }
       icebergExtendedProp = new IcebergExtendedProp(
           partitionSpecMap,
           IcebergSerDe.serializeToByteArray(icebergFilterExpression),
-          snapshotId
+          snapshotId,
+          schema
       );
     } catch (IOException e) {
       throw new RuntimeException("Unabled to serialized iceberg filter expression");
@@ -134,8 +143,8 @@ public class IcebergGroupScan extends EasyGroupScan {
       columns,
       getDataset().getReadDefinition().getPartitionColumnsList(),
       getDataset().getReadDefinition().getExtendedProperty(),
-      icebergExtendedProp
-      );
+      icebergExtendedProp,
+      manifestContent);
   }
 
   @Override

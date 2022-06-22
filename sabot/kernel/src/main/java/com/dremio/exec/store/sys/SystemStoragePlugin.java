@@ -18,7 +18,6 @@ package com.dremio.exec.store.sys;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -65,17 +64,11 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
   private static final String JOBS_STORAGE_PLUGIN_NAME = "__jobResultsStore";
 
   private final SabotContext context;
-  private final Predicate<String> userPredicate;
   private final JobResultInfoProvider jobResultInfoProvider;
 
   SystemStoragePlugin(SabotContext context, String name) {
-    this(context, name, s -> true);
-  }
-
-  SystemStoragePlugin(SabotContext context, String name, Predicate<String> userPredicate) {
     Preconditions.checkArgument("sys".equals(name));
     this.context = context;
-    this.userPredicate = userPredicate;
     this.jobResultInfoProvider = context.getJobResultInfoProvider();
   }
 
@@ -85,8 +78,7 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
 
   @Override
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
-    // for view permissions, see #getView
-    return userPredicate.test(user);
+    return true;
   }
 
   @Override

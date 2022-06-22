@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import SourceProperties from 'components/Forms/SourceProperties';
-import PropertyListWrapper from 'components/Forms/Wrappers/PropertyListWrapper';
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import SourceProperties from "components/Forms/SourceProperties";
+import PropertyListWrapper from "components/Forms/Wrappers/PropertyListWrapper";
 
 export default class PropertyListConfig extends FormElementConfig {
-
   constructor(props) {
     super(props);
     this._renderer = PropertyListWrapper;
@@ -34,7 +33,7 @@ export default class PropertyListConfig extends FormElementConfig {
   }
 
   addInitValues(initValues, state, props) {
-    const {editing} = props;
+    const { editing } = props;
     if (editing) {
       FormUtils.addInitValueForEditing(initValues, super.getPropName(), state);
     }
@@ -42,8 +41,9 @@ export default class PropertyListConfig extends FormElementConfig {
   }
 
   addValidators(validations) {
-    validations.functions.push(SourceProperties.getValidators(super.getConfig()));
+    validations.functions.push(
+      SourceProperties.getValidators(super.getConfig())
+    );
     return validations;
   }
-
 }

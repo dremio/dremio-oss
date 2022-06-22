@@ -13,75 +13,74 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import ColumnMenuItem from  './ColumnMenuItem';
-import DragSource from './DragSource';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import ColumnMenuItem from "./ColumnMenuItem";
+import DragSource from "./DragSource";
 
-describe('ColumnMenuItem', () => {
-
+describe("ColumnMenuItem", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
-      item: Immutable.Map({name: 'theName'}),
-      dragType: ''
+      item: Immutable.Map({ name: "theName" }),
+      dragType: "",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ColumnMenuItem {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ColumnMenuItem {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render DragSource with preventDrag undefined, .column-draggable-icon if preventDrag is undefined', () => {
-    const wrapper = shallow(<ColumnMenuItem {...minimalProps}/>);
-    expect(wrapper.find(DragSource).prop('preventDrag')).to.be.undefined;
-    expect(wrapper.find({ class: 'column-draggable-icon' })).to.have.length(0); // DX-37793: This currently built with wrong icon. Correct icon has not been designed yet.
+  it("should render DragSource with preventDrag undefined, .column-draggable-icon if preventDrag is undefined", () => {
+    const wrapper = shallow(<ColumnMenuItem {...minimalProps} />);
+    expect(wrapper.find(DragSource).prop("preventDrag")).to.be.undefined;
+    expect(wrapper.find({ class: "column-draggable-icon" })).to.have.length(0); // DX-37793: This currently built with wrong icon. Correct icon has not been designed yet.
   });
 
-  it('should render DragSource with preventDrag true and not render .column-draggable-icon if preventDrag is true', () => {
+  it("should render DragSource with preventDrag true and not render .column-draggable-icon if preventDrag is true", () => {
     const props = {
       ...minimalProps,
-      preventDrag: true
+      preventDrag: true,
     };
-    const wrapper = shallow(<ColumnMenuItem {...props}/>);
-    expect(wrapper.find(DragSource).prop('preventDrag')).to.be.true;
-    expect(wrapper.find({ class: 'column-draggable-icon' })).to.have.length(0);
+    const wrapper = shallow(<ColumnMenuItem {...props} />);
+    expect(wrapper.find(DragSource).prop("preventDrag")).to.be.true;
+    expect(wrapper.find({ class: "column-draggable-icon" })).to.have.length(0);
   });
 
-  describe('checkThatDragAvailable', () => {
+  describe("checkThatDragAvailable", () => {
     let e;
     let wrapper;
     let instance;
     beforeEach(() => {
       e = {
         preventDefault: sinon.spy(),
-        stopPropagation: sinon.spy()
+        stopPropagation: sinon.spy(),
       };
-      wrapper = shallow(<ColumnMenuItem {...minimalProps}/>);
+      wrapper = shallow(<ColumnMenuItem {...minimalProps} />);
       instance = wrapper.instance();
     });
-    it('should not call preventDefault, stopPropagation if preventDrag is undefined and item is not disabled', () => {
+    it("should not call preventDefault, stopPropagation if preventDrag is undefined and item is not disabled", () => {
       instance.checkThatDragAvailable(e);
       expect(e.stopPropagation.called).to.be.false;
       expect(e.preventDefault.called).to.be.false;
     });
-    it('should call preventDefault, stopPropagation if preventDrag is true', () => {
+    it("should call preventDefault, stopPropagation if preventDrag is true", () => {
       wrapper.setProps({
         ...minimalProps,
-        preventDrag: true
+        preventDrag: true,
       });
       instance.checkThatDragAvailable(e);
       expect(e.preventDefault.called).to.be.true;
       expect(e.stopPropagation.called).to.be.true;
     });
-    it('should call preventDefault, stopPropagation if item is disabled', () => {
+    it("should call preventDefault, stopPropagation if item is disabled", () => {
       wrapper.setProps({
         ...minimalProps,
         item: Immutable.fromJS({
-          name: 'theName'
+          name: "theName",
         }),
-        disabled: true
+        disabled: true,
       });
       instance.checkThatDragAvailable(e);
       expect(e.preventDefault.called).to.be.true;

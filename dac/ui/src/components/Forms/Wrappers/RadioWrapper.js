@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radio from 'components/Fields/Radio';
-import HoverHelp from 'components/HoverHelp';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import { Component } from "react";
+import Radio from "components/Fields/Radio";
+import HoverHelp from "components/HoverHelp";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import { rowOfInputsSpacing } from '@app/uiTheme/less/forms.less';
+import { rowOfInputsSpacing } from "@app/uiTheme/less/forms.less";
 import {
   radioColumnWrapper,
   radioTopLabel,
   radioBody,
   radioBodyColumn,
   tooltipIcon,
-  flexContainer
-} from './FormWrappers.less';
-
+  flexContainer,
+} from "./FormWrappers.less";
 
 export default class RadioWrapper extends Component {
   static propTypes = {
@@ -36,28 +35,47 @@ export default class RadioWrapper extends Component {
     fields: PropTypes.object,
     field: PropTypes.object,
     disabled: PropTypes.bool,
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, field} = this.props;
-    const isLayoutColumn = elementConfig.getConfig().layout === 'column';
+    const { elementConfig, field } = this.props;
+    const isLayoutColumn = elementConfig.getConfig().layout === "column";
     const label = elementConfig.getConfig().label;
     const tooltip = elementConfig.getConfig().tooltip;
 
     return (
       <div className={flexContainer}>
-        <div className={classNames({[radioColumnWrapper]: isLayoutColumn, [rowOfInputsSpacing]: !isLayoutColumn})}>
-          {label &&
+        <div
+          className={classNames({
+            [radioColumnWrapper]: isLayoutColumn,
+            [rowOfInputsSpacing]: !isLayoutColumn,
+          })}
+        >
+          {label && (
             <div className={radioTopLabel}>
               {label}
-              {tooltip && <HoverHelp content={tooltip} className={tooltipIcon} iconStyle={{marginTop: -3}}/>}
+              {tooltip && (
+                <HoverHelp
+                  content={tooltip}
+                  className={tooltipIcon}
+                  iconStyle={{ marginTop: -3 }}
+                />
+              )}
             </div>
-          }
+          )}
           {elementConfig.getConfig().options.map((option, index) => {
-            const radioClassName = classNames(radioBody, {[radioBodyColumn]: isLayoutColumn});
+            const radioClassName = classNames(radioBody, {
+              [radioBodyColumn]: isLayoutColumn,
+            });
             return (
-              <Radio key={index} label={option.label || option.value} radioValue={option.value} {...field} className={radioClassName}/>
+              <Radio
+                key={index}
+                label={option.label || option.value}
+                radioValue={option.value}
+                {...field}
+                className={radioClassName}
+              />
             );
           })}
         </div>

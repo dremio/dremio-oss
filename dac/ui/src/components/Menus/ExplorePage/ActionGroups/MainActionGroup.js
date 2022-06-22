@@ -13,64 +13,73 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { MIXED } from '@app/constants/DataTypes';
-import { ALL_TYPES, CONVERTIBLE_TYPES, NOT_LIST_AND_MAP_TYPES } from '@app/constants/columnTypeGroups';
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
+import { MIXED } from "@app/constants/DataTypes";
+import {
+  ALL_TYPES,
+  CONVERTIBLE_TYPES,
+  NOT_LIST_AND_MAP_TYPES,
+} from "@app/constants/columnTypeGroups";
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 
-@Radium
-export default class MainActionGroup extends PureComponent {
+class MainActionGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
     columnType: PropTypes.string,
-    columnsCount: PropTypes.number
-  }
+    columnsCount: PropTypes.number,
+  };
   render() {
     const { columnType, columnsCount } = this.props;
     return (
       <div>
         <ColumnMenuItem
-          actionType='RENAME'
+          actionType="RENAME"
           columnType={columnType}
-          title={la('Rename…')}
+          title={la("Rename…")}
           availableTypes={ALL_TYPES}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
         <ColumnMenuItem
-          actionType='DROP'
+          actionType="DROP"
           columnType={columnType}
-          title={la('Drop')}
+          title={la("Drop")}
           disabled={columnsCount === 1}
           availableTypes={ALL_TYPES}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
         <ColumnMenuItem
-          actionType='CONVERT_DATA_TYPE'
+          actionType="CONVERT_DATA_TYPE"
           columnType={columnType}
-          title={la('Convert Data Type…')}
+          title={la("Convert Data Type…")}
           availableTypes={CONVERTIBLE_TYPES}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
         <ColumnMenuItem
-          actionType='GROUP_BY'
+          actionType="GROUP_BY"
           columnType={columnType}
-          title={la('Group By…')}
+          title={la("Group By…")}
           availableTypes={NOT_LIST_AND_MAP_TYPES}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
         <ColumnMenuItem
-          actionType='SINGLE_DATA_TYPE'
+          actionType="SINGLE_DATA_TYPE"
           columnType={columnType}
-          title={la('Single Data Type…')}
+          title={la("Single Data Type…")}
           availableTypes={[MIXED]}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
         <ColumnMenuItem
-          actionType='SPLIT_BY_DATA_TYPE'
+          actionType="SPLIT_BY_DATA_TYPE"
           columnType={columnType}
-          title={la('Split by Data Type…')}
+          title={la("Split by Data Type…")}
           availableTypes={[MIXED]}
-          onClick={this.props.makeTransform}/>
+          onClick={this.props.makeTransform}
+        />
       </div>
     );
   }
 }
+export default MainActionGroup;

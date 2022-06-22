@@ -47,4 +47,3 @@ public class TransformGroupByValidator implements ConstraintValidator<TransformG
     return false;
   }
 }
-

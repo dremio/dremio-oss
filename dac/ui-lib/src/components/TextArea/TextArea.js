@@ -13,21 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
-import get from 'lodash.get';
-import TextareaAutosize from '@material-ui/core/TextareaAutosize';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
+import { get } from "lodash";
+import TextareaAutosize from "@material-ui/core/TextareaAutosize";
 
-import Label from '../Label';
-import CopyToClipboard from '../CopyToClipboard';
+import Label from "../Label";
+import CopyToClipboard from "../CopyToClipboard";
 
-import './textArea.scss';
+import "./textArea.scss";
 
 const TextArea = (props) => {
   const {
     classes,
-    copyMessage,
     dataQa,
     defaultValue,
     disabled,
@@ -43,31 +42,32 @@ const TextArea = (props) => {
     onChange,
     onCopy,
     value,
-    form: {
-      errors,
-      touched
-    },
+    form: { errors, touched },
     ...otherProps
   } = props;
 
   const hasError = get(touched, name) && get(errors, name);
 
-  const rootClass = clsx('textAreaRoot', { [classes.root]: classes.root });
-  const labelClass = clsx('textAreaRoot__label', { [classes.label]: classes.label });
-  const labelInnerClass = clsx( { [classes.labelInner]: classes.labelInner });
-  const textAreaContainerClass = clsx('textAreaRoot__container', { [classes.container]: classes.container });
+  const rootClass = clsx("textAreaRoot", { [classes.root]: classes.root });
+  const labelClass = clsx("textAreaRoot__label", {
+    [classes.label]: classes.label,
+  });
+  const labelInnerClass = clsx({ [classes.labelInner]: classes.labelInner });
+  const textAreaContainerClass = clsx("textAreaRoot__container", {
+    [classes.container]: classes.container,
+  });
   const textClass = clsx(
-    { '--noResize': noResize },
-    { '--singleLine': ( maxLines === 1 ) },
-    { '--error': hasError }
+    { "--noResize": noResize },
+    { "--singleLine": maxLines === 1 },
+    { "--error": hasError }
   );
 
   const handleMouseEnter = () => {
-    document.body.classList.add('disable-back-scroll');
+    document.body.classList.add("disable-back-scroll");
   };
 
   const handleMouseLeave = () => {
-    document.body.classList.remove('disable-back-scroll');
+    document.body.classList.remove("disable-back-scroll");
   };
 
   const handleTextAreaCopy = (e) => {
@@ -79,7 +79,7 @@ const TextArea = (props) => {
   return (
     <div className={rootClass}>
       {label && (
-        <div className='textAreaRoot__labelContainer'>
+        <div className="textAreaRoot__labelContainer">
           <Label
             value={label}
             className={labelClass}
@@ -110,7 +110,13 @@ const TextArea = (props) => {
           data-qa={dataQa}
           {...otherProps}
         />
-        { !label && enableCopy && <CopyToClipboard value={value} onCopy={onCopy} className='textAreaRoot__icon' /> }
+        {!label && enableCopy && (
+          <CopyToClipboard
+            value={value}
+            onCopy={onCopy}
+            className="textAreaRoot__icon"
+          />
+        )}
       </div>
     </div>
   );
@@ -121,7 +127,7 @@ TextArea.propTypes = {
     root: PropTypes.string,
     label: PropTypes.string,
     labelInner: PropTypes.string,
-    container: PropTypes.string
+    container: PropTypes.string,
   }),
   copyMessage: PropTypes.string,
   dataQa: PropTypes.string,
@@ -139,18 +145,18 @@ TextArea.propTypes = {
   onChange: PropTypes.func,
   onCopy: PropTypes.func,
   defaultValue: PropTypes.string,
-  helpText: PropTypes.string
+  helpText: PropTypes.string,
 };
 
 TextArea.defaultProps = {
   classes: {},
-  copyMessage: 'Copied',
+  copyMessage: "Copied",
   form: {},
   disabled: false,
   disableTextCopy: false,
   enableCopy: false,
   label: null,
-  noResize: false
+  noResize: false,
 };
 
 export default TextArea;

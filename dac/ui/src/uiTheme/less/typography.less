@@ -13,40 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- @import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
 // from radium/typography.js, originally formLabel
 .alt-form-label {
-  font-family: 'Inter var', sans-serif;
+  font-family: "Inter var", sans-serif;
   font-weight: 400;
   font-size: 13px;
-  color: #7F8B95;
+  color: #7f8b95;
   display: flex;
   align-items: center;
   height: 32px;
 }
 
 .alt-form-default {
-  font-family: 'Inter var', sans-serif;
+  font-family: "Inter var", sans-serif;
   font-weight: 400;
   font-size: 13;
-  color: #333333
-};
+  color: #333333;
+}
 
 .alt-form-description {
-  font-family: 'Inter var', sans-serif;
+  font-family: "Inter var", sans-serif;
   font-weight: 400;
   font-size: 13;
   color: #999999;
-};
+}
 
 .form-label {
   .formLabel();
 }
 
 .form-default {
-  font-size: 12px;
+  font-size: 14px;
   color: @font-color1;
 }
 
@@ -57,10 +57,8 @@
 
 .form-placeholder {
   font-weight: 400;
-  font-size: 12px;
   &::placeholder {
-    font-style: italic;
-    color: @font-color2;
+    color: @FIGMA_NEUTRAL_300;
   }
 }
 
@@ -97,13 +95,13 @@
 
 .path-link {
   font-size: 11px;
-  color: #46B4D5;
+  color: #46b4d5;
 }
 
 .alt-path-link {
   &:extend(.path-link);
-  font-family: 'Inter var', sans-serif;
-  font-weight: 400
+  font-family: "Inter var", sans-serif;
+  font-weight: 400;
 }
 
 .path-end {
@@ -123,10 +121,10 @@
 
 .metadata-white {
   font-size: 11px;
-  color: #DDDDDD;
+  color: #dddddd;
 }
 
 .link-light-white {
   font-size: 11px;
-  color: #81D2EB;
+  color: #81d2eb;
 }

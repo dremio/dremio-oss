@@ -13,26 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as saveActions from './save';
+import * as saveActions from "./save";
 
-describe('Dataset save actions', () => {
-  describe('#deleteOldDatasetVersions', () => {
-    it('should return type=DELETE_OLD_DATASET_VERSIONS', () => {
+describe("Dataset save actions", () => {
+  describe("#deleteOldDatasetVersions", () => {
+    it("should return type=DELETE_OLD_DATASET_VERSIONS", () => {
       expect(
-        saveActions.deleteOldDatasetVersions('123', Immutable.List()).type
-      ).to.equal(
-        saveActions.DELETE_OLD_DATASET_VERSIONS
-      );
+        saveActions.deleteOldDatasetVersions("123", Immutable.List()).type
+      ).to.equal(saveActions.DELETE_OLD_DATASET_VERSIONS);
     });
-    it('should include meta.entityRemovePaths for datasets and tableData in history except currentVersion', () => {
-      const currentVersion = '123';
-      const historyItems = Immutable.fromJS(
-        [{datasetVersion: '123'}, {datasetVersion: '456'}, {datasetVersion: '789'}]
+    it("should include meta.entityRemovePaths for datasets and tableData in history except currentVersion", () => {
+      const currentVersion = "123";
+      const historyItems = Immutable.fromJS([
+        { datasetVersion: "123" },
+        { datasetVersion: "456" },
+        { datasetVersion: "789" },
+      ]);
+      const result = saveActions.deleteOldDatasetVersions(
+        currentVersion,
+        historyItems
       );
-      const result = saveActions.deleteOldDatasetVersions(currentVersion, historyItems);
       expect(result.meta.entityRemovePaths).to.eql([
-        ['datasetUI', '456'], ['tableData', '456'], ['fullDataset', '456'], ['history', '456'],
-        ['datasetUI', '789'], ['tableData', '789'], ['fullDataset', '789'], ['history', '789']
+        ["datasetUI", "456"],
+        ["tableData", "456"],
+        ["fullDataset", "456"],
+        ["history", "456"],
+        ["datasetUI", "789"],
+        ["tableData", "789"],
+        ["fullDataset", "789"],
+        ["history", "789"],
       ]);
     });
   });

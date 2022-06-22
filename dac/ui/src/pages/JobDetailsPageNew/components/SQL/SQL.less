@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-@font-size:16px;
-@line-height:20px;
-@font-weight:600;
+@import "~@app/uiTheme/less/mixins.less";
+
+@font-size: 16px;
+@line-height: 20px;
+@font-weight: 600;
 :global {
   .sql {
     align-items: center;
@@ -24,25 +26,42 @@
     display: flex;
     justify-content: space-between;
 
-     &__titleWrapper {
+    &__titleWrapper {
       display: flex;
       align-items: center;
       padding-bottom: 5px;
-     }
-     &__title {
-       padding-top: 10px;
-       padding-bottom: 5px;
-       color:@font-color1;
-       font-size: @font-size;
-       font-weight: @font-weight;
-       line-height: @line-height;
-     }
-     &__copyIcon {
-      padding-left: 8px;
-      filter: invert(52%) sepia(14%) saturate(318%) hue-rotate(165deg) brightness(101%) contrast(86%);
     }
+
+    &__title {
+      padding-top: 10px;
+      padding-bottom: 5px;
+      color: @font-color1;
+      font-size: @font-size;
+      font-weight: @font-weight;
+      line-height: @line-height;
+    }
+
+    &__copyIcon {
+      padding-left: 8px;
+      filter: invert(52%) sepia(14%) saturate(318%) hue-rotate(165deg)
+        brightness(101%) contrast(86%);
+
+      &:hover {
+        .gray-icon-hover();
+      }
+    }
+
     &__toggleIcon {
       cursor: pointer;
+
+      .theme-switcher-icon {
+        height: 24px;
+        width: 24px;
+      }
+
+      &:hover {
+        color: var(--dremio--color--link);
+      }
     }
   }
 }

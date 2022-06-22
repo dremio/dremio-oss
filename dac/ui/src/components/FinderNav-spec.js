@@ -13,58 +13,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import FinderNav from './FinderNav';
-import FinderNavSection from './FinderNavSection';
+import { FinderNav } from "./FinderNav";
+import FinderNavSection from "./FinderNavSection";
 
-describe('FinderNav', () => {
-
+describe("FinderNav", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      title: 'Sources',
-      addToolTip: 'Add Soureces',
+      title: "Sources",
+      addToolTip: "Add Sources",
       navItems: new Immutable.List([]),
-      isInProgress: false
+      isInProgress: false,
+      listHref: "#Hello",
     };
   });
 
-  it('shows the nav item list section', () => {
-    const wrapper = shallow(<FinderNav {...commonProps}/>);
+  it("shows the nav item list section", () => {
+    const wrapper = shallow(<FinderNav {...commonProps} />);
     expect(wrapper.find(FinderNavSection)).to.have.length(1);
   });
 
-  it('does not show the nav item list seciton when it is loading', () => {
+  it("does not show the nav item list seciton when it is loading", () => {
     const wrapper = shallow(<FinderNav {...commonProps} isInProgress />);
     expect(wrapper.find(FinderNavSection)).to.have.length(0);
   });
 
-  it('shows the toggle control if it is collapsiable', () => {
+  it("shows the toggle control if it is collapsiable", () => {
     // Collapsible case
     let wrapper = shallow(<FinderNav {...commonProps} isCollapsible />);
-    expect(wrapper.find('.finder-nav__collapse-control')).to.have.length(1);
+    expect(wrapper.find(".icon-container")).to.have.length(1);
     // Not-collapsible case
     wrapper = shallow(<FinderNav {...commonProps} isCollapsible={false} />);
-    expect(wrapper.find('.finder-nav__collapse-control')).to.have.length(0);
+    expect(wrapper.find(".icon-container")).to.have.length(0);
   });
 
-  it('shows the nav item section if it is collapsiable and is expanded', () => {
+  it("shows the nav item section if it is collapsiable and is expanded", () => {
     // Collapsed case
-    let wrapper = shallow(<FinderNav {...commonProps} isCollapsible isCollapsed />);
-    expect(wrapper.hasClass('finder-nav--collapsed')).to.be.true;
+    let wrapper = shallow(
+      <FinderNav {...commonProps} isCollapsible isCollapsed />
+    );
+    expect(wrapper.hasClass("finder-nav--collapsed")).to.be.true;
     // Expanded case
-    wrapper = shallow(<FinderNav {...commonProps} isCollapsible isCollapsed={false} />);
-    expect(wrapper.hasClass('finder-nav--collapsed')).to.be.false;
+    wrapper = shallow(
+      <FinderNav {...commonProps} isCollapsible isCollapsed={false} />
+    );
+    expect(wrapper.hasClass("finder-nav--collapsed")).to.be.false;
   });
 
-  it('invoke the toggle callback when the toggle control is clicked', () => {
+  it("invoke the toggle callback when the toggle control is clicked", () => {
     const onToggle = sinon.spy();
-    const instance = shallow(<FinderNav {...commonProps} isCollapsible onToggle={onToggle} />).instance();
+    const instance = shallow(
+      <FinderNav {...commonProps} isCollapsible onToggle={onToggle} />
+    ).instance();
     instance.onToggleClick();
     expect(onToggle).to.be.calledOnce;
   });
-
 });

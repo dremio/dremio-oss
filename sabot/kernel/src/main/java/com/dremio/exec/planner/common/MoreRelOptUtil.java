@@ -39,7 +39,11 @@ import java.util.stream.IntStream;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelHintsPropagator;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
@@ -167,7 +171,7 @@ public final class MoreRelOptUtil {
     RelDataType rowType2,
     boolean compareNames,
     boolean allowSubstring) {
-    return checkRowTypesCompatiblity(rowType1, rowType2, compareNames, allowSubstring, true);
+    return checkRowTypesCompatibility(rowType1, rowType2, compareNames, allowSubstring, true);
   }
 
   public static boolean areRowTypesCompatible(
@@ -175,11 +179,11 @@ public final class MoreRelOptUtil {
     RelDataType rowType2,
     boolean compareNames,
     boolean allowSubstring) {
-    return checkRowTypesCompatiblity(rowType1, rowType2, compareNames, allowSubstring, false);
+    return checkRowTypesCompatibility(rowType1, rowType2, compareNames, allowSubstring, false);
   }
 
   // Similar to RelOptUtil.areRowTypesEqual() with the additional check for allowSubstring
-  private static boolean checkRowTypesCompatiblity(
+  private static boolean checkRowTypesCompatibility(
       RelDataType rowType1,
       RelDataType rowType2,
       boolean compareNames,
@@ -1511,6 +1515,32 @@ public final class MoreRelOptUtil {
       }
     });
     return hasher.hash().asLong();
+  }
+
+  public static class TransformCollectingCall extends RelOptRuleCall {
+    final List<RelNode> outcome = new ArrayList<>();
+
+    public TransformCollectingCall(RelOptPlanner planner, RelOptRuleOperand operand, RelNode[] rels,
+                                   Map<RelNode, List<RelNode>> nodeInputs) {
+      super(planner, operand, rels, nodeInputs);
+    }
+
+    @Override
+    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
+      outcome.add(rel);
+    }
+
+    public boolean isTransformed() {
+      return outcome.size() != 0;
+    }
+
+    public RelNode getTransformedRel() {
+      if (isTransformed()) {
+        return outcome.get(0);
+      } else {
+        throw new RuntimeException("No transformed node found.");
+      }
+    }
   }
 
 }

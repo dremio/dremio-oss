@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount } from 'enzyme';
-import { Tooltip } from '@app/components/Tooltip';
-import SQLCell from './SQLCell';
+import { mount } from "enzyme";
+import { Tooltip } from "@app/components/Tooltip";
+import SQLCell from "./SQLCell";
 
-describe('SQLCell', () => {
+describe("SQLCell", () => {
   let commonProps;
   const context = { loggedInUser: {} };
   beforeEach(() => {
     commonProps = {
-      sql: 'SELECT * FROM "nyctaxi-trips-2013.json.gz"'
+      sql: 'SELECT * FROM "nyctaxi-trips-2013.json.gz"',
     };
   });
 
-  it('should render with props without exploding', () => {
+  it("should render with props without exploding", () => {
     const wrapper = mount(<SQLCell {...commonProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should show tooltip on mouse hover', () => {
+  it("should show tooltip on mouse hover", () => {
     const wrapper = mount(<SQLCell {...commonProps} />, { context });
-    wrapper.simulate('mouseover');
+    wrapper.simulate("mouseover");
     const component = wrapper.find(Tooltip);
     expect(component.exists()).to.eql(true);
   });

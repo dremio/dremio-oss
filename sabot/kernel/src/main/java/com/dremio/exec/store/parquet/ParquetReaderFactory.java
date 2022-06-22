@@ -26,6 +26,7 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.iceberg.deletes.ParquetDeleteFileFilterCreator;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface ParquetReaderFactory {
@@ -40,7 +41,7 @@ public interface ParquetReaderFactory {
                          ParquetScanProjectedColumns projectedColumns,
                          String path,
                          CompressionCodecFactory codecFactory,
-                         List<ParquetFilterCondition> conditions,
+                         ParquetFilters filters,
                          ParquetFilterCreator filterCreator,
                          ParquetDictionaryConvertor dictionaryConvertor,
                          boolean enableDetailedTracing,
@@ -56,6 +57,8 @@ public interface ParquetReaderFactory {
 
   ParquetFilterCreator newFilterCreator(OperatorContext operatorContext, ManagedSchemaType type, ManagedSchema schema, BufferAllocator allocator);
 
+  ParquetDeleteFileFilterCreator newDeleteFileFilterCreator();
+
   ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
@@ -70,7 +73,7 @@ public interface ParquetReaderFactory {
                                   ParquetScanProjectedColumns projectedColumns,
                                   String path,
                                   CompressionCodecFactory codecFactory,
-                                  List<ParquetFilterCondition> conditions,
+                                  ParquetFilters filters,
                                   ParquetFilterCreator filterCreator,
                                   ParquetDictionaryConvertor dictionaryConvertor,
                                   boolean enableDetailedTracing,
@@ -90,6 +93,11 @@ public interface ParquetReaderFactory {
     @Override
     public ParquetFilterCreator newFilterCreator(OperatorContext operatorContext, ManagedSchemaType type, ManagedSchema managedSchema, BufferAllocator allocator) {
       return ParquetFilterCreator.DEFAULT;
+    }
+
+    @Override
+    public ParquetDeleteFileFilterCreator newDeleteFileFilterCreator() {
+      return ParquetDeleteFileFilterCreator.DEFAULT;
     }
 
     @Override

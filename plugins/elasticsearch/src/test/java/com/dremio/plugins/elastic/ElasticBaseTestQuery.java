@@ -35,12 +35,14 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.chrono.IsoChronology;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
@@ -51,7 +53,6 @@ import com.dremio.QueryTestUtil;
 import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionValue;
 import com.dremio.plugins.Version;
@@ -283,7 +284,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   }
 
   public static ColumnData[] getNullBusinessData() {
-    final DateTimeFormatter formatter = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
+    final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("UTC")).withChronology(IsoChronology.INSTANCE);
     final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("business_id", TEXT, new Object[][]{
         {null},
@@ -368,18 +369,18 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       }),
       //withZoneRetainFields(DateTimeZone.getDefault())
       new ElasticsearchCluster.ColumnData("datefield", DATE, new Object[][] {
-        {formatter.parseLocalDateTime("2014-02-10 10:50:42")},
+        {LocalDateTime.parse("2014-02-10 10:50:42", formatter)},
         {null},
-        {formatter.parseLocalDateTime("2014-02-12 10:50:42")},
-        {formatter.parseLocalDateTime("2014-02-11 10:50:42")},
-        {formatter.parseLocalDateTime("2014-02-10 10:50:42")}
+        {LocalDateTime.parse("2014-02-12 10:50:42", formatter)},
+        {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
+        {LocalDateTime.parse("2014-02-10 10:50:42", formatter)}
       })
     };
     return data;
   }
 
   public static ColumnData[] getBusinessData() {
-    DateTimeFormatter formatter = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("UTC")).withChronology(IsoChronology.INSTANCE);
     ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
         new ElasticsearchCluster.ColumnData("business_id", TEXT, new Object[][]{
             {"12345"},
@@ -470,18 +471,18 @@ public class ElasticBaseTestQuery extends PlanTestBase {
             {false}
         }),
         new ElasticsearchCluster.ColumnData("datefield2", DATE, new Object[][] {
-            {formatter.parseLocalDateTime("2015-02-10 10:50:42")},
-            {formatter.parseLocalDateTime("2015-02-11 10:50:42")},
-            {formatter.parseLocalDateTime("2015-02-12 10:50:42")},
-            {formatter.parseLocalDateTime("2015-02-11 10:50:42")},
-            {formatter.parseLocalDateTime("2015-02-10 10:50:42")}
+            {LocalDateTime.parse("2015-02-10 10:50:42", formatter)},
+            {LocalDateTime.parse("2015-02-11 10:50:42", formatter)},
+            {LocalDateTime.parse("2015-02-12 10:50:42", formatter)},
+            {LocalDateTime.parse("2015-02-11 10:50:42", formatter)},
+            {LocalDateTime.parse("2015-02-10 10:50:42", formatter)}
             }),
         new ElasticsearchCluster.ColumnData("datefield", DATE, new Object[][] {
-            {formatter.parseLocalDateTime("2014-02-10 10:50:42")},
-            {formatter.parseLocalDateTime("2014-02-11 10:50:42")},
-            {formatter.parseLocalDateTime("2014-02-12 10:50:42")},
-            {formatter.parseLocalDateTime("2014-02-11 10:50:42")},
-            {formatter.parseLocalDateTime("2014-02-10 10:50:42")}
+            {LocalDateTime.parse("2014-02-10 10:50:42", formatter)},
+            {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
+            {LocalDateTime.parse("2014-02-12 10:50:42", formatter)},
+            {LocalDateTime.parse("2014-02-11 10:50:42", formatter)},
+            {LocalDateTime.parse("2014-02-10 10:50:42", formatter)}
         })
     };
     return data;
@@ -622,14 +623,6 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     return " _uid ";
   }
 
-  // To get disable coord based upon ES version. If version is 7, "" will be used in place of " "disable_coord" : false,\n ".
-  public String getDisableCoord(){
-    if (elastic.getMinVersionInCluster().getMajor() == 7) {
-      return "";
-    }
-    return "      \"disable_coord\" : false,\n";
-  }
-
   protected String getActualFormat(String format) {
     if(format.startsWith("8")) {
       return format.substring(1);
@@ -679,4 +672,3 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     }
   }
 }
-

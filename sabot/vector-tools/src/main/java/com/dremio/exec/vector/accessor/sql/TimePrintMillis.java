@@ -74,4 +74,3 @@ public class TimePrintMillis extends Time {
     return time.toString();
   }
 }
-

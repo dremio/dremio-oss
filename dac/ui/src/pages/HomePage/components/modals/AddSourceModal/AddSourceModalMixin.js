@@ -18,12 +18,14 @@ export const mapStateToProps = () => {
   return null;
 };
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     mutateFormValues(values) {
       return values;
     },
-    fetchData() {
-    }
+    fetchData() {},
+    sendAddStartEvent() {},
+    sendAddCompleteEvent() {},
   });
 }

@@ -19,6 +19,7 @@ import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.service.jobresults.JobResultsRequest;
+import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 
 import io.netty.buffer.ByteBuf;
 
@@ -28,4 +29,6 @@ import io.netty.buffer.ByteBuf;
 public interface ExecToCoordResultsHandler {
 
   void dataArrived(QueryData header, ByteBuf data, JobResultsRequest jobResultsRequest, ResponseSender sender) throws RpcException;
+
+  void dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender) throws RpcException;
 }

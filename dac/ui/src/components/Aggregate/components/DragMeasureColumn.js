@@ -13,25 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
 
 import {
-  getColumnByName, getMeasuresForColumnType, isMeasureValidForColumnType
-} from 'utils/explore/aggregateUtils';
-import ColumnDragItem from 'utils/ColumnDragItem';
-import { base, columnElement, select as selectCls } from '@app/pages/ExplorePage/components/MultiplySort/components/DragSortColumn.less';
+  getColumnByName,
+  getMeasuresForColumnType,
+  isMeasureValidForColumnType,
+} from "utils/explore/aggregateUtils";
+import ColumnDragItem from "utils/ColumnDragItem";
+import {
+  base,
+  columnElement,
+  select as selectCls,
+} from "@app/pages/ExplorePage/components/MultiplySort/components/DragSortColumn.less";
 
-import Select from '../../Fields/Select';
-import DragAreaColumn from '../../DragComponents/DragAreaColumn';
+import Select from "../../Fields/Select";
+import DragAreaColumn from "../../DragComponents/DragAreaColumn";
 
-const COUNT_STAR = 'Count_Star';
+const COUNT_STAR = "Count_Star";
 
 //todo reuse DragSortColumn for this component
-@Radium
 class DragMeasureColumn extends Component {
   static propTypes = {
     dragItem: PropTypes.instanceOf(ColumnDragItem),
@@ -43,25 +47,30 @@ class DragMeasureColumn extends Component {
     index: PropTypes.number,
     onDragStart: PropTypes.func,
     onDragEnd: PropTypes.func,
-    onRemoveColumn: PropTypes.func
+    onRemoveColumn: PropTypes.func,
   };
 
   canSelectColumn = (columnName) => {
     const { field, allColumns } = this.props;
     const column = getColumnByName(allColumns, columnName);
-    return isMeasureValidForColumnType(field.measure.value, column && column.get('type'));
-  }
+    return isMeasureValidForColumnType(
+      field.measure.value,
+      column && column.get("type")
+    );
+  };
 
   render() {
     const { field, allColumns, index } = this.props;
     const selectedColumn = getColumnByName(allColumns, field.column.value);
-    const measureItems = getMeasuresForColumnType(selectedColumn && selectedColumn.get('type'));
+    const measureItems = getMeasuresForColumnType(
+      selectedColumn && selectedColumn.get("type")
+    );
 
     return (
-      <div className={classNames(['drag-measure-column', base])}>
+      <div className={classNames(["drag-measure-column", base])}>
         <Select
           {...field.measure}
-          className={classNames(['agg-func', selectCls])} // agg-func is used in automated testing
+          className={classNames(["agg-func", selectCls])} // agg-func is used in automated testing
           items={measureItems}
           iconStyle={styles.iconStyle}
           customLabelStyle={styles.customLabelStyle}
@@ -77,7 +86,7 @@ class DragMeasureColumn extends Component {
             dragItem={this.props.dragItem}
             allColumns={this.props.allColumns}
             index={index}
-            dragOrigin='measures'
+            dragOrigin="measures"
             moveColumn={this.props.moveColumn}
             dragType={this.props.dragType}
             onRemoveColumn={this.props.onRemoveColumn}
@@ -90,11 +99,11 @@ class DragMeasureColumn extends Component {
 
 const styles = {
   iconStyle: {
-    top: 0
+    top: 0,
   },
   customLabelStyle: {
-    top: 13
-  }
+    top: 13,
+  },
 };
 
 export default DragMeasureColumn;

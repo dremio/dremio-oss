@@ -88,7 +88,7 @@ public final class SqlShowLogs extends SqlVersionSourceRefBase {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("SHOW");
     writer.keyword("LOGS");
-    unparseRef(writer, leftPrec, rightPrec);
+    unparseRef(writer, leftPrec, rightPrec, "AT");
     unparseSourceName(writer, leftPrec, rightPrec);
   }
 

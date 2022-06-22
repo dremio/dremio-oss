@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -121,6 +121,12 @@
     </dependency>
 
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-extension-annotations</artifactId>
+      <version>${opentelemetry.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-telemetry-api</artifactId>
       <version>${project.version}</version>
@@ -141,6 +147,7 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-namespace</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
@@ -172,6 +179,12 @@
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectnessie</groupId>
+      <artifactId>iceberg-views</artifactId>
+      <version>${nessie.version}</version>
     </dependency>
 
     <dependency>
@@ -278,6 +291,21 @@
           <artifactId>findbugs-annotations</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.iceberg</groupId>
+      <artifactId>iceberg-aws</artifactId>
+      <version>${iceberg.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.github.stephenc.findbugs</groupId>
+          <artifactId>findbugs-annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>glue</artifactId>
     </dependency>
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
@@ -583,6 +611,7 @@
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -590,6 +619,7 @@
       <artifactId>dremio-connector</artifactId>
       <version>${project.version}</version>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -636,6 +666,7 @@
       <artifactId>hadoop-common</artifactId>
       <scope>test</scope>
       <classifier>tests</classifier>
+      <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -652,6 +683,7 @@
       <artifactId>hadoop-hdfs</artifactId>
       <scope>test</scope>
       <classifier>tests</classifier>
+      <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -709,6 +741,21 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-credentials</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.vintage</groupId>
+      <artifactId>junit-vintage-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie</groupId>
+      <artifactId>nessie-jaxrs-testextension</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.powermock</groupId>
@@ -921,25 +968,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
-          <includes>**/*.java</includes>
-          <encoding>UTF-8</encoding>
-          <failsOnError>true</failsOnError>
-          <consoleOutput>true</consoleOutput>
-          <includeResources>true</includeResources>
-          <includeTestResources>true</includeTestResources>
-          <resourceIncludes>**/*.properties,**/*.conf,**/*.json,**/*.xml</resourceIncludes>
-          <includeTestSourceDirectory>true</includeTestSourceDirectory>
           <suppressionsLocation>src/main/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
         </configuration>
-        <executions>
-          <execution>
-            <id>checkstyle-validation</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -1096,6 +1126,7 @@
             <artifactId>dremio-common</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
+            <type>test-jar</type>
           </dependency>
         </dependencies>
         <executions>

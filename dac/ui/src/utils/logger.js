@@ -15,7 +15,7 @@
  */
 const noop = () => {};
 let log = noop;
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
   log = (...args) => {
     /* the method is based on chrome format. And works well only for chrome.
         Here is an format example:
@@ -28,17 +28,15 @@ if (process.env.NODE_ENV !== 'production') {
     */
     const stack = new Error().stack;
     if (!stack) return; // stack is not available in IE.
-    let caller = stack.split('\n')[2].trim(); // at {actual caller}$ (webpack-internal:///1429:287:26)
+    let caller = stack.split("\n")[2].trim(); // at {actual caller}$ (webpack-internal:///1429:287:26)
     if (caller) {
-      const prefix = 'at ';
+      const prefix = "at ";
       const startIndex = caller.indexOf(prefix) + prefix.length;
-      const endIndex = caller.indexOf('$');
+      const endIndex = caller.indexOf("$");
       caller = caller.substr(startIndex, endIndex - startIndex);
     }
     console.log(`${caller}:`, ...args); // eslint-disable-line no-console
   };
 }
 
-export {
-  log
-};
+export { log };

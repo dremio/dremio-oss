@@ -14,23 +14,23 @@
  * limitations under the License.
  */
 const digitColumn = {
-  textAlign: 'right'
+  textAlign: "right",
 };
 
 export const tableStyles = {
   actionColumn: {
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end'
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
   digitColumn,
   datasetsColumn: {
     ...digitColumn,
-    paddingRight: 30
+    paddingRight: 30,
   },
   searchField: {
-    width: 200,
-    marginRight: '6px'
-  }
+    width: 240,
+    marginRight: "6px",
+  },
 };

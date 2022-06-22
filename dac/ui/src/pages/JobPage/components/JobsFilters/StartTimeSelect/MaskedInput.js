@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable  from 'immutable';
-import Radium from 'radium';
-import ReactDOM from 'react-dom';
+import { createRef, PureComponent } from "react";
+import Immutable from "immutable";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import SmartInput from './SmartInput';
+import SmartInput from "./SmartInput";
+
+import * as classes from "./MaskedInput.module.less";
 
 // TODO support of different formats, not only numbers
 export const FORMAT_HASH = Immutable.fromJS({
-  'd': (char) => /[0-9]/.test(char)
+  d: (char) => /[0-9]/.test(char),
 });
 
 /**
@@ -33,29 +33,36 @@ export const FORMAT_HASH = Immutable.fromJS({
  * this component consists of a some amount of inputs(editable areas) and spans(not-editable areas)
  * Inputs check user input for correct format(Smart Input are used)
  */
-@Radium
 class MaskedInput extends PureComponent {
-
   static propTypes = {
     mask: PropTypes.string.isRequired,
     value: PropTypes.string.isRequired,
     placeholder: PropTypes.string.isRequired,
     onBlur: PropTypes.func,
     onFocus: PropTypes.func,
-    onChange: PropTypes.func
+    onChange: PropTypes.func,
   };
 
   constructor(props) {
     super(props);
     this.formatCharList = FORMAT_HASH.keySeq().toList();
-    this.state = {...this.mapPropsToState(props), focusedInput: null};
+    this.state = { ...this.mapPropsToState(props), focusedInput: null };
     this.applyChanges = this.applyChanges.bind(this);
     this._changeInnerInputFocus = this._changeInnerInputFocus.bind(this);
     this.onBlur = this.onBlur.bind(this);
     this._onInnerInputBlur = this._onInnerInputBlur.bind(this);
     this._onInnerInputFocus = this._onInnerInputFocus.bind(this);
     this._onInnerInputChange = this._onInnerInputChange.bind(this);
+    this.inputRefs = {};
   }
+
+  initializeInputRef = (index) => (ref) => {
+    const idx = index + 1;
+    if (this.inputRefs[`si.${idx}`] == null) {
+      this.inputRefs[`si.${idx}`] = createRef();
+    }
+    this.inputRefs[`si.${idx}`].current = ref;
+  };
 
   componentWillReceiveProps(nextProps) {
     const { value: nextValue } = nextProps;
@@ -63,25 +70,30 @@ class MaskedInput extends PureComponent {
     const { inputsList } = this.state;
     let stateHasIncorrectValue = false;
 
-    if (mask === 'dd/dd/dddd') {
-      const monthInState = inputsList.getIn([0, 'value']);
-      const dayInState = inputsList.getIn([1, 'value']);
-      const yearInState = inputsList.getIn([2, 'value']);
-      const [ monthInProps, dayInProps, yearInProps ] = nextValue.split('/');
-      const daysInCurrentMonth = new Date(yearInProps, monthInProps, 0).getDate();
+    if (mask === "dd/dd/dddd") {
+      const monthInState = inputsList.getIn([0, "value"]);
+      const dayInState = inputsList.getIn([1, "value"]);
+      const yearInState = inputsList.getIn([2, "value"]);
+      const [monthInProps, dayInProps, yearInProps] = nextValue.split("/");
+      const daysInCurrentMonth = new Date(
+        yearInProps,
+        monthInProps,
+        0
+      ).getDate();
 
       stateHasIncorrectValue =
         (monthInState > 12 && monthInState !== monthInProps) ||
-        monthInState === '00' ||
+        monthInState === "00" ||
         (dayInState > daysInCurrentMonth && dayInState !== dayInProps) ||
-        dayInState === '00' ||
+        dayInState === "00" ||
         yearInState !== yearInProps;
-    } else if (mask === 'dd:dd') {
-      const hourInState = inputsList.getIn([0, 'value']);
-      const minuteInState = inputsList.getIn([1, 'value']);
-      const [ hourInProps, minuteInProp ] = nextValue.split(':');
+    } else if (mask === "dd:dd") {
+      const hourInState = inputsList.getIn([0, "value"]);
+      const minuteInState = inputsList.getIn([1, "value"]);
+      const [hourInProps, minuteInProp] = nextValue.split(":");
 
-      stateHasIncorrectValue = hourInState !== hourInProps || minuteInState !== minuteInProp;
+      stateHasIncorrectValue =
+        hourInState !== hourInProps || minuteInState !== minuteInProp;
     }
 
     if (nextValue !== currentValue || stateHasIncorrectValue) {
@@ -97,11 +109,11 @@ class MaskedInput extends PureComponent {
   }
 
   getInputValue() {
-    const valueArray = this.state.inputsList.map( (item) => {
-      const value = item.get('value');
-      return `${value}${item.get('separator')}`;
+    const valueArray = this.state.inputsList.map((item) => {
+      const value = item.get("value");
+      return `${value}${item.get("separator")}`;
     });
-    return valueArray.join('');
+    return valueArray.join("");
   }
 
   /**
@@ -112,7 +124,7 @@ class MaskedInput extends PureComponent {
    * method that trig focus on next input in inputList
    */
   _changeInnerInputFocus(index) {
-    const input = ReactDOM.findDOMNode(this.refs[`si.${index + 1}`]);
+    const input = this.inputRefs[`si.${index + 1}`].current; //TODO Test
     if (input) {
       input.focus();
     }
@@ -120,22 +132,22 @@ class MaskedInput extends PureComponent {
 
   _onInnerInputBlur(index, showPlaceholder, inputValue) {
     this.setState({
-      focusedInput: null
+      focusedInput: null,
     });
     const callback = this.callBackFactory(this.onBlur);
     this.applyChanges(index, showPlaceholder, inputValue, callback);
   }
 
   _onInnerInputChange(index, inputValue) {
-    const {onChange} = this.props;
+    const { onChange } = this.props;
     const callback = this.callBackFactory(onChange, false);
     this.applyChanges(index, false, inputValue, callback);
   }
 
   _onInnerInputFocus(index, showPlaceholder, inputValue) {
-    const {onFocus} = this.props;
+    const { onFocus } = this.props;
     this.setState({
-      focusedInput: index
+      focusedInput: index,
     });
     const callback = this.callBackFactory(onFocus);
     this.applyChanges(index, showPlaceholder, inputValue, callback);
@@ -149,14 +161,15 @@ class MaskedInput extends PureComponent {
    * @param callBack{Function} - callback function that will be trigged by setState function
    */
   applyChanges(index, showPlaceholder, inputValue, callBack) {
-    const inputsList = this.state.inputsList.setIn(
-      [index, 'value'], inputValue
-    ).setIn(
-      [index, 'showPlaceholder'], showPlaceholder
+    const inputsList = this.state.inputsList
+      .setIn([index, "value"], inputValue)
+      .setIn([index, "showPlaceholder"], showPlaceholder);
+    this.setState(
+      {
+        inputsList,
+      },
+      callBack
     );
-    this.setState({
-      inputsList
-    }, callBack);
   }
 
   /**
@@ -164,7 +177,7 @@ class MaskedInput extends PureComponent {
    * @param optionalFunction - function with lower priority
    * @returns {Function} - callback function that are used in this.setState callback
    */
-  callBackFactory( functionFromProps, optionalFunction) {
+  callBackFactory(functionFromProps, optionalFunction) {
     return () => {
       const inputValue = this.getInputValue();
       setTimeout(() => {
@@ -179,70 +192,62 @@ class MaskedInput extends PureComponent {
   }
 
   mapPropsToState(props) {
-    const {mask, placeholder, value} = props;
-    const separatorArray = mask.split('').filter((item) => this.formatCharList.indexOf(item) === -1);
+    const { mask, placeholder, value } = props;
+    const separatorArray = mask
+      .split("")
+      .filter((item) => this.formatCharList.indexOf(item) === -1);
     // regExp for split by separators(might be several)
     const sepReg = new RegExp(`[${separatorArray.join()}]`);
     const placeholdersList = placeholder.split(sepReg);
     const valueList = value.split(sepReg);
-    const inputsList = new Immutable.List(mask.split(sepReg).map((item, index) => {
-      const separator = separatorArray[index] || '';
-      return new Immutable.Map({
-        mask: item,
-        placeholder: placeholdersList[index],
-        value: valueList[index],
-        showPlaceholder: placeholdersList[index] === valueList[index],
-        separator
-      });
-    }));
+    const inputsList = new Immutable.List(
+      mask.split(sepReg).map((item, index) => {
+        const separator = separatorArray[index] || "";
+        return new Immutable.Map({
+          mask: item,
+          placeholder: placeholdersList[index],
+          value: valueList[index],
+          showPlaceholder: placeholdersList[index] === valueList[index],
+          separator,
+        });
+      })
+    );
     return {
-      inputsList
+      inputsList,
     };
   }
 
   render() {
-    const {inputsList} = this.state;
+    const { inputsList } = this.state;
     // look for false value of showPlaceholder
     const showPlaceholder = inputsList.every((item) => {
-      return item.get('showPlaceholder');
+      return item.get("showPlaceholder");
     });
     const inputs = inputsList.map((item, index) => {
       return (
-        <span key = {`si.${item.get('mask')}.${item.get('placeholder')}.${index}`}>
+        <span
+          className={classes["masked-input__body"]}
+          key={`si.${item.get("mask")}.${item.get("placeholder")}.${index}`}
+        >
           <SmartInput
-            mask = {item.get('mask')}
-            index = {index}
-            ref = {`si.${index}`}
-            inputValue = {item.get('value')}
-            placeholder = {item.get('placeholder')}
-            onFocus = {this._onInnerInputFocus}
-            changeInputFocus = {this._changeInnerInputFocus}
-            onBlur = {this._onInnerInputBlur}
-            onChange = {this._onInnerInputChange}
-            showPlaceholder = {showPlaceholder}/>
-          {item.get('separator')}
-        </span>);
+            mask={item.get("mask")}
+            index={index}
+            ref={this.initializeInputRef(index)}
+            inputValue={item.get("value")}
+            placeholder={item.get("placeholder")}
+            onFocus={this._onInnerInputFocus}
+            changeInputFocus={this._changeInnerInputFocus}
+            onBlur={this._onInnerInputBlur}
+            onChange={this._onInnerInputChange}
+            showPlaceholder={showPlaceholder}
+          />
+          <span className={classes["masked-input__sep"]}>
+            {item.get("separator")}
+          </span>
+        </span>
+      );
     });
-    const styles = [style.base];
-    if (showPlaceholder) {
-      styles.push(style.placeholder);
-    }
-    return (
-      <div className='masked-input' style={styles}>
-        {inputs}
-      </div>
-    );
+    return <div className={classes["masked-input"]}>{inputs}</div>;
   }
 }
-
-const style = {
-  'base': {
-    'margin': 2,
-    'backgroundColor': 'white'
-  },
-  'placeholder':{
-    'color': '#c4c4c4'
-  }
-};
-
 export default MaskedInput;

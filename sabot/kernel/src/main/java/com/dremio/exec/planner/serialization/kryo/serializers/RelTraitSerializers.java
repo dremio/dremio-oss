@@ -72,7 +72,7 @@ public final class RelTraitSerializers {
     }
   }
 
-  protected static abstract class NonCachingFieldSerializer<T> extends FieldSerializer<T> {
+  protected abstract static class NonCachingFieldSerializer<T> extends FieldSerializer<T> {
     protected NonCachingFieldSerializer(final Kryo kryo, final Class type) {
       super(kryo, type);
     }

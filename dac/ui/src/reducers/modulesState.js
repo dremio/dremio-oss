@@ -13,53 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { get } from 'lodash/object';
-import { ADD_MODULE_STATE, RESET_MODULE_STATE } from '@app/actions/modulesState';
+import { get } from "lodash/object";
+import {
+  ADD_MODULE_STATE,
+  RESET_MODULE_STATE,
+} from "@app/actions/modulesState";
 
 // dynamic state storage. Primary usage is storing of page data. We need to store data only for
 // current page and remove state for other pages
 const modulesStateReducer = (state = {}, action) => {
-  const {
-    type,
-    reducer,
-    moduleKey
-  } = action;
+  const { type, reducer, moduleKey } = action;
 
   switch (type) {
-  case ADD_MODULE_STATE: {
-    const module = state[moduleKey];
-    // Safety check. We should not use the same module key for different data structures
-    // But it is ok, if we would like to reset state to default using ADD_MODULE action
-    if (module && module.reducer !== reducer) {
-      throw new Error(`Invalid module usage. Most likely module key '${moduleKey}' is used for different components`);
-    }
-    return {
-      ...state,
-      [moduleKey]: {
-        reducer,
-        data: reducer(undefined, action)
+    case ADD_MODULE_STATE: {
+      const module = state[moduleKey];
+      // Safety check. We should not use the same module key for different data structures
+      // But it is ok, if we would like to reset state to default using ADD_MODULE action
+      if (module && module.reducer !== reducer) {
+        throw new Error(
+          `Invalid module usage. Most likely module key '${moduleKey}' is used for different components`
+        );
       }
-    };
-  }
-  case RESET_MODULE_STATE: {
-    const {
-      [moduleKey]: removedModule, // remove state
-      ...rest
-    } = state;
-
-    console.info('modules is removed', removedModule);
-
-    return rest;
-  }
-  default:
-    return Object.keys(state).reduce((nextState, currentModuleKey) => {
-      const moduleState = state[currentModuleKey];
-      nextState[currentModuleKey] = {
-        ...moduleState,
-        data: moduleState.reducer(moduleState.data, action)
+      return {
+        ...state,
+        [moduleKey]: {
+          reducer,
+          data: reducer(undefined, action),
+        },
       };
-      return nextState;
-    }, {});
+    }
+    case RESET_MODULE_STATE: {
+      const {
+        [moduleKey]: removedModule, // remove state
+        ...rest
+      } = state;
+
+      console.info("modules is removed", removedModule);
+
+      return rest;
+    }
+    default:
+      return Object.keys(state).reduce((nextState, currentModuleKey) => {
+        const moduleState = state[currentModuleKey];
+        nextState[currentModuleKey] = {
+          ...moduleState,
+          data: moduleState.reducer(moduleState.data, action),
+        };
+        return nextState;
+      }, {});
   }
 };
 
@@ -67,4 +68,5 @@ export default modulesStateReducer;
 
 // selectors
 export const isInitialized = (state, moduleKey) => !!state[moduleKey];
-export const getData = (state, moduleKey) => get(state[moduleKey], 'data', null);
+export const getData = (state, moduleKey) =>
+  get(state[moduleKey], "data", null);

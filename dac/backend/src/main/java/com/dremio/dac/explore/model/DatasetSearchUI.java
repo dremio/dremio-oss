@@ -42,7 +42,7 @@ import com.google.common.collect.Lists;
  */
 @JsonIgnoreProperties(value={"apiLinks", "links"}, allowGetters=true)
 public class DatasetSearchUI {
-
+  private final String id;
   private final List<String> fullPath;
   private final List<String> displayFullPath;
   private final List<String> context;
@@ -63,6 +63,7 @@ public class DatasetSearchUI {
   public DatasetSearchUI(DatasetConfig datasetConfig, CollaborationTag collaborationTag) {
     this.fullPath = datasetConfig.getFullPathList();
     this.datasetType = datasetConfig.getType();
+    this.id = datasetConfig.getId().getId();
     if (collaborationTag != null) {
       this.tags = collaborationTag.getTagsList();
     }
@@ -86,12 +87,14 @@ public class DatasetSearchUI {
   }
 
   @JsonCreator
-  public DatasetSearchUI(@JsonProperty("fullPath") List<String> fullPath,
+  public DatasetSearchUI(@JsonProperty("id") String id,
+                         @JsonProperty("fullPath") List<String> fullPath,
                          @JsonProperty("displayFullPath") List<String> displayFullPath,
                          @JsonProperty("context") List<String> context,
                          @JsonProperty("parents") List<ParentDataset> parents,
                          @JsonProperty("fields") List<DatasetFieldSearchUI> fields,
                          @JsonProperty("datasetType") DatasetType datasetType) {
+    this.id = id;
     this.fullPath = fullPath;
     this.displayFullPath = displayFullPath;
     this.context = context;
@@ -99,6 +102,10 @@ public class DatasetSearchUI {
     this.fields = fields;
     this.datasetType = datasetType;
     this.datasetVersion = null;
+  }
+
+  public String getId() {
+    return id;
   }
 
   public List<String> getFullPath() {

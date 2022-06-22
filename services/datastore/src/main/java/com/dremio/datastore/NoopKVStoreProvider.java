@@ -16,6 +16,7 @@
 package com.dremio.datastore;
 
 import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Provider;
 
@@ -35,6 +36,7 @@ import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Noop KVStoreProvider for Executor nodes.
@@ -53,6 +55,11 @@ public class NoopKVStoreProvider implements KVStoreProvider {
     Map<String, Object> config
   ) {
     this.scan = scan;
+  }
+
+  @Override
+  public Set<KVStore<?, ?>> stores() {
+    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
   }
 
   @SuppressWarnings("unchecked")

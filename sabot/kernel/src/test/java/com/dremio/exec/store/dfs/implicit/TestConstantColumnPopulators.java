@@ -46,7 +46,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.TestOutputMutator;
-import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.test.AllocatorRule;
 import com.google.common.collect.Lists;
 
@@ -57,7 +56,7 @@ public class TestConstantColumnPopulators {
   @ClassRule
   public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
   private static BufferAllocator bufferAllocator;
-  private static OutputMutator outputMutator;
+  private static TestOutputMutator outputMutator;
 
   @BeforeClass
   public static void setUp() {
@@ -79,7 +78,7 @@ public class TestConstantColumnPopulators {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    AutoCloseables.close(bufferAllocator);
+    AutoCloseables.close(outputMutator, bufferAllocator);
   }
 
   private void verifyNonNullColumn(NameValuePair nameValuePair, VerifyValue verifyValue) throws Exception {

@@ -40,5 +40,6 @@ public interface ExecutorServiceClient {
   public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList,
                                      StreamObserver<Empty> emptyStreamObserver);
 
-
+  public void propagatePluginChange(CoordExecRPC.SourceWrapper sourceWrapper,
+                              StreamObserver<Empty> callOutcomeObserver);
 }

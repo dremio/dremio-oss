@@ -58,7 +58,8 @@ public class SqlGrantOwnership extends SqlCall implements SimpleDirectHandler.Cr
     EXTERNAL_TOKENS_PROVIDER,
     FOLDER,
     SOURCE,
-    SPACE
+    SPACE,
+    FUNCTION
   }
 
   public enum GranteeType{

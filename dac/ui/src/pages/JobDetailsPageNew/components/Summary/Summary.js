@@ -13,39 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import './Summary.less';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import { Tooltip } from "dremio-ui-lib";
+import EllipsedText from "@app/components/EllipsedText";
+import "./Summary.less";
 
-const Summary = ({
-  jobSummary,
-  intl: {
-    formatMessage
-  }
-}) => {
-
+const Summary = ({ jobSummary, intl: { formatMessage } }) => {
   return (
     <>
-      <div className='summary__title'>
-        {formatMessage({ id: 'Summary' })}
-      </div>
-      <div >
-        {
-          jobSummary.map((item, index) => {
-            return (<div key={`jobSummary-${index}`} className='summary__content'>
-              <span className='summary__contentHeader'>{formatMessage({ id: item.label })}:</span>
-              <span className='summary__contentValue'>{item.content}</span>
-            </div>
-            );
-          })
-        }
+      <div className="summary__title">{formatMessage({ id: "Summary" })}</div>
+      <div>
+        {jobSummary.map((item, index) => {
+          return (
+            <>
+              <div key={`jobSummary-${index}`} className="summary__content">
+                <span className="summary__contentHeader">
+                  {formatMessage({ id: item.label })}:
+                </span>
+                {item.label !== "Common.User" ? (
+                  <span className="summary__contentValue">{item.content}</span>
+                ) : item.content.length > 24 ? (
+                  <Tooltip title={item.content}>
+                    <EllipsedText
+                      text={item.content}
+                      className=" summary__contentValue ellipseLabel"
+                    />
+                  </Tooltip>
+                ) : (
+                  <span className="summary__contentValue">{item.content}</span>
+                )}
+              </div>
+              {item?.secondaryContent ? item.secondaryContent : null}
+            </>
+          );
+        })}
       </div>
     </>
-
   );
 };
 Summary.propTypes = {
   intl: PropTypes.object.isRequired,
-  jobSummary: PropTypes.array
+  jobSummary: PropTypes.array,
 };
 export default injectIntl(Summary);

@@ -13,39 +13,81 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import TreeNode from './TreeNode';
+import { getSourceByName } from "@app/utils/nessieUtils";
 
-@Radium
+import TreeNode from "./TreeNode";
+
 class Tree extends Component {
   static propTypes = {
     resourceTree: PropTypes.instanceOf(Immutable.List),
-    renderNode: PropTypes.func,
+    sources: PropTypes.instanceOf(Immutable.List),
+    isSorted: PropTypes.bool,
     isNodeExpanded: PropTypes.func,
-    selectedNodeId: PropTypes.string
-  }
+    selectedNodeId: PropTypes.string,
+    formatIdFromNode: PropTypes.func,
+    isDatasetsDisabled: PropTypes.bool,
+    shouldAllowAdd: PropTypes.bool,
+    dragType: PropTypes.any,
+    shouldShowOverlay: PropTypes.bool,
+    addtoEditor: PropTypes.func,
+    handleSelectedNodeChange: PropTypes.func,
+    isNodeExpandable: PropTypes.func,
+    isExpandable: PropTypes.bool,
+    fromModal: PropTypes.bool,
+    starredItems: PropTypes.array,
+    starNode: PropTypes.func,
+    unstarNode: PropTypes.func,
+  };
 
   static defaultProps = {
-    resourceTree: Immutable.List()
-  }
+    resourceTree: Immutable.List(),
+    fromModal: false,
+  };
 
-  renderNodes = () => this.props.resourceTree.map((node, index) => (
-    <TreeNode
-      node={node}
-      key={index}
-      renderNode={this.props.renderNode}
-      isNodeExpanded={this.props.isNodeExpanded}
-      selectedNodeId={this.props.selectedNodeId}
-    />
-  ))
+  renderNodes = () => {
+    const { resourceTree, sources, fromModal, starredItems, isSorted } =
+      this.props;
+    let tempResourceTree;
+    if (isSorted) {
+      tempResourceTree = resourceTree.sort((firstNode, secondNode) => {
+        const firstNodeName = firstNode.get("name").toLowerCase();
+        const secondNodeName = secondNode.get("name").toLowerCase();
+
+        if (firstNodeName > secondNodeName) return 1;
+        if (firstNodeName < secondNodeName) return -1;
+        return 0;
+      });
+    } else {
+      tempResourceTree = resourceTree;
+    }
+
+    return tempResourceTree.map((node, index) => {
+      const nessieSource = getSourceByName(node.get("name"), sources.toJS());
+
+      let showSource = true;
+      if (fromModal && node.get("type") === "SOURCE") {
+        showSource = false;
+      }
+      return (
+        (nessieSource || showSource) && (
+          <TreeNode
+            node={node}
+            key={index}
+            isStarredLimitReached={starredItems && starredItems.length === 25}
+            {...this.props}
+          />
+        )
+      );
+    });
+  };
 
   render() {
     return (
-      <div style={style} className='global-tree'>
+      <div style={style} className="global-tree">
         {this.renderNodes()}
       </div>
     );
@@ -53,7 +95,7 @@ class Tree extends Component {
 }
 
 const style = {
-  width: '100%'
+  width: "100%",
 };
 
 export default Tree;

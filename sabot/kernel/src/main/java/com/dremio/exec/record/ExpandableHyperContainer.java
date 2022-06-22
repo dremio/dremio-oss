@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.record;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
@@ -117,6 +119,36 @@ public class ExpandableHyperContainer extends VectorContainer {
       }
       size++;
     }
+  }
+
+  /**
+   * Break down the hyper container into individual containers (one for each batch).
+   * This is a destructive operation : the hyper container is cleared.
+   *
+   * @return list of component containers.
+   */
+  public ArrayList<VectorContainer> convertToComponentContainers() {
+    ArrayList<VectorContainer> containerList = new ArrayList<>();
+    if (wrappers.size() > 0) {
+      int numBatches = wrappers.get(0).getValueVectors().length;
+      for (int batchId = 0; batchId < numBatches; ++batchId) {
+        VectorContainer vectorContainer = new VectorContainer();
+        for (VectorWrapper<?> wrapper : wrappers) {
+          ValueVector vector = wrapper.getValueVectors()[batchId];
+          vectorContainer.add(vector);
+        }
+        vectorContainer.buildSchema();
+        containerList.add(vectorContainer);
+      }
+      wrappers.clear();
+    } else {
+      // empty hyper-container. Create empty batches.
+      for (int i = 0; i < size; ++i) {
+        VectorContainer empty = VectorContainer.create(allocator, getSchema());
+        containerList.add(empty);
+      }
+    }
+    return containerList;
   }
 
   public int size(){

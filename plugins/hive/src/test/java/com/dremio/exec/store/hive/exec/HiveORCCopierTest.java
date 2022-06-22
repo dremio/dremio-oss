@@ -22,7 +22,6 @@ import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.MultiValuedColumnVector;
 import org.junit.Test;
 
-import com.dremio.exec.store.hive.exec.HiveORCCopiers;
 import com.dremio.test.DremioTest;
 
 public class HiveORCCopierTest extends DremioTest {

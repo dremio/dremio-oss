@@ -13,71 +13,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import CardContentView from './CardContentView';
+import CardContentView from "./CardContentView";
 
-describe('CardContentView', () => {
-
-  describe('getExampleTextParts', () => {
-    it('should split out the highlighted part', () => {
+describe("CardContentView", () => {
+  describe("getExampleTextParts", () => {
+    it("should split out the highlighted part", () => {
       const examples = [
         [
           {
             positionList: [{ offset: 7, length: 1 }],
-            text: 'address1'
+            text: "address1",
           },
-          [
-            { text: 'address' },
-            { text: '1', highlight: true }
-          ]
+          [{ text: "address" }, { text: "1", highlight: true }],
         ],
         [
           {
             positionList: [{ offset: 0, length: 7 }],
-            text: 'address1'
+            text: "address1",
           },
-          [
-            { text: 'address', highlight: true },
-            { text: '1' }
-          ]
+          [{ text: "address", highlight: true }, { text: "1" }],
         ],
         [
           {
             positionList: [{ offset: 2, length: 4 }],
-            text: 'address1'
+            text: "address1",
           },
-          [
-            { text: 'ad' },
-            { text: 'dres', highlight: true },
-            { text: 's1' }
-          ]
+          [{ text: "ad" }, { text: "dres", highlight: true }, { text: "s1" }],
         ],
         [
           {
             positionList: [{ offset: 0, length: 20 }],
-            text: 'address1'
+            text: "address1",
           },
-          [
-            { text: 'address1', highlight: true }
-          ]
+          [{ text: "address1", highlight: true }],
         ],
         [
           {
-            positionList: [{ offset: 1, length: 1 }, { offset: 2, length: 1 }],
-            text: 'address1'
+            positionList: [
+              { offset: 1, length: 1 },
+              { offset: 2, length: 1 },
+            ],
+            text: "address1",
           },
           [
-            { text: 'a' },
-            { text: 'd', highlight: true },
-            { text: 'd', highlight: true },
-            { text: 'ress1' }
-          ]
-        ]
+            { text: "a" },
+            { text: "d", highlight: true },
+            { text: "d", highlight: true },
+            { text: "ress1" },
+          ],
+        ],
       ];
       for (const example of examples) {
         const exampleMap = Immutable.fromJS(example[0]);
-        expect(CardContentView.getExampleTextParts(exampleMap)).to.eql(example[1]);
+        expect(CardContentView.getExampleTextParts(exampleMap)).to.eql(
+          example[1]
+        );
       }
     });
   });

@@ -18,14 +18,13 @@
 @_half: 10px;
 
 .tag {
-  composes: tag from '~@app/pages/HomePage/components/TagList.less';
+  composes: tag from "~@app/pages/HomePage/components/TagList.less";
 }
 
 .popover-container {
   max-height: 150px;
   overflow-y: auto;
 }
-
 
 @_triangleHeight: 6px;
 //Move triangle to more appropriate less file
@@ -34,7 +33,7 @@
   height: 0;
   border-style: solid;
   border-width: 0 4px @_triangleHeight 4px;
-  border-color: transparent transparent rgba(0,0,0,0.05) transparent;
+  border-color: transparent transparent rgba(0, 0, 0, 0.05) transparent;
   position: absolute;
   top: -@_triangleHeight;
   right: 11px;

@@ -13,33 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import SignupForm from './components/SignupForm';
-import SignupPage from './SignupPage';
+import SignupForm from "./components/SignupForm";
+import SignupPage from "./SignupPage";
 
-describe('SignupPage', () => {
+describe("SignupPage", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      location: {}
+      location: {},
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SignupPage {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SignupPage {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render SignupForm or UnsupportedBrowserForm depending on state.showSignupForm', () => {
-    const wrapper = shallow(<SignupPage {...commonProps}/>);
-    wrapper.setState({showSignupForm: true});
+  it("should render SignupForm or UnsupportedBrowserForm depending on state.showSignupForm", () => {
+    const wrapper = shallow(<SignupPage {...commonProps} />);
+    wrapper.setState({ showSignupForm: true });
     expect(wrapper.find(SignupForm)).to.have.length(1);
-    wrapper.setState({showSignupForm: false});
-    expect(wrapper.name()).to.equal('UnsupportedBrowserForm');
+    wrapper.setState({ showSignupForm: false });
+    expect(wrapper.name()).to.equal("UnsupportedBrowserForm");
   });
 });

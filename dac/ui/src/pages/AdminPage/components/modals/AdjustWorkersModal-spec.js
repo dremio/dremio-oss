@@ -13,33 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { AdjustWorkersModal } from './AdjustWorkersModal';
+import { AdjustWorkersModal } from "./AdjustWorkersModal";
 
-describe('AdjustWorkersModal', () => {
-
+describe("AdjustWorkersModal", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {
-    };
+    minimalProps = {};
     commonProps = {
       ...minimalProps,
       engine: Immutable.fromJS({}),
-      isOpen: false
+      isOpen: false,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AdjustWorkersModal {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AdjustWorkersModal {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AdjustWorkersModal {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<AdjustWorkersModal {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
-
 });

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import ApiUtils from './apiUtils';
+import ApiUtils from "./apiUtils";
 
 /**
  * Poll the server api
@@ -24,13 +24,16 @@ import ApiUtils from './apiUtils';
  * @param timeoutSec
  * @constructor
  */
-export default function ApiPolling(
-  apiParams,
-  handleFailure, handleSuccess,
-  intervalSec = 5, timeoutSec = 600) {
-
-  const {endpoint, options, version} = apiParams;
-
+export default function ApiPolling({
+  endpoint,
+  options,
+  version,
+  handleFailure,
+  handleSuccess,
+  intervalSec = 5,
+  timeoutSec = 600,
+  apiCallFunc,
+}) {
   let pollingHandle;
 
   const makeCall = async () => {
@@ -38,6 +41,9 @@ export default function ApiPolling(
   };
 
   const callApi = (handleOk, handleError) => {
+    if (apiCallFunc) {
+      return apiCallFunc().then(handleOk).catch(handleError);
+    }
     return ApiUtils.fetch(endpoint, options, version)
       .then(handleOk)
       .catch(handleError);
@@ -67,7 +73,7 @@ export default function ApiPolling(
 
   const handleTimeout = () => {
     clearTimeout(pollingHandle);
-    handleFailure({error: 'Exceeded wait time.'});
+    handleFailure({ error: "Exceeded wait time." });
   };
 
   // start polling and set timeout

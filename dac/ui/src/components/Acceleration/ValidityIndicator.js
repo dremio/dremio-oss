@@ -13,35 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import FontIcon from 'components/Icon/FontIcon';
+import PropTypes from "prop-types";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import FontIcon from "components/Icon/FontIcon";
 
 // todo: ax
-export default function ValidityIndicator({isValid}) {
-  return <span className={'ValidityIndicator'} title={
-    isValid ?
-      la('This Reflection is ready to accelerate queries.') :
-      la('This Reflection is not ready to accelerate queries.')
-  }>
-    <FontIcon
-      theme={themes.flameIcon}
-      type={isValid ? 'Flame' : 'Flame-Disabled'}/>
-  </span>;
+export default function ValidityIndicator({ isValid }) {
+  return (
+    <span
+      className={"ValidityIndicator"}
+      title={
+        isValid
+          ? la("This Reflection is ready to accelerate queries.")
+          : la("This Reflection is not ready to accelerate queries.")
+      }
+    >
+      <FontIcon
+        theme={themes.flameIcon}
+        type={isValid ? "Flame" : "Flame-Disabled"}
+      />
+    </span>
+  );
 }
 
 ValidityIndicator.propTypes = {
-  isValid: PropTypes.bool
+  isValid: PropTypes.bool,
 };
 
 const themes = {
   flameIcon: {
-    'Icon': {
+    Icon: {
       width: 13,
-      height: 20
+      height: 20,
     },
-    'Container': {
-      height: 20
-    }
-  }
+    Container: {
+      height: 20,
+    },
+  },
 };

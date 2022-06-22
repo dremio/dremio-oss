@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import './Modal.less';
+import "./Modal.less";
 
 export default class Modal extends Component {
-
   static propTypes = {
     hide: PropTypes.func.isRequired,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   render() {
     return (
-      <div className='modal-white'>
-        <div className='overlay' onClick={this.props.hide}/>
-        <div className='header-overlay' onClick={this.props.hide}/>
-        <div className='modal-white-content' onClick={this.props.hide}>
+      <div className="modal-white">
+        <div className="overlay" onClick={this.props.hide} />
+        <div className="header-overlay" onClick={this.props.hide} />
+        <div className="modal-white-content" onClick={this.props.hide}>
           {this.props.children}
         </div>
       </div>

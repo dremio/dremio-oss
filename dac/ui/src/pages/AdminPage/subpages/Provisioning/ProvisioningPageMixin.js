@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
 const QUEUES = Immutable.fromJS([]);
 
-export default function(input) {
-
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
-    loadData() {
-    },
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
+    loadData() {},
     getQueues() {
       return QUEUES;
     },
@@ -35,8 +34,7 @@ export default function(input) {
     },
 
     getProvision(props, clusterType, VIEW_ID, pollAgain) {
-      props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
-    }
+      return props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
+    },
   });
 }
-

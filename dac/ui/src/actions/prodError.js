@@ -13,23 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
-import sentryUtil from '@app/utils/sentryUtil';
+import invariant from "invariant";
+import sentryUtil from "@app/utils/sentryUtil";
 
-export const SHOW_PROD_ERROR = 'SHOW_PROD_ERROR';
-export const HIDE_PROD_ERROR = 'HIDE_PROD_ERROR';
+export const SHOW_PROD_ERROR = "SHOW_PROD_ERROR";
+export const HIDE_PROD_ERROR = "HIDE_PROD_ERROR";
 
-const e2eTestErrorMessage = 'JS_ERROR_OCCURRED';
+const e2eTestErrorMessage = "JS_ERROR_OCCURRED";
 
 const getError = (e) => {
-  invariant(e, 'error must be provided');
+  invariant(e, "error must be provided");
   if (e instanceof Error) {
     return e;
   }
-  const message = e.message
-    || e._error && e._error.message && e._error.message.get('errorMessage');
+  const message =
+    e.message ||
+    (e._error && e._error.message && e._error.message.get("errorMessage"));
   if (message) {
-    return new Error(message + '\n\n' + (e.stack || 'no stack') + '\n\n(non-Error instance)');
+    return new Error(
+      message + "\n\n" + (e.stack || "no stack") + "\n\n(non-Error instance)"
+    );
   }
   return new Error(e); // error components expect objects
 };
@@ -40,7 +43,7 @@ export function showAppError(error) {
   return {
     type: SHOW_PROD_ERROR,
     error: getError(error),
-    errorId: sentryUtil.getEventId()
+    errorId: sentryUtil.getEventId(),
   };
 }
 

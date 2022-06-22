@@ -29,7 +29,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 import org.apache.arrow.vector.util.JsonStringHashMap;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserRemoteException;
@@ -124,6 +123,7 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
 
     runMetadataRefresh(dirName);
     verifyRecords(dirName, "col1", wrapStructInStruct("f1", longStruct("f1", 2L)));
+    alterTableForgetMetadata(dirName);
   }
 
   @Test
@@ -134,8 +134,9 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
       alterTableChangeColumn(dirName, "col1", "ROW(f1 BIGINT)");
       fail("Complex type cannot be changed to prim");
     } catch (UserRemoteException e) {
-      assertThat(e.getMessage()).contains("should either both be simple or both be complex");
+      assertThat(e.getMessage()).contains("INVALID_DATASET_METADATA ERROR: Field f1: Struct<f1: FloatingPoint(DOUBLE)> and Int(64, true) are incompatible types, for type changes please ensure both columns are either of primitive types or complex but not mixed.");
     }
+    alterTableForgetMetadata(dirName);
   }
 
   @Test
@@ -144,7 +145,8 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
     copyFilesFromInternalSchemaComplex(dirName);
 
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ARRAY(BIGINT))");
-    assertCoercionFailure(dirName, "", "");
+    assertCoercionFailure(dirName, "struct<f1::double>", "list<int64>");
+    alterTableForgetMetadata(dirName);
   }
 
   @Test
@@ -162,6 +164,7 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
       wrapStructInStruct("f1", longStruct("f1", 2L)),
       wrapStructInStruct("f1", longStruct("f1", 2L)));
     verifyCountStar(dirName, 2);
+    alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 DOUBLE))");
   }
 
   @Test
@@ -181,18 +184,17 @@ public class TestComplexJsonInternalSchemaChange extends InternalSchemaTestBase 
       wrapStructInStruct("f1", doubleStruct("id", 2.0)));
   }
 
-  // TODO DX-37650
-  @Ignore
   @Test
   public void testInternalSchemaChangeForStructOfStructBeforeSchemaLearning() throws Exception {
     String dirName = "struct_struct_double_bigint";
     copyFilesFromNoMixedTypesComplex(dirName);
     alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 BIGINT))");
-    triggerSchemaLearning(dirName);
+    triggerOptionalSchemaLearning(dirName);
     verifyRecords(dirName, "col1",
       wrapStructInStruct("f1", longStruct("f1", 2L)),
       wrapStructInStruct("f1", longStruct("f1", 2L)));
     verifyCountStar(dirName, 2);
+    alterTableChangeColumn(dirName, "col1", "ROW(f1 ROW(f1 DOUBLE))");
   }
 
   @Test

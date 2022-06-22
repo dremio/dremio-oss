@@ -13,46 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import $ from 'jquery';
-import classNames from 'classnames';
-import Immutable, { List } from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { injectIntl } from 'react-intl';
-import DocumentTitle from 'react-document-title';
-import socket from '@inject/utils/socket';
-import { flexColumnContainer } from '@app/uiTheme/less/layout.less';
-import StatefulTableViewer from '@app/components/StatefulTableViewer';
+import { PureComponent } from "react";
+import $ from "jquery";
+import classNames from "classnames";
+import Immutable, { List } from "immutable";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import DocumentTitle from "react-document-title";
+import socket from "@inject/utils/socket";
+import { flexColumnContainer } from "@app/uiTheme/less/layout.less";
+import StatefulTableViewer from "@app/components/StatefulTableViewer";
 import JobsContentMixin, {
   MIN_LEFT_PANEL_WIDTH,
-  SEPARATOR_WIDTH
-} from '@app/pages/JobPage/components/JobsContentMixin';
-import { additionalColumnName } from '@inject/pages/JobPageNew/AdditionalJobPageColumns';
+  SEPARATOR_WIDTH,
+} from "@app/pages/JobPage/components/JobsContentMixin";
+import { additionalColumnName } from "@inject/pages/JobPageNew/AdditionalJobPageColumns";
 // import JobTable from '@app/pages/JobPage/components/JobsTable/JobTable';
-import JobsFilters from '@app/pages/JobPage/components/JobsFilters/JobsFilters';
-import JobStateIcon from '@app/pages/JobPage/components/JobStateIcon';
-import SideNav from '@app/components/SideNav/SideNav';
-import timeUtils from 'utils/timeUtils';
-import jobsUtils from 'utils/jobsUtils';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import { TableColumns } from '@app/constants/Constants';
-import { getFormatMessageIdForQueryType } from '@app/pages/JobDetailsPageNew/utils';
-import DatasetCell from './DatasetCell';
-import SQLCell from './SQLCell';
-import DurationCell from './DurationCell';
-import ColumnCell from './ColumnCell';
-import ReflectionIcon, { getReflectionIcon } from './ReflectionIcon';
-import 'react-virtualized/styles.css';
+import JobsFilters from "@app/pages/JobPage/components/JobsFilters/JobsFilters";
+import SideNav from "@app/components/SideNav/SideNav";
+import timeUtils from "utils/timeUtils";
+import jobsUtils, { getFilteredSqlJobList } from "utils/jobsUtils";
+import { renderJobStatus } from "utils/jobsUtils";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
+import { TableColumns } from "@app/constants/Constants";
+import { getFormatMessageIdForQueryType } from "@app/pages/JobDetailsPageNew/utils";
+import DatasetCell from "./DatasetCell";
+import SQLCell from "./SQLCell";
+import DurationCell from "./DurationCell";
+import ColumnCell from "./ColumnCell";
+import ReflectionIcon, { getReflectionIcon } from "./ReflectionIcon";
+import "react-virtualized/styles.css";
 
 // export this for calculate min width of table tr in JobTable.js
 export { SEPARATOR_WIDTH, MIN_LEFT_PANEL_WIDTH };
 
-@injectIntl
-@Radium
 @JobsContentMixin
-export default class JobsContent extends PureComponent {
-
+export class JobsContent extends PureComponent {
   static propTypes = {
     jobId: PropTypes.string,
     jobs: PropTypes.instanceOf(Immutable.List).isRequired,
@@ -68,22 +64,32 @@ export default class JobsContent extends PureComponent {
     className: PropTypes.string,
     loadItemsForFilter: PropTypes.func,
     loadNextJobs: PropTypes.func,
-    changePages: PropTypes.func
+    changePages: PropTypes.func,
+    showSideNavAndTopNav: PropTypes.bool,
+    specificDisplayedColumns: PropTypes.array,
+    handleTabChange: PropTypes.func,
+    renderButtons: PropTypes.func,
+    isFromExplorePage: PropTypes.bool,
+    jobsColumns: PropTypes.array,
+    router: PropTypes.any,
+    exploreJobIdList: PropTypes.array,
+    queryFilter: PropTypes.string,
   };
 
   static defaultProps = {
-    jobs: Immutable.List()
-  }
+    jobs: Immutable.List(),
+  };
 
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
     this.handleResizeJobs = this.handleResizeJobs.bind(this);
     this.getActiveJob = this.getActiveJob.bind(this);
-    this.handleMouseReleaseOutOfBrowser = this.handleMouseReleaseOutOfBrowser.bind(this);
+    this.handleMouseReleaseOutOfBrowser =
+      this.handleMouseReleaseOutOfBrowser.bind(this);
 
     this.handleStartResize = this.handleStartResize.bind(this);
     this.handleEndResize = this.handleEndResize.bind(this);
@@ -91,48 +97,66 @@ export default class JobsContent extends PureComponent {
 
     this.state = {
       isResizing: false,
-      width: '100%',
-      left: 'calc(50% - 22px)',
-      curId: '',
+      width: "100%",
+      left: "calc(50% - 22px)",
+      curId: "",
       getColumns: [],
       getCheckedItems: Immutable.List(),
-      previousJobId: ''
+      previousJobId: "",
     };
   }
 
   getDefaultColumns = () => {
     const columnsObject = {};
     let selectedColumnsData = [];
+    // if old columns config is set in local storage then clear them
+    const checkColumns = localStorageUtils.getJobColumns();
+    if (checkColumns && checkColumns.length > 0) {
+      checkColumns.forEach((item, index) => {
+        if (index === 0 && !item.minWidth) {
+          localStorageUtils.setJobColumns(null);
+        }
+      });
+    }
     const localStorageColumns = localStorageUtils.getJobColumns() || [];
-    localStorageColumns.forEach(item => columnsObject[item.key] = 1);
-    TableColumns.forEach(item => columnsObject[item.key] = columnsObject[item.key] ? columnsObject[item.key] + 1 : 1);
-    const existingColumns = Object.keys(columnsObject).filter((col) => columnsObject[col] > 1);
+    localStorageColumns.forEach((item) => (columnsObject[item.key] = 1));
+    TableColumns.forEach(
+      (item) =>
+        (columnsObject[item.key] = columnsObject[item.key]
+          ? columnsObject[item.key] + 1
+          : 1)
+    );
+    const existingColumns = Object.keys(columnsObject).filter(
+      (col) => columnsObject[col] > 1
+    );
     if (existingColumns.length === TableColumns.length) {
       //for 18.1.0 release only need to be changed in the next update Ticket Number DX-37189
-      const reflectionIndex = localStorageColumns.findIndex(item => item.key === 'reflection');
+      const reflectionIndex = localStorageColumns.findIndex(
+        (item) => item.key === "reflection"
+      );
       if (reflectionIndex >= 0) {
         localStorageColumns[reflectionIndex].isSelected = true;
         localStorageUtils.setJobColumns(localStorageColumns);
       }
       selectedColumnsData = localStorageUtils.getJobColumns()
-        ?
-        localStorageUtils.getJobColumns().filter(item => columnsObject[item.key] > 1 && item.isSelected)
-        :
-        TableColumns.filter(item => item.isSelected);
+        ? localStorageUtils
+            .getJobColumns()
+            .filter((item) => columnsObject[item.key] > 1 && item.isSelected)
+        : TableColumns.filter((item) => item.isSelected);
       const initialColumns = localStorageUtils.getJobColumns()
-        ?
-        localStorageUtils.getJobColumns().filter(item => columnsObject[item.key] > 1)
-        :
-        TableColumns;
+        ? localStorageUtils
+            .getJobColumns()
+            .filter((item) => columnsObject[item.key] > 1)
+        : TableColumns;
       localStorageUtils.setJobColumns(initialColumns);
     } else {
-      selectedColumnsData = TableColumns.filter(item => item.isSelected);
+      selectedColumnsData = TableColumns.filter((item) => item.isSelected);
       localStorageUtils.setJobColumns(TableColumns);
     }
     this.setState({
-      getColumns: selectedColumnsData
+      getColumns: selectedColumnsData,
     });
-  }
+  };
 
   updateColumnsState = (updatedColumns) => {
     this.setState({ getColumns: updatedColumns });
@@ -142,38 +166,47 @@ export default class JobsContent extends PureComponent {
     const { location } = this.props;
     const currentSortDirection = location.query.order;
     const isCurrentColumn = name === location.query.sort;
-    const direction = (currentSortDirection === 'ASCENDING' || !isCurrentColumn) ? 'DESCENDING' : 'ASCENDING';
+    const direction =
+      currentSortDirection === "ASCENDING" || !isCurrentColumn
+        ? "DESCENDING"
+        : "ASCENDING";
     this.context.router.push({
-      ...location, query: { ...location.query, sort: name, order: direction }
+      ...location,
+      query: { ...location.query, sort: name, order: direction },
     });
-    return direction === 'ASCENDING' ? 'DESC' : 'ASC';
-  }
+    return direction === "ASCENDING" ? "DESC" : "ASC";
+  };
 
   componentDidMount() {
-    $(window).on('mouseup', this.handleMouseReleaseOutOfBrowser);
+    $(window).on("mouseup", this.handleMouseReleaseOutOfBrowser);
     this.getDefaultColumns();
   }
 
-
   componentWillReceiveProps(nextProps) {
-    if (nextProps.jobs !== this.props.jobs) {
-      this.runActionForJobs(nextProps.jobs, false, (jobId) => socket.startListenToQVJobProgress(jobId));
+    const { isFromExplorePage, jobs, jobId } = this.props;
+    if (nextProps.jobs !== jobs) {
+      this.runActionForJobs(nextProps.jobs, false, (jobIdForCallback) =>
+        socket.startListenToQVJobProgress(jobIdForCallback)
+      );
 
       // if we don't have an active job id highlight the first job
-      if (!nextProps.jobId) {
+      // Also, don't set an active job when it shows in SQL Editor page
+      if (!nextProps.jobId && !isFromExplorePage) {
         this.setActiveJob(nextProps.jobs.get(0), true);
       }
     }
-    if (nextProps.jobId !== this.props.jobId) {
+    if (nextProps.jobId !== jobId) {
       this.setState({
-        previousJobId: this.props.jobId
+        previousJobId: jobId,
       });
     }
   }
 
   componentWillUnmount() {
-    $(window).off('mouseup', this.handleMouseReleaseOutOfBrowser);
-    this.runActionForJobs(this.props.jobs, true, (jobId) => socket.stoptListenToQVJobProgress(jobId));
+    $(window).off("mouseup", this.handleMouseReleaseOutOfBrowser);
+    this.runActionForJobs(this.props.jobs, true, (jobId) =>
+      socket.stoptListenToQVJobProgress(jobId)
+    );
   }
 
   getCurrentJobIndex() {
@@ -181,41 +214,33 @@ export default class JobsContent extends PureComponent {
     if (this.state.previousJobId === jobId) {
       return -1;
     }
-    return jobs && jobs.findIndex(item => item.get('id') === jobId);
+    return jobs && jobs.findIndex((item) => item.get("id") === jobId);
   }
 
-  render() {
-    const {
-      jobs, queryState, onUpdateQueryState,
-      viewState, className, loadNextJobs, intl,
-      dataFromUserFilter
-    } = this.props;
-    const { getColumns } = this.state;
-    const columnCheckedItems = localStorageUtils.getJobColumns()
-      ?
-      localStorageUtils.getJobColumns()
-        .filter(item => item.isSelected)
-        .map(label => label.key)
-      :
-      TableColumns
-        .filter(item => item.isSelected)
-        .map(label => label.key);
-    const getCheckedItems = Immutable.List(columnCheckedItems);
-    const styles = this.styles;
-    const resizeStyle = this.state.isResizing ? styles.noSelection : {};
-    let tableWidth = 0;
-    getColumns.forEach(column => {
-      tableWidth = tableWidth + column.width;
-    });
-    tableWidth = tableWidth + 160;
-    const renderColumn = (data, isNumeric) => <ColumnCell data={data} isNumeric={isNumeric} />;
-    const renderJobStatus = (jobState) => <JobStateIcon state={jobState} />;
+  getExploreJobIndex(index, job) {
+    const { exploreJobIdList } = this.props;
+    const currentExploreJob =
+      exploreJobIdList && exploreJobIdList.find((j) => j[0] === job.get("id"));
+    if (currentExploreJob && currentExploreJob.length) {
+      return currentExploreJob[1];
+    } else {
+      return index + 1;
+    }
+  }
+
+  getTableData = () => {
+    const { jobs, isFromExplorePage, intl, renderButtons, queryFilter } =
+      this.props;
+    const renderColumn = (data, isNumeric) => (
+      <ColumnCell data={data} isNumeric={isNumeric} />
+    );
     const renderSQL = (sql) => <SQLCell sql={sql} />;
     const renderDataset = (job) => <DatasetCell job={job} />;
     const renderIcon = (isAcceleration) => {
-      return (
-        isAcceleration ? <ReflectionIcon isAcceleration/>
-          : <ColumnCell />
+      return isAcceleration ? (
+        <ReflectionIcon isAcceleration />
+      ) : (
+        <ColumnCell />
       );
     };
     const renderDuration = (
@@ -223,88 +248,205 @@ export default class JobsContent extends PureComponent {
       durationDetails,
       isAcceleration,
       isSpilled
-    ) => <DurationCell
-      durationDetails={durationDetails}
-      isAcceleration={isAcceleration}
-      duration={duration}
-      isSpilled={isSpilled}
-    />;
-    const getTableData = () => {
+    ) => (
+      <DurationCell
+        durationDetails={durationDetails}
+        isAcceleration={isAcceleration}
+        isFromExplorePage={isFromExplorePage}
+        duration={duration}
+        isSpilled={isSpilled}
+      />
+    );
 
-      return jobs.map((job, index) => {
-        const durationDetails = job.get('durationDetails') || new List();
-        const jobDuration = jobsUtils.formatJobDuration(job.get('duration'), true);
-        const planningTimeObject = durationDetails.find(duration => duration.get('phaseName') === 'PLANNING');
-        const planningTime = planningTimeObject && Number(planningTimeObject.get('phaseDuration'));
-        const formattedPlanningTime = planningTime && (planningTime < 1000 ? '<1s' : timeUtils.formatTimeDiff(planningTime, 'HH:mm:ss'));
-        const formattedCost = jobsUtils.getFormattedNumber(job.get('plannerEstimatedCost'));
-        const formattedRowsScanned = jobsUtils.getFormattedNumber(job.get('rowsScanned'));
-        const formattedRowsReturned = jobsUtils.getFormattedNumber(job.get('outputRecords'));
-        const getColumnName = additionalColumnName(job);
+    const curJobs =
+      queryFilter && isFromExplorePage
+        ? getFilteredSqlJobList(jobs, queryFilter)
+        : jobs;
 
-        return {
-          data: {
-            jobStatus: { node: () => renderJobStatus(job.get('state')), value: job.get('state') },
-            job: { node: () => renderColumn(job.get('id')), value: job.get('id') },
-            usr: { node: () => renderColumn(job.get('user')), value: job.get('queryUser') },
-            acceleration: { node: () => renderIcon(job.get('accelerated')), value: renderIcon(job.get('accelerated')) },
-            reflection: { node: () => renderIcon(job.get('accelerated')), value: renderIcon(job.get('accelerated')) },
-            ds: { node: () => renderDataset(job, index), value: job },
-            qt: { node: () => renderColumn(intl.formatMessage({ id: getFormatMessageIdForQueryType(job) })), value: job.get('queryType') },
-            ...(getColumnName[0]),
-            st: { node: () => renderColumn(timeUtils.formatTime(job.get('startTime')), false), value: timeUtils.formatTime(job.get('startTime')) },
-            dur: {
-              node: () => renderDuration(jobDuration, durationDetails, job.get('accelerated'), job.get('spilled')),
-              value: {
+    return curJobs.map((job, index) => {
+      const durationDetails = job.get("durationDetails") || new List();
+      const jobDuration = jobsUtils.formatJobDuration(
+        job.get("duration"),
+        true
+      );
+      const planningTimeObject = durationDetails.find(
+        (duration) => duration.get("phaseName") === "PLANNING"
+      );
+      const planningTime =
+        planningTimeObject && Number(planningTimeObject.get("phaseDuration"));
+      const formattedPlanningTime =
+        planningTime &&
+        (planningTime < 1000
+          ? "<1s"
+          : timeUtils.formatTimeDiff(planningTime, "HH:mm:ss"));
+      const formattedCost = jobsUtils.getFormattedNumber(
+        job.get("plannerEstimatedCost")
+      );
+      const formattedRowsScanned = jobsUtils.getFormattedNumber(
+        job.get("rowsScanned")
+      );
+      const formattedRowsReturned = jobsUtils.getFormattedNumber(
+        job.get("outputRecords")
+      );
+      const getColumnName = additionalColumnName(job);
+      const sqlText = job.get("queryText");
+      const jobIdForMap = job.get("id");
+
+      return {
+        data: {
+          jobStatus: {
+            node: () => renderJobStatus(job.get("state")),
+            value: job.get("state"),
+          },
+          job: { node: () => renderColumn(jobIdForMap), value: jobIdForMap },
+          usr: {
+            node: () => renderColumn(job.get("user")),
+            value: job.get("queryUser"),
+          },
+          acceleration: {
+            node: () => renderIcon(job.get("accelerated")),
+            value: renderIcon(job.get("accelerated")),
+          },
+          reflection: {
+            node: () => renderIcon(job.get("accelerated")),
+            value: renderIcon(job.get("accelerated")),
+          },
+          ds: { node: () => renderDataset(job, index), value: job },
+          qt: {
+            node: () =>
+              renderColumn(
+                intl.formatMessage({ id: getFormatMessageIdForQueryType(job) })
+              ),
+            value: job.get("queryType"),
+          },
+          ...getColumnName[0],
+          st: {
+            node: () =>
+              renderColumn(timeUtils.formatTime(job.get("startTime")), true),
+            value: timeUtils.formatTime(job.get("startTime")),
+          },
+          dur: {
+            node: () =>
+              renderDuration(
                 jobDuration,
                 durationDetails,
-                isAcceleration: job.get('accelerated'),
-                isSpilled: job.get('spilled')
-              }
+                job.get("accelerated"),
+                job.get("spilled")
+              ),
+            value: {
+              jobDuration,
+              durationDetails,
+              isAcceleration: job.get("accelerated"),
+              isSpilled: job.get("spilled"),
             },
-            sql: { node: () => renderSQL(job.get('queryText')), value: job.get('queryText') },
-            cost: { node: () => renderColumn(formattedCost.toString(), true), value: formattedCost.toString() },
-            planningTime: { node: () => renderColumn(formattedPlanningTime, true), value: formattedPlanningTime },
-            rowsScanned: { node: () => renderColumn(formattedRowsScanned.toString(), true), value: formattedRowsScanned.toString() },
-            rowsReturned: { node: () => renderColumn(formattedRowsReturned.toString(), true), value: formattedRowsReturned.toString() }
-          }
-        };
-      });
-    };
+          },
+          sql: {
+            node: () => renderSQL(sqlText),
+            value: sqlText,
+            ...(isFromExplorePage && {
+              tabIndex: this.getExploreJobIndex(index, job),
+            }),
+          },
+          cost: {
+            node: () => renderColumn(formattedCost.toString(), true),
+            value: formattedCost.toString(),
+          },
+          planningTime: {
+            node: () => renderColumn(formattedPlanningTime, true),
+            value: formattedPlanningTime,
+          },
+          rowsScanned: {
+            node: () => renderColumn(formattedRowsScanned.toString(), true),
+            value: formattedRowsScanned.toString(),
+          },
+          rowsReturned: {
+            node: () => renderColumn(formattedRowsReturned.toString(), true),
+            value: formattedRowsReturned.toString(),
+          },
+          buttons: { node: () => renderButtons(job.get("state"), jobIdForMap) },
+        },
+      };
+    });
+  };
+
+  render() {
+    const {
+      queryState,
+      onUpdateQueryState,
+      viewState,
+      className,
+      loadNextJobs,
+      intl,
+      dataFromUserFilter,
+      showSideNavAndTopNav = true,
+      jobsColumns,
+      isFromExplorePage,
+    } = this.props;
+    const { getColumns } = this.state;
+    const columnCheckedItems = localStorageUtils.getJobColumns()
+      ? localStorageUtils
+          .getJobColumns()
+          .filter((item) => item.isSelected)
+          .map((label) => label.key)
+      : TableColumns.filter((item) => item.isSelected).map(
+          (label) => label.key
+        );
+    const getCheckedItems = Immutable.List(columnCheckedItems);
+    const styles = this.styles || {};
+    const resizeStyle = this.state.isResizing ? styles.noSelection : {};
+    let tableWidth = 0;
+    getColumns.forEach((column) => {
+      tableWidth = tableWidth + column.width;
+    });
+    tableWidth = tableWidth + 160;
+
     return (
-      <div style={{height: '100%'}}>
-        <DocumentTitle title={intl.formatMessage({ id: 'Job.Jobs' })} />
-        <div className={'jobsPageBody'}>
-          <SideNav />
-          <div className={'jobPageContentDiv'}>
-            <div className={classNames('jobs-content', flexColumnContainer, className)} style={[styles.base, resizeStyle]} ref='content'>
-              <JobsFilters
-                queryState={queryState}
-                onUpdateQueryState={onUpdateQueryState}
-                style={styles.filters}
-                loadItemsForFilter={this.props.loadItemsForFilter}
-                dataFromUserFilter={dataFromUserFilter}
-                dataWithItemsForFilters={this.props.dataWithItemsForFilters}
-                checkedItems={getCheckedItems}
-                columnFilterSelect={this.filterColumnSelect}
-                columnFilterUnSelect={this.filterColumnUnSelect}
-                updateColumnsState={this.updateColumnsState}
-                isQVJobs
-              />
+      <div style={{ height: "100%" }}>
+        <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
+        <div className={"jobsPageBody"}>
+          {showSideNavAndTopNav && <SideNav />}
+          <div className={"jobPageContentDiv"}>
+            <div
+              className={classNames(
+                "jobs-content",
+                flexColumnContainer,
+                className
+              )}
+              style={{ ...styles.base, ...resizeStyle }}
+            >
+              {showSideNavAndTopNav && (
+                <JobsFilters
+                  queryState={queryState}
+                  onUpdateQueryState={onUpdateQueryState}
+                  style={styles.filters}
+                  loadItemsForFilter={this.props.loadItemsForFilter}
+                  dataFromUserFilter={dataFromUserFilter}
+                  dataWithItemsForFilters={this.props.dataWithItemsForFilters}
+                  checkedItems={getCheckedItems}
+                  columnFilterSelect={this.filterColumnSelect}
+                  columnFilterUnSelect={this.filterColumnUnSelect}
+                  updateColumnsState={this.updateColumnsState}
+                  isQVJobs
+                />
+              )}
               <StatefulTableViewer
                 virtualized
                 rowHeight={40}
                 tableWidth={tableWidth}
-                columns={getColumns}
-                tableData={getTableData()}
+                columns={jobsColumns || getColumns}
+                tableData={this.getTableData()}
                 scrollToIndex={this.getCurrentJobIndex()}
                 viewState={viewState}
                 enableHorizontalScroll
-                onClick={this.props.changePages}
+                onClick={
+                  !isFromExplorePage
+                    ? this.props.changePages
+                    : this.props.handleTabChange
+                }
                 resizableColumn
                 loadNextRecords={loadNextJobs}
                 sortRecords={this.sortJobsByColumn}
-                noDataText={intl.formatMessage({ id: 'Job.NoJobs' })}
+                noDataText={intl.formatMessage({ id: "Job.NoJobs" })}
                 showIconHeaders={{ acceleration: { node: getReflectionIcon } }}
                 disableZebraStripes
               />
@@ -315,3 +457,4 @@ export default class JobsContent extends PureComponent {
     );
   }
 }
+export default injectIntl(JobsContent);

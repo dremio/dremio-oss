@@ -13,40 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-h1, .h1 {
+h1,
+.h1 {
   font-weight: 300;
   font-size: 20px;
-  color: #333333;
+  color: inherit;
 }
 
-h2, .h2 {
+h2,
+.h2 {
   font-weight: 300;
   font-size: 18px;
-  color: #333333;
+  color: inherit;
 }
 
-h3, .h3 {
+h3,
+.h3 {
   font-weight: 300;
   font-size: 16px;
-  color: #333333;
+  color: inherit;
 }
 
-h4, .h4 {
+h4,
+.h4 {
   font-weight: 500;
   font-size: 13px;
-  color: #333333;
+  color: inherit;
 }
 
-h5, .h5 {
+h5,
+.h5 {
   font-weight: 500;
   font-size: 12px;
-  color: #333333;
+  color: inherit;
 }
 
 .smallText {
   font-weight: 400;
   font-size: 11px;
-  color: #333333;
+  color: inherit;
 }
 
 .largerFontSize {
@@ -70,9 +75,9 @@ h5, .h5 {
 }
 
 .whiteText {
-  color: #FFFFFF;
+  color: var(--dremio--color--neutral--000);
 }
 
 .blueText {
-  color: #43B8C9;
+  color: #43b8c9;
 }

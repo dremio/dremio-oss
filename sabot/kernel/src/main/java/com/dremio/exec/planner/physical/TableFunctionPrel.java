@@ -19,9 +19,11 @@ import static com.dremio.exec.planner.physical.PlannerSettings.ICEBERG_MANIFEST_
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -29,36 +31,41 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.expressions.Expression;
 
-import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.PartitionTransformTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.google.common.collect.ImmutableList;
+
+import io.protostuff.ByteString;
 
 /**
  * Prel for TableFunction operator
  */
 @Options
-public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel {
-
+public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel, RowCountEstimator {
   public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.tablefunction.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.tablefunction.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   protected final TableMetadata tableMetadata;
-  private final ImmutableList<SchemaPath> projectedColumns;
   private final TableFunctionConfig functionConfig;
   private final RelOptTable table;
   private final Long survivingRecords;
@@ -67,35 +74,31 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
-                           ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
                            RelDataType rowType) {
-    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
+    this(cluster, traits, table, child, tableMetadata, functionConfig, rowType,
       null, null, ImmutableList.of());
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
-                           ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Long survivingRecords) {
-    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType, null, survivingRecords, ImmutableList.of());
+    this(cluster, traits, table, child, tableMetadata, functionConfig, rowType, null, survivingRecords, ImmutableList.of());
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
-                           ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn) {
-    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
+    this(cluster, traits, table, child, tableMetadata, functionConfig, rowType,
       estimateRowCountFn, null, ImmutableList.of());
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
-                           ImmutableList<SchemaPath> projectedColumns,
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn,
@@ -103,7 +106,6 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
                            List<RuntimeFilteredRel.Info> runtimeFilteredRels) {
     super(cluster, traits, child);
     this.tableMetadata = tableMetadata;
-    this.projectedColumns = projectedColumns;
     this.functionConfig = functionConfig;
     this.rowType = rowType;
     this.estimateRowCountFn = estimateRowCountFn == null ?
@@ -118,6 +120,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
     Prel child = (Prel) this.getInput();
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
+    validateSchema(childPOP.getProps().getSchema(), functionConfig.getOutputSchema());
     return new TableFunctionPOP(
       creator.props(this, tableMetadata != null ? tableMetadata.getUser() : null,
         functionConfig.getOutputSchema(), RESERVE, LIMIT),
@@ -131,7 +134,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new TableFunctionPrel(getCluster(), traitSet, table, sole(inputs), tableMetadata, projectedColumns,
+    return new TableFunctionPrel(getCluster(), traitSet, table, sole(inputs), tableMetadata,
             functionConfig, rowType, estimateRowCountFn, survivingRecords, runtimeFilters);
   }
 
@@ -156,6 +159,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
   }
 
   public RelWriter explainTableFunction(RelWriter pw) {
+    pw.item("Table Function Type", functionConfig.getType().name());
     switch (functionConfig.getType()) {
       case DATA_FILE_SCAN:
         pw.item("table", PathUtils.constructFullPath(functionConfig.getFunctionContext().getTablePath().get(0)));
@@ -163,7 +167,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
       case SPLIT_GEN_MANIFEST_SCAN:
         Expression icebergAnyColExpression;
         try {
-          icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((SplitGenManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
+          icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((ManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
         } catch (IOException e) {
           throw new RuntimeIOException(e, "failed to deserialize ManifestFile Filter AnyColExpression");
         } catch (ClassNotFoundException e) {
@@ -177,12 +181,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
     return pw;
   }
 
-  @Override
-  public double estimateRowCount(RelMetadataQuery mq) {
-    return estimateRowCountFn.apply(mq);
-  }
-
-  private double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
+  protected double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
     switch (functionConfig.getType()) {
       case FOOTER_READER:
         return DremioCost.LARGE_ROW_COUNT;
@@ -197,14 +196,15 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
         }
         return survivingDataFileRecords() * selectivityEstimateFactor;
       case SPLIT_GEN_MANIFEST_SCAN:
-      case METADATA_REFRESH_MANIFEST_SCAN:
-        final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
-        double sliceTarget = ((double)plannerSettings.getSliceTarget() /
-                plannerSettings.getOptions().getOption(ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD));
-        if (tableMetadata.getReadDefinition().getManifestScanStats() == null) {
+      case METADATA_MANIFEST_FILE_SCAN:
+        if(survivingRecords == null) {
+          //In case this is not an iceberg table we should rely on old methods of estimation
+          final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());
+          double sliceTarget = ((double)plannerSettings.getSliceTarget() /
+          plannerSettings.getOptions().getOption(ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD));
           return Math.max(mq.getRowCount(input) * sliceTarget, 1);
         }
-        return Math.max(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount() * sliceTarget, 1);
+        return (double)survivingRecords;
       case SPLIT_ASSIGNMENT:
         return mq.getRowCount(this.input);
     }
@@ -230,13 +230,25 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
     return TableFunctionConfig.FunctionType.DATA_FILE_SCAN.equals(functionConfig.getType());
   }
 
+  public boolean hasFilter() {
+    return functionConfig.getFunctionContext().getScanFilter() != null;
+  }
+
   public TableMetadata getTableMetadata() {
     return tableMetadata;
+  }
+
+  public TableFunctionConfig getTableFunctionConfig() {
+    return functionConfig;
   }
 
   @Override
   public List<RuntimeFilteredRel.Info> getRuntimeFilters() {
     return runtimeFilters;
+  }
+
+  public Long getSurvivingRecords() {
+    return survivingRecords;
   }
 
   @Override
@@ -246,5 +258,38 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel 
       .add(filterInfo)
       .build();
     recomputeDigest();
+  }
+
+  private void validateSchema(BatchSchema inputSchema, BatchSchema tableFunctionSchema) {
+    switch (functionConfig.getType()) {
+      case ICEBERG_PARTITION_TRANSFORM:
+        ByteString partitionSpecBytes = ((PartitionTransformTableFunctionContext) functionConfig.getFunctionContext()).getPartitionSpec();
+        String icebergSchema = ((PartitionTransformTableFunctionContext) functionConfig.getFunctionContext()).getIcebergSchema();
+        PartitionSpec partitionSpec = IcebergSerDe.deserializePartitionSpec(IcebergSerDe.deserializedJsonAsSchema(icebergSchema), partitionSpecBytes.toByteArray());
+        SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
+        Set<String> extraFields = partitionSpec.fields().stream()
+          .map(IcebergUtils::getPartitionFieldName)
+          .map(String::toLowerCase)
+          .collect(Collectors.toSet());
+        for (Field field : tableFunctionSchema) {
+          if (extraFields.contains(field.getName().toLowerCase())) {
+            continue;
+          }
+          schemaBuilder.addField(field);
+        }
+        BatchSchema expectedInputSchema = schemaBuilder.build();
+        if (!inputSchema.equalsIgnoreCase(expectedInputSchema)) {
+          throw UserException.validationError().message("Table schema %s doesn't match with query schema %s.",
+            expectedInputSchema, inputSchema).buildSilently();
+        }
+        return;
+
+      default:
+        return;
+    }
+  }
+
+  public Function<RelMetadataQuery, Double> getEstimateRowCountFn() {
+    return estimateRowCountFn;
   }
 }

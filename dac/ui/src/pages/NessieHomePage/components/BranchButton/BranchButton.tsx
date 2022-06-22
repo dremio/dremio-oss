@@ -13,34 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Button } from '@material-ui/core';
-import { FormattedMessage } from 'react-intl';
+import { Button } from "@material-ui/core";
+import { FormattedMessage } from "react-intl";
 
-import FontIcon from '@app/components/Icon/FontIcon';
+import FontIcon from "@app/components/Icon/FontIcon";
 
-import './BranchButton.less';
+import "./BranchButton.less";
 
-const iconStyle = { width: '16px', height: '16px' };
+const iconStyle = { width: "16px", height: "16px" };
 
 function BranchButton({
   onClick,
   text,
-  iconType = 'NewBranch'
+  iconType = "GitFork",
 }: {
   iconType?: string;
   text?: any;
   onClick: () => void;
 }) {
   return (
-    <span className='branch-button'>
+    <span className="branch-button">
       <Button
-        variant='outlined'
-        size='small'
+        variant="outlined"
+        size="small"
         startIcon={<FontIcon type={iconType} theme={{ Icon: iconStyle }} />}
         onClick={onClick}
       >
-        <span className='branch-button-text'>
-          {text || <FormattedMessage id='RepoView.CreateBranch' />}
+        <span className="branch-button-text">
+          {text || <FormattedMessage id="RepoView.CreateBranch" />}
         </span>
       </Button>
     </span>

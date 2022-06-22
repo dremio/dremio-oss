@@ -15,26 +15,9 @@
  */
 
 .wiki-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-}
+  color: var(--dremio--color--neutral--600) !important;
 
-.wiki-button-selected {
-  width: 100%;
-}
-
-.notification-icon {
-  @size: 10px;
-  @diagonalTransition: 20%;
-  display: block;
-  border-radius: @size / 2;
-  width: @size;
-  height: @size;
-
-  background: #FF9364;
-  position: absolute;
-  left: 100%;
-  top: 0;
-  transform: translate(-100% + @diagonalTransition, -@diagonalTransition);
+  &:hover {
+    color: var(--dremio--color--link) !important;
+  }
 }

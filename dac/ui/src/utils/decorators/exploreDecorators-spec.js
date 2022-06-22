@@ -13,107 +13,105 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import * as exploreDecorators from './exploreDecorators';
+import * as exploreDecorators from "./exploreDecorators";
 
-describe('exploreDecorators', () => {
-
-  describe('getColumnStatus()', function() {
-
-    it('should return DELETION_MARKER status', function() {
+describe("exploreDecorators", () => {
+  describe("getColumnStatus()", function () {
+    it("should return DELETION_MARKER status", function () {
       const response = Immutable.fromJS({
-        highlightedColumns: ['col1'],
+        highlightedColumns: ["col1"],
         deletedColumns: [],
-        rowDeletionMarkerColumns: ['col1']
+        rowDeletionMarkerColumns: ["col1"],
       });
       const column = Immutable.fromJS({
-        name: 'col1'
+        name: "col1",
       });
-      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal('DELETION_MARKER');
+      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
+        "DELETION_MARKER"
+      );
     });
 
-    it('should return HIGHLIGHTED status', function() {
+    it("should return HIGHLIGHTED status", function () {
       const response = Immutable.fromJS({
-        highlightedColumns: ['col1'],
+        highlightedColumns: ["col1"],
         deletedColumns: [],
-        rowDeletionMarkerColumns: []
+        rowDeletionMarkerColumns: [],
       });
       const column = Immutable.fromJS({
-        name: 'col1'
+        name: "col1",
       });
-      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal('HIGHLIGHTED');
+      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
+        "HIGHLIGHTED"
+      );
     });
 
-    it('should return DELETED status', function() {
+    it("should return DELETED status", function () {
       const response = Immutable.fromJS({
         highlightedColumns: [],
-        deletedColumns: ['col1'],
-        rowDeletionMarkerColumns: []
+        deletedColumns: ["col1"],
+        rowDeletionMarkerColumns: [],
       });
       const column = Immutable.fromJS({
-        name: 'col1'
+        name: "col1",
       });
-      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal('DELETED');
+      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
+        "DELETED"
+      );
     });
 
-    it('should return ORIGINAL status', function() {
+    it("should return ORIGINAL status", function () {
       const response = Immutable.fromJS({
         highlightedColumns: [],
         deletedColumns: [],
-        rowDeletionMarkerColumns: []
+        rowDeletionMarkerColumns: [],
       });
       const column = Immutable.fromJS({
-        name: 'col1'
+        name: "col1",
       });
-      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal('ORIGINAL');
+      expect(exploreDecorators.getColumnStatus(response, column)).to.be.equal(
+        "ORIGINAL"
+      );
     });
   });
 
-  describe('isRowDeleted()', function() {
-
-    it('should return false, when no DELETION_MARKER column', function() {
+  describe("isRowDeleted()", function () {
+    it("should return false, when no DELETION_MARKER column", function () {
       const row = Immutable.fromJS({
-        row: [
-          {v: 'foo'}
-        ]
+        row: [{ v: "foo" }],
       });
       const columns = Immutable.fromJS([
         {
           index: 0,
-          status: 'ORIGINAL'
-        }
+          status: "ORIGINAL",
+        },
       ]);
       expect(exploreDecorators.isRowDeleted(row, columns)).to.be.false;
     });
 
-    it('should return false, when no null value in row', function() {
+    it("should return false, when no null value in row", function () {
       const row = Immutable.fromJS({
-        row: [
-          {v: 'foo'}
-        ]
+        row: [{ v: "foo" }],
       });
       const columns = Immutable.fromJS([
         {
           index: 0,
-          status: 'DELETION_MARKER'
-        }
+          status: "DELETION_MARKER",
+        },
       ]);
       expect(exploreDecorators.isRowDeleted(row, columns)).to.be.false;
     });
 
-    it('should return true', function() {
+    it("should return true", function () {
       const row = Immutable.fromJS({
-        row: [
-          {v: null},
-          {v: 'bar'}
-        ]
+        row: [{ v: null }, { v: "bar" }],
       });
       const columns = Immutable.fromJS([
         {
           index: 0,
-          status: 'DELETION_MARKER'
-        }
+          status: "DELETION_MARKER",
+        },
       ]);
       expect(exploreDecorators.isRowDeleted(row, columns)).to.be.true;
     });

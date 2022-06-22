@@ -18,7 +18,6 @@ package com.dremio.exec.fn.hive;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.ClassRule;
 import org.junit.Ignore;

@@ -66,7 +66,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 public class TestVectorAccessibleSerializable extends ExecTest {
-  @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(90, TimeUnit.SECONDS); // 90secs
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(90, TimeUnit.SECONDS); // 90secs
 
   @Test
   public void test() throws Exception {

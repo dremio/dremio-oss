@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.common.exceptions.UserException.SYSTEM_ERROR_MSG;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
@@ -37,8 +38,6 @@ import com.google.common.collect.Lists;
  * Map UserException to something the UI can understand.
  */
 public class UserExceptionMapper implements ExceptionMapper<UserException> {
-
-  public static final String SYSTEM_ERROR_MSG = "Unexpected error occurred.";
 
   private static final String RESPONSE_STATUS = "RESPONSE_STATUS";
 

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 /**
  * Use this component for hover handling. This component implements workaround for onMouseLeave bug
@@ -27,8 +27,9 @@ export default class HoverTrigger extends Component {
     onEnter: PropTypes.func,
     onLeave: PropTypes.func,
     children: PropTypes.node,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+    onClick: PropTypes.func,
+  };
 
   hoverItem = null;
 
@@ -41,23 +42,25 @@ export default class HoverTrigger extends Component {
   }
 
   componentWillUnmount() {
-    this.hoverItem.removeEventListener('mouseleave', this.handleMouseLeave);
+    this.hoverItem.removeEventListener("mouseleave", this.handleMouseLeave);
   }
 
   watchMouseLeave = () => {
-    this.hoverItem.addEventListener('mouseleave', this.handleMouseLeave);
-  }
+    this.hoverItem.addEventListener("mouseleave", this.handleMouseLeave);
+  };
 
   handleMouseLeave = (e) => {
     this.props.onLeave(e);
-  }
+  };
 
   render() {
     return (
       <div
         style={this.props.style}
         onMouseEnter={this.props.onEnter}
-        ref={(hoverItem) => this.hoverItem = hoverItem}>
+        ref={(hoverItem) => (this.hoverItem = hoverItem)}
+        onClick={this.props.onClick}
+      >
         {this.props.children}
       </div>
     );

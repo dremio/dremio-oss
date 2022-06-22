@@ -13,71 +13,71 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { formDescription } from 'uiTheme/radium/typography';
+import { formDescription } from "uiTheme/radium/typography";
 
-export const borderDottedGreen = '1px dotted #92E2D0';
-export const borderSolidGray = '1px solid rgba(0,0,0,0.10)';
-export const greenBackground = '#F5FCFF';
-export const whiteBackground = '#FFFFFF';
-export const fieldAreaWidth = '240px';
+export const borderDottedGreen = "1px dotted #92E2D0";
+export const borderSolidGray = "1px solid rgba(0,0,0,0.10)";
+export const greenBackground = "#F5FCFF";
+export const whiteBackground = "#FFFFFF";
+export const fieldAreaWidth = "240px";
 
 export const areaWrap = {
-  width: '100%',
-  overflow: 'auto'
+  width: "100%",
+  overflow: "auto",
 };
 
 export const fieldBox = {
   background: greenBackground,
   border: borderDottedGreen,
-  borderRadius: '1px',
-  width: '570px',
-  height: '25px'
+  borderRadius: "1px",
+  width: "570px",
+  height: "25px",
 };
 
 const defaultBorderWidth = {
-  borderLeftWidth: '1px',
-  borderRightWidth: '1px',
-  borderTopWidth: '1px',
-  borderBottomWidth: '1px'
+  borderLeftWidth: "1px",
+  borderRightWidth: "1px",
+  borderTopWidth: "1px",
+  borderBottomWidth: "1px",
 };
 
 export const dragAreaText = {
   width: 180,
   ...formDescription,
-  textAlign: 'center',
-  display: 'inline-block'
+  textAlign: "center",
+  display: "inline-block",
 };
 
 export const columnWrap = {
-  width: '100%'
+  width: "100%",
 };
 
 const dragArea = {
   base: {
-    display: 'flex',
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    display: "flex",
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    flexWrap: "wrap",
     minHeight: 180,
-    height: '100%',
-    overflow: 'auto',
+    height: "100%",
+    overflow: "auto",
     //padding: '2px 0',
-    ...defaultBorderWidth
+    ...defaultBorderWidth,
   },
   empty: {
     background: whiteBackground,
-    ...defaultBorderWidth
+    ...defaultBorderWidth,
   },
   notEmpty: {
-    alignItems: 'flex-start',
-    background: whiteBackground
+    alignItems: "flex-start",
+    background: whiteBackground,
   },
   grabbed: {
-    alignItems: 'top',
+    alignItems: "top",
     background: greenBackground,
-    ...defaultBorderWidth
-  }
+    ...defaultBorderWidth,
+  },
 };
 
 export function getDragAreaStyle(isDragged, isEmpty) {

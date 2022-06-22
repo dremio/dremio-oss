@@ -18,7 +18,6 @@ package com.dremio.common.exceptions;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 

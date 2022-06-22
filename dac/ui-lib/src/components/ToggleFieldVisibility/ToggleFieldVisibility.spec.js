@@ -13,36 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
+import React from "react";
 
-import { shallow } from 'enzyme';
-import SvgIcon from '@material-ui/core/SvgIcon';
+import { shallow } from "enzyme";
+import SvgIcon from "@material-ui/core/SvgIcon";
 
-import ToggleFieldVisibility from './ToggleFieldVisibility';
+import ToggleFieldVisibility from "./ToggleFieldVisibility";
 
 const defaultProps = {};
 
 const getShallowWrapper = (props = {}) => {
   const compProps = {
     ...defaultProps,
-    ...props
+    ...props,
   };
   return shallow(<ToggleFieldVisibility {...compProps} />);
 };
 
-describe('ToggleFieldVisibility', () => {
-  it('renders reqired components', () => {
+describe("ToggleFieldVisibility", () => {
+  it("renders reqired components", () => {
     const onView = jest.fn();
     const wrapper = getShallowWrapper();
-    const element = wrapper.find('div');
+    const element = wrapper.find("div");
     expect(element.exists()).toBe(true);
     expect(element.find(SvgIcon).exists()).toBe(true);
-    element.simulate('click');
+    element.simulate("click");
     expect(onView).not.toHaveBeenCalled();
     const updatedWrapper = getShallowWrapper({ onView });
-    const updatedElement = updatedWrapper.find('div');
+    const updatedElement = updatedWrapper.find("div");
     expect(updatedElement.exists()).toBe(true);
-    updatedElement.simulate('click');
+    updatedElement.simulate("click");
     expect(onView).toHaveBeenCalled();
   });
 });

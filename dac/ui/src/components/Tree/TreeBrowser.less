@@ -14,22 +14,52 @@
  * limitations under the License.
  */
 
- @import "~@app/uiTheme/less/color-schema.less";
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
   .TreeBrowser {
     display: flex;
     height: 100%;
     flex-direction: column;
 
-    &-heading {
-      border-bottom: .1rem solid @SECONDARY_200;
+    &--empty {
       display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-top: 32px;
+      font-size: 16px;
+      line-height: 24px;
+    }
+
+    &__subHeading {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      padding-right: 8px;
+
+      &:hover {
+        .dropdownMenu__text {
+          color: var(--dremio--color--link);
+        }
+      }
+    }
+
+    &-heading {
+      border-bottom: 0.1rem solid @SECONDARY_200;
+      display: flex;
+      align-items: center;
       height: 3.9rem;
-      padding: 0 .8rem;
+      padding: 0 0.8rem;
 
       &.--dataset {
-        align-items: center;
+        .TreeBrowser-tab {
+          height: auto;
+        }
+      }
+
+      &.--collapsed {
+        padding: 0 0.4rem;
       }
 
       h3 {
@@ -40,21 +70,21 @@
     }
 
     &-items {
-      max-height: calc(100vh - 21rem);
+      max-height: calc(100vh - 26rem);
       min-height: 49rem; // height of the panel subracting header elements
       padding: 0.4rem 1.2rem;
       overflow-y: auto;
 
       .dragSource {
         align-items: center;
+        border-radius: 0.4rem;
         display: flex;
         flex-direction: row;
-        padding: .4rem 0;
 
         &:hover {
-          background: @PRIMARY_100;
-
-          .resourceTreeNode__add {
+          .resourceTreeNode__add
+            .resourceTreeNode--unstarred
+            .resourceTreeNode--limitReached {
             opacity: 1;
           }
         }
@@ -68,32 +98,34 @@
       color: @MAIN_TEXT;
       padding: 0 12px;
       margin: 0 4px;
+      height: 100%;
 
       &.--active {
-        color: @FIGMA_TEXT_LINK;
+        color: var(--dremio--color--link);
         font-weight: 600;
       }
 
       &::after {
         height: 2px;
-        background-color: @FIGMA_TEXT_LINK;
+        background-color: var(--dremio--color--link);
       }
 
       &:hover:not(.button-active)::after {
         height: 2px;
-        background-color: @FIGMA_TEXT_LINK;
+        background-color: var(--dremio--color--link);
       }
     }
-    
-    &__collapseButton {
-      margin-left: auto;
-      transition: 300ms ease filter;
-      width: 2rem;
+  }
+}
+.collapseButton {
+  margin-left: auto;
+  transition: 300ms ease filter;
+  height: 24px;
+  width: 24px;
 
-      &:hover {
-        filter: invert(53%) sepia(45%) saturate(6859%) hue-rotate(157deg) brightness(70%) contrast(73%);
-        cursor: pointer;
-      }
-    }
+  &:hover {
+    filter: invert(53%) sepia(45%) saturate(6859%) hue-rotate(157deg)
+    brightness(70%) contrast(73%);
+    cursor: pointer;
   }
 }

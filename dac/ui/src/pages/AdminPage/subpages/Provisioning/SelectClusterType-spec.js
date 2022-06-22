@@ -13,43 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import SelectClusterType from './SelectClusterType';
+import SelectClusterType from "./SelectClusterType";
 
-describe('SelectClusterType', () => {
-
+describe("SelectClusterType", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       onSelectClusterType: sinon.spy(),
-      clusters: Immutable.List()
+      clusters: Immutable.List(),
     };
     commonProps = {
       ...minimalProps,
-      clusters: Immutable.fromJS([{
-        label: 'cluster1',
-        clusterType: 'clusterType1',
-        iconType: 'iconType1',
-        connected: true
-      }, {
-        label: 'cluster2',
-        clusterType: 'clusterType2',
-        iconType: 'iconType2',
-        connected: false
-      }])
+      clusters: Immutable.fromJS([
+        {
+          label: "cluster1",
+          clusterType: "clusterType1",
+          iconType: "iconType1",
+          connected: true,
+        },
+        {
+          label: "cluster2",
+          clusterType: "clusterType2",
+          iconType: "iconType2",
+          connected: false,
+        },
+      ]),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SelectClusterType {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SelectClusterType {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render one SelectConnectionButton for each cluster', () => {
-    const wrapper = shallow(<SelectClusterType {...commonProps}/>);
-    expect(wrapper.find('SelectConnectionButton')).to.have.length(commonProps.clusters.size);
+  it("should render one SelectConnectionButton for each cluster", () => {
+    const wrapper = shallow(<SelectClusterType {...commonProps} />);
+    expect(wrapper.find("SelectConnectionButton")).to.have.length(
+      commonProps.clusters.size
+    );
   });
 });

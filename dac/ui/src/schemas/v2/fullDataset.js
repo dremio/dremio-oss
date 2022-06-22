@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
-import tableData from './tableData';
-import datasetUI from './datasetUI';
-import history from './history';
+import { Schema } from "normalizr";
+import tableData from "./tableData";
+import datasetUI from "./datasetUI";
+import history from "./history";
 
-const fullDataset = new Schema('fullDataset', {
-  idAttribute: 'version'
+const fullDataset = new Schema("fullDataset", {
+  idAttribute: "version",
 });
 
 fullDataset.define({
   data: tableData,
   dataset: datasetUI,
-  history
+  history,
 });
 
 export default fullDataset;
@@ -38,5 +38,5 @@ export {
   // data and some not. So endpoints that does NOT load the data in intital dataset response are
   // using datasetWithoutData. The old code uses fullDataset schema. So looking on the schema you
   // could understand was particulsr enpoint refactored to load data asynchronously or not.
-  fullDataset as datasetWithoutData
+  fullDataset as datasetWithoutData,
 };

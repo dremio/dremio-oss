@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-
-import APICallMixin from '@inject/core/APICallMixin';
+import APICallMixin from "@inject/core/APICallMixin";
 /**
  * APICall handles building urls for API calls.
  */
@@ -42,10 +41,9 @@ export default class APICall {
   // supports multiple paths as a string: /foo/bar/baz
   paths(value) {
     if (value) {
-      const paths = value.split('/')
-        .filter((path) => {
-          return !!path;
-        });
+      const paths = value.split("/").filter((path) => {
+        return !!path;
+      });
       this._path = this._path.concat(paths);
     }
 
@@ -78,7 +76,7 @@ export default class APICall {
   }
 
   uncachable() {
-    this._params.set('nocache', Date.now());
+    this._params.set("nocache", Date.now());
     return this;
   }
 
@@ -86,7 +84,7 @@ export default class APICall {
    * Returns the path as a string.  Does not include the api version!
    */
   toPath() {
-    let url = '';
+    let url = "";
 
     if (this._fullPath) {
       url = this._fullPath;
@@ -95,13 +93,18 @@ export default class APICall {
         .filter(Boolean)
         .map((path, index, array) => {
           // handle already encoded paths - mainly from api links on the server.
-          const decodedPath = path.match(/^[A-Z][A-Z0-9]*$/i) === null && array[0] === 'resourcetree';
-          return decodedPath ? encodeURIComponent(path) : encodeURIComponent(decodeURIComponent(path));
-        }).join('/');
+          const decodedPath =
+            path.match(/^[A-Z][A-Z0-9]*$/i) === null &&
+            array[0] === "resourcetree";
+          return decodedPath
+            ? encodeURIComponent(path)
+            : encodeURIComponent(decodeURIComponent(path));
+        })
+        .join("/");
     }
 
-    if (!url.startsWith('/')) {
-      url = '/' + url;
+    if (!url.startsWith("/")) {
+      url = "/" + url;
     }
 
     if (this._params.size === 0) {
@@ -115,7 +118,7 @@ export default class APICall {
         value.forEach((v) => {
           urlSearchParams.append(key, v);
         });
-      } else if (typeof value === 'object') {
+      } else if (typeof value === "object") {
         urlSearchParams.set(key, JSON.stringify(value));
       } else {
         urlSearchParams.set(key, value);
@@ -123,15 +126,15 @@ export default class APICall {
     }
 
     // url may contain ? due to fullpath, so handle that
-    if (url.indexOf('?') > -1) {
-      return url + '&' + urlSearchParams.toString();
+    if (url.indexOf("?") > -1) {
+      return url + "&" + urlSearchParams.toString();
     } else {
       // require a trailing / when we have parameters
-      if (!url.endsWith('/') && this._appendFrontSlash) {
-        url += '/';
+      if (!url.endsWith("/") && this._appendFrontSlash) {
+        url += "/";
       }
 
-      return url + '?' + urlSearchParams.toString();
+      return url + "?" + urlSearchParams.toString();
     }
   }
 

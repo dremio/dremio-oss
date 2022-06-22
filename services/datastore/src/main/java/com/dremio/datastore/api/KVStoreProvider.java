@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore.api;
 
+import java.util.Set;
+
 import com.dremio.datastore.format.Format;
 import com.dremio.service.Service;
 
@@ -23,6 +25,12 @@ import com.dremio.service.Service;
  */
 public interface KVStoreProvider extends Service {
 
+   /* Get stores created.
+   *
+   * @return a set of all the KVStores
+   */
+  Set<KVStore<?,?>> stores();
+
   /**
    * Get the store associated with the provided creator class.
    *
@@ -30,6 +38,7 @@ public interface KVStoreProvider extends Service {
    * @return The associated kvstore, already initialized.
    */
   <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator);
+
 
   /**
    * Get method to retrieve the StoreBuilder of this KVStoreProvider.

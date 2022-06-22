@@ -17,32 +17,32 @@
 @import "~@app/uiTheme/less/color-schema.less";
 
 :global {
-    .pageBreadcrumbHeader {
-        .flex-center;
-        justify-content: space-between;
-        padding: 12px 16px;
-  
-        border-bottom: 1px solid @SECONDARY_200;
-        &-crumbContainer {
-          .flex-center;
-    
-          .branchPickerTag {
-              margin-left: 4px;
-          }
-        }
+  .pageBreadcrumbHeader {
+    .flex-center;
+    justify-content: space-between;
+    padding: 12px 16px;
 
-        &-rightContent {
-          flex-shrink: 0;
-          padding-left: 16px;
-        }
+    border-bottom: 1px solid @SECONDARY_200;
+    &-crumbContainer {
+      .flex-center;
 
-        .pageBreadcrumbHeader-copyButton {
-          opacity: 0;
-        }
-        &:hover {
-          .pageBreadcrumbHeader-copyButton {
-            opacity: 1;
-          }
-        }
+      .branchPickerTag {
+        margin-left: 4px;
       }
+    }
+
+    &-rightContent {
+      flex-shrink: 0;
+      padding-left: 16px;
+    }
+
+    .pageBreadcrumbHeader-copyButton {
+      opacity: 0;
+    }
+    &:hover {
+      .pageBreadcrumbHeader-copyButton {
+        opacity: 1;
+      }
+    }
+  }
 }

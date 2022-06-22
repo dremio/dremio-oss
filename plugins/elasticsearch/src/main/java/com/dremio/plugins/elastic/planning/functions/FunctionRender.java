@@ -105,4 +105,3 @@ public class FunctionRender {
     return this.getNullGuardedScript("null", variationDetected);
   }
 }
-

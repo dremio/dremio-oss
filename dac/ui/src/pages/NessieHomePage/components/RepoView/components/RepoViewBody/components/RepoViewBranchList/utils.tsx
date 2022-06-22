@@ -15,8 +15,8 @@
  */
 
 import FontIcon from "@app/components/Icon/FontIcon";
-
 import { Reference } from "@app/services/nessie/client";
+import { intl } from "@app/utils/intl";
 
 import {
   DEFAULT_FORMAT_WITH_TIME_SECONDS,
@@ -32,51 +32,49 @@ export const convertISOString = (
     ref.metadata &&
     ref.metadata.commitMetaOfHEAD &&
     ref.metadata.commitMetaOfHEAD.commitTime
-  )
+  ) {
     return formatDateRelative(
       new Date(ref.metadata.commitMetaOfHEAD.commitTime).toDateString()
     );
-  else if (commitTime) {
+  } else if (commitTime) {
     return formatDate(commitTime, DEFAULT_FORMAT_WITH_TIME_SECONDS);
-  } else return "";
+  } else {
+    return "";
+  }
 };
+
+const iconTheme = { Icon: { width: "24px", height: "24px" } };
 
 export const renderIcons = (
   branch: Reference,
   renderIcon: boolean,
-  openCreateDialog: (branch: Reference) => void,
-  openDeleteDialog?: (branch: Reference) => void,
+  openCreateDialog: (arg: Reference) => void,
+  openDeleteDialog?: (arg: Reference) => void,
   isDefault?: boolean
 ): JSX.Element => {
   return isDefault ? (
     <span
       onClick={() => openCreateDialog(branch)}
       className="branch-list-item-right-icon"
+      title={intl.formatMessage({ id: "RepoView.CreateBranchTooltip" })}
     >
-      <FontIcon
-        type={"GitBranch"}
-        theme={{ Icon: { width: "19px", height: "20px" } }}
-      />
+      <FontIcon type={"GitForkBlue"} theme={iconTheme} />
     </span>
   ) : renderIcon ? (
     <>
       <span
         onClick={() => openCreateDialog(branch)}
         className="branch-list-item-left-icon"
+        title={intl.formatMessage({ id: "RepoView.CreateBranchTooltip" })}
       >
-        <FontIcon
-          type={"GitBranch"}
-          theme={{ Icon: { width: "19px", height: "20px" } }}
-        />
+        <FontIcon type={"GitForkBlue"} theme={iconTheme} />
       </span>
       <span
         onClick={() => openDeleteDialog && openDeleteDialog(branch)}
         className="branch-list-item-right-icon"
+        title={intl.formatMessage({ id: "Common.Delete" })}
       >
-        <FontIcon
-          type={"TrashDark"}
-          theme={{ Icon: { width: "22px", height: "24px" } }}
-        />
+        <FontIcon type={"TrashBlue"} theme={iconTheme} />
       </span>
     </>
   ) : (

@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount } from 'enzyme';
-import DatasetCell from './DatasetCell';
+import { mount } from "enzyme";
+import DatasetCell from "./DatasetCell";
 
-describe('DatasetCell', () => {
+describe("DatasetCell", () => {
   let commonProps;
   const context = { loggedInUser: {} };
   beforeEach(() => {
@@ -24,16 +24,16 @@ describe('DatasetCell', () => {
       job: Immutable.fromJS({
         queriedDatasets: [
           {
-            datasetName: 'Samples.samples.dremio.com.SF weather 2018-2019.csv',
-            datasetPath: 'Samples.samples.dremio.com.SF weather 2018-2019.csv',
-            datasetType: 'PHYSICAL_DATASET_SOURCE_FILE'
-          }
-        ]
-      })
+            datasetName: "Samples.samples.dremio.com.SF weather 2018-2019.csv",
+            datasetPath: "Samples.samples.dremio.com.SF weather 2018-2019.csv",
+            datasetType: "PHYSICAL_DATASET_SOURCE_FILE",
+          },
+        ],
+      }),
     };
   });
 
-  it('should render with props without exploding', () => {
+  it("should render with props without exploding", () => {
     const wrapper = mount(<DatasetCell {...commonProps} />, { context });
     expect(wrapper).to.have.length(1);
   });

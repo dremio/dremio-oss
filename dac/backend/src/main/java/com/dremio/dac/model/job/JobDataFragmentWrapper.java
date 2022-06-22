@@ -44,6 +44,7 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -86,12 +87,16 @@ public class JobDataFragmentWrapper implements JobDataFragment {
   @Override
   public void close() {
     delegate.close();
-
   }
 
   @Override
   public JobId getJobId() {
     return delegate.getJobId();
+  }
+
+  @Override
+  public SessionId getSessionId() {
+    return delegate.getSessionId();
   }
 
   @Override
@@ -297,4 +302,3 @@ public class JobDataFragmentWrapper implements JobDataFragment {
     }
   }
 }
-

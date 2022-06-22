@@ -66,7 +66,7 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
         awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();
         break;
       case DREMIO_ASSUME_ROLE_PROVIDER:
-        awsCredentialsProvider = new DremioAssumeRoleCredentialsProviderV1();
+        awsCredentialsProvider = new com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1();
         break;
       case GLUE_DREMIO_ASSUME_ROLE_PROVIDER:
         awsCredentialsProvider = new GlueDremioAssumeRoleCredentialsProviderV1();

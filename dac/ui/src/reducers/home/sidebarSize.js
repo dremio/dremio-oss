@@ -14,18 +14,20 @@
  * limitations under the License.
  */
 // handles a state for expandable and resizable slidebar
-import { MIN_SIDEBAR_WIDTH, SET_SIDEBAR_SIZE } from '@app/actions/home';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import { MIN_SIDEBAR_WIDTH, SET_SIDEBAR_SIZE } from "@app/actions/home";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
-const slidebarSize = (state, /* action */{ type, size }) => {
+const slidebarSize = (state, /* action */ { type, size }) => {
   switch (type) {
-  case SET_SIDEBAR_SIZE:
-    localStorageUtils.setWikiSize(size);
-    return size;
-  default:
-    // As root reducer reset state on logout we need to read default value from local storage every
-    // time in initialization phase (state === undefined)
-    return state !== undefined ? state : (parseInt(localStorageUtils.getWikiSize(), 10) || MIN_SIDEBAR_WIDTH);
+    case SET_SIDEBAR_SIZE:
+      localStorageUtils.setWikiSize(size);
+      return size;
+    default:
+      // As root reducer reset state on logout we need to read default value from local storage every
+      // time in initialization phase (state === undefined)
+      return state !== undefined
+        ? state
+        : parseInt(localStorageUtils.getWikiSize(), 10) || MIN_SIDEBAR_WIDTH;
   }
 };
 

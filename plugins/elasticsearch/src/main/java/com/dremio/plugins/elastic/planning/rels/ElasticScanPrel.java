@@ -20,8 +20,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -38,6 +36,8 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 
 /*
  * Represents a finalized Elastic scan after a query has been generated. At this point, no further pushdowns

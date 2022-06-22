@@ -396,7 +396,7 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
            * acting as new input vector for DoubleSumAccumulator
            */
            // ensure that if this happens decimal complete is turned off.
-           Preconditions.checkArgument(decimalV2Enabled == false);
+           Preconditions.checkArgument(!decimalV2Enabled);
            Preconditions.checkArgument(partitionAccumulator instanceof SumAccumulators.DecimalSumAccumulator,
                                        "Error: expecting decimal sum accumulator");
           partitionAccumulators[index] =
@@ -492,7 +492,7 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
            * acting as new input vector for DoubleSumAccumulator
            */
           // ensure that if this happens decimal complete is turned off.
-          Preconditions.checkArgument(decimalV2Enabled == false);
+          Preconditions.checkArgument(!decimalV2Enabled);
           Preconditions.checkArgument(partitionAccumulator instanceof SumZeroAccumulators.DecimalSumZeroAccumulator,
                                       "Error: expecting decimal sum zero accumulator");
           partitionAccumulators[index] =

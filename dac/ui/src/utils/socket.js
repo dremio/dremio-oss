@@ -13,31 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
-import { WEB_SOCKET_URL } from '@app/constants/Api';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import { addNotification, removeNotification } from 'actions/notification';
-import Immutable from 'immutable';
-import uuid from 'uuid';
+import invariant from "invariant";
+import { WEB_SOCKET_URL } from "@app/constants/Api";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
+import { addNotification, removeNotification } from "actions/notification";
+import Immutable from "immutable";
+import uuid from "uuid";
 
 const PING_INTERVAL = 15000;
 const CHECK_INTERVAL = 5000;
 
-const WS_MESSAGE_PING = 'ping';
-export const WS_MESSAGE_JOB_DETAILS = 'job-details';
-export const WS_MESSAGE_JOB_DETAILS_LISTEN = 'job-details-listen';
-export const WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN = 'reflection-job-details-listen';
-export const WS_MESSAGE_JOB_PROGRESS = 'job-progress';
-export const WS_MESSAGE_QV_JOB_PROGRESS = 'job-progress-newListingUI';
-export const WS_MESSAGE_JOB_PROGRESS_LISTEN = 'job-progress-listen';
-export const WS_MESSAGE_QV_JOB_PROGRESS_LISTEN = 'qv-job-progress-listen';
-export const WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN = 'reflection-job-progress-listen';
-export const WS_MESSAGE_JOB_RECORDS = 'job-records';
-export const WS_MESSAGE_JOB_RECORDS_LISTEN = 'job-records-listen';
+const WS_MESSAGE_PING = "ping";
+export const WS_MESSAGE_JOB_DETAILS = "job-details";
+export const WS_MESSAGE_JOB_DETAILS_LISTEN = "job-details-listen";
+export const WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN =
+  "reflection-job-details-listen";
+export const WS_MESSAGE_JOB_PROGRESS = "job-progress";
+export const WS_MESSAGE_QV_JOB_PROGRESS = "job-progress-newListingUI";
+export const WS_MESSAGE_JOB_PROGRESS_LISTEN = "job-progress-listen";
+export const WS_MESSAGE_QV_JOB_PROGRESS_LISTEN = "qv-job-progress-listen";
+export const WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN =
+  "reflection-job-progress-listen";
+export const WS_MESSAGE_JOB_RECORDS = "job-records";
+export const WS_MESSAGE_JOB_RECORDS_LISTEN = "job-records-listen";
 
-export const WS_CONNECTION_OPEN = 'WS_CONNECTION_OPEN';
-export const WS_CONNECTION_CLOSE = 'WS_CONNECTION_CLOSE';
-export const WS_CLOSED = 'WS_CLOSED';
+export const WS_CONNECTION_OPEN = "WS_CONNECTION_OPEN";
+export const WS_CONNECTION_CLOSE = "WS_CONNECTION_CLOSE";
+export const WS_CLOSED = "WS_CLOSED";
 
 export class Socket {
   dispatch = null;
@@ -57,8 +59,8 @@ export class Socket {
   }
 
   open() {
-    invariant(!this._socket, 'socket already open');
-    invariant(this.dispatch, 'socket requires #dispatch to be assigned');
+    invariant(!this._socket, "socket already open");
+    invariant(this.dispatch, "socket requires #dispatch to be assigned");
 
     this._createConnection();
     this._pingId = setInterval(this._ping, PING_INTERVAL);
@@ -76,37 +78,48 @@ export class Socket {
 
   _createConnection() {
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
-    window.dremioSocket = this._socket = new WebSocket(WEB_SOCKET_URL, [authToken]);
+    window.dremioSocket = this._socket = new WebSocket(WEB_SOCKET_URL, [
+      authToken,
+    ]);
     this._socket.onopen = this._handleConnectionEstablished;
     this._socket.onclose = this._handleConnectionClose;
     this._socket.onerror = this._handleConnectionError;
     this._socket.onmessage = this._handleMessage;
   }
 
-  _checkConnection = () => { // if the connection dies, keep trying to reopen it
+  _checkConnection = () => {
+    // if the connection dies, keep trying to reopen it
     if (this._socket.readyState === WebSocket.CLOSED) {
       this._createConnection();
     }
   };
 
   _handleConnectionError = (e) => {
-    console.error('SOCKET CONNECTION ERROR', e);
+    console.error("SOCKET CONNECTION ERROR", e);
     this._failureCount++;
-    if (this._failureCount === 6) this.dispatch(addNotification(Immutable.Map({code: WS_CLOSED, messageType: WS_CLOSED}), 'error'));
+    if (this._failureCount === 6)
+      this.dispatch(
+        addNotification(
+          Immutable.Map({ code: WS_CLOSED, messageType: WS_CLOSED }),
+          "error"
+        )
+      );
   };
 
   _handleConnectionClose = () => {
-    console.info('SOCKET CONNECTION CLOSE');
-    setTimeout(() => { // defer because can't dispatch inside a reducer
-      this.dispatch({type: WS_CONNECTION_CLOSE});
+    console.info("SOCKET CONNECTION CLOSE");
+    setTimeout(() => {
+      // defer because can't dispatch inside a reducer
+      this.dispatch({ type: WS_CONNECTION_CLOSE });
     });
   };
 
   _handleConnectionEstablished = () => {
-    console.info('SOCKET CONNECTION OPEN');
+    console.info("SOCKET CONNECTION OPEN");
     this._failureCount = 0;
-    setTimeout(() => { // defer because can't dispatch inside a reducer
-      this.dispatch({type: WS_CONNECTION_OPEN});
+    setTimeout(() => {
+      // defer because can't dispatch inside a reducer
+      this.dispatch({ type: WS_CONNECTION_OPEN });
       this.dispatch(removeNotification(WS_CLOSED));
     });
 
@@ -119,28 +132,28 @@ export class Socket {
   _handleMessage = (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (data.type === 'connection-established') {
-        console.info('SOCKET CONNECTION SUCCESS');
+      if (data.type === "connection-established") {
+        console.info("SOCKET CONNECTION SUCCESS");
       } else {
         console.info(data);
       }
-      this.dispatch({type: data.type, payload: data.payload});
-      this._notifyListeners({type: data.type, payload: data.payload});
+      this.dispatch({ type: data.type, payload: data.payload });
+      this._notifyListeners({ type: data.type, payload: data.payload });
     } catch (error) {
-      console.error('SOCKET CONNECTION MESSAGE HANDLING ERROR', error);
+      console.error("SOCKET CONNECTION MESSAGE HANDLING ERROR", error);
     }
   };
 
   _ping = () => {
-    this._sendMessage({type: WS_MESSAGE_PING, payload: {}});
+    this._sendMessage({ type: WS_MESSAGE_PING, payload: {} });
   };
 
   sendListenMessage(message, forceSend) {
-    const messageKey = message.type + '-' + message.payload.id;
+    const messageKey = message.type + "-" + message.payload.id;
     if (!this._listenMessages[messageKey]) {
       this._listenMessages[messageKey] = {
         message,
-        listenCount: 1
+        listenCount: 1,
       };
       this._sendMessage(message);
     } else {
@@ -152,7 +165,7 @@ export class Socket {
   }
 
   stopListenMessage(message) {
-    const messageKey = message.type + '-' + message.payload.id;
+    const messageKey = message.type + "-" + message.payload.id;
     if (this._listenMessages[messageKey]) {
       this._listenMessages[messageKey].listenCount--;
       if (!this._listenMessages[messageKey].listenCount) {
@@ -166,8 +179,8 @@ export class Socket {
     const message = {
       type,
       payload: {
-        id: jobId
-      }
+        id: jobId,
+      },
     };
     this.sendListenMessage(message, forceSend);
   };
@@ -177,12 +190,11 @@ export class Socket {
     const message = {
       type,
       payload: {
-        id: jobId
-      }
+        id: jobId,
+      },
     };
     this.stopListenMessage(message, forceSend);
   };
-
 
   _startListenToReflectionJob = (jobId, reflectionId, type, forceSend) => {
     invariant(jobId, `Must provide jobId to listen to. Received ${jobId}`);
@@ -190,8 +202,8 @@ export class Socket {
       type,
       payload: {
         id: jobId,
-        reflectionId
-      }
+        reflectionId,
+      },
     };
     this.sendListenMessage(message, forceSend);
   };
@@ -202,8 +214,8 @@ export class Socket {
       type,
       payload: {
         id: jobId,
-        reflectionId
-      }
+        reflectionId,
+      },
     };
     this.stopListenMessage(message);
   };
@@ -217,11 +229,20 @@ export class Socket {
   }
 
   startListenToReflectionJobChange(jobId, reflectionId, forceSend) {
-    this._startListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN, forceSend);
+    this._startListenToReflectionJob(
+      jobId,
+      reflectionId,
+      WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN,
+      forceSend
+    );
   }
 
   stopListenToReflectionJobChange(jobId, reflectionId) {
-    this._stopListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN);
+    this._stopListenToReflectionJob(
+      jobId,
+      reflectionId,
+      WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN
+    );
   }
 
   startListenToJobProgress(jobId, forceSend) {
@@ -241,11 +262,20 @@ export class Socket {
   }
 
   startListenToReflectionJobProgress(jobId, reflectionId, forceSend) {
-    this._startListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN, forceSend);
+    this._startListenToReflectionJob(
+      jobId,
+      reflectionId,
+      WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN,
+      forceSend
+    );
   }
 
   stopListenToReflectionJobProgress(jobId, reflectionId) {
-    this._stopListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN);
+    this._stopListenToReflectionJob(
+      jobId,
+      reflectionId,
+      WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN
+    );
   }
 
   startListenToJobRecords(jobId) {

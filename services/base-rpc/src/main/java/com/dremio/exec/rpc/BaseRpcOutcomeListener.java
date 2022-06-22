@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.rpc;
 
-import com.dremio.exec.proto.UserBitShared.DremioPBError;
 
 import io.netty.buffer.ByteBuf;
 

@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { default as Divider } from './Divider';
+export { default as Divider } from "./Divider";

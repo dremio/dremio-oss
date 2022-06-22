@@ -44,6 +44,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.SessionId;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -135,14 +136,14 @@ public class JobResultsStore implements Service {
       if(attempts.size() > 0) {
         final JobAttempt mostRecentJob = attempts.get(job.getAttemptsList().size() - 1);
         if (mostRecentJob.getState() == JobState.CANCELED) {
-          String cancelledMessage = "";
+          String cancelledMessage = "Could not load results as the query was canceled .";
           if (mostRecentJob.getInfo() != null) {
             if (mostRecentJob.getInfo().getCancellationInfo() != null) {
               cancelledMessage = mostRecentJob.getInfo().getCancellationInfo().getMessage();
             }
           }
           throw UserException.dataReadError()
-            .message(String.format("Could not load results as the query was canceled . %s", cancelledMessage))
+            .message(String.format(cancelledMessage))
             .build(logger);
         } else if (mostRecentJob.getState() == JobState.FAILED) {
           String failureMessage = mostRecentJob.getInfo().getDetailedFailureInfo().getErrorsList().get(0).getMessage();
@@ -312,8 +313,8 @@ public class JobResultsStore implements Service {
     return dfs.delete(jobOutputDir, recursive);
   }
 
-  public JobData get(JobId jobId) {
-    return new JobDataImpl(new LateJobLoader(jobId), jobId);
+  public JobData get(JobId jobId, SessionId sessionId) {
+    return new JobDataImpl(new LateJobLoader(jobId), jobId, sessionId);
   }
 
   private final class LateJobLoader implements JobLoader {

@@ -13,70 +13,76 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { LIST, MAP, TEXT } from '@app/constants/DataTypes';
-import { ALL_TYPES } from '@app/constants/columnTypeGroups';
+import { LIST, MAP, TEXT } from "@app/constants/DataTypes";
+import { ALL_TYPES } from "@app/constants/columnTypeGroups";
 
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 
-@Radium
-export default class SqlGroup extends PureComponent {
+class SqlGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    columnType: PropTypes.string
-  }
+    columnType: PropTypes.string,
+  };
   static renderMenuItems(columnType, onClick) {
     return [
-      <ColumnMenuItem key='UNNEST'
+      <ColumnMenuItem
+        key="UNNEST"
         columnType={columnType}
-        actionType='UNNEST'
-        title={la('Unnest')}
+        actionType="UNNEST"
+        title={la("Unnest")}
         availableTypes={[LIST]}
-        onClick={onClick}/>,
-      <ColumnMenuItem key='EXTRACT_ELEMENTS'
+        onClick={onClick}
+      />,
+      <ColumnMenuItem
+        key="EXTRACT_ELEMENTS"
         columnType={columnType}
-        actionType='EXTRACT_ELEMENTS'
-        title={la('Extract Element(s)…')}
+        actionType="EXTRACT_ELEMENTS"
+        title={la("Extract Element(s)…")}
         availableTypes={[LIST]}
-        onClick={onClick}/>,
-      <ColumnMenuItem key='EXTRACT_ELEMENT'
+        onClick={onClick}
+      />,
+      <ColumnMenuItem
+        key="EXTRACT_ELEMENT"
         columnType={columnType}
-        actionType='EXTRACT_ELEMENT'
-        title={la('Extract Element…')}
+        actionType="EXTRACT_ELEMENT"
+        title={la("Extract Element…")}
         availableTypes={[MAP]}
-        onClick={onClick}/>,
-      <ColumnMenuItem key='CONVERT_CASE'
+        onClick={onClick}
+      />,
+      <ColumnMenuItem
+        key="CONVERT_CASE"
         columnType={columnType}
-        actionType='CONVERT_CASE'
-        title={la('Convert Case…')}
+        actionType="CONVERT_CASE"
+        title={la("Convert Case…")}
         availableTypes={[TEXT]}
-        onClick={onClick}/>,
-      <ColumnMenuItem key='TRIM_WHITE_SPACES'
+        onClick={onClick}
+      />,
+      <ColumnMenuItem
+        key="TRIM_WHITE_SPACES"
         columnType={columnType}
-        actionType='TRIM_WHITE_SPACES'
-        title={la('Trim Whitespace…')}
+        actionType="TRIM_WHITE_SPACES"
+        title={la("Trim Whitespace…")}
         availableTypes={[TEXT]}
-        onClick={onClick}/>,
-      <ColumnMenuItem key='CALCULATED_FIELD'
+        onClick={onClick}
+      />,
+      <ColumnMenuItem
+        key="CALCULATED_FIELD"
         columnType={columnType}
-        actionType='CALCULATED_FIELD'
-        title={la('Calculated Field…')}
+        actionType="CALCULATED_FIELD"
+        title={la("Calculated Field…")}
         availableTypes={ALL_TYPES}
         onClick={onClick}
-      />
+      />,
     ];
   }
   render() {
     const { columnType, makeTransform } = this.props;
     const menuItems = SqlGroup.renderMenuItems(columnType, makeTransform);
-    return (
-      <div>
-        {menuItems}
-      </div>
-    );
+    return <div>{menuItems}</div>;
   }
 }
+export default SqlGroup;

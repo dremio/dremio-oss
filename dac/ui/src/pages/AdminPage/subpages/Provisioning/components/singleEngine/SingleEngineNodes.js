@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import StatefulTableViewer from '@app/components/StatefulTableViewer';
-import SingleEngineNodesMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineNodesMixin';
+import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import SingleEngineNodesMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineNodesMixin";
 
 @SingleEngineNodesMixin
 export class SingleEngineNodes extends PureComponent {
   static propTypes = {
     engine: PropTypes.instanceOf(Immutable.Map),
-    filterList: PropTypes.array
+    filterList: PropTypes.array,
   };
 
   render() {
-    const { engine} = this.props;
+    const { engine } = this.props;
     const columns = this.getColumns(engine);
     const tableData = this.getTableData(engine);
     const renderEngineStatusBar = this.renderEngineStatusBar(engine);
@@ -50,6 +50,6 @@ export class SingleEngineNodes extends PureComponent {
 
 const styles = {
   base: {
-    height: '100%'
-  }
+    height: "100%",
+  },
 };

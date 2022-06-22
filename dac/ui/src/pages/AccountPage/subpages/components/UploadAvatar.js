@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import './UploadAvatar.less';
-import { PureComponent } from 'react';
+import "./UploadAvatar.less";
+import { createRef, PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class UploadAvatar extends PureComponent {
   static propTypes = {
     onLoad: PropTypes.func,
-    url: PropTypes.string
+    url: PropTypes.string,
   };
 
   constructor(props) {
@@ -29,42 +29,55 @@ export default class UploadAvatar extends PureComponent {
 
     this.state = {
       progress: -1,
-      hasError: false
+      hasError: false,
     };
 
     this.onSelectFile = this.onSelectFile.bind(this);
     this.doUpload = this.doUpload.bind(this);
     this.renderProgress = this.renderProgress.bind(this);
+    this.formRef = createRef();
   }
 
   onSelectFile(e) {
     if (e.target.value.length > 0) {
-      this.setState({
-        progress:0,
-        hasError: false
-      }, this.doUpload);
+      this.setState(
+        {
+          progress: 0,
+          hasError: false,
+        },
+        this.doUpload
+      );
     }
   }
 
   doUpload() {
-    const form = new FormData(this.refs.form);
+    const form = new FormData(this.formRef.current);
     const req = new XMLHttpRequest(form);
-    req.open('POST', this.props.url);
+    req.open("POST", this.props.url);
 
     // Upload avatar in process
-    req.upload.addEventListener('progress', (e) => {
-      const progress = e.total !== 0 ? parseInt((e.loaded / e.total) * 100, 10) : 0;
-      this.setState({
-        progress
-      });
-    }, false);
+    req.upload.addEventListener(
+      "progress",
+      (e) => {
+        const progress =
+          e.total !== 0 ? parseInt((e.loaded / e.total) * 100, 10) : 0;
+        this.setState({
+          progress,
+        });
+      },
+      false
+    );
 
     // Upload avatar complete
-    req.addEventListener('load', (e) => {
-      this.setState( {progress: -1, hasError: req.status !== 200 }, () => {
-        this.props.onLoad(e, req);
-      });
-    }, false);
+    req.addEventListener(
+      "load",
+      (e) => {
+        this.setState({ progress: -1, hasError: req.status !== 200 }, () => {
+          this.props.onLoad(e, req);
+        });
+      },
+      false
+    );
 
     req.send(form);
   }
@@ -72,31 +85,33 @@ export default class UploadAvatar extends PureComponent {
   renderForm() {
     return (
       <div>
-        <div className='action'>Change Avatar</div>
-        <form className='_react_fileupload_form_content' ref='form' method='post'>
-          <input type='file' name='file' onChange={this.onSelectFile} />
+        <div className="action">Change Avatar</div>
+        <form
+          className="_react_fileupload_form_content"
+          ref={this.formRef}
+          method="post"
+        >
+          <input type="file" name="file" onChange={this.onSelectFile} />
         </form>
       </div>
     );
   }
 
   renderProgress(progress) {
-    if (progress > -1 ) {
-      const barStyle = { width : progress + '%' };
+    if (progress > -1) {
+      const barStyle = { width: progress + "%" };
 
-      let message = (<span>Uploading ...</span>);
+      let message = <span>Uploading ...</span>;
       if (progress === 100) {
-        message = (<span >Successfully uploaded</span>);
+        message = <span>Successfully uploaded</span>;
       }
 
       return (
         <div>
-          <div className='progressWrapper' >
-            <div className='progressBar' style={barStyle}></div>
+          <div className="progressWrapper">
+            <div className="progressBar" style={barStyle}></div>
           </div>
-          <div style={{'clear':'left'}}>
-            {message}
-          </div>
+          <div style={{ clear: "left" }}>{message}</div>
         </div>
       );
     }
@@ -105,9 +120,9 @@ export default class UploadAvatar extends PureComponent {
 
   render() {
     return (
-      <div id='upload-avatar'>
-        { this.renderForm() }
-        { this.renderProgress(this.state.progress) }
+      <div id="upload-avatar">
+        {this.renderForm()}
+        {this.renderProgress(this.state.progress)}
       </div>
     );
   }

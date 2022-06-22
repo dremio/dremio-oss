@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Children, Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import deepEqual from 'deep-equal';
-import { debounce } from 'lodash/function';
-import { resetRecommendedTransforms } from 'actions/explore/recommended';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import DefaultWizardFooter from 'components/Wizards/components/DefaultWizardFooter';
-import FormProgressWrapper from 'components/FormProgressWrapper';
-import Message from 'components/Message';
-import exploreUtils from 'utils/explore/exploreUtils';
-import { content } from './TransformForm.less';
+import { Children, Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import deepEqual from "deep-equal";
+import { debounce } from "lodash/function";
+import { resetRecommendedTransforms } from "actions/explore/recommended";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import DefaultWizardFooter from "components/Wizards/components/DefaultWizardFooter";
+import FormProgressWrapper from "components/FormProgressWrapper";
+import Message from "components/Message";
+import exploreUtils from "utils/explore/exploreUtils";
+import { content } from "./TransformForm.less";
 
 export function formWrapperProps(props) {
   return {
@@ -38,7 +38,7 @@ export function formWrapperProps(props) {
     values: props.values,
     handleSubmit: props.handleSubmit,
     dataset: props.dataset,
-    viewState: props.viewState
+    viewState: props.viewState,
   };
 }
 
@@ -63,12 +63,12 @@ export class TransformForm extends Component {
     viewState: PropTypes.instanceOf(Immutable.Map),
     style: PropTypes.object,
 
-    resetRecommendedTransforms: PropTypes.func.isRequired
+    resetRecommendedTransforms: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
     viewState: Immutable.fromJS({}),
-    debounceDelay: 1000
+    debounceDelay: 1000,
   };
 
   constructor(props) {
@@ -80,13 +80,14 @@ export class TransformForm extends Component {
     }
   }
 
-
   componentDidMount() {
     if (this.props.valid) {
       this.autoPeek(this.props.values);
       this.autoPeek.flush();
     }
-    if (!exploreUtils.needsToLoadCardFormValuesFromServer(this.props.transform)) {
+    if (
+      !exploreUtils.needsToLoadCardFormValuesFromServer(this.props.transform)
+    ) {
       this.props.values.cards.forEach((card, index) => {
         this.props.loadTransformCardPreview(index, card);
       });
@@ -95,23 +96,33 @@ export class TransformForm extends Component {
 
   componentWillReceiveProps(nextProps) {
     const nextActiveCard = nextProps.values.activeCard;
-    const nextCardValues = nextProps.values.cards && nextProps.values.cards[nextActiveCard];
+    const nextCardValues =
+      nextProps.values.cards && nextProps.values.cards[nextActiveCard];
     if (nextProps.valid && !deepEqual(this.props.values, nextProps.values)) {
       if (nextProps.onValuesChange) {
         nextProps.onValuesChange(nextProps.values, this.props.values);
       }
 
       this.autoPeek(nextProps.values);
-      if (this.props.values.activeCard !== nextProps.values.activeCard && this.autoPeek.flush) {
+      if (
+        this.props.values.activeCard !== nextProps.values.activeCard &&
+        this.autoPeek.flush
+      ) {
         // trigger the first load (and full card changes) immediately (UX)
         this.autoPeek.flush();
       }
     }
 
-    const isCardsChanged = nextProps.loadTransformCardPreview && nextProps.valid
-      && this.props.values.activeCard === nextActiveCard
+    const isCardsChanged =
+      nextProps.loadTransformCardPreview &&
+      nextProps.valid &&
+      this.props.values.activeCard === nextActiveCard &&
       // if we use deepEqual without strict mode, value = '' and value = 0 will be equal
-      && !deepEqual(this.props.values.cards[this.props.values.activeCard], nextCardValues, { strict: true });
+      !deepEqual(
+        this.props.values.cards[this.props.values.activeCard],
+        nextCardValues,
+        { strict: true }
+      );
     if (isCardsChanged) {
       this.updateCard(nextProps);
     }
@@ -129,36 +140,59 @@ export class TransformForm extends Component {
   }
 
   autoPeek(previewValues) {
-    return this.props.onFormSubmit(previewValues, 'autoPeek').catch(function(e) {
-      if (!e || !e._error) {
-        return Promise.reject(e);
-      }
-    }); // skip handleSubmit to not set submitting
+    return this.props
+      .onFormSubmit(previewValues, "autoPeek")
+      .catch(function (e) {
+        if (!e || !e._error) {
+          return Promise.reject(e);
+        }
+      }); // skip handleSubmit to not set submitting
   }
 
   updateCard(props) {
     const { activeCard } = props.values;
-    this.props.loadTransformCardPreview(activeCard, props.values.cards[activeCard]);
+    this.props.loadTransformCardPreview(
+      activeCard,
+      props.values.cards[activeCard]
+    );
   }
 
   render() {
-    const { children, onFormSubmit, handleSubmit, error, viewState, submitting, style } = this.props;
+    const {
+      children,
+      onFormSubmit,
+      handleSubmit,
+      error,
+      viewState,
+      submitting,
+      style,
+    } = this.props;
 
     return (
-      <form onSubmit={onFormSubmit ? handleSubmit(onFormSubmit) : null} ref='form' style={{ height: '100%' }}>
-        {error && <Message messageType='error' message={error.message} messageId={error.id} />}
-        <div style={{ position: 'relative' }}>
-          {
-            Children.count(children) > 0 && <ViewStateWrapper
+      <form
+        onSubmit={onFormSubmit ? handleSubmit(onFormSubmit) : null}
+        style={{ height: "100%" }}
+      >
+        {error && (
+          <Message
+            messageType="error"
+            message={error.message}
+            messageId={error.id}
+          />
+        )}
+        <div style={{ position: "relative" }}>
+          {Children.count(children) > 0 && (
+            <ViewStateWrapper
               className={content}
               viewState={viewState}
               hideChildrenWhenInProgress
-              style={{ ...styles.formBody, ...style }}>
+              style={{ ...styles.formBody, ...style }}
+            >
               <FormProgressWrapper submitting={submitting}>
                 {children}
               </FormProgressWrapper>
             </ViewStateWrapper>
-          }
+          )}
           <DefaultWizardFooter {...this.props} />
         </div>
       </form>
@@ -171,11 +205,11 @@ export default connect(null, { resetRecommendedTransforms })(TransformForm);
 const styles = {
   formBody: { minHeight: 214 },
   spinner: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
     top: 0,
     height: 60,
-    width: '100%'
-  }
+    width: "100%",
+  },
 };

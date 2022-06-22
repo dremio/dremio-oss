@@ -32,11 +32,14 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.auth.BasicServerAuthHandler;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
@@ -53,6 +56,7 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.flight.FlightClientUtils.FlightClientWrapper;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
@@ -81,7 +85,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   private static LegacyKVStoreProvider kvStore;
 
   private static DremioFlightService flightService;
-  private static FlightClientUtils.FlightClientWrapper flightClientWrapper;
+  private static FlightClientWrapper flightClientWrapper;
   private static int flightServicePort;
   private static SSLConfig sslConfig;
   private static DremioConfig dremioConfig;
@@ -197,7 +201,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     return new FlightTestBuilder(getFlightClientWrapper());
   }
 
-  protected FlightClientUtils.FlightClientWrapper getFlightClientWrapper() {
+  protected FlightClientWrapper getFlightClientWrapper() {
     if (null == flightClientWrapper) {
       fail("FlightClient is not open, is this an encryption test? Call #openEncryptedFlightClient");
     }
@@ -210,6 +214,19 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   protected static FlightClient openFlightClient(String user, String password, String authMode) throws Exception {
     return FlightClientUtils.openFlightClient(flightServicePort, user, password, getSabotContext(),
       authMode).getClient();
+  }
+
+  protected static FlightClientWrapper openFlightClientWrapperWithOptions(String user, String password, String authMode,
+                                                                          Collection<CallOption> options)
+    throws Exception {
+    return FlightClientUtils.openFlightClientWithOptions(
+      flightServicePort,
+      user,
+      password,
+      getSabotContext(),
+      authMode,
+      new ArrayList<>(options)
+    );
   }
 
   protected static FlightClient openEncryptedFlightClient(String user, String password,

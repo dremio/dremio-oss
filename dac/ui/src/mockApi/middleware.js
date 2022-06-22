@@ -13,29 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import isPlainObject from 'lodash/isPlainObject';
-import { RequestError } from 'redux-api-middleware/lib/errors';
-import { normalizeTypeDescriptors, actionWith } from 'redux-api-middleware/lib/util';
+import isPlainObject from "lodash/isPlainObject";
+import { RequestError } from "redux-api-middleware/lib/errors";
+import {
+  normalizeTypeDescriptors,
+  actionWith,
+} from "redux-api-middleware/lib/util";
 
-import CALL_MOCK_API from './CALL_MOCK_API';
+import CALL_MOCK_API from "./CALL_MOCK_API";
 
 function getMockResponse(action) {
   const callAPI = action[CALL_MOCK_API];
   const defaultHeaders = new Headers();
-  defaultHeaders.append('Content-Type', 'application/json');
+  defaultHeaders.append("Content-Type", "application/json");
 
-  const res = typeof callAPI.mockResponse === 'function' ? callAPI.mockResponse(action) : callAPI.mockResponse;
+  const res =
+    typeof callAPI.mockResponse === "function"
+      ? callAPI.mockResponse(action)
+      : callAPI.mockResponse;
 
   return {
     ok: true,
     headers: defaultHeaders,
     json: () => new Promise((resolve) => resolve(res.responseJSON)),
-    ...res
+    ...res,
   };
 }
 
 function isMockRSAA(action) {
-  return isPlainObject(action) && action.hasOwnProperty(CALL_MOCK_API);
+  return (
+    isPlainObject(action) &&
+    Object.prototype.hasOwnProperty.call(action, CALL_MOCK_API)
+  );
 }
 
 function validateMockRSAA(action) {
@@ -48,20 +57,27 @@ function validateMockRSAA(action) {
 
   const callAPI = action[CALL_MOCK_API];
   if (!isPlainObject(callAPI)) {
-    validationErrors.push('[CALL_MOCK_API] property must be a plain JavaScript object');
+    validationErrors.push(
+      "[CALL_MOCK_API] property must be a plain JavaScript object"
+    );
   }
 
   const { mockResponse } = callAPI;
-  if (typeof mockResponse === 'undefined') {
-    validationErrors.push('[CALL_MOCK_API] must have a mockResponse property');
+  if (typeof mockResponse === "undefined") {
+    validationErrors.push("[CALL_MOCK_API] must have a mockResponse property");
   } else if (isPlainObject(mockResponse)) {
-    if (mockResponse.ok !== false &&  typeof mockResponse.responseJSON === 'undefined') {
+    if (
+      mockResponse.ok !== false &&
+      typeof mockResponse.responseJSON === "undefined"
+    ) {
       validationErrors.push(
-        '[CALL_MOCK_API] must have a mockResponse.responseJSON if mockResponse.ok is true or undefined');
+        "[CALL_MOCK_API] must have a mockResponse.responseJSON if mockResponse.ok is true or undefined"
+      );
     }
-  } else if (typeof mockResponse !== 'function') {
+  } else if (typeof mockResponse !== "function") {
     validationErrors.push(
-      'mockResponse must be a plain js object or a function that resolves to one');
+      "mockResponse must be a plain js object or a function that resolves to one"
+    );
   }
 
   return validationErrors;
@@ -90,44 +106,47 @@ export default function mockApiMiddleware({ dispatch, getState }) {
     const callAPI = action[CALL_MOCK_API];
     let { endpoint, headers } = callAPI;
     const { bailout, types } = callAPI;
-    const [requestType, successType, failureType] = normalizeTypeDescriptors(types);
+    const [requestType, successType, failureType] =
+      normalizeTypeDescriptors(types);
 
     // Should we bail out?
     try {
-      if ((typeof bailout === 'boolean' && bailout) ||
-          (typeof bailout === 'function' && bailout(getState()))) {
+      if (
+        (typeof bailout === "boolean" && bailout) ||
+        (typeof bailout === "function" && bailout(getState()))
+      ) {
         return;
       }
     } catch (e) {
       return next({
         ...requestType,
-        payload: new RequestError('[RSAA].bailout function failed'),
-        error: true
+        payload: new RequestError("[RSAA].bailout function failed"),
+        error: true,
       });
     }
 
     // Process [RSAA].endpoint function
-    if (typeof endpoint === 'function') {
+    if (typeof endpoint === "function") {
       try {
         endpoint = endpoint(getState());
       } catch (e) {
         return next({
           ...requestType,
-          payload: new RequestError('[RSAA].endpoint function failed'),
-          error: true
+          payload: new RequestError("[RSAA].endpoint function failed"),
+          error: true,
         });
       }
     }
 
     // Process [RSAA].headers function
-    if (typeof headers === 'function') {
+    if (typeof headers === "function") {
       try {
         headers = headers(getState());
       } catch (e) {
         return next({
           ...requestType,
-          payload: new RequestError('[RSAA].headers function failed'),
-          error: true
+          payload: new RequestError("[RSAA].headers function failed"),
+          error: true,
         });
       }
     }
@@ -142,18 +161,17 @@ export default function mockApiMiddleware({ dispatch, getState }) {
 
     // Process the server response
     if (res.ok) {
-      return next(await actionWith(
-        successType,
-        [action, getState(), res]
-      ));
+      return next(await actionWith(successType, [action, getState(), res]));
     }
-    return next(await actionWith(
-      {
-        ...failureType,
-        error: true
-      },
-      [action, getState(), res]
-    ));
+    return next(
+      await actionWith(
+        {
+          ...failureType,
+          error: true,
+        },
+        [action, getState(), res]
+      )
+    );
   };
 }
 

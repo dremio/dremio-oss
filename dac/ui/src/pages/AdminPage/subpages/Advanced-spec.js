@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { LABELS } from './settingsConfig';
-import { Advanced } from './Advanced';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { LABELS } from "./settingsConfig";
+import { Advanced } from "./Advanced";
 
-describe('Advanced', () => {
-
+describe("Advanced", () => {
   let minimalProps;
   let commonProps;
 
   beforeEach(() => {
-    minimalProps = { // todo: find a way to auto-gen this based on propTypes def
+    minimalProps = {
+      // todo: find a way to auto-gen this based on propTypes def
       getAllSettings: sinon.stub().returns(Promise.resolve()),
       resetSetting: sinon.stub().returns(Promise.resolve()),
       addNotification: sinon.stub().returns(Promise.resolve()),
@@ -32,27 +32,31 @@ describe('Advanced', () => {
       viewState: new Immutable.Map(),
 
       settings: new Immutable.Map(),
-      setChildDirtyState: sinon.spy()
+      setChildDirtyState: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
       settings: Immutable.fromJS({
-        '$a': {
-          id: '$a',
+        $a: {
+          id: "$a",
           value: 1,
-          type: 'INTEGER'
-        }
-      })
+          type: "INTEGER",
+        },
+      }),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Advanced {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should getAllSettings on mount', () => {
+  it("should getAllSettings on mount", () => {
     shallow(<Advanced {...commonProps} />);
-    expect(commonProps.getAllSettings).to.have.been.calledWith(Object.keys(LABELS), false, 'ADVANCED_SETTINGS_VIEW_ID');
+    expect(commonProps.getAllSettings).to.have.been.calledWith(
+      Object.keys(LABELS),
+      false,
+      "ADVANCED_SETTINGS_VIEW_ID"
+    );
   });
 });

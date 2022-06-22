@@ -13,37 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { shallow } from 'enzyme';
+import React from "react";
+import { shallow } from "enzyme";
 
-import Select from '../Select';
+import Select from "../Select";
 
-import FormikSelect from './FormikSelect';
+import FormikSelect from "./FormikSelect";
 
 const mockOnChange = jest.fn();
 
 const defaultProps = {
   field: {
-    name: 'sample-select-name',
-    onChange: mockOnChange
+    name: "sample-select-name",
+    onChange: mockOnChange,
   },
   options: [
-    { label: 'label 1', value: 'val1' },
-    { label: 'label 2', value: 'val2' }
-  ]
+    { label: "label 1", value: "val1" },
+    { label: "label 2", value: "val2" },
+  ],
 };
 
 const getShallowWrapper = (props = defaultProps) => {
   return shallow(<FormikSelect {...props} />);
 };
 
-describe('Formik Select', () => {
+describe("Formik Select", () => {
   const wrapper = getShallowWrapper();
-  it('has the required components with props', () => {
+  it("has the required components with props", () => {
     expect(wrapper.find(Select).exists()).toBe(true);
-    expect(wrapper.find(Select).props()).toEqual(expect.objectContaining({
-      ...defaultProps.field,
-      options: defaultProps.options
-    }));
+    expect(wrapper.find(Select).props()).toEqual(
+      expect.objectContaining({
+        ...defaultProps.field,
+        options: defaultProps.options,
+      })
+    );
   });
 });

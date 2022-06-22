@@ -15,5 +15,5 @@
  */
 
 export default {
-  showFormatTab: true
+  showFormatTab: true,
 };

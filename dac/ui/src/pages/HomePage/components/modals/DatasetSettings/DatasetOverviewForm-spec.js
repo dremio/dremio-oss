@@ -13,25 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
-import { FormBody, FormTitle } from 'components/Forms';
-import DatasetOverviewForm from './DatasetOverviewForm';
+import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
+import { FormBody, FormTitle } from "components/Forms";
+import DatasetOverviewForm from "./DatasetOverviewForm";
 
-describe('DatasetOverviewForm', () => {
-  it('should render with minimal props without exploding', () => {
+describe("DatasetOverviewForm", () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<DatasetOverviewForm />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should return null if we have not entity', () => {
-    const wrapper = shallow(<DatasetOverviewForm/>);
+  it("should return null if we have not entity", () => {
+    const wrapper = shallow(<DatasetOverviewForm />);
     expect(wrapper.children().length).to.equal(0);
   });
 
-  it('should render FormBody, FormTitle, DatasetItemLabel if we have entity', () => {
-    const wrapper = shallow(<DatasetOverviewForm entity={Immutable.Map({entityType: 'VIRTUAL_DATASET'})}/>);
+  it("should render FormBody, FormTitle, DatasetItemLabel if we have entity", () => {
+    const wrapper = shallow(
+      <DatasetOverviewForm
+        entity={Immutable.Map({ entityType: "VIRTUAL_DATASET" })}
+      />
+    );
     expect(wrapper.find(DatasetItemLabel)).to.have.length(1);
     expect(wrapper.find(FormBody)).to.have.length(1);
     expect(wrapper.find(FormTitle)).to.have.length(1);

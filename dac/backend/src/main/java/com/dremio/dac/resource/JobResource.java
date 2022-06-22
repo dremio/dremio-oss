@@ -53,6 +53,7 @@ import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetDownloadManager;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.InvalidReflectionJobException;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.dac.util.DownloadUtil;
@@ -67,6 +68,8 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.SessionId;
+import com.dremio.service.jobs.JobCancelException;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -93,6 +96,7 @@ public class JobResource extends BaseResourceWithAllocator {
   private final SecurityContext securityContext;
   private final NamespaceService namespace;
   private final JobId jobId;
+  private final SessionId sessionId;
 
   @Inject
   public JobResource(
@@ -101,7 +105,8 @@ public class JobResource extends BaseResourceWithAllocator {
     @Context SecurityContext securityContext,
     NamespaceService namespace,
     BufferAllocatorFactory allocatorFactory,
-    @PathParam("jobId") JobId jobId
+    @PathParam("jobId") JobId jobId,
+    @PathParam("sessionId") SessionId sessionId
     ) {
     super(allocatorFactory);
     this.jobsService = jobsService;
@@ -109,6 +114,7 @@ public class JobResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
     this.namespace = namespace;
     this.jobId = jobId;
+    this.sessionId = sessionId;
   }
 
   /**
@@ -117,7 +123,7 @@ public class JobResource extends BaseResourceWithAllocator {
   @GET
   @Produces(APPLICATION_JSON)
   public JobUI getJob() throws JobResourceNotFoundException {
-    return new JobUI(jobsService, new JobId(jobId.getId()), securityContext.getUserPrincipal().getName());
+    return new JobUI(jobsService, new JobId(jobId.getId()), sessionId, securityContext.getUserPrincipal().getName());
   }
 
   @POST
@@ -132,9 +138,11 @@ public class JobResource extends BaseResourceWithAllocator {
           .setReason(String.format("Query cancelled by user '%s'", username))
           .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
-    } catch(JobNotFoundException e) {
+    } catch (JobCancelException e) {
+      throw new ConflictException(String.format("Job %s may have completed and cannot be canceled.", jobId.getId()));
+    } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
-    } catch(JobWarningException e) {
+    } catch (JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());
     } catch(JobException e) {
       return new NotificationResponse(ResponseType.ERROR, e.getMessage());
@@ -210,7 +218,7 @@ public class JobResource extends BaseResourceWithAllocator {
 
     JobDataClientUtils.waitForFinalState(jobsService, jobId);
     // job results in pagination requests.
-    return new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName())
+    return new JobDataWrapper(jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
       .range(getOrCreateAllocator("getDataForVersion"), offset, limit);
   }
 
@@ -224,7 +232,7 @@ public class JobResource extends BaseResourceWithAllocator {
     Preconditions.checkNotNull(columnName, "Expected a non-null column name");
 
     JobDataClientUtils.waitForFinalState(jobsService, jobId);
-    try (final JobDataFragment dataFragment = new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName())
+    try (final JobDataFragment dataFragment = new JobDataWrapper(jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
       .range(getOrCreateAllocator("getCellFullValue"), rowNum, 1)) {
 
       return dataFragment.extractValue(columnName, 0);

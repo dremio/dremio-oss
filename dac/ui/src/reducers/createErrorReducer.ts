@@ -21,12 +21,12 @@ function matchAction(type: string) {
 
 //Stores error payload, clears it on next request
 function createErrorReducer(actionList: string[]) {
-  return function(state: any = {}, action: any) {
+  return function (state: any = {}, action: any) {
     if (!actionList.includes(action.type)) return state;
     const match = matchAction(action.type);
     if (!match) return state;
     const [, reqName, requestState] = match;
-    const isReq = requestState === 'REQUEST';
+    const isReq = requestState === "REQUEST";
     if (isReq) {
       const { [action.type]: deleted, ...newState } = state;
       return newState;
@@ -37,4 +37,3 @@ function createErrorReducer(actionList: string[]) {
 }
 
 export default createErrorReducer;
-

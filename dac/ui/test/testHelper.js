@@ -15,53 +15,53 @@
  */
 /* eslint react/prop-types: 0 */
 
-import { configure } from '@testing-library/dom';
-import './commonGlobalVariables';
-import en from 'dyn-load/locales/en.json';
-import 'url-search-params-polyfill';
-import mockCssModules from 'mock-css-modules';
-import config from '../webpack.config';
+import { configure } from "@testing-library/dom";
+import "./commonGlobalVariables";
+import en from "dyn-load/locales/en.json";
+import mockCssModules from "mock-css-modules";
+import config from "../webpack.config";
 
 //data-testid = data-qa for get/queryByTestId in react-testing-library
-configure({ testIdAttribute: 'data-qa' });
+configure({ testIdAttribute: "data-qa" });
 
-require('jsdom-global')(undefined, {
-  url: 'http://localhost/',
-  pretendToBeVisual: true
+require("jsdom-global")(undefined, {
+  url: "http://localhost/",
+  pretendToBeVisual: true,
 });
 
-global.requestAnimationFrame = cb => cb();
+global.requestAnimationFrame = (cb) => cb();
 
 // Prevent compiling of .less
-mockCssModules.register(['.less']); // needed for css module
-require.extensions['.css'] = () => {};
-require.extensions['.svg'] = () => {};
+mockCssModules.register([".less"]); // needed for css module
+require.extensions[".css"] = () => {};
+require.extensions[".svg"] = () => {};
+require.extensions[".gif"] = () => {};
 
 // Define user agent for Radium
 global.navigator = {
   userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5)
               AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.97 Safari/537.36`,
-  language: 'en-GB'
+  language: "en-GB",
 };
 
-const Module = require('module');
+const Module = require("module");
 // import of react and enzyme must be after jsdom initialization. See https://github.com/airbnb/enzyme/issues/395
-const { Component } = require('react');
-const Enzyme = require('enzyme');
-const Adapter = require('enzyme-adapter-react-16');
+const { Component } = require("react");
+const Enzyme = require("enzyme");
+const Adapter = require("enzyme-adapter-react-16");
 Enzyme.configure({
   adapter: new Adapter(),
-  disableLifecycleMethods: true // this is default behaviour that has place for enzyme v.2
+  disableLifecycleMethods: true, // this is default behaviour that has place for enzyme v.2
 });
 
-
 // Svg tests fails with npm 6.1. A workaround is found here https://github.com/jsdom/jsdom/issues/1721
-if (typeof URL.createObjectURL === 'undefined') {
-  Object.defineProperty(URL, 'createObjectURL', { value: () => 'mock_url' });
+if (typeof URL.createObjectURL === "undefined") {
+  Object.defineProperty(URL, "createObjectURL", { value: () => "mock_url" });
 }
 
-global.window.config = { // will this it's FE-DEV, BE-DEV
-  language: 'dataEN'
+global.window.config = {
+  // will this it's FE-DEV, BE-DEV
+  language: "dataEN",
 };
 
 window.requestAnimationFrame = setTimeout;
@@ -74,34 +74,34 @@ Object.defineProperties(window.HTMLElement.prototype, {
   offsetLeft: {
     get() {
       return parseFloat(window.getComputedStyle(this).marginLeft) || 0;
-    }
+    },
   },
   offsetTop: {
     get() {
       return parseFloat(window.getComputedStyle(this).marginTop) || 0;
-    }
+    },
   },
   offsetHeight: {
     get() {
       return parseFloat(window.getComputedStyle(this).height) || 0;
-    }
+    },
   },
   offsetWidth: {
     get() {
       return parseFloat(window.getComputedStyle(this).width) || 0;
-    }
-  }
+    },
+  },
 });
 
 global.navigator = {
   ...global.navigator,
-  userAgent: 'node.js'
+  userAgent: "node.js",
 };
 global.localStorage = (() => {
   const store = {};
   const getItem = (key) => {
     // check for globalApp to avoid console log from localStorageUtil
-    return (key === 'globalApp') ? 'null' : store[key];
+    return key === "globalApp" ? "null" : store[key];
   };
   const setItem = (key, value) => {
     store[key] = value;
@@ -112,7 +112,7 @@ global.localStorage = (() => {
   return {
     getItem,
     setItem,
-    removeItem
+    removeItem,
   };
 })();
 
@@ -130,33 +130,33 @@ global.sessionStorage = (() => {
   return {
     getItem,
     setItem,
-    removeItem
+    removeItem,
   };
 })();
 
-global.SVGPathSeg = function() {};
-global.SVGPathSegClosePath = function() {};
-global.SVGPathSegMovetoAbs = function() {};
-global.SVGPathSegMovetoRel = function() {};
-global.SVGPathSegLinetoAbs = function() {};
-global.SVGPathSegLinetoRel = function() {};
-global.SVGPathSegCurvetoCubicAbs = function() {};
-global.SVGPathSegCurvetoCubicRel = function() {};
-global.SVGPathSegCurvetoQuadraticAbs = function() {};
-global.SVGPathSegCurvetoQuadraticRel = function() {};
-global.SVGPathSegCurvetoQuadraticRel = function() {};
-global.SVGPathSegArcAbs = function() {};
-global.SVGPathSegArcRel = function() {};
-global.SVGPathSegLinetoHorizontalAbs = function() {};
-global.SVGPathSegLinetoHorizontalRel = function() {};
-global.SVGPathSegLinetoVerticalAbs = function() {};
-global.SVGPathSegLinetoVerticalRel = function() {};
-global.SVGPathSegCurvetoCubicSmoothAbs = function() {};
-global.SVGPathSegCurvetoCubicSmoothRel = function() {};
-global.SVGPathSegCurvetoQuadraticSmoothAbs = function() {};
-global.SVGPathSegCurvetoQuadraticSmoothRel = function() {};
-window.SVGPathElement = global.SVGPathElement = function() {};
-global.SVGPathSegList = function() {};
+global.SVGPathSeg = function () {};
+global.SVGPathSegClosePath = function () {};
+global.SVGPathSegMovetoAbs = function () {};
+global.SVGPathSegMovetoRel = function () {};
+global.SVGPathSegLinetoAbs = function () {};
+global.SVGPathSegLinetoRel = function () {};
+global.SVGPathSegCurvetoCubicAbs = function () {};
+global.SVGPathSegCurvetoCubicRel = function () {};
+global.SVGPathSegCurvetoQuadraticAbs = function () {};
+global.SVGPathSegCurvetoQuadraticRel = function () {};
+global.SVGPathSegCurvetoQuadraticRel = function () {};
+global.SVGPathSegArcAbs = function () {};
+global.SVGPathSegArcRel = function () {};
+global.SVGPathSegLinetoHorizontalAbs = function () {};
+global.SVGPathSegLinetoHorizontalRel = function () {};
+global.SVGPathSegLinetoVerticalAbs = function () {};
+global.SVGPathSegLinetoVerticalRel = function () {};
+global.SVGPathSegCurvetoCubicSmoothAbs = function () {};
+global.SVGPathSegCurvetoCubicSmoothRel = function () {};
+global.SVGPathSegCurvetoQuadraticSmoothAbs = function () {};
+global.SVGPathSegCurvetoQuadraticSmoothRel = function () {};
+window.SVGPathElement = global.SVGPathElement = function () {};
+global.SVGPathSegList = function () {};
 
 class FakeComponent extends Component {
   render() {
@@ -164,7 +164,7 @@ class FakeComponent extends Component {
   }
 }
 
-const checkIntlId = id => {
+const checkIntlId = (id) => {
   if (!en[id]) throw new Error(`Intl id "${id}" does not exist.`);
 };
 
@@ -172,7 +172,7 @@ const aliases = Object.entries(config.resolve.alias);
 const applyAliases = (module) => {
   const cnt = aliases.length;
   for (let i = 0; i < cnt; i++) {
-    const [key, path] =  aliases[i];
+    const [key, path] = aliases[i];
     if (module.indexOf(key) === 0) {
       return module.replace(key, path);
     }
@@ -180,22 +180,22 @@ const applyAliases = (module) => {
   return module;
 };
 const originalRequire = Module.prototype.require;
-Module.prototype.require = function(module) {
+Module.prototype.require = function (module) {
   // provide a fake react-intl lib:
   // - make it so that IntlProvider isn't required
   // - make it so that our tests can check output strings without hardcoding to English (as the English can change for design reasons)
   // WARNING: this is partial - grow it as you use more APIs
-  if (module === 'react-intl') {
+  if (module === "react-intl") {
     const tmpIntl = {
       formatMessage(desc) {
-        if (!desc.id) throw new Error('Missing `id` for formatMessage.');
+        if (!desc.id) throw new Error("Missing `id` for formatMessage.");
         checkIntlId(desc.id);
         return JSON.stringify(arguments);
-      }
+      },
     };
     return {
       FormattedMessage(...props) {
-        if (!props.id) throw new Error('Missing `id` for FormattedMessage.');
+        if (!props.id) throw new Error("Missing `id` for FormattedMessage.");
         checkIntlId(props.id);
         return <span>{JSON.stringify(props)}</span>;
       },
@@ -210,10 +210,10 @@ Module.prototype.require = function(module) {
       },
       createIntl() {
         return tmpIntl;
-      }
+      },
     };
   }
-  if (module === 'react-lottie') {
+  if (module === "react-lottie") {
     return null;
   }
   module = applyAliases(module); // use webpack aliases for correct module resolving
@@ -222,19 +222,21 @@ Module.prototype.require = function(module) {
   // work. (this is only tested for use with images/)
   if (/\.pattern$/.test(module)) {
     const patternFile = require.resolve(module);
-    const pattern = require('fs').readFileSync(patternFile, 'utf8'); // eslint-disable-line no-sync
-    const relativeTo = patternFile.split('/').slice(0, -1).join('/');
-    const files = require('glob').sync(relativeTo + '/' + pattern);
+    const pattern = require("fs").readFileSync(patternFile, "utf8"); // eslint-disable-line no-sync
+    const relativeTo = patternFile.split("/").slice(0, -1).join("/");
+    const files = require("glob").sync(relativeTo + "/" + pattern);
 
     const fileFakes = {};
     for (const file of files) {
-      fileFakes['.' + file.slice(relativeTo.length)] = {default: FakeComponent};
+      fileFakes["." + file.slice(relativeTo.length)] = {
+        default: FakeComponent,
+      };
     }
 
     return fileFakes;
   }
 
-  if (module.includes('.worker.js')) {
+  if (module.includes(".worker.js")) {
     class LayoutWorker {
       constructor() {
         this.default = () => {};
@@ -248,7 +250,7 @@ Module.prototype.require = function(module) {
 
 // webpack usually does this:
 // (needed for monaco sql - and only built for that for now!!)
-global.define = function(name, deps, func) {
+global.define = function (name, deps, func) {
   const out = {};
   func(require, out);
 };

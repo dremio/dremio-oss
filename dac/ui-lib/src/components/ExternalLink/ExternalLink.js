@@ -13,26 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import noop from 'lodash.noop';
+import { noop } from "lodash";
 
 const ExternalLink = (props) => {
-  const {
-    href,
-    children,
-    className,
-    disableRedirect,
-    onClick,
-    ...otherProps
-  } = props;
+  const { href, children, className, disableRedirect, onClick, ...otherProps } =
+    props;
   return disableRedirect ? (
-    <span className={className}>
-      {children}
-    </span>
+    <span className={className}>{children}</span>
   ) : (
-    <a href={href} target='_blank' rel='noopener noreferrer' className={className} onClick={onClick} {...otherProps}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+      onClick={onClick}
+      {...otherProps}
+    >
       {children}
     </a>
   );
@@ -43,20 +42,17 @@ ExternalLink.propTypes = {
   className: PropTypes.string,
   children: PropTypes.oneOfType([
     PropTypes.arrayOf(PropTypes.node),
-    PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.node
-    ])
+    PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
   ]),
   disableRedirect: PropTypes.bool,
-  onClick: PropTypes.func
+  onClick: PropTypes.func,
 };
 
 ExternalLink.defaultProps = {
-  className: '',
+  className: "",
   children: [],
   disableRedirect: false,
-  onClick: noop
+  onClick: noop,
 };
 
 export default ExternalLink;

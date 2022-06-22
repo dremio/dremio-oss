@@ -43,7 +43,7 @@ public class Drill2128GetColumnsDataTypeNotTypeCodeIntBugsTest extends JdbcWithS
   private static DatabaseMetaData dbMetadata;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {

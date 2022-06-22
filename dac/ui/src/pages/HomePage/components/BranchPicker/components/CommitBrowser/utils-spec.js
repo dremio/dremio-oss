@@ -13,26 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CommitBrowserReducer as reducer, initialState } from './utils';
+import { CommitBrowserReducer as reducer, initialState } from "./utils";
 
-describe('CommitBrowser - Utils', () => {
-  it('Sets numRows to correct value based on hasMore', () => {
+describe("CommitBrowser - Utils", () => {
+  it("Sets numRows to correct value based on hasMore", () => {
     const value = {
       hasMore: true,
-      pageToken: 'token',
-      logEntries: ['asc', 'asd']
+      pageToken: "token",
+      logEntries: ["asc", "asd"],
     };
     const result = {
-      search: '',
+      search: "",
       data: value,
-      numRows: 3
+      numRows: 3,
     };
-    expect(reducer(initialState, { type: 'SET_DATA', value })).to.deep.equal(result);
-
-    expect(reducer(initialState, {
-      type: 'SET_DATA', value: { ...value, hasMore: false }
-    })).to.deep.equal(
-      { ...result, data: { ...result.data, hasMore: false }, numRows: result.data.logEntries.length }
+    expect(reducer(initialState, { type: "SET_DATA", value })).to.deep.equal(
+      result
     );
+
+    expect(
+      reducer(initialState, {
+        type: "SET_DATA",
+        value: { ...value, hasMore: false },
+      })
+    ).to.deep.equal({
+      ...result,
+      data: { ...result.data, hasMore: false },
+      numRows: result.data.logEntries.length,
+    });
   });
 });

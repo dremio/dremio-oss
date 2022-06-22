@@ -28,14 +28,15 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+
 import com.dremio.exec.planner.common.FilterRelBase;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchFilter;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchIntermediatePrel;
-import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
+import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
 import com.dremio.plugins.elastic.planning.rules.PredicateAnalyzer.Residue;
 

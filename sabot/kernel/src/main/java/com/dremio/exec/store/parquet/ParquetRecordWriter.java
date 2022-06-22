@@ -51,6 +51,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.parquet.NoExceptionAutoCloseables;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnWriteStore;
@@ -86,6 +87,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
@@ -96,12 +98,11 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.FieldIdBroker.SeededFieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
-import com.dremio.exec.store.iceberg.IcebergMetadataInformation.IcebergMetadataFileType;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -113,6 +114,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -152,7 +154,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private final BufferAllocator codecAllocator;
   private final BufferAllocator columnEncoderAllocator;
 
-  private final FileSystemPlugin<?> plugin;
+  private final MutablePlugin plugin;
 
   private ParquetFileWriter parquetFileWriter;
   private MessageType schema;
@@ -166,6 +168,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private CompressionCodecFactory codecFactory;
   private FileSystem fs;
   private Path path;
+
+  private org.apache.hadoop.fs.FileSystem hadoopFs;
 
   private long recordCount = 0;
   private long recordCountForNextMemCheck = MINIMUM_RECORD_COUNT_FOR_CHECK;
@@ -191,6 +195,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private boolean isIcebergWriter;
   private org.apache.iceberg.Schema icebergSchema;
   private CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap;
+  private PartitionSpec partitionSpec;
 
   private final String queryUser;
 
@@ -214,7 +219,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     this.extraMetaData.put(DREMIO_VERSION_PROPERTY, DremioVersionInfo.getVersion());
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
 
-    this.plugin = writer.getFormatPlugin().getFsPlugin();
+    this.plugin = writer.getPlugin();
     this.queryUser = writer.getProps().getUserName();
 
     FragmentHandle handle = context.getFragmentHandle();
@@ -231,8 +236,13 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       this.isIcebergWriter = false;
     }
 
-    if (this.isIcebergWriter && writer.getOptions().getExtendedProperty() != null) {
-      initIcebergColumnIDList(writer.getOptions().getExtendedProperty());
+    if (this.isIcebergWriter) {
+      this.partitionSpec = writer.getOptions().getDeserializedPartitionSpec();
+      if (partitionSpec != null) {
+        initIcebergColumnIDList(partitionSpec);
+      } else if (writer.getOptions().getExtendedProperty() != null) {
+        initIcebergColumnIDList(writer.getOptions().getExtendedProperty());
+      }
     }
 
     memoryThreshold = (int) context.getOptions().getOption(ExecConstants.PARQUET_MEMORY_THRESHOLD_VALIDATOR);
@@ -267,22 +277,30 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public void setup() throws IOException {
-    this.fs = plugin.createFS(queryUser, context);
+    this.fs = plugin.createFS(location, queryUser, context);
     this.batchSchema = incoming.getSchema();
 
     if (this.isIcebergWriter) {
       this.icebergBatchSchema = new BatchSchema(convertSchemaMilliToMicro(batchSchema.getFields()));
+
       if (this.icebergColumnIDMap == null) {
         SchemaConverter schemaConverter = new SchemaConverter();
-        this.icebergSchema = schemaConverter.toIcebergSchema(batchSchema);
+        this.icebergSchema = partitionSpec != null ? partitionSpec.schema() : schemaConverter.toIcebergSchema(batchSchema);
         this.icebergColumnIDMap = newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(icebergSchema));
       } else {
         SchemaConverter schemaConverter = new SchemaConverter();
         SeededFieldIdBroker fieldIdBroker = new SeededFieldIdBroker(icebergColumnIDMap);
-        this.icebergSchema = schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
+        this.icebergSchema = partitionSpec != null ? partitionSpec.schema() : schemaConverter.toIcebergSchema(batchSchema, fieldIdBroker);
       }
     }
     newSchema();
+  }
+
+  private void initIcebergColumnIDList(PartitionSpec partitionSpec) {
+    if(partitionSpec != null) {
+      this.icebergColumnIDMap = newImmutableMap(IcebergUtils.getIcebergColumnNameToIDMap(partitionSpec.schema()));
+      return;
+    }
   }
 
   private void initIcebergColumnIDList(ByteString extendedProperty) {
@@ -298,6 +316,20 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
   }
 
+  private org.apache.hadoop.fs.FileSystem getHadoopFs(Path path) throws IOException {
+    if (this.hadoopFs == null) {
+      org.apache.hadoop.fs.Path fsPath = new org.apache.hadoop.fs.Path(path.toString());
+      try {
+        this.hadoopFs = org.apache.hadoop.fs.FileSystem.get(fsPath.toUri(), plugin.getFsConfCopy(), queryUser);
+      } catch (InterruptedException e) {
+        Throwable cause = e.getCause();
+        Throwables.propagateIfPossible(cause, IOException.class);
+        throw new RuntimeException(cause != null ? cause : e);
+      }
+    }
+    return this.hadoopFs;
+  }
+
   /**
    * Helper method to create a new {@link ParquetFileWriter} as impersonated user.
    * @throws IOException
@@ -305,7 +337,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private void initRecordWriter() throws IOException {
 
     this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
-    parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
+    parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path, plugin.getHadoopFsSupplier(path.toString(), plugin.getFsConfCopy(), queryUser).get(), context.getStats()), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
         MAX_PADDING_SIZE_DEFAULT, DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
     parquetFileWriter.start();
   }
@@ -608,7 +640,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
       final long fileSize = parquetFileWriter.getPos();
       listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
-        partition.getBucketNumber(), getIcebergMetaData(), null, null);
+        partition.getBucketNumber(), getIcebergMetaData(), null, null, OperationType.ADD_DATAFILE.value);
       parquetFileWriter = null;
 
       updateStats(memSize, recordCount);
@@ -652,15 +684,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     String datafileLocation = IcebergUtils.getValidIcebergPath(DremioHadoopUtils.toHadoopPath(path),
       plugin.getFsConfCopy(),
       fs.getScheme());
+    PartitionSpec datafilePartitionSpec = partitionSpec != null ? partitionSpec : IcebergUtils.getIcebergPartitionSpec(this.batchSchema, this.partitionColumns, this.icebergSchema);
     DataFiles.Builder dataFileBuilder =
-      DataFiles.builder(IcebergUtils.getIcebergPartitionSpec(this.batchSchema, this.partitionColumns, this.icebergSchema))
+      DataFiles.builder(datafilePartitionSpec)
         .withPath(datafileLocation)
         .withFileSizeInBytes(fileSize)
         .withRecordCount(recordCount)
         .withFormat(FileFormat.PARQUET);
 
     // add partition info
-    if (partitionColumns != null) {
+    if (partitionColumns != null && partition.getIcebergPartitionData() != null) {
       dataFileBuilder = dataFileBuilder.withPartition(partition.getIcebergPartitionData());
     }
 
@@ -668,8 +701,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     Metrics metrics = ParquetToIcebergStatsConvertor.toMetrics(context, parquetFileWriter.getFooter(), icebergSchema);
     dataFileBuilder = dataFileBuilder.withMetrics(metrics);
     IcebergMetadataInformation icebergMetadata = new IcebergMetadataInformation(
-      IcebergSerDe.serializeDataFile(dataFileBuilder.build()),
-      IcebergMetadataFileType.ADD_DATAFILE);
+      IcebergSerDe.serializeDataFile(dataFileBuilder.build()));
     return IcebergSerDe.serializeToByteArray(icebergMetadata);
   }
 

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import shallowEqual from 'shallowequal';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import shallowEqual from "shallowequal";
 
 /**
  * A utility class, that monitors {@see #keyValue} property change and triggers {#onChange} if key value
@@ -23,15 +23,21 @@ import shallowEqual from 'shallowequal';
  */
 export class KeyChangeTrigger extends PureComponent {
   static propTypes = {
-    keyValue: PropTypes.oneOfType([PropTypes.string, PropTypes.bool, PropTypes.number, PropTypes.object, PropTypes.array]),
+    keyValue: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.bool,
+      PropTypes.number,
+      PropTypes.object,
+      PropTypes.array,
+    ]),
     onChange: PropTypes.func.isRequired,
     callOnMount: PropTypes.bool,
-    children: PropTypes.any
+    children: PropTypes.any,
   };
 
   static defaultProps = {
-    callOnMount: true
-  }
+    callOnMount: true,
+  };
 
   onChange() {
     this.props.onChange(this.props.keyValue);
@@ -44,14 +50,14 @@ export class KeyChangeTrigger extends PureComponent {
   }
 
   componentDidUpdate(prevProps) {
-
     if (this.isKeyValueChanged(prevProps.keyValue, this.props.keyValue)) {
       this.onChange();
     }
   }
 
   isKeyValueChanged(oldValue, newValue) {
-    if (typeof newValue === 'object') { // if array or object use shallow equal
+    if (typeof newValue === "object") {
+      // if array or object use shallow equal
       return !shallowEqual(oldValue, newValue);
     }
     return oldValue !== newValue;

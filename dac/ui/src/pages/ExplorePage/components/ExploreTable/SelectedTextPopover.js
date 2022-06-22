@@ -13,23 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { Popover } from '@app/components/Popover';
-import Immutable from 'immutable';
-import { MAP, TEXT, LIST, MIXED, BINARY } from '@app/constants/DataTypes';
-import Menu from 'components/Menus/Menu';
-import MenuItemLink from 'components/Menus/MenuItemLink';
-import MenuItem from 'components/Menus/MenuItem';
-import Divider from '@material-ui/core/Divider';
-import { withLocation } from 'containers/dremioLocation';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { Popover } from "@app/components/Popover";
+import Immutable from "immutable";
+import { MAP, TEXT, LIST, MIXED, BINARY } from "@app/constants/DataTypes";
+import Menu from "components/Menus/Menu";
+import MenuItemLink from "components/Menus/MenuItemLink";
+import MenuItem from "components/Menus/MenuItem";
+import Divider from "@material-ui/core/Divider";
+import { withLocation } from "containers/dremioLocation";
 
-import './SelectedTextPopover.less';
+import "./SelectedTextPopover.less";
 
 // todo: loc
 
-@Radium
 export class SelectedTextPopoverView extends Component {
   static propTypes = {
     hideDrop: PropTypes.func,
@@ -38,7 +36,7 @@ export class SelectedTextPopoverView extends Component {
     columnName: PropTypes.string,
     columnType: PropTypes.string,
     location: PropTypes.object,
-    visibleItems: PropTypes.array
+    visibleItems: PropTypes.array,
   };
 
   constructor(props) {
@@ -46,34 +44,34 @@ export class SelectedTextPopoverView extends Component {
     this.hideDrop = this.hideDrop.bind(this);
     this.items = Immutable.fromJS([
       {
-        transform: 'extract',
-        name: 'Extract…'
+        transform: "extract",
+        name: "Extract…",
       },
       {
-        transform: 'replace',
-        name: 'Replace…'
+        transform: "replace",
+        name: "Replace…",
       },
       {
-        transform: 'split',
-        name: 'Split…'
+        transform: "split",
+        name: "Split…",
       },
       {
-        transform: 'keeponly',
-        name: 'Keep Only…'
+        transform: "keeponly",
+        name: "Keep Only…",
       },
       {
-        transform: 'exclude',
-        name: 'Exclude…'
-      }
+        transform: "exclude",
+        name: "Exclude…",
+      },
     ]).filter((item) => {
       if (!props.visibleItems || !props.visibleItems.length) {
         return true;
       }
-      return props.visibleItems.indexOf(item.get('transform')) !== -1;
+      return props.visibleItems.indexOf(item.get("transform")) !== -1;
     });
 
     this.state = {
-      open: false
+      open: false,
     };
   }
 
@@ -95,9 +93,13 @@ export class SelectedTextPopoverView extends Component {
     }
 
     return type !== TEXT && type !== LIST && type !== MAP
-      ? this.items.filter(item => item.get('transform') !== 'extract' && item.get('transform') !== 'split')
+      ? this.items.filter(
+          (item) =>
+            item.get("transform") !== "extract" &&
+            item.get("transform") !== "split"
+        )
       : this.items;
-  }
+  };
 
   hideDrop() {
     this.props.hideDrop();
@@ -105,7 +107,9 @@ export class SelectedTextPopoverView extends Component {
   }
 
   renderForItemsOfList(newState) {
-    const extract = this.items.filter(item => item.get('transform') === 'extract');
+    const extract = this.items.filter(
+      (item) => item.get("transform") === "extract"
+    );
     if (extract && extract.size > 0) {
       return this.renderItem(extract.get(0), newState);
     }
@@ -118,33 +122,33 @@ export class SelectedTextPopoverView extends Component {
       pathname: `${location.pathname}/details`,
       query: {
         ...location.query,
-        type: 'transform'
+        type: "transform",
       },
       state: {
         ...newState,
-        transformType: item.get('transform')
-      }
+        transformType: item.get("transform"),
+      },
     };
     return (
       <MenuItemLink
         key={index}
         href={href}
         closeMenu={this.hideDrop}
-        text={item.get('name')}
+        text={item.get("name")}
       />
     );
-  }
+  };
 
   renderCopySelectionItem = () => {
     return (
       <MenuItem onClick={this.props.copySelection}>
-        {la('Copy Selection')}
+        {la("Copy Selection")}
       </MenuItem>
     );
-  }
+  };
 
   renderItems() {
-    const { columnName, columnType, location} = this.props;
+    const { columnName, columnType, location } = this.props;
     const { state, query } = location;
     const type = (state || query).columnType || columnType;
     const items = this.getItemsForColumnType(type);
@@ -152,7 +156,7 @@ export class SelectedTextPopoverView extends Component {
       columnName,
       ...state,
       columnType: type,
-      hasSelection: true
+      hasSelection: true,
     };
 
     if (state && state.listOfItems && state.listOfItems.length > 1) {
@@ -182,7 +186,7 @@ export class SelectedTextPopoverView extends Component {
         onClose={this.hideDrop}
         useLayerForClickAway
         classes={{
-          root: 'selectedTextPopover__root'
+          root: "selectedTextPopover__root",
         }}
       >
         {this.renderItems()}
@@ -190,5 +194,4 @@ export class SelectedTextPopoverView extends Component {
     );
   }
 }
-
 export default withLocation(SelectedTextPopoverView);

@@ -13,6 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const QLIK_APP_CREATION_STARTED = 'QLIK_APP_CREATION_STARTED';
-export const QLIK_APP_RELOAD_STARTED = 'QLIK_APP_RELOAD_STARTED';
-export const QLIK_APP_CREATION_SUCCESS = 'QLIK_APP_CREATION_SUCCESS';
+export const QLIK_APP_CREATION_STARTED = "QLIK_APP_CREATION_STARTED";
+export const QLIK_APP_RELOAD_STARTED = "QLIK_APP_RELOAD_STARTED";
+export const QLIK_APP_CREATION_SUCCESS = "QLIK_APP_CREATION_SUCCESS";

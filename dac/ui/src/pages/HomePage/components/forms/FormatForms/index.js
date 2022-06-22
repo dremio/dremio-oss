@@ -13,13 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import ExcelFormatForm from './ExcelFormatForm';
-import TextFormatForm from './TextFormatForm';
-import XLSFormatForm from './XLSFormatForm';
+import ExcelFormatForm from "./ExcelFormatForm";
+import TextFormatForm from "./TextFormatForm";
+import XLSFormatForm from "./XLSFormatForm";
 
-
-export {
-  ExcelFormatForm,
-  TextFormatForm,
-  XLSFormatForm
-};
+export { ExcelFormatForm, TextFormatForm, XLSFormatForm };

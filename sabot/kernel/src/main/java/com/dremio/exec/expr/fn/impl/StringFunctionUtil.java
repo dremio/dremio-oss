@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 
@@ -235,5 +236,26 @@ public class StringFunctionUtil {
       }
     }
     return end - start;
+  }
+
+  static void copyNullableVarCharHolder(NullableVarCharHolder dst, NullableVarCharHolder src) {
+    int length = src.end - src.start;
+    dst.buffer.setBytes(dst.end, src.buffer, src.start, length);
+    dst.end += length;
+  }
+
+  public static void concatWsWord(NullableVarCharHolder out, NullableVarCharHolder in, NullableVarCharHolder separator) {
+    if (in.isSet == 0) {
+      return;
+    }
+
+    // input is valid
+    if (out.isSet == 1) {
+      // copy the separator
+      copyNullableVarCharHolder(out, separator);
+    }
+    // copy the input
+    copyNullableVarCharHolder(out, in);
+    out.isSet = 1;
   }
 }

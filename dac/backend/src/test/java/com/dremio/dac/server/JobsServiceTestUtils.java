@@ -41,6 +41,7 @@ import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobRequest;
@@ -71,8 +72,8 @@ public final class JobsServiceTestUtils {
    */
   public static JobDataFragment submitJobAndGetData(JobsService jobsService, JobRequest request, int offset,
                                                            int limit, BufferAllocator allocator) {
-    final JobId jobId = submitJobAndWaitUntilCompletion(jobsService, request);
-    return JobDataWrapper.getJobData(jobsService, allocator, jobId, offset, limit);
+    final JobSubmission jobSubmission = submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP);
+    return JobDataWrapper.getJobData(jobsService, allocator, jobSubmission.getJobId(), jobSubmission.getSessionId(), offset, limit);
   }
 
   static JobId submitAndWaitUntilSubmitted(JobsService jobsService, JobRequest request) {
@@ -81,22 +82,22 @@ public final class JobsServiceTestUtils {
 
   static JobId submitAndWaitUntilSubmitted(JobsService jobsService, JobRequest request, JobStatusListener listener) {
     final JobSubmittedListener submitListener = new JobSubmittedListener();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(submitListener, listener));
+    final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(submitListener, listener));
     submitListener.await();
-    return jobId;
+    return jobSubmission.getJobId();
   }
   public static JobId submitJobAndWaitUntilCompletion(JobsService jobsService, JobRequest request) {
-    return submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP);
+    return submitJobAndWaitUntilCompletion(jobsService, request, JobStatusListener.NO_OP).getJobId();
   }
 
-  public static JobId submitJobAndWaitUntilCompletion(JobsService jobsService, JobRequest request, JobStatusListener listener) {
+  public static JobSubmission submitJobAndWaitUntilCompletion(JobsService jobsService, JobRequest request, JobStatusListener listener) {
     final CompletionListener completionListener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, listener));
+    final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, listener));
     completionListener.awaitUnchecked(); // this will throw if the job fails
     if (!completionListener.isCompleted()) {
       throw new RuntimeException("Job has been cancelled");
     }
-    return jobId;
+    return jobSubmission;
   }
 
   /**
@@ -109,7 +110,7 @@ public final class JobsServiceTestUtils {
    */
   public static boolean submitJobAndCancelOnTimeout(JobsService jobsService, JobRequest request, long timeOut) throws Exception {
     final CompletionListener completionListener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), completionListener);
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), completionListener).getJobId();
     completionListener.await(timeOut, TimeUnit.MILLISECONDS);
     if (!completionListener.isCompleted()) {
       jobsService.cancel(CancelJobRequest.newBuilder()
@@ -125,19 +126,26 @@ public final class JobsServiceTestUtils {
   /**
    * Submit to the server directly and listen.
    */
-  public static JobId submitJobAndWaitUntilCompletion(
+  public static JobSubmission getJobSubmissionAfterJobCompletion(
       LocalJobsService jobsService,
       JobRequest request,
       PlanTransformationListener planTransformationListener
   ) {
     final CompletionObserver observer = new CompletionObserver();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), observer, planTransformationListener);
+    final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), observer, planTransformationListener);
     observer.awaitUnchecked(); // this will throw if the job fails
     if (!observer.isCompleted()) {
       throw new RuntimeException("Job has been cancelled");
     }
-    return jobId;
+    return jobSubmission;
   }
+
+  public static JobId submitJobAndWaitUntilCompletion(LocalJobsService jobsService,
+                                                              JobRequest request,
+                                                              PlanTransformationListener planTransformationListener) {
+    return getJobSubmissionAfterJobCompletion(jobsService, request, planTransformationListener).getJobId();
+  }
+
 
   /**
    * Observes for completion.
@@ -234,7 +242,8 @@ public final class JobsServiceTestUtils {
     final SubmitJobRequest.Builder jobRequestBuilder = SubmitJobRequest.newBuilder()
       .setSqlQuery(JobsProtoUtil.toBuf(jobRequest.getSqlQuery()))
       .setQueryType(JobsProtoUtil.toBuf(jobRequest.getQueryType()))
-      .setRunInSameThread(jobRequest.runInSameThread());
+      .setRunInSameThread(jobRequest.runInSameThread())
+      .setStreamResultsMode(jobRequest.isStreamResultsMode());
 
     if (jobRequest.getRequestType() == JobRequest.RequestType.DOWNLOAD) {
       final DownloadSettings.Builder downloadSettingsBuilder = DownloadSettings.newBuilder();

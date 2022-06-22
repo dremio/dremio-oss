@@ -35,6 +35,7 @@ import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.refresh.AbstractRefreshPlanBuilder;
 import com.dremio.exec.planner.sql.handlers.refresh.UnlimitedSplitsMetadataProvider;
@@ -116,7 +117,8 @@ public class HiveFullRefreshDatasetPlanBuilder extends AbstractRefreshPlanBuilde
     SplitsPointer splitsPointer = MaterializedSplitsPointer.of(0, chunkMetadata, chunkMetadata.size());
     refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema);
     final NamespaceTable nsTable = new NamespaceTable(refreshExecTableMetadata, true);
-    final DremioCatalogReader catalogReader = config.getConverter().getCatalogReader();
+    final DremioCatalogReader catalogReader = SqlValidatorAndToRelContext.builder(config.getConverter())
+      .build().getDremioCatalogReader();
     this.table = new DremioPrepareTable(catalogReader, JavaTypeFactoryImpl.INSTANCE, nsTable);
   }
 

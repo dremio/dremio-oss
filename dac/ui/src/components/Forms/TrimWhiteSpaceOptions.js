@@ -13,27 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import { formLabel } from 'uiTheme/radium/typography';
-import Radio from 'components/Fields/Radio';
+import { formLabel } from "uiTheme/radium/typography";
+import Radio from "components/Fields/Radio";
 
-import Radium from 'radium';
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-@Radium
-export default class TrimWhiteSpaceOptions extends Component {
+class TrimWhiteSpaceOptions extends Component {
   static getInitialValues() {
     return {
-      action: 'BOTH'
+      action: "BOTH",
     };
   }
 
   static propTypes = {
     handleTypeChange: PropTypes.func,
     type: PropTypes.string,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   constructor(props) {
@@ -46,25 +45,23 @@ export default class TrimWhiteSpaceOptions extends Component {
   }
 
   render() {
-    const { fields: { action } } = this.props;
+    const {
+      fields: { action },
+    } = this.props;
     return (
       <div style={[styles.base]}>
-        <h3 style={[styles.title, formLabel]}>{la('Options')}</h3>
+        <h3 style={[styles.title, formLabel]}>{la("Options")}</h3>
         <div style={[styles.items]}>
+          <Radio {...action} radioValue="BOTH" label="Trim from both sides" />
           <Radio
             {...action}
-            radioValue='BOTH'
-            label='Trim from both sides'
+            radioValue="LEFT"
+            label="Trim from the start (Trim Left)"
           />
           <Radio
             {...action}
-            radioValue='LEFT'
-            label='Trim from the start (Trim Left)'
-          />
-          <Radio
-            {...action}
-            radioValue='RIGHT'
-            label='Trim from the end (Trim Right)'
+            radioValue="RIGHT"
+            label="Trim from the end (Trim Right)"
           />
         </div>
       </div>
@@ -76,10 +73,11 @@ const styles = {
   base: {
     marginLeft: 15,
     marginTop: 10,
-    marginBottom: 5
+    marginBottom: 5,
   },
   items: {
-    display: 'flex',
-    flexDirection: 'column'
-  }
+    display: "flex",
+    flexDirection: "column",
+  },
 };
+export default Radium(TrimWhiteSpaceOptions);

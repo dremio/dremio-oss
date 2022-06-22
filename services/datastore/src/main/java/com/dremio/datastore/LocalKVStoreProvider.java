@@ -18,6 +18,7 @@ package com.dremio.datastore;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import javax.inject.Provider;
@@ -50,6 +51,7 @@ import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Datastore provider for master node.
@@ -63,6 +65,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   public static final String CONFIG_VALIDATEOCC = "validateOCC";
   public static final String CONFIG_DISABLEOCC = "disableOCC";
   public static final String ERR_FMT = "Missing services.datastore.config.%s in dremio.conf";
+  public static final String ERR_EMPTY_SCANRESULT = "ScanResult can not be null";
 
   private final CoreStoreProviderImpl coreStoreProvider;
   private final Provider<FabricService> fabricService;
@@ -88,36 +91,41 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   }
 
   public LocalKVStoreProvider(
-      ScanResult scan,
-      Provider<FabricService> fabricService,
-      BufferAllocator allocator,
-      String hostName,
-      String baseDirectory,
-      boolean inMemory,
-      boolean timed) {
+    ScanResult scan,
+    Provider<FabricService> fabricService,
+    BufferAllocator allocator,
+    String hostName,
+    String baseDirectory,
+    boolean inMemory,
+    boolean timed) {
     this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false, false);
   }
 
   public LocalKVStoreProvider(
-      ScanResult scan,
-      Provider<FabricService> fabricService,
-      BufferAllocator allocator,
-      String hostName,
-      String baseDirectory,
-      boolean inMemory,
-      boolean timed,
-      boolean noDBOpenRetry,
-      boolean noDBLogMessages
+    ScanResult scan,
+    Provider<FabricService> fabricService,
+    BufferAllocator allocator,
+    String hostName,
+    String baseDirectory,
+    boolean inMemory,
+    boolean timed,
+    boolean noDBOpenRetry,
+    boolean noDBLogMessages
   ) {
 
     coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false, noDBLogMessages);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
+    Preconditions.checkNotNull(scan, ERR_EMPTY_SCANRESULT);
     this.scan = scan;
     this.legacyProvider = new LegacyKVStoreProviderAdapter(this);
     this.storeBuildingFactory = this::newStore;
-    this.storesProvider = () -> StoreLoader.buildStores(scan, storeBuildingFactory);
+    this.storesProvider = getStoreProvider();
+  }
+
+  protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> getStoreProvider(){
+    return () -> StoreLoader.buildStores(scan, storeBuildingFactory);
   }
 
   public LocalKVStoreProvider(
@@ -155,6 +163,11 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   @VisibleForTesting
   public void setStoreBuildingFactory(StoreBuildingFactory storeBuildingFactory) {
     this.storeBuildingFactory = storeBuildingFactory;
+  }
+
+  @Override
+  public Set<KVStore<?, ?>> stores() {
+    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
   }
 
   @SuppressWarnings("unchecked")

@@ -16,6 +16,7 @@
 package com.dremio.service.jobs;
 
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Preconditions;
 
 /**
@@ -26,6 +27,7 @@ public class JobDataImpl implements JobData {
 
   private final JobLoader dataLoader;
   private final JobId jobId;
+  private final SessionId sessionId;
 
   private boolean closed;
 
@@ -33,24 +35,26 @@ public class JobDataImpl implements JobData {
    * Create an instance with {@link JobLoader}
    * @param dataLoader
    * @param jobId
+   * @param sessionId
    */
-  public JobDataImpl(JobLoader dataLoader, JobId jobId) {
+  public JobDataImpl(JobLoader dataLoader, JobId jobId, SessionId sessionId) {
     this.dataLoader = Preconditions.checkNotNull(dataLoader);
     this.jobId = Preconditions.checkNotNull(jobId);
+    this.sessionId = sessionId;
   }
 
   @Override
   public JobDataFragment range(int offset, int limit) {
     loadIfNecessary();
     checkNotClosed();
-    return new JobDataFragmentImpl(dataLoader.load(offset, limit), offset, jobId);
+    return new JobDataFragmentImpl(dataLoader.load(offset, limit), offset, jobId, sessionId);
   }
 
   @Override
   public JobDataFragment truncate(int maxRows) {
     loadIfNecessary();
     checkNotClosed();
-    return new JobDataFragmentImpl(dataLoader.load(0, maxRows), 0, jobId);
+    return new JobDataFragmentImpl(dataLoader.load(0, maxRows), 0, jobId, sessionId);
   }
 
   private void checkNotClosed() {
@@ -67,6 +71,11 @@ public class JobDataImpl implements JobData {
   @Override
   public JobId getJobId() {
     return jobId;
+  }
+
+  @Override
+  public SessionId getSessionId() {
+    return sessionId;
   }
 
   @Override

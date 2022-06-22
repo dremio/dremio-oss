@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { fixedWidthSmall } from 'uiTheme/radium/typography';
-import { TEAL } from 'uiTheme/radium/colors';
+import { createRef, PureComponent } from "react";
+import PropTypes from "prop-types";
+import { fixedWidthSmall } from "uiTheme/radium/typography";
+import { TEAL } from "uiTheme/radium/colors";
+
 const MAX_LENGTH_CONTENT = 63;
 const SYMBOL_WIDTH = 6;
 
-@Radium
-export default class FixedWidthForContentCard extends PureComponent {
+class FixedWidthForContentCard extends PureComponent {
   static propTypes = {
     example: PropTypes.object,
-    index: PropTypes.number
+    index: PropTypes.number,
   };
 
-  static getExampleTextParts({text, offset, length}, width) {
+  static getExampleTextParts({ text, offset, length }, width) {
     let beforeStart;
     let afterEnd;
     if (!width) {
@@ -45,25 +44,29 @@ export default class FixedWidthForContentCard extends PureComponent {
     return [
       text.slice(beforeStart, offset),
       text.slice(offset, offset + length),
-      text.slice(offset + length, afterEnd)
+      text.slice(offset + length, afterEnd),
     ].map(FixedWidthForContentCard.insertReturnKey);
   }
 
   static insertReturnKey(text) {
     const res = [];
-    text.replace(/ /g, '\u00a0').split('\n').forEach((e, i) => {
-      if (i !== 0 ) {
-        res.push(<span style={{color: TEAL}}>&#9166;</span>);
-      }
-      res.push(e);
-    });
+    text
+      .replace(/ /g, "\u00a0")
+      .split("\n")
+      .forEach((e, i) => {
+        if (i !== 0) {
+          res.push(<span style={{ color: TEAL }}>&#9166;</span>);
+        }
+        res.push(e);
+      });
     return res;
   }
 
   constructor(props) {
     super(props);
+    this.wrapRef = createRef();
     this.state = {
-      width: 0
+      width: 0,
     };
   }
 
@@ -72,21 +75,28 @@ export default class FixedWidthForContentCard extends PureComponent {
   }
 
   handleWidthForContentCard() {
-    this.setState({width: this.refs.wrap.offsetWidth});
+    const { current: { offsetWidth: width } = {} } = this.wrapRef;
+    this.setState({ width });
   }
 
   render() {
-    const extraBorder = this.props.index === 2
-      ? { borderBottom: '1px solid #ccc' }
-      : {};
+    const extraBorder =
+      this.props.index === 2 ? { borderBottom: "1px solid #ccc" } : {};
     const data = FixedWidthForContentCard.getExampleTextParts(
-      this.props.example, this.state.width
+      this.props.example,
+      this.state.width
     );
     return (
-      <div className='fixed_width' ref='wrap' style={[styles.line, extraBorder, fixedWidthSmall]}>
-        <span >{data[0]}</span>
-        <span style={[fixedWidthSmall, styles.hightlight]}>{data[1]}</span>
-        <span className='end'>{data[2]}</span>
+      <div
+        className="fixed_width"
+        ref={this.wrapRef}
+        style={{ ...styles.line, ...extraBorder, ...fixedWidthSmall }}
+      >
+        <span>{data[0]}</span>
+        <span style={{ ...fixedWidthSmall, ...styles.hightlight }}>
+          {data[1]}
+        </span>
+        <span className="end">{data[2]}</span>
       </div>
     );
   }
@@ -94,19 +104,20 @@ export default class FixedWidthForContentCard extends PureComponent {
 
 const styles = {
   hightlight: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    backgroundColor: '#f2e8d0',
-    height: 19
+    display: "inline-flex",
+    alignItems: "center",
+    backgroundColor: "#f2e8d0",
+    height: 19,
   },
   line: {
-    borderTop: '1px solid #ccc',
+    borderTop: "1px solid #ccc",
     minWidth: 430,
     maxHeight: 20,
     minHeight: 20,
     maxWidth: 430,
-    overflow: 'hidden',
-    display: 'flex',
-    alignItems: 'center'
-  }
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+  },
 };
+export default FixedWidthForContentCard;

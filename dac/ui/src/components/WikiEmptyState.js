@@ -13,30 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
-import SimpleButton from '@app/components/Buttons/SimpleButton';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { EmptyStateContainer } from "@app/pages/HomePage/components/EmptyStateContainer";
+import SimpleButton from "@app/components/Buttons/SimpleButton";
 
 export class WikiEmptyState extends Component {
   static propTypes = {
     onAddWiki: PropTypes.func, // if provided, then "Add Wiki" button is added
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   render() {
-    const {
-      onAddWiki,
-      className
-    } = this.props;
-    return (<EmptyStateContainer className={className} title={la('No wiki content')}>
-      {onAddWiki && <SimpleButton
-        buttonStyle='primary'
-        data-qa='wikiCreateBtn'
-        style={{padding: '0 12px'}}
-        onClick={onAddWiki}>
-        {la('Add wiki content')}
-      </SimpleButton>}
-    </EmptyStateContainer>);
+    const { onAddWiki, className } = this.props;
+    return (
+      <EmptyStateContainer className={className} title={la("No wiki content")}>
+        {onAddWiki && (
+          <SimpleButton
+            buttonStyle="primary"
+            data-qa="wikiCreateBtn"
+            style={{ padding: "0 12px" }}
+            onClick={onAddWiki}
+          >
+            {la("Add wiki content")}
+          </SimpleButton>
+        )}
+      </EmptyStateContainer>
+    );
   }
 }

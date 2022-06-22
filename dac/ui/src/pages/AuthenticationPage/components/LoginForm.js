@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { LOGIN_VIEW_ID, loginUser } from '@inject/actions/account';
+import { LOGIN_VIEW_ID, loginUser } from "@inject/actions/account";
 
-import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import Button from '@app/components/Buttons/Button';
-import { FieldWithError, TextField } from '@app/components/Fields';
-import { getViewState } from 'selectors/resources';
-import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import Spinner from '@app/components/Spinner';
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import Button from "@app/components/Buttons/Button";
+import { FieldWithError, TextField } from "@app/components/Fields";
+import { getViewState } from "selectors/resources";
+import {
+  connectComplexForm,
+  InnerComplexForm,
+} from "components/Forms/connectComplexForm";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import Spinner from "@app/components/Spinner";
 
-import { formLabel } from 'uiTheme/radium/typography';
-import { applyValidators, isRequired } from '@app/utils/validation';
+import { formLabel } from "uiTheme/radium/typography";
+import { applyValidators, isRequired } from "@app/utils/validation";
 
-@Radium
 export class LoginForm extends PureComponent {
   static propTypes = {
     showMessage: PropTypes.bool,
@@ -40,37 +41,34 @@ export class LoginForm extends PureComponent {
     // connected
     user: PropTypes.instanceOf(Immutable.Map),
     viewState: PropTypes.instanceOf(Immutable.Map),
-    loginUser: PropTypes.func.isRequired
+    loginUser: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
-    showMessage: true
+    showMessage: true,
   };
 
   static validate(values) {
-    return applyValidators(values, [isRequired('userName', 'Username'), isRequired('password')]);
+    return applyValidators(values, [
+      isRequired("userName", "Username"),
+      isRequired("password"),
+    ]);
   }
 
   submit = (form) => {
-    const {
-      loginUser: dispatchLoginUser,
-      viewState
-    } = this.props;
-    return dispatchLoginUser(form, viewState.get('viewId'));
-  }
+    const { loginUser: dispatchLoginUser, viewState } = this.props;
+    return dispatchLoginUser(form, viewState.get("viewId"));
+  };
 
   render() {
     const {
-      fields: {
-        userName,
-        password
-      },
+      fields: { userName, password },
       showMessage,
-      viewState
+      viewState,
     } = this.props;
     return (
       <ViewStateWrapper
-        style={{paddingTop: 30}}
+        style={{ paddingTop: 30 }}
         hideChildrenWhenFailed={false}
         viewState={viewState}
         showMessage={showMessage}
@@ -80,44 +78,52 @@ export class LoginForm extends PureComponent {
         <InnerComplexForm
           {...this.props}
           style={styles.form}
-          onSubmit={this.submit}>
+          onSubmit={this.submit}
+        >
           <div style={styles.fieldsRow}>
             <FieldWithError
               {...userName}
-              errorPlacement='top'
-              label={la('Username')}
+              errorPlacement="top"
+              label={la("Username")}
               labelStyle={styles.label}
-              style={{...formLabel, ...styles.field}}>
-              <TextField
-                {...userName}
-                initialFocus
-                style={styles.input}/>
+              style={{ ...formLabel, ...styles.field }}
+            >
+              <TextField {...userName} initialFocus style={styles.input} />
             </FieldWithError>
             <FieldWithError
               {...password}
-              errorPlacement='top'
-              label={la('Password')}
+              errorPlacement="top"
+              label={la("Password")}
               labelStyle={styles.label}
-              style={{...formLabel, ...styles.field}}>
-              <TextField
-                {...password}
-                type='password'
-                style={styles.input}/>
+              style={{ ...formLabel, ...styles.field }}
+            >
+              <TextField {...password} type="password" style={styles.input} />
             </FieldWithError>
           </div>
           <div style={styles.submitWrapper}>
-            <div style={{display: 'flex', flexGrow: 1}}>
+            <div style={{ display: "flex", flexGrow: 1 }}>
               <Button
                 type={ButtonTypes.NEXT}
-                key='details-wizard-next'
-                style={{marginBottom: 0}}
-                text={la('Log In')}/>
+                key="details-wizard-next"
+                style={{ marginBottom: 0 }}
+                text={la("Log In")}
+              />
               <Spinner
                 iconStyle={styles.spinnerIcon}
-                style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
+                style={{
+                  display: viewState.get("isInProgress") ? "block" : "none",
+                  ...styles.spinner,
+                }}
+              />
             </div>
-            <div style={{display: 'flex', alignItems: 'center'}}>
-              <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <a
+                href="https://www.dremio.com/legal/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {la("Privacy")}
+              </a>
             </div>
           </div>
         </InnerComplexForm>
@@ -128,55 +134,60 @@ export class LoginForm extends PureComponent {
 
 const styles = {
   spinner: {
-    position: 'relative',
-    height: 'auto',
-    width: 'auto'
+    position: "relative",
+    height: "auto",
+    width: "auto",
   },
   spinnerIcon: {
     width: 24,
-    height: 24
+    height: 24,
   },
   label: {
-    color: '#fff',
-    marginBottom: 3
+    color: "#fff",
+    marginBottom: 3,
   },
   fieldsRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between'
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   field: {
-    flexBasis: 'calc(50% - 5px)',
-    display: 'block'
+    flexBasis: "calc(50% - 5px)",
+    display: "block",
   },
   input: {
-    width: '100%',
-    marginRight: 0
+    width: "100%",
+    marginRight: 0,
   },
   submitWrapper: {
-    margin: '55px 0 0 0',
-    display: 'flex',
-    flexDirection: 'row'
+    margin: "55px 0 0 0",
+    display: "flex",
+    flexDirection: "row",
   },
   form: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    width: 695
-  }
+    display: "flex",
+    flexWrap: "wrap",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    width: 695,
+  },
 };
 
 function mapStateToProps(state) {
   return {
-    user: state.account.get('user'),
-    viewState: getViewState(state, LOGIN_VIEW_ID)
+    user: state.account.get("user"),
+    viewState: getViewState(state, LOGIN_VIEW_ID),
   };
 }
 
-export default  connectComplexForm({
-  form: 'login',
-  fields: ['userName', 'password']
-}, [LoginForm], mapStateToProps, {
-  loginUser
-})(LoginForm);
+export default connectComplexForm(
+  {
+    form: "login",
+    fields: ["userName", "password"],
+  },
+  [LoginForm],
+  mapStateToProps,
+  {
+    loginUser,
+  }
+)(LoginForm);

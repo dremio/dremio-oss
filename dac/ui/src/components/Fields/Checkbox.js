@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
-
-import classNames from 'classnames';
-import TooltipEnabledLabel from 'components/TooltipEnabledLabel';
+import PropTypes from "prop-types";
+import Art from "@app/components/Art";
+import classNames from "classnames";
+import TooltipEnabledLabel from "components/TooltipEnabledLabel";
 import {
   onoffBtn,
   onoffDot,
   base,
   labelContent,
   disabled as disabledCls,
-  customCheckBox
-} from './Checkbox.less';
+  customCheckBox,
+} from "./Checkbox.less";
 
 export const checkboxPropTypes = {
   label: PropTypes.node,
@@ -56,33 +56,45 @@ export const checkboxPropTypes = {
   toolTip: PropTypes.string,
   toolTipPosition: PropTypes.string,
   checkBoxClass: PropTypes.string,
-  showCheckIcon: PropTypes.bool
+  showCheckIcon: PropTypes.bool,
+  inputStyles: PropTypes.object,
 };
 
 export default class Checkbox extends PureComponent {
-
   static propTypes = checkboxPropTypes;
 
   static defaultProps = {
-    inputType: 'checkbox'
+    inputType: "checkbox",
+    inputStyles: {},
   };
 
   renderOnOffSwitch(checked, label, labelBefore) {
     const extraStyle = {};
     if (label && labelBefore) {
       extraStyle.marginLeft = 6;
-    } else if (label) { //label after
+    } else if (label) {
+      //label after
       extraStyle.marginRight = 6;
     }
     if (checked) {
-      return <div className={onoffBtn} style={{ ...styles.switchOnBtn, ...extraStyle }}>
-        On <div className={onoffDot} style={styles.onDot} />
-      </div>;
+      return (
+        <div
+          className={onoffBtn}
+          style={{ ...styles.switchOnBtn, ...extraStyle }}
+        >
+          On <div className={onoffDot} style={styles.onDot} />
+        </div>
+      );
     } else {
-      return <div className={onoffBtn} style={{ ...styles.switchOffBtn, ...extraStyle }}>
-        <div className={onoffDot} style={styles.offDot} />
-        Off
-      </div>;
+      return (
+        <div
+          className={onoffBtn}
+          style={{ ...styles.switchOffBtn, ...extraStyle }}
+        >
+          <div className={onoffDot} style={styles.offDot} />
+          Off
+        </div>
+      );
     }
   }
 
@@ -94,35 +106,79 @@ export default class Checkbox extends PureComponent {
     const setCheckBoxClass = classNames(
       customCheckBox,
       this.props.checkBoxClass,
-      {'--disabled': disabled},
-      { 'checked': isChecked }
+      { "--disabled": disabled },
+      { checked: isChecked }
     );
-    return <div className={setCheckBoxClass} style={style}
-      data-qa={this.props.dataQa || 'dummyCheckbox'}>
-      {isChecked || this.props.showCheckIcon ? <i className='fa fa-check' style={{ color: isChecked ? '#fff' : '#43B8C9' }} /> : '\u00A0'}
-    </div>;
+    return (
+      <div
+        className={setCheckBoxClass}
+        style={style}
+        data-qa={this.props.dataQa || "dummyCheckbox"}
+      >
+        {isChecked || this.props.showCheckIcon ? (
+          <Art
+            src="Checkbox.svg"
+            alt="Checkbox-selected"
+            style={{ margin: "2px 1px 1px 1px" }}
+          />
+        ) : (
+          "\u00A0"
+        )}
+      </div>
+    );
   }
 
   render() {
     const {
-      style, label, dummyInputStyle, isOnOffSwitch,
-      inputType, labelBefore,
-      className, inverted, renderDummyInput,
-      dataQa, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
-      toolTip, toolTipPosition, disabled,
+      style,
+      label,
+      dummyInputStyle,
+      isOnOffSwitch,
+      inputType,
+      labelBefore,
+      className,
+      inverted,
+      renderDummyInput,
+      toolTip,
+      toolTipPosition,
+      disabled,
+      inputStyles,
       ...props
     } = this.props;
-    const dummyCheckState = (inverted) ? !props.checked : props.checked;
+    const dummyCheckState = inverted ? !props.checked : props.checked;
 
     // <input .../> should be before dummy input to '~' css selector work
     return (
-      <TooltipEnabledLabel className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container'
-        style={style} labelBefore={labelBefore} label={label} labelContentClass={labelContent}
-        tooltip={toolTip} toolTipPosition={toolTipPosition}>
-        <input disabled={this.props.disabled} type={inputType} style={styles.inputStyle} {...props} />
+      <TooltipEnabledLabel
+        className={classNames([
+          "field",
+          base,
+          this.props.disabled && disabledCls,
+          className,
+        ])}
+        key="container"
+        style={style}
+        labelBefore={labelBefore}
+        label={label}
+        labelContentClass={labelContent}
+        tooltip={toolTip}
+        toolTipPosition={toolTipPosition}
+      >
+        <input
+          disabled={this.props.disabled}
+          type={inputType}
+          style={{
+            ...styles.inputStyle,
+            ...inputStyles,
+          }}
+          {...props}
+        />
         {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
-        {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
-        {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle, disabled)}
+        {isOnOffSwitch &&
+          this.renderOnOffSwitch(props.checked, label, labelBefore)}
+        {!renderDummyInput &&
+          !isOnOffSwitch &&
+          this.renderDummyCheckbox(dummyCheckState, dummyInputStyle, disabled)}
       </TooltipEnabledLabel>
     );
   }
@@ -130,25 +186,25 @@ export default class Checkbox extends PureComponent {
 
 const styles = {
   switchOnBtn: {
-    color: 'white',
-    backgroundColor: '#43B8C9',
-    paddingLeft: 10
+    color: "white",
+    backgroundColor: "#43B8C9",
+    paddingLeft: 10,
   },
   switchOffBtn: {
-    color: '#fff',
-    backgroundColor: '#D0D0D0',
-    flexDirection: 'row-reverse'
+    color: "#fff",
+    backgroundColor: "#D0D0D0",
+    flexDirection: "row-reverse",
   },
   onDot: {
-    backgroundColor: '#fff',
-    right: '6px'
+    backgroundColor: "#fff",
+    right: "6px",
   },
   offDot: {
-    backgroundColor: '#fff',
-    left: '6px'
+    backgroundColor: "#fff",
+    left: "6px",
   },
   inputStyle: {
-    position: 'absolute',
-    left: -10000
-  }
+    position: "absolute",
+    left: -10000,
+  },
 };

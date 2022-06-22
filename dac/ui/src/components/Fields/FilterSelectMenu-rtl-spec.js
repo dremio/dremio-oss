@@ -13,30 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { render } from 'rtlUtils';
-import Immutable from 'immutable';
-import FilterSelectMenu from './FilterSelectMenu';
+import { render } from "rtlUtils";
+import Immutable from "immutable";
+import FilterSelectMenu from "./FilterSelectMenu";
 
-describe('FilterSelectMenu', () => {
-
+describe("FilterSelectMenu", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      name: 'name',
-      label: 'label',
+      name: "name",
+      label: "label",
       items: [
-        {label: 'item3', id: 3},
-        {label: 'item2', id: 2},
-        {label: 'item1', id: 1}
+        { label: "item3", id: 3 },
+        { label: "item2", id: 2 },
+        { label: "item1", id: 1 },
       ],
       selectedValues: Immutable.List([2, 3]),
       onItemSelect: sinon.spy(),
-      onItemUnselect: sinon.spy()
+      onItemUnselect: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const { queryByTestId } = render(<FilterSelectMenu {...commonProps}/>);
-    expect(queryByTestId('name-filter')).to.be.ok;
+  it("should render with minimal props without exploding", () => {
+    const { queryByTestId } = render(<FilterSelectMenu {...commonProps} />);
+    expect(queryByTestId("name-filter")).to.be.ok;
   });
 });

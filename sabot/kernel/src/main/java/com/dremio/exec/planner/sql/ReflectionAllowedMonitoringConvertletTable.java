@@ -40,32 +40,35 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
       DremioSqlOperatorTable.NOW
       );
 
-  private final SqlRexConvertletTable delegate;
-  private boolean contextSensitive = false;
-  private boolean planCacheable = true;
+  private final ConvertletTableNotes convertletTableNotes;
 
-  public ReflectionAllowedMonitoringConvertletTable(SqlRexConvertletTable delegate) {
+  public ReflectionAllowedMonitoringConvertletTable(ConvertletTableNotes convertletTableNotes) {
     super();
-    this.delegate = delegate;
+    this.convertletTableNotes = convertletTableNotes;
   }
 
   @Override
   public SqlRexConvertlet get(SqlCall call) {
     SqlOperator operator = call.getOperator();
     if(operator.isDynamicFunction() || !operator.isDeterministic()) {
-      planCacheable = false;
+      convertletTableNotes.planCacheable = false;
     }
     if (operator.isDynamicFunction() && !WHITELIST.contains(operator)) {
-        contextSensitive = true;
+      convertletTableNotes.contextSensitive = true;
     }
-    return delegate.get(call);
+    return null;
   }
 
-  public boolean isReflectionDisallowed() {
-    return contextSensitive;
-  }
+  public static final class ConvertletTableNotes {
+    private boolean contextSensitive = false;
+    private boolean planCacheable = true;
 
-  public boolean isPlanCacheable() {
-    return planCacheable;
+    public boolean isReflectionDisallowed() {
+      return contextSensitive;
+    }
+
+    public boolean isPlanCacheable() {
+      return planCacheable;
+    }
   }
 }

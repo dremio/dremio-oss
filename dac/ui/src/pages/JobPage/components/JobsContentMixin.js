@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import jobsUtils from '@app/utils/jobsUtils.js';
-import jobUtils from 'utils/jobsUtils';
+import jobsUtils from "@app/utils/jobsUtils.js";
+import jobUtils from "utils/jobsUtils";
 
 // export this for calculate min width of table tr in JobTable.js
 export const SEPARATOR_WIDTH = 10;
 export const MIN_LEFT_PANEL_WIDTH = 500;
 export const MIN_RIGHT_PANEL_WIDTH = 330;
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getActiveJob() {
       const { jobId } = this.props;
       if (jobId) {
@@ -32,13 +33,15 @@ export default function(input) {
     },
 
     findCurrentJob(props, jobId) {
-      return props.jobs.size && props.jobs.find((item) => item.get('id') === jobId);
+      return (
+        props.jobs.size && props.jobs.find((item) => item.get("id") === jobId)
+      );
     },
 
     runActionForJobs(jobs, isStop, callback) {
       jobs.forEach((job) => {
-        const jobId = job.get('id');
-        const jobState = job.get('state');
+        const jobId = job.get("id");
+        const jobState = job.get("state");
         if (isStop || jobUtils.isJobRunning(jobState)) {
           return callback(jobId);
         }
@@ -58,16 +61,20 @@ export default function(input) {
     handleEndResize() {
       this.setState({
         isResizing: false,
-        width: typeof this.state.left === 'number' ? this.state.left - SEPARATOR_WIDTH : this.state.width });
+        width:
+          typeof this.state.left === "number"
+            ? this.state.left - SEPARATOR_WIDTH
+            : this.state.width,
+      });
     },
 
     handleResizeJobs(e) {
-      const left = e && (e.clientX - SEPARATOR_WIDTH / 2);
+      const left = e && e.clientX - SEPARATOR_WIDTH / 2;
       if (this.state.isResizing && left > MIN_LEFT_PANEL_WIDTH) {
         const width = document.body.offsetWidth - left;
         if (width > MIN_RIGHT_PANEL_WIDTH) {
           this.setState({
-            left
+            left,
           });
         }
       }
@@ -75,53 +82,57 @@ export default function(input) {
 
     setActiveJob(jobData, isReplaceUrl) {
       const { location } = this.props;
-      const router = this.context.router[isReplaceUrl ? 'replace' : 'push'];
+      const router = this.context.router[isReplaceUrl ? "replace" : "push"];
       if (jobData && !jobsUtils.isNewJobsPage()) {
-        router({...location, pathname: '/jobs', hash: `#${jobData.get('id')}`});
+        router({
+          ...location,
+          pathname: "/jobs",
+          hash: `#${jobData.get("id")}`,
+        });
       } else {
-        router({...location, hash: jobData ? `#${jobData.get('id')}` : ''});
+        router({ ...location, hash: jobData ? `#${jobData.get("id")}` : "" });
       }
     },
 
     styles: {
       base: {
-        position: 'relative',
+        position: "relative",
         flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%'
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
       },
       viewState: {
-        display: 'flex',
+        display: "flex",
         // this is needed to force a view state wrapper fit to parent and do not overflow it
         // as this cause a scrollbar to appear
-        minHeight: 0
+        minHeight: 0,
       },
       filters: {
-        flexShrink: 0
+        flexShrink: 0,
       },
       jobWrapper: {
         flex: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        backgroundColor: '#ccc',
-        padding: '10px'
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        backgroundColor: "#ccc",
+        padding: "10px",
       },
       separator: {
         width: 10,
-        background: '#ccc',
-        cursor: 'col-resize',
-        position: 'absolute',
+        background: "#ccc",
+        cursor: "col-resize",
+        position: "absolute",
         top: 0,
         bottom: 0,
         zIndex: 999,
-        left: '50%',
-        opacity: '.6'
+        left: "50%",
+        opacity: ".6",
       },
       noSelection: {
-        userSelect: 'none'
-      }
-    }
+        userSelect: "none",
+      },
+    },
   });
 }

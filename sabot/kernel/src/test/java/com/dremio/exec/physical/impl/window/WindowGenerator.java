@@ -25,8 +25,8 @@ import com.dremio.sabot.Fixtures.Table;
 
 class WindowGenerator {
 
-  final static HeaderRow header = th("position_id", "sub", "salary");
-  final static HeaderRow header4657 = th("position_id", "sub", "salary", "rn", "rnk");
+  static final HeaderRow header = th("position_id", "sub", "salary");
+  static final HeaderRow header4657 = th("position_id", "sub", "salary", "rn", "rnk");
 
   static DataRow[] generateInput(DataPar[] partitions) {
 

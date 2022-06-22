@@ -33,6 +33,7 @@ import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.proto.model.dataset.FilterType;
 import com.dremio.dac.proto.model.dataset.FromType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
 import com.dremio.dac.proto.model.dataset.TransformFilter;
@@ -51,6 +52,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
@@ -317,6 +319,10 @@ public class Transformer {
       return jobData.getJobId();
     }
 
+    public SessionId getSessionId() {
+      return jobData.getSessionId();
+    }
+
     public JobData getJobData() {
       return jobData;
     }
@@ -337,7 +343,7 @@ public class Transformer {
     throws DatasetNotFoundException, NamespaceException {
     final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
     final TransformResult transformResult = transform.accept(actor);
-
+    setReferencesInVirtualDatasetUI(original, transform);
     if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
       final SqlQuery query;
@@ -356,6 +362,22 @@ public class Transformer {
     datasetService.putVersion(resultToReturn.getDataset());
 
     return resultToReturn;
+  }
+
+  /**
+   * Set the references in VirtualDatasetUI from the tranform api calls
+   *
+   * @param original
+   * @param transform
+   */
+  private void setReferencesInVirtualDatasetUI(
+    VirtualDatasetUI original,
+    TransformBase transform) {
+    List<SourceVersionReference> sourceVersionReferenceList = null;
+    if (transform instanceof TransformUpdateSQL) {
+      sourceVersionReferenceList = ((TransformUpdateSQL) transform).getReferencesList();
+    }
+    original.setReferencesList(sourceVersionReferenceList);
   }
 
   private static class TransformResultDatsetAndData extends DatasetAndData {
@@ -452,9 +474,12 @@ public class Transformer {
     @Override
     protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
       this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
+      JobId jobId = null;
+      SessionId sessionId = null;
       try {
+        jobId = jobData.getJobId();
+        sessionId = jobData.getSessionId();
         this.metadata = collector.getMetadata();
-        final JobId jobId = jobData.getJobId();
         final JobDetails jobDetails = jobsService.getJobDetails(
           JobDetailsRequest.newBuilder()
             .setJobId(JobsProtoUtil.toBuf(jobId))
@@ -467,10 +492,10 @@ public class Transformer {
         this.grandParents = Optional.fromNullable(jobInfo.getGrandParentsList());
       } catch (UserException e) {
         // If the original query fails, let the user knows about
-        throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext(), null);
+        throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext(), null, jobId, sessionId);
       } catch (JobNotFoundException e) {
         UserException uex = UserException.schemaChangeError(e).buildSilently();
-        throw DatasetTool.toInvalidQueryException(uex, query.getSql(), query.getContext(), null);
+        throw DatasetTool.toInvalidQueryException(uex, query.getSql(), query.getContext(), null, jobId, sessionId);
       }
 
       // If above QueryExecutor finds the query in the job store, QueryMetadata will never be set.

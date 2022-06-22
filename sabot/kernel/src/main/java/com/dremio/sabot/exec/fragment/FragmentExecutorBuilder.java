@@ -73,6 +73,7 @@ import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.context.StatusHandler;
 import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
+import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
@@ -201,6 +202,7 @@ public class FragmentExecutorBuilder {
   public FragmentExecutor build(final QueryTicket queryTicket,
                                 final PlanFragmentFull fragment,
                                 final int schedulingWeight,
+                                final MemoryArbiter memoryArbiter,
                                 final EventProvider eventProvider,
                                 final SchedulingInfo schedulingInfo,
                                 final CachedFragmentReader cachedReader) throws Exception {
@@ -291,8 +293,10 @@ public class FragmentExecutorBuilder {
         final DeferredException exception = new DeferredException();
         final StatusHandler handler = new StatusHandler(exception);
         final FileCursorManagerFactory fileCursorManagerFactory = maestroProxy.getFileCursorMangerFactory(fragment.getHandle().getQueryId());
+        int outstandingRPCsPerTunnel = (int) optionManager.getOption(ExecConstants.OUTSTANDING_RPCS_PER_TUNNEL);
+        logger.info("Setting outStandingRPCsPerTunnel:{}", outstandingRPCsPerTunnel);
         final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP),
-          fileCursorManagerFactory);
+          fileCursorManagerFactory, outstandingRPCsPerTunnel);
 
         final OperatorContextCreator creator = new OperatorContextCreator(
             stats,
@@ -327,6 +331,7 @@ public class FragmentExecutorBuilder {
             controls,
             fragment,
             schedulingWeight,
+            memoryArbiter,
             coord,
             cachedReader,
             sharedResources,

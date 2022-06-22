@@ -19,7 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
+import com.dremio.dac.proto.model.dataset.VersionContext;
 import com.dremio.service.jobs.JobsVersionContext;
 
 /**
@@ -33,20 +34,26 @@ public class TransformerUtils {
    * @param referencesList list of references where each reference corresponds to source name and version context
    * @return
    */
-  public static Map<String, JobsVersionContext> createSourceVersionMapping(List<TransformUpdateSQL.SourceVersionReference> referencesList) {
+  public static Map<String, JobsVersionContext> createSourceVersionMapping(List<SourceVersionReference> referencesList) {
     Map<String, JobsVersionContext> sourceVersionMapping = new HashMap<>();
 
     if (referencesList != null) {
-      for (TransformUpdateSQL.SourceVersionReference sourceVersionReference : referencesList) {
+      for (SourceVersionReference sourceVersionReference : referencesList) {
         String sourceName = sourceVersionReference.getSourceName();
-        TransformUpdateSQL.VersionContext versionContext = sourceVersionReference.getReference();
+        VersionContext versionContext = sourceVersionReference.getReference();
         JobsVersionContext.VersionContextType jobsVersionContextType = null;
-        if (versionContext.getType() == TransformUpdateSQL.VersionContextType.BRANCH) {
-          jobsVersionContextType = JobsVersionContext.VersionContextType.BRANCH;
-        } else if (versionContext.getType() == TransformUpdateSQL.VersionContextType.COMMIT) {
-          jobsVersionContextType = JobsVersionContext.VersionContextType.BARE_COMMIT;
-        } else if (versionContext.getType() == TransformUpdateSQL.VersionContextType.TAG) {
-          jobsVersionContextType = JobsVersionContext.VersionContextType.TAG;
+        switch (versionContext.getType()) {
+          case BRANCH:
+            jobsVersionContextType = JobsVersionContext.VersionContextType.BRANCH;
+            break;
+          case COMMIT:
+            jobsVersionContextType = JobsVersionContext.VersionContextType.BARE_COMMIT;
+            break;
+          case TAG:
+            jobsVersionContextType = JobsVersionContext.VersionContextType.TAG;
+            break;
+          default:
+            throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContext.getType());
         }
         JobsVersionContext jobsVersionContext = new JobsVersionContext(jobsVersionContextType, versionContext.getValue());
         sourceVersionMapping.put(sourceName, jobsVersionContext);

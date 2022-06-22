@@ -13,24 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 
-import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
-import General from 'components/Forms/General';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { applyValidators, noDoubleQuotes } from '@app/utils/validation';
+import { ModalForm, FormBody, modalFormProps } from "components/Forms";
+import General from "components/Forms/General";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { applyValidators, noDoubleQuotes } from "@app/utils/validation";
 
 const SECTIONS = [General];
 
 function validate(values) {
-  return applyValidators(values, [noDoubleQuotes('name')]);
+  return applyValidators(values, [noDoubleQuotes("name")]);
 }
 
 export class SpaceForm extends Component {
-
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
@@ -40,21 +39,26 @@ export class SpaceForm extends Component {
     dirty: PropTypes.bool,
     updateFormDirtyState: PropTypes.func,
     values: PropTypes.object,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
-    const {fields, handleSubmit, onFormSubmit, editing, intl} = this.props;
-    const description = intl.formatMessage({ id: 'Space.AddSpaceModalDescription' });
+    const { fields, handleSubmit, onFormSubmit, editing, intl } = this.props;
+    const description = intl.formatMessage({
+      id: "Space.AddSpaceModalDescription",
+    });
     return (
-      <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
-        <FormBody style={{padding: '20px 15px'}}>
+      <ModalForm
+        {...modalFormProps(this.props)}
+        onSubmit={handleSubmit(onFormSubmit)}
+      >
+        <FormBody style={{ padding: "20px 15px" }}>
           <General
             showAccelerationSection={false}
             fields={fields}
             editing={editing}
             sectionDescription={description}
-            entityType='space'
+            entityType="space"
           />
         </FormBody>
       </ModalForm>
@@ -62,8 +66,15 @@ export class SpaceForm extends Component {
   }
 }
 
-export default injectIntl(connectComplexForm({
-  form: 'space',
-  fields: ['version'],
-  validate
-}, SECTIONS, null, {})(SpaceForm));
+export default injectIntl(
+  connectComplexForm(
+    {
+      form: "space",
+      fields: ["version"],
+      validate,
+    },
+    SECTIONS,
+    null,
+    {}
+  )(SpaceForm)
+);

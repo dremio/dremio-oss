@@ -16,32 +16,26 @@
 @import "~@app/uiTheme/less/color-schema.less";
 :global {
   .showHideColumn {
+    border-color: @FIGMA_NEUTRAL_200 !important;
+    background-color: @WHITE !important;
+    cursor: pointer;
+    &:hover {
+      background-color: @SECONDARY_150 !important;
+    }
     &__checkBox {
-      border-radius: 50px;
-      background: @DARK_100;
-      border: 0.5px solid @PRIMARY_600;
+      border-radius: 2px;
+      background: @WHITE;
+      border: 1.5px solid @FIGMA_NEUTRAL_200;
       &.--disabled {
-        border-radius: 50px;
-        background: @grey;
-        border: 0.5px solid @grey;
-        color: @grey;
+        border-radius: 2px;
+        background: @FIGMA_NEUTRAL_200;
+        border: 1.5px solid @FIGMA_NEUTRAL_200;
       }
     }
-    &__label {
-      display: flex;
-      border-bottom: 0.75px solid @alto;
-      height: 36px;
-    }
+
     &__settingIcon {
-      height: 14px;
-      padding-left: 10px;
+      height: 20px;
+      width: 20px;
     }
-  }
-  .showHideBackgroundColor {
-    height: 54px;
-    width: 116px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 }

@@ -22,6 +22,7 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleN
 import javax.annotation.Nullable;
 
 import org.projectnessie.api.params.EntriesParams;
+import org.projectnessie.api.params.EntriesParamsBuilder;
 import org.projectnessie.client.api.GetEntriesBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.EntriesResponse;
@@ -31,7 +32,7 @@ import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingSt
 final class GrpcGetEntries implements GetEntriesBuilder {
 
   private final TreeServiceBlockingStub stub;
-  private final EntriesParams.Builder params = EntriesParams.builder();
+  private final EntriesParamsBuilder params = EntriesParams.builder();
   private String refName;
 
   public GrpcGetEntries(TreeServiceBlockingStub stub) {

@@ -35,7 +35,7 @@ public interface DremioToRelContext {
   org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioToRelContext.class);
 
   interface DremioQueryToRelContext extends ToRelContext{
-    SqlConverter getSqlConverter();
+    SqlValidatorAndToRelContext.Builder getSqlValidatorAndToRelContext();
     RelRoot expandView(ViewTable view);
   }
 
@@ -66,8 +66,8 @@ public interface DremioToRelContext {
   static DremioQueryToRelContext createQueryContext(final SqlConverter sqlConverter) {
     return new DremioQueryToRelContext() {
 
-      public SqlConverter getSqlConverter() {
-        return sqlConverter;
+      public SqlValidatorAndToRelContext.Builder getSqlValidatorAndToRelContext() {
+        return SqlValidatorAndToRelContext.builder(sqlConverter);
       }
 
       @Override

@@ -95,6 +95,25 @@
           {
             "elements": [
               {
+                "propName": "config.defaultCtasFormat",
+                "uiType": "container_selection",
+                "selectorType": "select",
+                "options": [
+                  {
+                    "value": "ICEBERG",
+                    "container": {}
+                  },
+                  {
+                    "value": "PARQUET",
+                    "container": {}
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
                 "label": "Advanced Properties",
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",

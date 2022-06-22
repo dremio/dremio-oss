@@ -17,15 +17,18 @@ package com.dremio.exec.store.iceberg.model;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
+import com.dremio.exec.catalog.PartitionSpecAlterOption;
 import com.dremio.exec.record.BatchSchema;
 
 /**
@@ -39,32 +42,18 @@ public interface IcebergCommand {
      * @param partitionColumns partition specification of the table
      * @param tableParameters icebeg table parameters
      */
-    void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters);
+    void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters, PartitionSpec partitionSpec);
 
     /**
-     * End of Create command
+     * Start of a tansaction
      */
-    Snapshot endCreateTableTransaction();
+    void beginTransaction();
 
     /**
-     * Start of Insert command
+     * End of a tansaction
      */
-    void beginInsertTableTransaction();
 
-    /**
-     * End of Insert command
-     */
-    Snapshot endInsertTableTransaction();
-
-    /**
-     * Start of MetadataRefresh
-     */
-    void beginMetadataRefreshTransaction();
-
-    /**
-     * End of MetadataRefresh
-     */
-    Table endMetadataRefreshTransaction();
+    Table endTransaction();
 
     /**
      * Commit the delete operation
@@ -74,7 +63,7 @@ public interface IcebergCommand {
     /**
      * Commit the delete operation
      */
-    void finishDelete();
+    Snapshot finishDelete();
 
     /**
      *  Start the insert operation
@@ -84,7 +73,13 @@ public interface IcebergCommand {
     /**
      *  Finish the insert operation
      */
-    void finishInsert();
+    Snapshot finishInsert();
+
+    /**
+     * consumes list of snapshot ids that expire the current transaction
+     * @param snapshotIds list of snapshot ids
+     */
+    void expireSnapshots(Set<Long> snapshotIds);
 
     /**
      * consumes list of Manifest files as part of the current transaction
@@ -98,6 +93,13 @@ public interface IcebergCommand {
      * @param filesList list of DataFile entries
      */
     void consumeDeleteDataFiles(List<DataFile> filesList);
+
+    /**
+     * consumes list of deleted data files by file paths as a part of
+     * the current transaction
+     * @param filePathsList list of data file paths
+     */
+    void consumeDeleteDataFilesByPaths(List<String> filePathsList);
 
     /**
      * consumes list of columns to be dropped
@@ -152,6 +154,13 @@ public interface IcebergCommand {
     void renameColumn(String name, String newName);
 
   /**
+   * Update primary key
+   *
+   * @param columns primary key column fields
+   */
+  void updatePrimaryKey(List<Field> columns);
+
+  /**
    * Marks the transaction as a read-modify-write transaction. The transaction is expected
    * to add validation checks to ensure that the Iceberg table has not modified since the
    * read of the table
@@ -161,7 +170,7 @@ public interface IcebergCommand {
    *
    * @param snapshotId The snapshotId that was used to read the transaction
    */
-   void setIsReadModifyWriteTransaction(long snapshotId);
+  Snapshot setIsReadModifyWriteTransaction(long snapshotId);
 
   /**
    * Load an Iceberg table from disk
@@ -189,6 +198,8 @@ public interface IcebergCommand {
 
     Map<Integer, PartitionSpec> getPartitionSpecMap();
 
+    Schema getIcebergSchema();
+
     void beginAlterTableTransaction();
 
     Table endAlterTableTransaction();
@@ -199,5 +210,7 @@ public interface IcebergCommand {
 
     void changeColumnForInternalTable(String columnToChange, Field batchField);
 
-    void updatePropertiesMap(BatchSchema droppedColumns, BatchSchema updatedColumns);
+    void updatePropertiesMap(Map<String, String> propertiesMap);
+
+    void updatePartitionSpec(PartitionSpecAlterOption partitionSpecAlterOption);
 }

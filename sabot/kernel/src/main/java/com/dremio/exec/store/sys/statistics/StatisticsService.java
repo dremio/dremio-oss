@@ -54,7 +54,7 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
     boolean isItemsSketchSet();
   }
 
-  String requestStatistics(List<Field> fields, NamespaceKey key);
+  String requestStatistics(List<Field> fields, NamespaceKey key, Double samplingRate);
 
   List<String> deleteStatistics(List<String> fields, NamespaceKey key);
 
@@ -99,7 +99,7 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
     }
 
     @Override
-    public String requestStatistics(List<Field> fields,  NamespaceKey key) {
+    public String requestStatistics(List<Field> fields,  NamespaceKey key, Double samplingRate) {
       throw new UnsupportedOperationException("StatisticsService.requestStatistics called on a non-coordinator node");
     }
 
@@ -151,6 +151,80 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
     @Override
     public boolean deleteStatistic(String column, NamespaceKey key) {
       throw new UnsupportedOperationException("StatisticsService.setNdv called on a non-coordinator node");
+    }
+
+
+  };
+
+
+  // Only Used for Tests when no statistics are collected
+  StatisticsService MOCK_STATISTICS_SERVICE = new StatisticsService() {
+    @Override
+    public void close() throws Exception {
+    }
+
+    @Override
+    public void start() throws Exception {
+    }
+
+    @Override
+    public Iterable<StatisticsListManager.StatisticsInfo> getStatisticsInfos() {
+        return null;
+    }
+
+    @Override
+    public String requestStatistics(List<Field> fields,  NamespaceKey key, Double samplingRate) {
+      return null;
+    }
+
+    @Override
+    public Long getNDV(String column, NamespaceKey key) {
+      return null;
+    }
+
+    @Override
+    public Long getRowCount(NamespaceKey key) {
+      return null;
+    }
+
+    @Override
+    public Long getNullCount(String column, NamespaceKey key) {
+      return null;
+    }
+
+    @Override
+    public Histogram getHistogram(String column, TableMetadata tableMetaData) {
+      return null;
+    }
+
+    @Override
+    public Histogram getHistogram(String column, NamespaceKey key, SqlTypeName sqlTypeName) {
+      return null;
+    }
+
+    @Override
+    public List<String> deleteStatistics(List<String> fields, NamespaceKey key) {
+      return null;
+    }
+
+    @Override
+    public boolean deleteRowCountStatistics(NamespaceKey key) {
+      return false;
+    }
+
+    @Override
+    public void setNdv(String column, Long val, NamespaceKey key) {
+      return;
+    }
+
+    @Override
+    public void setRowCount(Long val, NamespaceKey key) {
+      return ;
+    }
+
+    @Override
+    public boolean deleteStatistic(String column, NamespaceKey key) {
+      return false;
     }
 
 

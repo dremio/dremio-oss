@@ -63,6 +63,7 @@ import com.dremio.dac.service.admin.KVStoreReportService;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DACViewCreatorFactory;
+import com.dremio.dac.service.datasets.DatasetVersionCleanupHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.exec.MasterElectionService;
 import com.dremio.dac.service.exec.MasterStatusListener;
@@ -143,6 +144,8 @@ import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManagerImpl;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ActiveQueryListService;
 import com.dremio.exec.work.protector.ForemenTool;
@@ -230,6 +233,7 @@ import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
+import com.dremio.service.jobresults.server.JobResultsBindableService;
 import com.dremio.service.jobresults.server.JobResultsGrpcServerFacade;
 import com.dremio.service.jobs.Chronicle;
 import com.dremio.service.jobs.HybridJobsService;
@@ -290,6 +294,7 @@ import com.dremio.service.usersessions.UserSessionServiceOptions;
 import com.dremio.service.usersessions.store.UserSessionStoreProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.services.jobresults.common.JobResultsTunnel;
 import com.dremio.services.nessie.grpc.client.GrpcClientBuilder;
 import com.dremio.ssl.SSLEngineFactory;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
@@ -619,6 +624,7 @@ public class DACDaemonModule implements DACModule {
       registry.provider(StatisticsService.class),
       registry.provider(StatisticsAdministrationService.Factory.class),
       registry.provider(StatisticsListManager.class),
+      registry.provider(UserDefinedFunctionListManager.class),
       registry.provider(RelMetadataQuerySupplier.class),
       registry.provider(SimpleJobRunner.class),
       registry.provider(DatasetCatalogServiceBlockingStub.class),
@@ -882,7 +888,8 @@ public class DACDaemonModule implements DACModule {
         isDistributedMaster,
         registry.provider(ConduitProvider.class),
         registry.provider(UserSessionService.class),
-        registry.provider(OptionValidatorListing.class)
+        registry.provider(OptionValidatorListing.class),
+        Collections.singletonList(DatasetVersionCleanupHelper.datasetVersionCleaner(kvStoreProviderProvider.get()))
       );
 
       registry.bind(LocalJobsService.class, localJobsService);
@@ -967,6 +974,7 @@ public class DACDaemonModule implements DACModule {
 
       registry.bind(RuleBasedEngineSelector.class, RuleBasedEngineSelector.NO_OP);
 
+      final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
       final ForemenWorkManager foremenWorkManager = new ForemenWorkManager(
         registry.provider(FabricService.class),
         registry.provider(SabotContext.class),
@@ -975,7 +983,12 @@ public class DACDaemonModule implements DACModule {
         registry.provider(JobTelemetryClient.class),
         registry.provider(MaestroForwarder.class),
         bootstrapRegistry.lookup(Tracer.class),
-        registry.provider(RuleBasedEngineSelector.class));
+        registry.provider(RuleBasedEngineSelector.class),
+        jobResultsAllocator);
+
+      if (config.getBoolean(DremioConfig.JOBS_ENABLED_BOOL)) {
+        registerJobsServices(conduitServiceRegistry, registry, bootstrap, jobResultsAllocator, optionManagerProvider);
+      }
 
       registry.bindSelf(foremenWorkManager);
       registry.bindProvider(ExecToCoordResultsHandler.class, foremenWorkManager::getExecToCoordResultsHandler);
@@ -1025,6 +1038,7 @@ public class DACDaemonModule implements DACModule {
         new JobResultsSoftwareClientFactory(execToCoordTunnelCreator));
 
       final FragmentWorkManager fragmentWorkManager = new FragmentWorkManager(bootstrap,
+        config.getSabotConfig(),
         registry.provider(NodeEndpoint.class),
         registry.provider(SabotContext.class),
         registry.provider(FabricService.class),
@@ -1070,6 +1084,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(ReflectionService.class),
         registry.provider(ReflectionAdministrationService.Factory.class),
         namespaceServiceProvider));
+
       final StatisticsServiceImpl statisticsService = new StatisticsServiceImpl(
         registry.provider(LegacyKVStoreProvider.class),
         registry.provider(SchedulerService.class),
@@ -1124,6 +1139,16 @@ public class DACDaemonModule implements DACModule {
       isMaster,
       isCoordinator);
     registry.bind(StatisticsListManager.class, statisticsListManager);
+
+    final UserDefinedFunctionListManager userDefinedFunctionListManager = new UserDefinedFunctionListManagerImpl(
+      namespaceServiceProvider,
+      serviceLeaderProvider,
+      registry.provider(FabricService.class),
+      registry.provider(BufferAllocator.class),
+      () -> config,
+      isMaster,
+      isCoordinator);
+    registry.bind(UserDefinedFunctionListManager.class, userDefinedFunctionListManager);
 
     final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
 
@@ -1244,9 +1269,6 @@ public class DACDaemonModule implements DACModule {
         currentEndPoint,
         bootstrapRegistry.lookup(GrpcTracerFacade.class))
       );
-
-      registerJobsServices(conduitServiceRegistry, registry, bootstrap);
-
     }
 
     if (isExecutor) {
@@ -1276,13 +1298,12 @@ public class DACDaemonModule implements DACModule {
 
     if (isCoordinator && config.getBoolean(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN)) {
       final boolean inMemoryBackend = config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN);
-      final long defaultKvStoreCommitTimeoutMs = config.getLong(DremioConfig.NESSIE_SERVICE_KVSTORE_COMMIT_TIMEOUT_MS);
 
       final NessieService nessieService = new NessieService(
         registry.provider(KVStoreProvider.class),
         registry.provider(OptionManager.class),
+        registry.provider(SchedulerService.class),
         inMemoryBackend,
-        defaultKvStoreCommitTimeoutMs,
         () -> isMaster
       );
       nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
@@ -1302,12 +1323,13 @@ public class DACDaemonModule implements DACModule {
       registry.bind(UserPreferenceStore.class, userPreferenceStore);
 
       registry.bind(UserPreferenceService.class, UserPreferenceServiceImpl.class);
+
     }
 
     if(isCoordinator) {
       SystemTableManager systemTableManager = new SystemTableManagerImpl(
         getSystemTableAllocator(bootstrap),
-        () -> getSysFlightTableProviders(conduitProvider));
+        () -> getSysFlightTableProviders(registry));
       registry.bind(SystemTableManager.class, systemTableManager);
     }
 
@@ -1400,12 +1422,15 @@ public class DACDaemonModule implements DACModule {
   }
 
   private void registerJobsServices(final ConduitServiceRegistry conduitServiceRegistry,
-                                    final SingletonRegistry registry, final BootStrapContext bootstrap) {
+                                    final SingletonRegistry registry,
+                                    final BootStrapContext bootstrap,
+                                    final BufferAllocator jobResultsAllocator,
+                                    final Provider<OptionManager> optionManagerProvider) {
     // 1. job adapter
     conduitServiceRegistry.registerService(new JobsServiceAdapter(registry.provider(LocalJobsService.class)));
 
     // 2. chronicle
-    conduitServiceRegistry.registerService(new Chronicle(registry.provider(LocalJobsService.class)));
+    conduitServiceRegistry.registerService(new Chronicle(registry.provider(LocalJobsService.class), bootstrap::getExecutor));
 
     // 3. jobs, sys flight producers registered together as CoordinatorFlightProducer, as individual binding is masking one of them
     final BufferAllocator coordFlightAllocator = bootstrap.getAllocator().newChildAllocator(CoordinatorFlightProducer.class.getName(), 0, Long.MAX_VALUE);
@@ -1418,11 +1443,31 @@ public class DACDaemonModule implements DACModule {
     conduitServiceRegistry.registerService(new MaestroGrpcServerFacade(registry.provider(ExecToCoordStatusHandler.class)));
 
     //5. jobresults
-    final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
-    conduitServiceRegistry.registerService(new JobResultsGrpcServerFacade(registry.provider(ExecToCoordResultsHandler.class), jobResultsAllocator, registry.provider(MaestroForwarder.class)));
+    JobResultsGrpcServerFacade jobResultsGrpcServerFacade = new JobResultsGrpcServerFacade(
+      registry.provider(ExecToCoordResultsHandler.class),
+      registry.provider(MaestroForwarder.class),
+      registry.lookup(Tracer.class));
+
+    // Note: To take effect of the change in this option on coordinator side, coordinator needs to be restarted.
+    // But the change of option is propagated to executor without restarting executor. Its dynamic change on executor side.
+    if (avoidHeapCopy()) {
+      logger.info("Using JobResultsBindableService");
+      conduitServiceRegistry.registerService(new JobResultsBindableService(jobResultsAllocator, jobResultsGrpcServerFacade));
+    } else {
+      logger.info("Using JobResultsGrpcServerFacade");
+      conduitServiceRegistry.registerService(jobResultsGrpcServerFacade);
+    }
   }
 
-
+  private boolean avoidHeapCopy() {
+    String property = SystemOptionManager.SYSTEM_OPTION_PREFIX + JobResultsTunnel.AVOID_HEAP_COPY_IN_RESULTS_PATH_OPTION_NAME;
+    if(System.getProperty(property) != null) {
+      return Boolean.getBoolean(property);
+    } else {
+      // return the default option value.
+      return JobResultsTunnel.AVOID_HEAP_COPY_IN_RESULTS_PATH.getDefault().getBoolVal();
+    }
+  }
 
   protected LegacyIndexedStore<JobId, JobResult> getLegacyIndexedStore(Provider<LegacyKVStoreProvider> kvStoreProviderProvider) {
     return kvStoreProviderProvider.get().getStore(LocalJobsService.JobsStoreCreator.class);
@@ -1489,7 +1534,8 @@ public class DACDaemonModule implements DACModule {
         String.format("Unknown auth type '%s' set in config path '%s'", authType, WEB_AUTH_TYPE));
   }
 
-  protected Map<SystemTableManager.TABLES, SysFlightDataProvider> getSysFlightTableProviders(ConduitProvider conduitProvider) {
+  protected Map<SystemTableManager.TABLES, SysFlightDataProvider> getSysFlightTableProviders(SingletonRegistry registry) {
+    ConduitProvider conduitProvider = registry.provider(ConduitProvider.class).get();
     Map<SystemTableManager.TABLES, SysFlightDataProvider> tablesMap = Maps.newHashMap();
     ReflectionDescriptionServiceStub reflectionsStub = ReflectionDescriptionServiceGrpc.newStub(conduitProvider.getOrCreateChannelToMaster());
 

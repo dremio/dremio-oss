@@ -17,111 +17,168 @@
 ---
  -
   description: "SIMPLE FROM CLAUSE"
-  input: "FROM EMP"
+  input: "SELECT ^ FROM EMP"
   output:
-    '[EMP]':
-     -
+   -
+    column:
       name: "COMM"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
       name: "DEPTNO"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
       name: "EMPNO"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
       name: "ENAME"
-      sqlTypeName: "VARCHAR"
-     -
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
       name: "HIREDATE"
-      sqlTypeName: "TIMESTAMP"
-     -
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
       name: "JOB"
-      sqlTypeName: "VARCHAR"
-     -
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
       name: "MGR"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
       name: "SAL"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
       name: "SLACKER"
-      sqlTypeName: "BOOLEAN"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
  -
   description: "FROM CLAUSE WITH COMMAS"
-  input: "FROM EMP, DEPT"
+  input: "SELECT ^ FROM EMP, DEPT"
   output:
-    '[EMP]':
-     -
-      name: "COMM"
-      sqlTypeName: "INTEGER"
-     -
+   -
+    column:
       name: "DEPTNO"
-      sqlTypeName: "INTEGER"
-     -
-      name: "EMPNO"
-      sqlTypeName: "INTEGER"
-     -
-      name: "ENAME"
-      sqlTypeName: "VARCHAR"
-     -
-      name: "HIREDATE"
-      sqlTypeName: "TIMESTAMP"
-     -
-      name: "JOB"
-      sqlTypeName: "VARCHAR"
-     -
-      name: "MGR"
-      sqlTypeName: "INTEGER"
-     -
-      name: "SAL"
-      sqlTypeName: "INTEGER"
-     -
-      name: "SLACKER"
-      sqlTypeName: "BOOLEAN"
-    '[DEPT]':
-     -
-      name: "DEPTNO"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "DEPT"
+   -
+    column:
       name: "NAME"
-      sqlTypeName: "VARCHAR"
+      type: "VARCHAR"
+    tableAlias: "DEPT"
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
  -
   description: "FROM CLAUSE WITH JOINS"
-  input: "FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO"
+  input: "SELECT ^ FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO"
   output:
-    '[EMP]':
-     -
-      name: "COMM"
-      sqlTypeName: "INTEGER"
-     -
+   -
+    column:
       name: "DEPTNO"
-      sqlTypeName: "INTEGER"
-     -
-      name: "EMPNO"
-      sqlTypeName: "INTEGER"
-     -
-      name: "ENAME"
-      sqlTypeName: "VARCHAR"
-     -
-      name: "HIREDATE"
-      sqlTypeName: "TIMESTAMP"
-     -
-      name: "JOB"
-      sqlTypeName: "VARCHAR"
-     -
-      name: "MGR"
-      sqlTypeName: "INTEGER"
-     -
-      name: "SAL"
-      sqlTypeName: "INTEGER"
-     -
-      name: "SLACKER"
-      sqlTypeName: "BOOLEAN"
-    '[DEPT]':
-     -
-      name: "DEPTNO"
-      sqlTypeName: "INTEGER"
-     -
+      type: "INTEGER"
+    tableAlias: "DEPT"
+   -
+    column:
       name: "NAME"
-      sqlTypeName: "VARCHAR"
+      type: "VARCHAR"
+    tableAlias: "DEPT"
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"

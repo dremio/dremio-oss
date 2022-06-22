@@ -13,58 +13,67 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component} from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FieldWithError from 'components/Fields/FieldWithError';
-import TextField from 'components/Fields/TextField';
-import Select from 'components/Fields/Select';
+import FieldWithError from "components/Fields/FieldWithError";
+import TextField from "components/Fields/TextField";
+import Select from "components/Fields/Select";
 
-import {applyValidators, isRequired} from 'utils/validation';
+import { applyValidators, isRequired } from "utils/validation";
 
 export default class YarnProperty extends Component {
   static getFields() {
-    return [
-      'id', 'name', 'value', 'type'
-    ];
+    return ["id", "name", "value", "type"];
   }
 
   static propTypes = {
     fields: PropTypes.object,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   static validate(values) {
     return applyValidators(values, [
-      isRequired('name'),
-      isRequired('value'),
-      isRequired('type')
+      isRequired("name"),
+      isRequired("value"),
+      isRequired("type"),
     ]);
   }
 
   options = [
-    { label: 'Java', option: 'JAVA_PROP'},
-    { label: 'System', option: 'SYSTEM_PROP'},
-    { label: 'Environment', option: 'ENV_VAR'}
+    { label: "Java", option: "JAVA_PROP" },
+    { label: "System", option: "SYSTEM_PROP" },
+    { label: "Environment", option: "ENV_VAR" },
   ];
 
   render() {
-    const {fields: {name, value, type}} = this.props;
+    const {
+      fields: { name, value, type },
+    } = this.props;
 
     return (
-      <div style={{display: 'flex'}}>
-        <FieldWithError label='Type' {...type} style={{display: 'inline-block', marginRight: 10}}>
-          <Select
-            {...type}
-            items={this.options}
-            style={{width: 120}}/>
+      <div style={{ display: "flex" }}>
+        <FieldWithError
+          label="Type"
+          {...type}
+          style={{ display: "inline-block", marginRight: 10 }}
+        >
+          <Select {...type} items={this.options} style={{ width: 120 }} />
         </FieldWithError>
-        <FieldWithError label='Name' {...name} style={{display: 'inline-block', paddingRight: 5}}>
-          <TextField style={{width: 250}} {...name} />
+        <FieldWithError
+          label="Name"
+          {...name}
+          style={{ display: "inline-block", paddingRight: 5 }}
+        >
+          <TextField style={{ width: 250 }} {...name} />
         </FieldWithError>
-        <FieldWithError label='Value' {...value} style={{display: 'inline-block'}}>
-          <TextField style={{width: 250}} {...value} />
+        <FieldWithError
+          label="Value"
+          {...value}
+          style={{ display: "inline-block" }}
+        >
+          <TextField style={{ width: 250 }} {...value} />
         </FieldWithError>
       </div>
     );

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'chai';
+import { expect } from "chai";
 
-import * as Actions from './jobs.js';
+import * as Actions from "./jobs.js";
 
-describe('graph actions', () => {
-  describe('test constants', () => {
-    it('verify existence of LOAD_EXPLORE_GRAPH', () => {
+describe("graph actions", () => {
+  describe("test constants", () => {
+    it("verify existence of LOAD_EXPLORE_GRAPH", () => {
       expect(Actions.FILTER_JOBS_REQUEST).to.not.be.undefined;
       expect(Actions.FILTER_JOBS_SUCCESS).to.not.be.undefined;
       expect(Actions.FILTER_JOBS_FAILURE).to.not.be.undefined;

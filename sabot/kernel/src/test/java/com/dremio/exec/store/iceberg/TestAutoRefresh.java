@@ -28,6 +28,7 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -57,6 +58,7 @@ public class TestAutoRefresh extends BaseTestQuery {
     InternalFileConf nasConf = pluginId.getConnectionConf();
     nasConf.path = storageBase.getPath();
     nasConf.mutability = SchemaMutability.ALL;
+    nasConf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
     // Add one configuration for testing when internal is true
     nasConf.isInternal = true;

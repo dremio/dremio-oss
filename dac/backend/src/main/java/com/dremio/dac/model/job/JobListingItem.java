@@ -24,6 +24,7 @@ import com.dremio.service.job.proto.DurationDetails;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -38,8 +39,11 @@ public class JobListingItem extends PartialJobListingItem {
     @JsonProperty("queryUser") String queryUser,
     @JsonProperty("queryText") String queryText,
     @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @JsonProperty("engine") String engine,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @JsonProperty("subEngine") String subEngine,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @JsonProperty("wlmQueue") String wlmQueue,
     @JsonProperty("queriedDatasets") List<DataSet> queriedDatasets,
     @JsonProperty("isAccelerated") boolean isAccelerated,

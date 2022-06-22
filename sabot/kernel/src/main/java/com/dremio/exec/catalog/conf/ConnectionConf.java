@@ -62,7 +62,7 @@ import io.protostuff.Schema;
 @JsonAutoDetect(fieldVisibility=Visibility.PUBLIC_ONLY, getterVisibility=Visibility.NONE, isGetterVisibility=Visibility.NONE, setterVisibility=Visibility.NONE)
 public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin> implements AbstractConnectionConf, Externalizable {
 
-  private transient final Schema<T> schema;
+  private final transient Schema<T> schema;
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
 
   @SuppressWarnings("unchecked")

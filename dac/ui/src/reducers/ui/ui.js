@@ -13,39 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable  from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/ui/ui';
+import * as ActionTypes from "actions/ui/ui";
 
 const initialState = Immutable.fromJS({
   rightTreeVisible: false,
   externalSourcesExpanded: false,
+  internalSourcesExpanded: false,
+  dataplaneSourcesExpanded: false,
+  datasetsExpanded: false,
   resourceTree: {
     path: [],
-    nodes: {}
-  }
+    nodes: {},
+  },
 });
 
 export default function ui(state = initialState, action) {
   switch (action.type) {
-  case ActionTypes.UPDATE_RIGHT_PANEL_VISIBILITY:
-    return state.set('rightTreeVisible', action.visible);
+    case ActionTypes.UPDATE_RIGHT_PANEL_VISIBILITY:
+      return state.set("rightTreeVisible", action.visible);
 
-  case ActionTypes.RESET_RESOURCE_TREE:
-    return state.set('resourceTree', Immutable.Map());
-  case ActionTypes.UPDATE_RESOURCE_TREE_PATH:
-    return state.setIn('resourceTree', 'path', action.path);
-  case ActionTypes.TOGGLE_RESOURCE_TREE_NODE_EXPANDED: {
-    const expanded = state.getIn(['resourceTree', 'nodes', action.id, 'expanded']);
-    return state.mergeIn(['resourceTree', 'nodes', action.id], {expanded: !expanded});
-  }
-  case ActionTypes.TOGGLE_EXTERNAL_SOURCES_EXPANDED:
-    return state.set('externalSourcesExpanded', !state.get('externalSourcesExpanded'));
-  default:
-    return state;
+    case ActionTypes.RESET_RESOURCE_TREE:
+      return state.set("resourceTree", Immutable.Map());
+    case ActionTypes.UPDATE_RESOURCE_TREE_PATH:
+      return state.setIn("resourceTree", "path", action.path);
+    case ActionTypes.TOGGLE_RESOURCE_TREE_NODE_EXPANDED: {
+      const expanded = state.getIn([
+        "resourceTree",
+        "nodes",
+        action.id,
+        "expanded",
+      ]);
+      return state.mergeIn(["resourceTree", "nodes", action.id], {
+        expanded: !expanded,
+      });
+    }
+    case ActionTypes.TOGGLE_EXTERNAL_SOURCES_EXPANDED:
+      return state.set(
+        "externalSourcesExpanded",
+        !state.get("externalSourcesExpanded")
+      );
+    case ActionTypes.TOGGLE_INTERNAL_SOURCES_EXPANDED:
+      return state.set(
+        "internalSourcesExpanded",
+        !state.get("internalSourcesExpanded")
+      );
+    case ActionTypes.TOGGLE_DATAPLANE_SOURCES_EXPANDED:
+      return state.set(
+        "dataplaneSourcesExpanded",
+        !state.get("dataplaneSourcesExpanded")
+      );
+    case ActionTypes.TOGGLE_DATASETS_EXPANDED:
+      return state.set("datasetsExpanded", !state.get("datasetsExpanded"));
+    default:
+      return state;
   }
 }
 
 export function getResourceTreePath(state) {
-  return state.ui.getIn('resourceTree', 'path');
+  return state.ui.getIn("resourceTree", "path");
 }

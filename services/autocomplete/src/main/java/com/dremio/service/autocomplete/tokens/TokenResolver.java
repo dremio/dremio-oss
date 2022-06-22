@@ -15,111 +15,140 @@
  */
 package com.dremio.service.autocomplete.tokens;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
 
-import com.dremio.service.autocomplete.DremioToken;
-import com.dremio.service.autocomplete.SqlQueryUntokenizer;
+import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
+import com.dremio.service.autocomplete.functions.TokenTypeDetector;
+import com.dremio.service.autocomplete.parsing.ParserFactory;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+
+import software.amazon.awssdk.utils.Either;
 
 /**
  * Resolves what tokens can come next in a sql query text.
  */
 public final class TokenResolver {
-  private static final SqlParser Parser = SqlParser.create("", SqlParser.Config.DEFAULT);
-  private static final DremioToken dummyToken = new DremioToken(0, "dummy42");
+  private static final DremioTokenNGramFrequencyTable N_GRAM_FREQUENCY_TABLE = DremioTokenNGramFrequencyTable.create("markov_chain_queries.sql", 4);
+  // Token that never occurs in the real query.
+  private static final DremioToken invalidToken = new DremioToken(0, "dummy42\07");
 
-  private final SqlTokenKindMarkovChain markovChain;
+  private TokenResolver() {}
 
-  public TokenResolver(SqlTokenKindMarkovChain markovChain) {
-    Preconditions.checkNotNull(markovChain);
-    this.markovChain = markovChain;
-  }
-
-  public List<DremioToken> resolve(ImmutableList<DremioToken> corpus, boolean trailingWhitespace) {
+  public static Predictions getNextPossibleTokens(ImmutableList<DremioToken> corpus) {
     Preconditions.checkNotNull(corpus);
 
-    List<DremioToken> tokens;
-    try {
-      SqlNode parsedQuery = Parser.parseQuery(SqlQueryUntokenizer.untokenize(corpus));
-      // If we make it here this means one of two cases:
-      if (trailingWhitespace) {
-        // 1) A proper query (like "SELECT * FROM emp ")
-        // We can add a dummy token to force the parser to give us expectedTokens:
-        // FindCompletions("SELECT * FROM emp ") = FindCompletions("SELECT * FROM emp 42dummy")
-        ImmutableList<DremioToken> corpusWithDummy = new ImmutableList.Builder<DremioToken>()
-          .addAll(corpus)
-          .add(dummyToken)
-          .build();
-        tokens = resolve(corpusWithDummy, true);
-      } else {
-        // 2) A query that is a prefix to another query (like "SELECT MED" for "SELECT MEDIAN(...)")
-        // We can remove the last token and take only the completions that
-        // start with the last token as a prefix
-        // FindCompletions("SELECT MED") => FindCompletions("SELECT").filter(blah => blah.startsWith("MED"));
-        // In the future this can be done more efficiently with a trie.
-        DremioToken lastToken = corpus.get(corpus.size() - 1);
-        corpus = corpus.subList(0, corpus.size() - 1);
-        tokens = resolve(corpus, true)
-          .stream()
-          .filter(token -> token.getImage().toUpperCase().startsWith(lastToken.getImage().toUpperCase()))
-          .collect(Collectors.toList());
-      }
-    } catch (SqlParseException sqlParseException) {
-      int[][] tokenSequences = sqlParseException.getExpectedTokenSequences();
-      if (tokenSequences == null) {
-        DremioToken lastToken = corpus.get(corpus.size() - 1);
-        corpus = corpus.subList(0, corpus.size() - 1);
-        tokens = resolve(corpus, true)
-          .stream()
-          .filter(token -> token.getImage().toUpperCase().startsWith(lastToken.getImage().toUpperCase()))
-          .collect(Collectors.toList());
-      } else {
-        Set<Integer> tokenKinds = new HashSet<>();
-        for (int[] tokenSequence : tokenSequences) {
-          // The parser sometimes will return the context leading up to the next suggested token.
-          // For example parse("SELECT ABS(") will return:
-          // ["(", "<IDENTIFIER>"]
-          // We don't need "(" for autocomplete, so just take the identifier.
-          // In the future do a prefix match instead of assuming the token sequence is length 2
-          int lookupIndex;
-          if (tokenSequence.length == 1) {
-            lookupIndex = tokenSequence[0];
-          } else {
-            lookupIndex = tokenSequence[1];
-          }
-
-          String image = sqlParseException.getTokenImages()[lookupIndex];
-          int kind = NormalizedTokenDictionary.INSTANCE.imageToIndex(image);
-          tokenKinds.add(kind);
-        }
-
-        tokens = new ArrayList<>();
-        for (Integer tokenKind : tokenKinds) {
-          String normalizedImage = NormalizedTokenDictionary.INSTANCE.indexToImage(tokenKind);
-          DremioToken token = new DremioToken(tokenKind, normalizedImage);
-
-          tokens.add(token);
-        }
-      }
+    Either<SqlNode, Predictions> parseResult = tryParse(corpus);
+    Predictions predictions;
+    if (parseResult.left().isPresent()) {
+      // If we make it here this means we have a proper query like: "SELECT * FROM emp "
+      // We can add a dummy token to force the parser to give us expectedTokens:
+      // FindCompletions("SELECT * FROM emp ") = FindCompletions("SELECT * FROM emp 42dummy")
+      ImmutableList<DremioToken> corpusWithDummy = new ImmutableList.Builder<DremioToken>()
+        .addAll(corpus)
+        .add(invalidToken)
+        .build();
+      predictions = getNextPossibleTokens(corpusWithDummy);
+    } else {
+      predictions = parseResult.right().get();
     }
 
     TokenSequenceComparator comparator = new TokenSequenceComparator(
       corpus,
-      this.markovChain);
+      N_GRAM_FREQUENCY_TABLE);
 
-    tokens = ImmutableList.sortedCopyOf(
-      comparator,
-      tokens);
+    return new Predictions(
+      predictions.isIdentifierPossible(),
+      ImmutableList.sortedCopyOf(
+        comparator,
+        predictions.getKeywords()));
+  }
 
-    return tokens;
+  public static final class Predictions {
+    private final boolean isIdentifierPossible;
+    private final ImmutableList<DremioToken> keywords;
+
+    private Predictions(
+      boolean isIdentifierPossible,
+      ImmutableList<DremioToken> keywords) {
+      Preconditions.checkNotNull(keywords);
+
+      this.isIdentifierPossible = isIdentifierPossible;
+      this.keywords = keywords;
+    }
+
+    public boolean isIdentifierPossible() {
+      return isIdentifierPossible;
+    }
+
+    public ImmutableList<DremioToken> getKeywords() {
+      return keywords;
+    }
+  }
+
+  private static Either<SqlNode, Predictions> tryParse(ImmutableList<DremioToken> corpus) {
+    try {
+      String sql = SqlQueryUntokenizer.untokenize(corpus);
+      SqlNode parsedQuery = ParserFactory.create(sql).parseStmt();
+      return Either.left(parsedQuery);
+    } catch (SqlParseException sqlParseException) {
+      Collection<String> expectedTokenNames = getExpectedTokenName(sqlParseException, corpus);
+      Set<Integer> tokenKinds = new HashSet<>();
+      for (String tokenName : expectedTokenNames) {
+        int kind = NormalizedTokenDictionary.INSTANCE.imageToIndex(tokenName);
+        tokenKinds.add(kind);
+      }
+
+      boolean isIdentifierPossible = false;
+      ImmutableList.Builder<DremioToken> expectedTokensBuilder = new ImmutableList.Builder<>();
+      for (Integer tokenKind : tokenKinds) {
+        DremioToken token = DremioToken.createFromParserKind(tokenKind);
+        if (token.getKind() == ParserImplConstants.IDENTIFIER) {
+          isIdentifierPossible = true;
+        }
+
+        // Remove placeholder tokens
+        if ((token.getImage().startsWith("<")) && (token.getImage().endsWith(">"))) {
+          continue;
+        }
+
+        // Remove tokens that are really function names
+        // Since they are technically apart of the grammar,
+        // but not autocomplete.
+        boolean isKeyword = TokenTypeDetector.isKeyword(token.getImage(), corpus).orElse(true);
+        if (!isKeyword) {
+          continue;
+        }
+
+        expectedTokensBuilder.add(token);
+      }
+
+      Predictions predictions = new Predictions(
+        isIdentifierPossible,
+        expectedTokensBuilder.build());
+
+      return Either.right(predictions);
+    }
+  }
+
+  private static Collection<String> getExpectedTokenName(
+    SqlParseException sqlParseException,
+    ImmutableList<DremioToken> corpus) {
+    if (!sqlParseException.getMessage().equals("BETWEEN operator has no terminating AND")) {
+      return sqlParseException.getExpectedTokenNames();
+    }
+
+    // For some reason the parser does not just return AND as an expected token inside of a BETWEEN operator
+    if (Iterables.getLast(corpus).getKind() == ParserImplConstants.AND) {
+      return ImmutableList.of("<IDENTIFIER>");
+    }
+
+    return ImmutableList.of("\"AND\"");
   }
 }

@@ -39,7 +39,7 @@ import com.google.common.base.Strings;
 /**
  * Utilities functions related to {@link MetadataProvider}.
  */
-final class MetadataProviderUtils {
+public final class MetadataProviderUtils {
 
   // prevent instantiation
   private MetadataProviderUtils() {
@@ -52,7 +52,7 @@ final class MetadataProviderUtils {
    * @param defaultCatalog default catalog override
    * @return catalog metadata
    */
-  static CatalogMetadata toCatalogMetadata(Catalog catalog, String defaultCatalog) {
+  public static CatalogMetadata toCatalogMetadata(Catalog catalog, String defaultCatalog) {
     final CatalogMetadata.Builder builder = CatalogMetadata.newBuilder();
     builder.setCatalogName(Strings.isNullOrEmpty(defaultCatalog) ? catalog.getCatalogName() : defaultCatalog);
     builder.setConnect(catalog.getCatalogConnect());
@@ -67,7 +67,7 @@ final class MetadataProviderUtils {
    * @param defaultCatalog default catalog override
    * @return schema metadata
    */
-  static SchemaMetadata toSchemaMetadata(Schema schema, String defaultCatalog) {
+  public static SchemaMetadata toSchemaMetadata(Schema schema, String defaultCatalog) {
     final SchemaMetadata.Builder builder = SchemaMetadata.newBuilder();
     builder.setCatalogName(Strings.isNullOrEmpty(defaultCatalog) ? schema.getCatalogName() : defaultCatalog);
     builder.setSchemaName(schema.getSchemaName());

@@ -356,7 +356,7 @@ public class RuntimeFilterManager implements AutoCloseable {
 
         private void evaluateDropStatus() {
             final boolean allNonPartitionColFiltersDropped =
-                    nonPartitionColFilters.entrySet().stream().anyMatch(e -> e.getValue() != null) == false;
+                    nonPartitionColFilters.entrySet().stream().allMatch(e -> e.getValue() == null);
             if (partitionColFilter == null && allNonPartitionColFiltersDropped) {
                 drop();
             }
@@ -391,5 +391,3 @@ public class RuntimeFilterManager implements AutoCloseable {
         }
     }
 }
-
-

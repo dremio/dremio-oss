@@ -25,8 +25,8 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.InputFormat;
 
 import com.dremio.hive.proto.HiveReaderProto;
-import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
+import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 

@@ -13,76 +13,78 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as ActionTypes from 'actions/confirmation';
+import * as ActionTypes from "actions/confirmation";
 
 const initialState = {
   isOpen: false,
   title: null,
   confirmText: null,
   text: null,
-  confirm: null
+  confirm: null,
 };
 
 export default function confirmation(state = initialState, action) {
   switch (action.type) {
-  // todo: add queuing
-  case ActionTypes.SHOW_CONFIRMATION_DIALOG: {
-    const {
-      text,
-      title,
-      confirm,
-      cancel,
-      confirmText,
-      confirmButtonStyle,
-      cancelText,
-      style,
-      hideCancelButton,
-      showOnlyConfirm,
-      doNotAskAgainText,
-      doNotAskAgainKey,
-      showPrompt,
-      promptLabel,
-      promptFieldProps,
-      dataQa,
-      validatePromptText,
-      isCentered,
-      closeButtonType,
-      className,
-      headerIcon
-    } = action;
-    // list all to be sure to reset everything
-    return {
-      ...state,
-      isOpen: true,
-      text,
-      title,
-      confirmText,
-      confirmButtonStyle,
-      cancelText,
-      confirm,
-      cancel,
-      style,
-      hideCancelButton,
-      showOnlyConfirm,
-      doNotAskAgainText,
-      doNotAskAgainKey,
-      showPrompt,
-      promptLabel,
-      promptFieldProps,
-      dataQa,
-      validatePromptText,
-      isCentered,
-      closeButtonType,
-      className,
-      headerIcon
-    };
-  }
-  case ActionTypes.HIDE_CONFIRMATION_DIALOG:
-    return {
-      ...state,
-      ...initialState
-    };
-  default:
-    return state;
+    // todo: add queuing
+    case ActionTypes.SHOW_CONFIRMATION_DIALOG: {
+      const {
+        text,
+        title,
+        confirm,
+        cancel,
+        confirmText,
+        confirmButtonStyle,
+        cancelText,
+        style,
+        hideCancelButton,
+        showOnlyConfirm,
+        doNotAskAgainText,
+        doNotAskAgainKey,
+        showPrompt,
+        promptLabel,
+        promptFieldProps,
+        dataQa,
+        validatePromptText,
+        isCentered,
+        closeButtonType,
+        className,
+        headerIcon,
+        size,
+      } = action;
+      // list all to be sure to reset everything
+      return {
+        ...state,
+        isOpen: true,
+        text,
+        title,
+        confirmText,
+        confirmButtonStyle,
+        cancelText,
+        confirm,
+        cancel,
+        style,
+        hideCancelButton,
+        showOnlyConfirm,
+        doNotAskAgainText,
+        doNotAskAgainKey,
+        showPrompt,
+        promptLabel,
+        promptFieldProps,
+        dataQa,
+        validatePromptText,
+        isCentered,
+        closeButtonType,
+        className,
+        headerIcon,
+        size,
+      };
+    }
+    case ActionTypes.HIDE_CONFIRMATION_DIALOG:
+      return {
+        ...state,
+        ...initialState,
+      };
+    default:
+      return state;
   }
 }

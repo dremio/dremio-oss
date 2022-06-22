@@ -70,7 +70,7 @@ public abstract class FieldBufferPreAllocedCopier {
     }
   }
 
-  static abstract class FixedWidthCopier extends FieldBufferPreAllocedCopier {
+  abstract static class FixedWidthCopier extends FieldBufferPreAllocedCopier {
     protected final FieldVector source;
     protected final FieldVector target;
     protected final FixedWidthVector targetAlt;

@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-@Radium
-export default class ListItem extends Component {
+class ListItem extends Component {
   static propTypes = {
     label: PropTypes.string,
     children: PropTypes.node,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
   render() {
     const { label, children, style } = this.props;
     return (
@@ -38,13 +37,14 @@ export default class ListItem extends Component {
 
 const styles = {
   base: {
-    margin: '5px 0',
-    display: 'flex',
-    alignItems: 'center'
+    margin: "5px 0",
+    display: "flex",
+    alignItems: "center",
   },
   label: {
-    float: 'left',
+    float: "left",
     minWidth: 150,
-    color: '#999'
-  }
+    color: "#999",
+  },
 };
+export default Radium(ListItem);

@@ -26,14 +26,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSError;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -44,11 +42,10 @@ import com.google.common.collect.FluentIterable;
 /**
  * Test to verify how {@code FSDataOutputStream} handle {@code FSError}
  */
-@RunWith(Parameterized.class)
 public class TestFSDataOutputStreamWrapper {
-  @Parameters(name = "method: {0}")
-  public static Object[] methodsToTest() {
-    List<Method> methods = FluentIterable
+
+  private static Stream<Method> test() {
+    return FluentIterable
         .from(FSOutputStream.class.getMethods())
         .filter(new Predicate<Method>() {
           @Override
@@ -61,19 +58,11 @@ public class TestFSDataOutputStreamWrapper {
             }
             return Arrays.asList(input.getExceptionTypes()).contains(IOException.class);
           }
-        }).toList();
-
-    return methods.toArray();
+        }).stream();
   }
-
-  private final Method method;
-
-  public TestFSDataOutputStreamWrapper(Method method) {
-    this.method = method;
-  }
-
-  @Test
-  public void test() throws Exception {
+  @ParameterizedTest(name = "method: {0}")
+  @MethodSource
+  public void test(Method method) throws Exception {
     assumeNonMaprProfile();
     final IOException ioException = new IOException("test io exception");
     final FSError fsError = newFSError(ioException);

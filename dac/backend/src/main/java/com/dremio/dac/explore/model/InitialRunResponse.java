@@ -17,6 +17,7 @@ package com.dremio.dac.explore.model;
 
 import com.dremio.dac.resource.JobResource;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,6 +31,7 @@ public class InitialRunResponse {
   private final DatasetUI dataset;
   private final String paginationUrl;
   private final JobId jobId;
+  private final SessionId sessionId;
   private final History history;
 
   @JsonCreator
@@ -37,16 +39,18 @@ public class InitialRunResponse {
       @JsonProperty("dataset") DatasetUI dataset,
       @JsonProperty("paginationUrl") String paginationUrl,
       @JsonProperty("jobId") JobId jobId,
+      @JsonProperty("sessionId") SessionId sessionId,
       @JsonProperty("history") History history) {
     super();
     this.dataset = dataset;
     this.paginationUrl = paginationUrl;
     this.jobId = jobId;
+    this.sessionId = sessionId;
     this.history = history;
   }
 
-  public static InitialRunResponse of(DatasetUI dataset, JobId jobId, History history) {
-    return new InitialRunResponse(dataset, JobResource.getPaginationURL(jobId), jobId, history);
+  public static InitialRunResponse of(DatasetUI dataset, JobId jobId, SessionId sessionId, History history) {
+    return new InitialRunResponse(dataset, JobResource.getPaginationURL(jobId), jobId, sessionId, history);
   }
 
   /**
@@ -63,6 +67,10 @@ public class InitialRunResponse {
 
   public JobId getJobId() {
     return jobId;
+  }
+
+  public SessionId getSessionId() {
+    return sessionId;
   }
 
   public History getHistory() {

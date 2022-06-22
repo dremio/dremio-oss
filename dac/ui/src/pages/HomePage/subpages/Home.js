@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import HomePage from 'pages/HomePage/HomePage';
-import HomeContents from './HomeContents';
+import HomePage from "pages/HomePage/HomePage";
+import HomeContents from "./HomeContents";
 
 export default class Home extends Component {
-
   static propTypes = {
     location: PropTypes.object,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   constructor(props) {
@@ -32,8 +31,10 @@ export default class Home extends Component {
   }
 
   render() {
-    return <HomePage style={this.props.style} location={this.props.location}>
-      <HomeContents location={this.props.location}/>
-    </HomePage>;
+    return (
+      <HomePage style={this.props.style} location={this.props.location}>
+        <HomeContents location={this.props.location} />
+      </HomePage>
+    );
   }
 }

@@ -113,7 +113,7 @@ public class ServerTracingFilter implements ContainerRequestFilter, ContainerRes
       pathParams.forEach((key, value) -> spanBuilder.setAttribute(key, String.join(",", value)));
     }
     if (forcedSamplingHeader != null && requestContext.getHeaders().containsKey(forcedSamplingHeader)) {
-      logger.debug("Found Header in request - '%s' : '%s'",
+      logger.debug("Found Header in request - '{}' : '{}'",
         forcedSamplingHeader, requestContext.getHeaders().getFirst(forcedSamplingHeader));
 
       boolean headerValue = Boolean.parseBoolean(""+requestContext.getHeaders().getFirst(forcedSamplingHeader));

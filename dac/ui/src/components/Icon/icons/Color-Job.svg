@@ -1,0 +1,25 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="20" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M2 5.5C2 4.67157 2.67157 4 3.5 4H4.5C5.32843 4 6 4.67157 6 5.5V6.5C6 7.32843 5.32843 8 4.5 8H3.5C2.67157 8 2 7.32843 2 6.5V5.5ZM3.5 5.83333C3.5 5.64924 3.64924 5.5 3.83333 5.5H4.16667C4.35076 5.5 4.5 5.64924 4.5 5.83333V6.16667C4.5 6.35076 4.35076 6.5 4.16667 6.5H3.83333C3.64924 6.5 3.5 6.35076 3.5 6.16667V5.83333Z" fill="#008489"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M2 17.5C2 16.6716 2.67157 16 3.5 16H4.5C5.32843 16 6 16.6716 6 17.5V18.5C6 19.3284 5.32843 20 4.5 20H3.5C2.67157 20 2 19.3284 2 18.5V17.5ZM3.5 17.8333C3.5 17.6492 3.64924 17.5 3.83333 17.5H4.16667C4.35076 17.5 4.5 17.6492 4.5 17.8333V18.1667C4.5 18.3508 4.35076 18.5 4.16667 18.5H3.83333C3.64924 18.5 3.5 18.3508 3.5 18.1667V17.8333Z" fill="#008489"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M3.5 10C2.67157 10 2 10.6716 2 11.5V12.5C2 13.3284 2.67157 14 3.5 14H4.5C5.32843 14 6 13.3284 6 12.5V11.5C6 10.6716 5.32843 10 4.5 10H3.5ZM3.83333 11.5C3.64924 11.5 3.5 11.6492 3.5 11.8333V12.1667C3.5 12.3508 3.64924 12.5 3.83333 12.5H4.16667C4.35076 12.5 4.5 12.3508 4.5 12.1667V11.8333C4.5 11.6492 4.35076 11.5 4.16667 11.5H3.83333Z" fill="#008489"/>
+<path d="M8.5 5.25C8.08579 5.25 7.75 5.58579 7.75 6C7.75 6.41421 8.08579 6.75 8.5 6.75H21.25C21.6642 6.75 22 6.41421 22 6C22 5.58579 21.6642 5.25 21.25 5.25H8.5Z" fill="#008489"/>
+<path d="M7.75 12C7.75 11.5858 8.08579 11.25 8.5 11.25H21.25C21.6642 11.25 22 11.5858 22 12C22 12.4142 21.6642 12.75 21.25 12.75H8.5C8.08579 12.75 7.75 12.4142 7.75 12Z" fill="#008489"/>
+<path d="M8.5 17.25C8.08579 17.25 7.75 17.5858 7.75 18C7.75 18.4142 8.08579 18.75 8.5 18.75H21.25C21.6642 18.75 22 18.4142 22 18C22 17.5858 21.6642 17.25 21.25 17.25H8.5Z" fill="#008489"/>
+</svg>

@@ -16,12 +16,14 @@
 package com.dremio.service.nessie.upgrade.storage;
 
 import static com.dremio.service.nessie.upgrade.storage.MigrateToNessieAdapter.MAX_ENTRIES_PER_COMMIT;
+import static java.util.Collections.singletonList;
+import static org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil.takeUntilExcludeLast;
 
 import java.time.Instant;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
@@ -29,7 +31,7 @@ import java.util.stream.Stream;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
-import org.projectnessie.store.ObjectTypes;
+import org.projectnessie.server.store.proto.ObjectTypes;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
@@ -37,13 +39,15 @@ import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
 import org.projectnessie.versioned.TagName;
+import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.ContentAndState;
 import org.projectnessie.versioned.persist.adapter.ContentId;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.ImmutableCommitAttempt;
+import org.projectnessie.versioned.persist.adapter.ImmutableCommitParams;
 import org.projectnessie.versioned.persist.adapter.KeyFilterPredicate;
+import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
-import org.projectnessie.versioned.persist.adapter.KeyWithType;
+import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
@@ -51,7 +55,6 @@ import com.dremio.dac.cmd.upgrade.UpgradeTask;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
-import com.dremio.service.nessie.ImmutableNessieDatabaseAdapterConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
@@ -64,8 +67,6 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
 
   public static final String TASK_ID = "1a9ab6a1-c919-4c23-b6af-2119aa0a00b4";
 
-  private static final int BATCH_SIZE = Integer.getInteger("nessie.upgrade.batch_size", 1000);
-
   public MigrateIcebergMetadataPointer() {
     super("Migrate ICEBERG_METADATA_POINTER in Nessie Data to current format", Collections.emptyList());
   }
@@ -77,28 +78,25 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    upgrade(context.getKvStoreProvider(), BATCH_SIZE, "upgrade-" + getTaskUUID());
+    upgrade(context.getKvStoreProvider(), "upgrade-" + getTaskUUID());
   }
 
   @VisibleForTesting
-  void upgrade(KVStoreProvider kvStoreProvider, int batchSize, String branchName) throws Exception {
-    if (batchSize <= 0) {
-      throw new IllegalArgumentException("Invalid batch size: " + batchSize);
-    }
-
+  void upgrade(KVStoreProvider kvStoreProvider, String branchName) throws Exception {
     try (NessieDatastoreInstance store = new NessieDatastoreInstance()) {
       store.configure(new ImmutableDatastoreDbConfig.Builder()
         .setStoreProvider(() -> kvStoreProvider)
         .build());
       store.initialize();
 
+      TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
-        .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
           // Suppress periodic key list generation by the DatabaseAdapter. We'll do that once at the end of the upgrade.
-          .setKeyListDistance(Integer.MAX_VALUE)
+          .keyListDistance(Integer.MAX_VALUE)
           .build())
-        .build();
+        .build(worker);
 
       // Ensure the Embedded Nessie repo is initialized. This is an idempotent operation in the context
       // of upgrade tasks since they run on only one machine.
@@ -107,7 +105,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       // Legacy data was stored only on `main`, so migrate data only on this branch.
       ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
 
-      Converter converter = new Converter(adapter, main.getHash(), batchSize);
+      Converter converter = new Converter(worker, adapter, main.getHash());
       if (!converter.upgradeRequired()) {
         AdminLogger.log("No ICEBERG_METADATA_POINTER entries found. Nessie data was not changed.");
         return;
@@ -137,13 +135,13 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       // Use a fresh adapter instance with key list distance of 1 to force key list generation
       DatabaseAdapter adapter1 = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
-        .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
-          .setKeyListDistance(1)
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+          .keyListDistance(1)
           .build())
-        .build();
+        .build(worker);
 
-      ImmutableCommitAttempt keyListCommit = ImmutableCommitAttempt.builder()
-        .commitToBranch(upgradeBranch)
+      ImmutableCommitParams keyListCommit = ImmutableCommitParams.builder()
+        .toBranch(upgradeBranch)
         .commitMetaSerialized(
           converter.worker.getMetadataSerializer().toBytes(
             CommitMeta.builder()
@@ -163,8 +161,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       adapter.create(oldMain, main.getHash());
 
       // Reset `main` to the head of the upgraded commit chain
-      adapter.delete(main.getNamedRef(), Optional.of(main.getHash()));
-      adapter.create(main.getNamedRef(), upgradedHead);
+      adapter.assign(main.getNamedRef(), Optional.of(main.getHash()), upgradedHead);
 
       // Delete the transient upgrade branch
       adapter.delete(upgradeBranch, Optional.of(upgradedHead));
@@ -172,28 +169,37 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
   }
 
   private static final class Converter {
-    private final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
+    private final TableCommitMetaStoreWorker worker;
     private final DatabaseAdapter adapter;
     private final Hash sourceBranch;
-    private final int batchSize;
+    private final Set<Key> activeKeys = new HashSet<>();
 
     private BranchName targetBranch;
-    private ImmutableCommitAttempt.Builder commit;
+    private ImmutableCommitParams.Builder commit;
     private Hash head;
     private int numEntries;
     private int totalEntries;
     private int numCommits;
 
-    private Converter(DatabaseAdapter adapter, Hash sourceBranch, int batchSize) {
+    private Converter(TableCommitMetaStoreWorker worker, DatabaseAdapter adapter, Hash sourceBranch) {
+      this.worker = worker;
       this.adapter = adapter;
       this.sourceBranch = sourceBranch;
-      this.batchSize = batchSize;
+
+      // Load all active keys into memory to allow a simple sequential scan of the commit log during later upgrade steps.
+      try(Stream<KeyListEntry> keys = adapter.keys(sourceBranch, KeyFilterPredicate.ALLOW_ALL)) {
+        keys.forEach(k -> activeKeys.add(k.getKey()));
+      } catch (ReferenceNotFoundException e) {
+        throw new IllegalArgumentException(e);
+      }
+
+      AdminLogger.log("Found {} active keys", activeKeys.size());
     }
 
     private void reset() {
       numEntries = 0;
-      commit = ImmutableCommitAttempt.builder()
-        .commitToBranch(targetBranch)
+      commit = ImmutableCommitParams.builder()
+        .toBranch(targetBranch)
         .expectedHead(Optional.of(head))
         .commitMetaSerialized(
           worker.getMetadataSerializer().toBytes(
@@ -223,68 +229,33 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       reset();
     }
 
-    private void processKey(Map<Key, KeyWithType> keys,
-                            KeyWithType kt,
-                            BiConsumer<KeyWithType, ContentAndState<ByteString>> action) {
-      if (keys == null) {
-        keys = new HashMap<>();
-      }
-
-      keys.put(kt.getKey(), kt);
-
-      if (keys.size() >= batchSize) {
-        drainKeys(keys, action);
-      }
-    }
-
-    private void drainKeys(Map<Key, KeyWithType> keys, BiConsumer<KeyWithType, ContentAndState<ByteString>> action) {
-      if (keys.isEmpty()) {
-        return;
-      }
-
-      AdminLogger.log("Processing a batch of {} keys", keys.size());
-
-      Map<Key, ContentAndState<ByteString>> values;
-      try {
-        values = adapter.values(sourceBranch, keys.keySet(), KeyFilterPredicate.ALLOW_ALL);
+    private void processValues(BiConsumer<CommitLogEntry, KeyWithBytes> action) {
+      Set<Key> keysToProcess = new HashSet<>(activeKeys);
+      try(Stream<CommitLogEntry> commitLog =
+            takeUntilExcludeLast(adapter.commitLog(sourceBranch), k -> keysToProcess.isEmpty())) {
+        commitLog.forEach(entry -> entry.getPuts().forEach(put -> {
+          if(keysToProcess.remove(put.getKey())) {
+            action.accept(entry, put);
+          }
+        }));
       } catch (ReferenceNotFoundException e) {
-        throw new IllegalStateException(e);
+        throw new IllegalArgumentException(e);
       }
-
-      for (Map.Entry<Key, ContentAndState<ByteString>> e : values.entrySet()) {
-        KeyWithType kt = keys.get(e.getKey());
-        if (kt == null) {
-          throw new IllegalStateException("Unknown key: " + e.getKey());
-        }
-
-        action.accept(kt, e.getValue());
-      }
-
-      keys.clear();
     }
 
-    private void processValues(BiConsumer<KeyWithType, ContentAndState<ByteString>> action)
-      throws ReferenceNotFoundException {
-
-      Map<Key, KeyWithType> batch = new HashMap<>();
-      try (Stream<KeyWithType> stream = adapter.keys(sourceBranch, KeyFilterPredicate.ALLOW_ALL)) {
-        stream.forEach(kt -> processKey(batch, kt, action));
-      }
-      drainKeys(batch, action);
-    }
-
-    private boolean upgradeRequired() throws ReferenceNotFoundException {
+    private boolean upgradeRequired() {
       AtomicLong legacy = new AtomicLong();
       AtomicLong current = new AtomicLong();
 
-      processValues((kt, value) -> {
-        ObjectTypes.Content.ObjectTypeCase refType = parseContent(value.getRefState()).getObjectTypeCase();
+      processValues((logEntry, kb) -> {
+        ObjectTypes.Content.ObjectTypeCase refType = parseContent(kb.getValue()).getObjectTypeCase();
+
         if (refType == ObjectTypes.Content.ObjectTypeCase.ICEBERG_METADATA_POINTER) {
           legacy.incrementAndGet();
-          AdminLogger.log("Key {} refers to a legacy entry", kt.getKey());
+          AdminLogger.log("Key {} refers to a legacy entry", kb.getKey());
         } else {
           current.incrementAndGet();
-          AdminLogger.log("Key {} refers to an entry in current format", kt.getKey());
+          AdminLogger.log("Key {} refers to an entry in current format", kb.getKey());
         }
       });
 
@@ -293,7 +264,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       return legacy.get() > 0;
     }
 
-    private Hash upgrade(BranchName upgradeBranch, Hash upgradeStartHash) throws ReferenceNotFoundException {
+    private void upgrade(BranchName upgradeBranch, Hash upgradeStartHash) {
       totalEntries = 0;
       head = upgradeStartHash;
       targetBranch = upgradeBranch;
@@ -303,7 +274,6 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       drain(); // commit remaining entries
 
       AdminLogger.log("Processed {} entries.", totalEntries);
-      return head;
     }
 
     private ObjectTypes.Content parseContent(ByteString content) {
@@ -314,15 +284,15 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       }
     }
 
-    private void upgradeValue(KeyWithType kt, ContentAndState<ByteString> value) {
-      ObjectTypes.Content refState = parseContent(value.getRefState());
+    private void upgradeValue(CommitLogEntry logEntry, KeyWithBytes kb) {
+      ObjectTypes.Content refState = parseContent(kb.getValue());
       ObjectTypes.Content.ObjectTypeCase refType = refState.getObjectTypeCase();
 
       if (refType == ObjectTypes.Content.ObjectTypeCase.ICEBERG_METADATA_POINTER) {
         ObjectTypes.IcebergMetadataPointer pointer = refState.getIcebergMetadataPointer();
         String metadataLocation = pointer.getMetadataLocation();
 
-        AdminLogger.log("Migrating old entry for table {}, metadata: {}", kt.getKey(), metadataLocation);
+        AdminLogger.log("Migrating old entry for table {}, metadata: {}", kb.getKey(), metadataLocation);
 
         // Note: old embedded Nessie data does not contain Iceberg snapshots and other IDs, so use zeros
         IcebergTable table = IcebergTable.of(metadataLocation, 0, 0, 0, 0, refState.getId());
@@ -331,22 +301,36 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         commit.putGlobal(contentId, worker.toStoreGlobalState(table));
         commit.addPuts(
           KeyWithBytes.of(
-            kt.getKey(),
+            kb.getKey(),
             contentId,
             worker.getPayload(table),
             worker.toStoreOnReferenceState(table)));
 
       } else {
         // This case is not expected during actual upgrades. It is handled only for the sake of completeness.
-        AdminLogger.log("Keeping current entry for table {}", kt.getKey());
+        // So, we load global state individually for each key in expectation that this code path is not used often.
+        AdminLogger.log("Keeping current entry for table {}", kb.getKey());
 
-        ContentId contentId = kt.getContentId();
+        ContentId contentId = kb.getContentId();
+
+        ContentAndState<ByteString> value;
+        try {
+          value = adapter.values(logEntry.getHash(), singletonList(kb.getKey()), KeyFilterPredicate.ALLOW_ALL)
+            .get(kb.getKey());
+
+          if (value == null) {
+            throw new IllegalStateException("Unable to load content for key: " + kb.getKey() + ", hash: " +
+              logEntry.getHash());
+          }
+        } catch (ReferenceNotFoundException e) {
+          throw new IllegalStateException(e);
+        }
 
         if (value.getGlobalState() != null) {
           commit.putGlobal(contentId, value.getGlobalState());
         }
 
-        commit.addPuts(KeyWithBytes.of(kt.getKey(), contentId, kt.getType(), value.getRefState()));
+        commit.addPuts(KeyWithBytes.of(kb.getKey(), contentId, kb.getType(), value.getRefState()));
       }
 
       if (++numEntries >= MAX_ENTRIES_PER_COMMIT) {

@@ -1,0 +1,60 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "DELETE"
+  input: "DELETE^"
+  output: "DELETE: DELETE^ "
+ -
+  description: "DELETE + PARTIAL FROM"
+  exceptionMessage: "Unexpected token: {FR\a}, Expected {FROM}"
+  input: "DELETE FR^"
+ -
+  description: "DELETE + FROM"
+  input: "DELETE FROM^"
+  output: "DELETE: DELETE FROM^ "
+ -
+  description: "DELETE + FROM + TABLE"
+  input: "DELETE FROM EMP^"
+  output:
+   - "DELETE: DELETE FROM EMP^ "
+   - "  CATALOG PATH: EMP^."
+ -
+  description: "DELETE + FROM + TABLE + AS"
+  input: "DELETE FROM EMP AS^"
+  output:
+   - "DELETE: DELETE FROM EMP AS^ "
+   - "  CATALOG PATH: EMP."
+ -
+  description: "DELETE + FROM + TABLE + AS + ALIAS"
+  input: "DELETE FROM EMP AS e^"
+  output:
+   - "DELETE: DELETE FROM EMP AS e^ "
+   - "  CATALOG PATH: EMP.e^."
+ -
+  description: "DELETE + FROM + TABLE + WHERE"
+  input: "DELETE FROM EMP WHERE^"
+  output:
+   - "DELETE: DELETE FROM EMP WHERE^ "
+   - "  CATALOG PATH: EMP."
+ -
+  description: "DELETE + FROM + TABLE + WHERE + CONDITION"
+  input: "DELETE FROM EMP WHERE EMP.NAME = 'Brandon'^"
+  output:
+   - "DELETE: DELETE FROM EMP WHERE EMP . NAME = 'Brandon' ^ "
+   - "  CATALOG PATH: EMP."
+   - "  BOOLEAN EXPRESSION: EMP . NAME = 'Brandon' ^ "

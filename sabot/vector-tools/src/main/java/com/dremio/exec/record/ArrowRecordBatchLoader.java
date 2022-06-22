@@ -54,7 +54,7 @@ import com.google.common.collect.FluentIterable;
  * Holds record batch loaded from record batch message.
  */
 public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<VectorWrapper<?>>, AutoCloseable {
-  private final static Logger logger = LoggerFactory.getLogger(ArrowRecordBatchLoader.class);
+  private static final Logger logger = LoggerFactory.getLogger(ArrowRecordBatchLoader.class);
 
   private VectorContainer container;
   private int valueCount;

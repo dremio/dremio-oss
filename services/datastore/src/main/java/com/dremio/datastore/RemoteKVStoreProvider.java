@@ -18,6 +18,7 @@ package com.dremio.datastore;
 import static com.dremio.datastore.LocalKVStoreProvider.CONFIG_HOSTNAME;
 
 import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Provider;
 
@@ -40,6 +41,7 @@ import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Remote KVStore Provider.
@@ -86,6 +88,11 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
     // either masterNode should be specified or masterHostName
     masterHostName = String.valueOf(config.get(CONFIG_HOSTNAME));
     this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
+  }
+
+  @Override
+  public Set<KVStore<?, ?>> stores() {
+    return new ImmutableSet.Builder<KVStore<?,?>>().addAll(stores.values().iterator()).build();
   }
 
   @SuppressWarnings("unchecked")

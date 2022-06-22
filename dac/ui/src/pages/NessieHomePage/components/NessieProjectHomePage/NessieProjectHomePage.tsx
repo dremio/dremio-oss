@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import NessieHomePage from '../../NessieHomePage';
-import { useProjectInfo } from '../../utils/utils';
+import NessieHomePage from "../../NessieHomePage";
+import { useProjectInfo } from "../../utils/utils";
 function NessieProjectHomePage(props: any) {
-  return (
-    <NessieHomePage {...props} source={useProjectInfo()} />
-  );
+  return <NessieHomePage {...props} source={useProjectInfo()} />;
 }
 export default NessieProjectHomePage;

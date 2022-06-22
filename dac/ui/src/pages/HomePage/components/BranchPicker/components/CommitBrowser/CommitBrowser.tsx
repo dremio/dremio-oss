@@ -13,47 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import debounce from 'lodash/debounce';
-import { oc } from 'ts-optchain';
-import classNames from 'classnames';
-import { SearchField } from '@app/components/Fields';
-import { Branch, DefaultApi, FetchOption, LogEntry, LogResponse } from '@app/services/nessie/client';
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import InfiniteScroller from '../InfiniteScroller/InfiniteScroller';
-import CommitEntry from './components/CommitEntry/CommitEntry';
+import debounce from "lodash/debounce";
+import classNames from "classnames";
+import { SearchField } from "@app/components/Fields";
 import {
-  CommitBrowserReducer,
-  formatQuery,
-  initialState
-} from './utils';
+  Branch,
+  DefaultApi,
+  FetchOption,
+  LogEntry,
+  LogResponse,
+} from "@app/services/nessie/client";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
+import InfiniteScroller from "../InfiniteScroller/InfiniteScroller";
+import CommitEntry from "./components/CommitEntry/CommitEntry";
+import { CommitBrowserReducer, formatQuery, initialState } from "./utils";
 
-import './CommitBrowser.less';
+import "./CommitBrowser.less";
 
 const LIST_ITEM_HEIGHT = 64;
 const PAGE_SIZE = 100;
 
-//TODO Set correct URL for TreeAPI per source
-
 function CommitBrowser({
   hasSearch = true,
   branch,
-  namespace,
+  path,
   onClick = (_) => {},
   onDataChange = (_) => {},
   selectedHash,
   disabled,
   pageSize = PAGE_SIZE,
-  api
+  api,
 }: {
   branch: Branch;
-  namespace?: string;
+  path?: string[];
   hasSearch?: boolean;
-  onDataChange?: (arg: LogResponse | undefined) => void,
-  onClick?: (arg: LogEntry) => void,
-  selectedHash?: string | null,
+  onDataChange?: (arg: LogResponse | undefined) => void;
+  onClick?: (arg: LogEntry) => void;
+  selectedHash?: string | null;
   disabled?: boolean;
   pageSize?: number;
-  api: DefaultApi
+  api: DefaultApi;
 }) {
   const [{ search, data, numRows }, dispatch] = useReducer(
     CommitBrowserReducer,
@@ -66,8 +65,8 @@ function CommitBrowser({
 
   const onSearch = useMemo(
     () =>
-      debounce(function(value) {
-        dispatch({ type: 'SET_SEARCH', value });
+      debounce(function (value) {
+        dispatch({ type: "SET_SEARCH", value });
       }, 250),
     []
   );
@@ -78,28 +77,33 @@ function CommitBrowser({
   );
 
   const loadMoreRows = useCallback(
-    async function() {
+    async function () {
       const value = await api.getCommitLog({
         ref: branch.name,
         pageToken: token,
         maxRecords: pageSize,
-        filter: formatQuery(search, namespace),
-        fetch: !namespace ? FetchOption.Minimal : FetchOption.All
+        filter: formatQuery(search, path),
+        fetch: !path?.length ? FetchOption.Minimal : FetchOption.All,
       });
-      dispatch({ type: 'SET_DATA', value });
+      dispatch({ type: "SET_DATA", value });
     },
-    [branch.name, token, search, namespace, pageSize, api]
+    [branch.name, token, search, path, pageSize, api]
   );
 
   return (
-    <div className={classNames('commitBrowser', { disabled })}>
-      <div className='commitBrowser-content'>
+    <div className={classNames("commitBrowser", { disabled })}>
+      <div className="commitBrowser-content">
         {hasSearch && (
-          <div className='commitBrowser-search'>
-            <SearchField showIcon disabled={disabled} onChange={onSearch} placeholder={'Search'} />
+          <div className="commitBrowser-search">
+            <SearchField
+              showIcon
+              disabled={disabled}
+              onChange={onSearch}
+              placeholder={"Search"}
+            />
           </div>
         )}
-        <div className='commitBrowser-listWrapper'>
+        <div className="commitBrowser-listWrapper">
           <InfiniteScroller
             key={search} // Reset when search changes
             rowHeight={LIST_ITEM_HEIGHT}
@@ -109,9 +113,9 @@ function CommitBrowser({
           >
             {(index) => {
               const curEntry = logEntries[index];
-              const curHash = oc(curEntry).commitMeta.hash();
+              const curHash = curEntry?.commitMeta?.hash;
               const isSelected = !!selectedHash && selectedHash === curHash;
-              return  (
+              return (
                 <CommitEntry
                   logEntry={logEntries[index]}
                   onClick={onClick}

@@ -13,20 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { Component } from "react";
+import { Tooltip } from "dremio-ui-lib";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-export default class TextHighlight extends PureComponent {
-
+export default class TextHighlight extends Component {
   static propTypes = {
     text: PropTypes.string,
-    inputValue: PropTypes.string
+    inputValue: PropTypes.string,
+    tooltipPlacement: PropTypes.string,
+    tooltipEnterDelay: PropTypes.number,
+    tooltipEnterNextDelay: PropTypes.number,
   };
 
   render() {
-    const inputValue = this.props.inputValue || '';
-    const text = this.props.text || '';
+    const { tooltipPlacement, tooltipEnterDelay, tooltipEnterNextDelay } =
+      this.props;
+    const inputValue = this.props.inputValue || "";
+    const text = this.props.text || "";
 
     const nodes = [];
     if (!inputValue) {
@@ -48,6 +53,15 @@ export default class TextHighlight extends PureComponent {
       }
     }
 
-    return <span className='TextHighlight'>{nodes}</span>;
+    return (
+      <Tooltip
+        title={text}
+        placement={tooltipPlacement}
+        enterDelay={tooltipEnterDelay}
+        enterNextDelay={tooltipEnterNextDelay}
+      >
+        <div className="TextHighlight">{nodes}</div>
+      </Tooltip>
+    );
   }
 }

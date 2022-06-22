@@ -132,4 +132,3 @@ public class SingletonParquetFooterCache {
     return ParquetFormatPlugin.parquetMetadataConverter.readParquetMetadata(new ByteArrayInputStream(footerBytes), filter);
   }
 }
-

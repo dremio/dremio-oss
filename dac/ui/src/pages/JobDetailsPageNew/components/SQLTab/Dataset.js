@@ -13,25 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import Art from '@app/components/Art';
-import './DatasetGraph.less';
+import PropTypes from "prop-types";
+import Art from "@app/components/Art";
+import "./DatasetGraph.less";
 
-const Dataset = ({description}) => {
+const Dataset = ({ description }) => {
   return (
-    <div className='datasetGraph__errorDisplay'>
+    <div className="datasetGraph__errorDisplay">
       <span>{description}</span>
       <Art
-        src='Gnarly.svg'
-        alt='icon'
-        title='icon'
-        className='datasetGraph__gnarlyIcon'
+        src="Gnarly.svg"
+        alt="icon"
+        title="icon"
+        className="datasetGraph__gnarlyIcon"
       />
     </div>
   );
 };
 
 Dataset.propTypes = {
-  description: PropTypes.any
+  description: PropTypes.any,
 };
 export default Dataset;

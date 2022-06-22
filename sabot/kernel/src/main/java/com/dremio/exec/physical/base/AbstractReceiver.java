@@ -80,4 +80,3 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
 
 
 }
-

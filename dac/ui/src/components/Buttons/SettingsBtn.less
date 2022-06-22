@@ -14,32 +14,33 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-@import '../colors.less';
+@import "../colors.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .convert-to-dataset {
     a {
       &:hover {
-        opacity: 0.7
+        opacity: 0.7;
       }
     }
   }
-  .action-wrap{
+  .action-wrap {
     display: flex;
     align-items: center;
   }
-  .main-settings-btn{
+  .main-settings-btn {
     display: flex;
     position: relative;
-    &.min-btn{
-      .settings-button{
+    &.min-btn {
+      .settings-button {
         padding: 0 3px;
       }
       .drop-down {
         left: -115px;
       }
     }
-    .settings-button{
+    .settings-button {
       padding: 3px 3px 4px 8px;
       margin: 0;
       border: 0;
@@ -47,19 +48,19 @@
       border-radius: 4px;
       background: @button-bg;
       height: 23px;
-      &:hover{
+      &:hover {
         background: @button-hover-bg;
       }
-      .fa{
+      .fa {
         margin: 0;
       }
     }
-    .drop-down{
+    .drop-down {
       text-align: left;
       position: absolute;
       left: -102px;
       top: 100%;
-      background: #F2F2F2;
+      background: #f2f2f2;
       list-style: none;
       margin: 0;
       padding: 4px 0;
@@ -68,20 +69,20 @@
       border-radius: 4px;
       width: 155px;
       z-index: 2;
-      li{
+      li {
         color: @black;
         font-size: 12px;
         line-height: 18px;
         padding: 2px 7px;
         cursor: pointer;
         position: relative;
-        &:hover{
+        &:hover {
           background: @OVERLAY_BORDER;
-          > .drop-down{
+          > .drop-down {
             display: block !important;
           }
         }
-        &.separator{
+        &.separator {
           border-bottom: 1px solid #d7d7d7;
           padding-bottom: 5px;
           margin-bottom: 5px;
@@ -100,11 +101,11 @@
           }
         }
       }
-      .help-text{
+      .help-text {
         font-size: 11px;
       }
     }
-    .min-arrow{
+    .min-arrow {
       color: #aaa;
       font-size: 11px;
       line-height: 1px;

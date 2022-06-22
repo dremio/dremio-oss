@@ -13,40 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { QlikStateModal } from './QlikStateModal';
+import { QlikStateModal } from "./QlikStateModal";
 
-describe('QlikStateModal', () => {
-
+describe("QlikStateModal", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       retry: sinon.spy(),
       hide: sinon.spy(),
-      dataset: Immutable.Map()
+      dataset: Immutable.Map(),
     };
     commonProps = {
       ...minimalProps,
-      message: 'foo'
+      message: "foo",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<QlikStateModal {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<QlikStateModal {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
   //DX-28985
-  xit('should render ConfirmCancelFooter', () => {
-    const wrapper = shallow(<QlikStateModal {...commonProps}/>);
-    expect(wrapper.find('ConfirmCancelFooter')).to.have.length(1);
+  xit("should render ConfirmCancelFooter", () => {
+    const wrapper = shallow(<QlikStateModal {...commonProps} />);
+    expect(wrapper.find("ConfirmCancelFooter")).to.have.length(1);
   });
 
-  it('should render Modal', () => {
-    const wrapper = shallow(<QlikStateModal {...commonProps}/>);
-    expect(wrapper.find('Modal')).to.have.length(1);
+  it("should render Modal", () => {
+    const wrapper = shallow(<QlikStateModal {...commonProps} />);
+    expect(wrapper.find("Modal")).to.have.length(1);
   });
 });

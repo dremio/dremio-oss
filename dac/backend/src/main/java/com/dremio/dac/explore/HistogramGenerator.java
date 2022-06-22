@@ -296,8 +296,8 @@ class HistogramGenerator {
               continue;
             }
             if (rangeCount >= ranges.size()) {
-              logger.error("Number of ranges %d is not enough to cover full spectrum. Could be because of boundary conditions", rangeCount);
-              throw new ClientErrorException("Number of ranges %d is not enough to cover full spectrum " + rangeCount + " . Could be because of boundary conditions");
+              logger.error("Number of ranges {} is not enough to cover full spectrum. Could be because of boundary conditions", rangeCount);
+              throw new ClientErrorException("Number of ranges " + rangeCount + " is not enough to cover full spectrum. Could be because of boundary conditions");
             }
 
             // fill out empty bins as well

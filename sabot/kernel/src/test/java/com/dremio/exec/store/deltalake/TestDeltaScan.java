@@ -35,6 +35,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -46,7 +47,7 @@ import com.google.common.io.Resources;
 public class TestDeltaScan extends BaseTestQuery {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
   FileSystem fs;
   static String testRootPath = "/tmp/deltalake/";
@@ -462,6 +463,7 @@ public class TestDeltaScan extends BaseTestQuery {
 
 
   @Test
+  @Ignore("DX-50441")
   public void testWithCommitInfoAtEndOnlyJson() throws Exception {
     try (AutoCloseable c = enableDeltaLake()) {
       final String sql = "SELECT * FROM dfs.tmp.deltalake.commitInfoAtOnlyJson order by id limit 3";
@@ -470,8 +472,8 @@ public class TestDeltaScan extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("id")
         .baselineValues(0l)
-        .baselineValues(10l)
-        .baselineValues(11l)
+        .baselineValues(1l)
+        .baselineValues(2l)
         .unOrdered().go();
     }
   }

@@ -29,8 +29,8 @@ import {
   TIME,
   DOUBLE,
   TIMESTAMP,
-  VARCHAR
-} from '@app/constants/DataTypes';
+  VARCHAR,
+} from "@app/constants/DataTypes";
 
 // todo: why is this missing some items from constants/DataTypes.js?
 export const ALL_TYPES = [
@@ -49,7 +49,7 @@ export const ALL_TYPES = [
   BIGINT,
   DOUBLE,
   TIMESTAMP,
-  VARCHAR
+  VARCHAR,
 ];
 
 export const KEEP_ONLY_TYPES = [
@@ -60,7 +60,7 @@ export const KEEP_ONLY_TYPES = [
   DATE,
   TIME,
   DATETIME,
-  BOOLEAN
+  BOOLEAN,
 ];
 
 export const SORTABLE_TYPES = [
@@ -73,7 +73,7 @@ export const SORTABLE_TYPES = [
   TIME,
   DATETIME,
   BOOLEAN,
-  MIXED
+  MIXED,
 ];
 
 export const CONVERTIBLE_TYPES = [
@@ -87,9 +87,8 @@ export const CONVERTIBLE_TYPES = [
   DATETIME,
   LIST,
   MAP,
-  BOOLEAN
+  BOOLEAN,
 ];
-
 
 export const REPLACEABLE_TYPES = [
   INTEGER,
@@ -98,25 +97,18 @@ export const REPLACEABLE_TYPES = [
   DATE,
   TIME,
   DATETIME,
-  BOOLEAN
+  BOOLEAN,
 ];
 
-export const NOT_LIST_AND_MAP_TYPES = ALL_TYPES.filter((type) => [MAP, LIST].indexOf(type) === -1);
+export const NOT_LIST_AND_MAP_TYPES = ALL_TYPES.filter(
+  (type) => [MAP, LIST].indexOf(type) === -1
+);
 
-export const NUMBER_TYPES = [
-  INTEGER,
-  FLOAT,
-  DECIMAL
-];
+export const NUMBER_TYPES = [INTEGER, FLOAT, DECIMAL];
 
-export const BIN_TYPES = [
-  FLOAT,
-  DECIMAL
-];
+export const BIN_TYPES = [FLOAT, DECIMAL];
 
-export const TO_BINARY_TYPES = [
-  TEXT
-];
+export const TO_BINARY_TYPES = [TEXT];
 
 export const TO_INTEGER_TYPES = [
   TEXT,
@@ -124,45 +116,19 @@ export const TO_INTEGER_TYPES = [
   DECIMAL,
   DATE,
   TIME,
-  DATETIME
+  DATETIME,
   // BOOLEAN see DX-7055
 ];
 
-export const TO_FLOAT_TYPES = [
-  TEXT,
-  INTEGER,
-  DATE,
-  TIME,
-  DATETIME
-];
+export const TO_FLOAT_TYPES = [TEXT, INTEGER, DATE, TIME, DATETIME];
 
-export const AUTO_TYPES = [
-  TEXT,
-  BINARY
-];
+export const AUTO_TYPES = [TEXT, BINARY];
 
-export const TO_DATE_TYPES = [
-  INTEGER,
-  FLOAT,
-  DECIMAL,
-  TEXT,
-  DATE,
-  DATETIME
-];
+export const TO_DATE_TYPES = [INTEGER, FLOAT, DECIMAL, TEXT, DATE, DATETIME];
 
-export const TO_TIME_TYPES = [
-  INTEGER,
-  FLOAT,
-  DECIMAL,
-  TEXT,
-  DATETIME
-];
+export const TO_TIME_TYPES = [INTEGER, FLOAT, DECIMAL, TEXT, DATETIME];
 
-export const DATE_TYPES = [
-  DATETIME,
-  TIME,
-  DATE
-];
+export const DATE_TYPES = [DATETIME, TIME, DATE];
 
 // changes to this require changes to user-facing text in AccelerationUpdatesForm
 export const INCREMENTAL_TYPES = [
@@ -173,5 +139,5 @@ export const INCREMENTAL_TYPES = [
   FLOAT,
   DOUBLE,
   DECIMAL,
-  VARCHAR
+  VARCHAR,
 ];

@@ -206,12 +206,14 @@ public interface AccelerationListManager extends Service {
     public final String failure_msg;
     public final String data_partitions;
     public final Timestamp last_refresh_from_pds;
+    public final Timestamp last_refresh_finished;
+    public final Long last_refresh_duration;
 
 
     public MaterializationInfo(String reflection_id, String materialization_id, Timestamp create,
                                Timestamp expiration, Long bytes, Long seriesId, String init_refresh_job_id,
                                Integer series_ordinal, String joinAnalysis, String state, String failureMsg,
-                               String dataPartitions, Timestamp lastRefreshFromPds) {
+                               String dataPartitions, Timestamp lastRefreshFromPds, Timestamp lastRefreshFinished, Long lastRefreshDuration) {
       this.reflection_id = reflection_id;
       this.materialization_id = materialization_id;
       this.create = create;
@@ -225,6 +227,8 @@ public interface AccelerationListManager extends Service {
       this.failure_msg = failureMsg;
       this.data_partitions = dataPartitions;
       this.last_refresh_from_pds = lastRefreshFromPds;
+      this.last_refresh_finished = lastRefreshFinished;
+      this.last_refresh_duration = lastRefreshDuration;
     }
 
     public ReflectionDescriptionServiceRPC.ListMaterializationsResponse toProto() {
@@ -285,7 +289,16 @@ public interface AccelerationListManager extends Service {
 
       if (last_refresh_from_pds != null) {
         protoMaterializationInfo.setLastRefreshFromPds(
-          com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_from_pds.getTime()).build());
+          com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_from_pds.getTime()));
+      }
+
+      if (last_refresh_finished != null) {
+        protoMaterializationInfo.setLastRefreshFinished(
+          com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_finished.getTime()));
+      }
+
+      if (last_refresh_duration != null) {
+        protoMaterializationInfo.setLastRefreshDurationMillis(last_refresh_duration);
       }
 
       return protoMaterializationInfo.build();
@@ -305,7 +318,9 @@ public interface AccelerationListManager extends Service {
         materializationInfoProto.getState(),
         materializationInfoProto.getFailureMsg(),
         materializationInfoProto.getDataPartitions(),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFromPds().getSeconds()).or(0L))
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFromPds().getSeconds()).or(0L)),
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFinished().getSeconds()).or(0L)),
+        materializationInfoProto.getLastRefreshDurationMillis()
       );
     }
   }

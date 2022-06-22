@@ -103,6 +103,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private ExecutorSelectionService executorSelectionService;  // NB: re-assigned in unit tests, hence not final
   private final int targetNumFragsPerNode;
   private final boolean shouldIgnoreLeafAffinity;
+  private ExecutorSelectionHandle handleWithAllExecutors = null;
 
   public SimpleParallelizer(QueryContext context, MaestroObserver observer, ExecutorSelectionService executorSelectionService) {
     this(context, observer, executorSelectionService, null, context.getGroupResourceInformation());
@@ -127,8 +128,8 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.executorSelectionService = executorSelectionService;
     this.targetNumFragsPerNode = Ints.saturatedCast(optionManager.getOption(ExecutorSelectionService.TARGET_NUM_FRAGS_PER_NODE));
     this.shouldIgnoreLeafAffinity = optionManager.getOption(ExecConstants.SHOULD_IGNORE_LEAF_AFFINITY);
-    final ExecutorSelectionHandle handle = executorSelectionService.getAllActiveExecutors(new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
-    this.executionMap = new ExecutionNodeMap(handle.getExecutors());
+    handleWithAllExecutors = executorSelectionService.getAllActiveExecutors(new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
+    this.executionMap = new ExecutionNodeMap(handleWithAllExecutors.getExecutors());
     computeMaxWidthPerNode(groupResourceInformation);
   }
 
@@ -310,13 +311,13 @@ public class SimpleParallelizer implements ParallelizationParameters {
 
     int idealNumFragments = 0;
     for (Wrapper wrapper : leafFragments) {
-      idealNumFragments += parallelizer.computePhaseStats(wrapper, planningSet, hasHardAffinity);
+      idealNumFragments += parallelizer.computePhaseStats(wrapper, planningSet, hasHardAffinity, context.getOptions());
     }
     int idealNumNodes = IntMath.divide(idealNumFragments, parallelizer.targetNumFragsPerNode, RoundingMode.CEILING);
     final Stopwatch stopWatch = Stopwatch.createStarted();
     ExecutorSelectionContext executorContext = new ExecutorSelectionContext(resourceSchedulingDecisionInfo);
     ExecutorSelectionHandle executorSelectionHandle = hasHardAffinity.value
-      ? executorSelectionService.getAllActiveExecutors(executorContext)
+      ? parallelizer.handleWithAllExecutors
       : executorSelectionService.getExecutors(idealNumNodes, executorContext);
 
     GroupResourceInformation groupResourceInformation = new SelectedExecutorsResourceInformation(executorSelectionHandle.getExecutors());
@@ -424,7 +425,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * processing the given phase.
    * Returns the maximum number of (minor) fragments that could be used by this phase and its dependents
    */
-  private int computePhaseStats(Wrapper fragmentWrapper, PlanningSet planningSet, Pointer<Boolean> hasHardAffinity) {
+  private int computePhaseStats(Wrapper fragmentWrapper, PlanningSet planningSet, Pointer<Boolean> hasHardAffinity, OptionManager options) {
     // If the fragment is already processed, return.
     if (fragmentWrapper.isStatsComputationDone()) {
       return 0;
@@ -435,13 +436,13 @@ public class SimpleParallelizer implements ParallelizationParameters {
     final List<Wrapper> fragmentDependencies = fragmentWrapper.getFragmentDependencies();
     if (fragmentDependencies != null && fragmentDependencies.size() > 0) {
       for(Wrapper dependency : fragmentDependencies) {
-        width += computePhaseStats(dependency, planningSet, hasHardAffinity);
+        width += computePhaseStats(dependency, planningSet, hasHardAffinity, options);
       }
     }
 
     // Find stats. Stats include various factors including cost of physical operators, parallelizability of
     // work in physical operator and affinity of physical operator to certain nodes.
-    fragmentWrapper.getNode().getRoot().accept(new StatsCollector(planningSet, executionMap), fragmentWrapper);
+    fragmentWrapper.getNode().getRoot().accept(new StatsCollector(planningSet, executionMap, options), fragmentWrapper);
     DistributionAffinity fragmentAffinity = fragmentWrapper.getStats().getDistributionAffinity();
     width += fragmentAffinity.getFragmentParallelizer()
       .getIdealFragmentWidth(fragmentWrapper, this);

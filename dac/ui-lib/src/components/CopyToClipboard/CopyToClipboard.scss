@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 
- .copy {
+.copy {
   &__icon {
     display: flex;
     cursor: pointer;
     &:hover {
       svg {
         path {
-          fill: $pelorous
+          fill: $pelorous;
         }
       }
     }

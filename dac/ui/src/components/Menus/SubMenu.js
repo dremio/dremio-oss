@@ -13,25 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Menu from './Menu';
+import Menu from "./Menu";
 
-@Radium
-export default class SubMenu extends Component {
+class SubMenu extends Component {
   static propTypes = {
-    children: PropTypes.node.isRequired
+    children: PropTypes.node.isRequired,
   };
 
   render() {
-    return (
-      <Menu style={styles.innerMenuStyle}>
-        {this.props.children}
-      </Menu>
-    );
+    return <Menu style={styles.innerMenuStyle}>{this.props.children}</Menu>;
   }
 }
 
@@ -40,6 +35,7 @@ const styles = {
     paddingTop: 0,
     paddingBottom: 0,
     marginBottom: 0,
-    marginTop: 0
-  }
+    marginTop: 0,
+  },
 };
+export default Radium(SubMenu);

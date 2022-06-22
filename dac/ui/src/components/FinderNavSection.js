@@ -13,21 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
-import Immutable  from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
+import Immutable from "immutable";
 
-import FinderNavItem from 'components/FinderNavItem';
+import FinderNavItem from "components/FinderNavItem";
 
 export default class FinderNavSection extends Component {
-
   static propTypes = {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
     isInProgress: PropTypes.bool,
     maxItemsCount: PropTypes.number,
     listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    renderExtra: PropTypes.func
+    renderExtra: PropTypes.func,
   };
 
   render() {
@@ -36,15 +35,13 @@ export default class FinderNavSection extends Component {
 
     const hasMore = items.size > maxItemsCount;
     return (
-      <div
-        className='holder'
-        style={styles.base}>
-        <ul className='visible-items'>
+      <div className="holder" style={styles.base}>
+        <ul className="visible-items">
           {items.map((item, index) => {
             if (index < maxItemsCount) {
               return (
                 <FinderNavItem
-                  key={item.get('id')}
+                  key={item.get("id")}
                   item={item.toJS()}
                   renderExtra={renderExtra}
                 />
@@ -53,7 +50,7 @@ export default class FinderNavSection extends Component {
           })}
         </ul>
         {hasMore && ( //todo: loc
-          <Link className='show-more-btn' to={listHref}>
+          <Link className="show-more-btn" to={listHref}>
             {`Show All (${items.size}) »`}
           </Link>
         )}
@@ -64,14 +61,14 @@ export default class FinderNavSection extends Component {
 
 const styles = {
   base: {
-    position: 'relative',
-    minHeight: '1.5em' // leave a little space while loading
+    position: "relative",
+    minHeight: "2rem", // leave a little space while loading
   },
   loader: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
     paddingTop: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)'
-  }
+    backgroundColor: "rgba(255,255,255,0.9)",
+  },
 };

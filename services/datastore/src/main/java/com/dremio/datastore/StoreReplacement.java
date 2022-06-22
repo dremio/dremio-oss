@@ -35,4 +35,3 @@ public @interface StoreReplacement {
    */
   Class<? extends  StoreCreationFunction> value();
 }
-

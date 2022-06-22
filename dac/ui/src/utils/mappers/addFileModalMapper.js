@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 class AddFileModalMapper {
   mapFilePayload(payload) {
     return payload && payload.fileConfig && payload.fileConfig.fullPath;
@@ -24,23 +23,23 @@ class AddFileModalMapper {
     return payload;
   }
 
-  escapeFilePayload = fileData => (
-    Immutable.fromJS(JSON.parse(JSON.stringify(fileData)
-      .replace(/\\n/g, '\\\\n')
-      .replace(/\\r/g, '\\\\r')
-      .replace(/\\t/g, '\\\\t')
-    ))
-  )
+  escapeFilePayload = (fileData) =>
+    Immutable.fromJS(
+      JSON.parse(
+        JSON.stringify(fileData)
+          .replace(/\\n/g, "\\\\n")
+          .replace(/\\r/g, "\\\\r")
+          .replace(/\\t/g, "\\\\t")
+      )
+    );
 
-  unescapeFilePayload = fileData => (
+  unescapeFilePayload = (fileData) =>
     JSON.stringify(fileData)
-      .replace(/\\\\n/g, '\\n')
-      .replace(/\\\\r/g, '\\r')
-      .replace(/\\\\t/g, '\\t')
-  )
+      .replace(/\\\\n/g, "\\n")
+      .replace(/\\\\r/g, "\\r")
+      .replace(/\\\\t/g, "\\t");
 }
 
 const addFileModalMapper = new AddFileModalMapper();
 
 export default addFileModalMapper;
-

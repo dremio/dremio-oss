@@ -13,22 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BINARY, DATE, DATETIME, TEXT, TIME, VARCHAR, TIMESTAMP } from './DataTypes';
-
+import {
+  BINARY,
+  DATE,
+  DATETIME,
+  TEXT,
+  TIME,
+  VARCHAR,
+  TIMESTAMP,
+} from "./DataTypes";
 
 export const allMeasureTypes = {
-  APPROX_COUNT_DISTINCT: 'APPROX_COUNT_DISTINCT',
-  COUNT: 'COUNT',
-  MAX: 'MAX',
-  MIN: 'MIN',
-  SUM: 'SUM'
+  APPROX_COUNT_DISTINCT: "APPROX_COUNT_DISTINCT",
+  COUNT: "COUNT",
+  MAX: "MAX",
+  MIN: "MIN",
+  SUM: "SUM",
 };
 export const measureTypeLabels = {
-  MIN: 'MIN',
-  MAX: 'MAX',
-  SUM: 'SUM',
-  COUNT: 'COUNT',
-  APPROX_COUNT_DISTINCT: 'APPROX_COUNT_DISTINCT'
+  MIN: "MIN",
+  MAX: "MAX",
+  SUM: "SUM",
+  COUNT: "COUNT",
+  APPROX_COUNT_DISTINCT: "APPROX_COUNT_DISTINCT",
 };
 
 export const cellTypesWithNoSum = [
@@ -38,29 +45,29 @@ export const cellTypesWithNoSum = [
   TEXT,
   BINARY,
   VARCHAR,
-  TIMESTAMP
+  TIMESTAMP,
 ];
 
 export const fieldTypes = {
-  blank: '',
-  dimension: 'dimensionFields',
-  sort: 'sortFields',
-  measure: 'measureFields',
-  partition: 'partitionFields',
-  distribution: 'distributionFields',
-  display: 'displayFields'
+  blank: "",
+  dimension: "dimensionFields",
+  sort: "sortFields",
+  measure: "measureFields",
+  partition: "partitionFields",
+  distribution: "distributionFields",
+  display: "displayFields",
 };
 
 export const cellType = {
-  blank: '',
-  dimension: 'dimension',
-  sort: 'sort',
-  measure: 'measure',
-  partition: 'partition',
-  distribution: 'distribution'
+  blank: "",
+  dimension: "dimension",
+  sort: "sort",
+  measure: "measure",
+  partition: "partition",
+  distribution: "distribution",
 };
 
 export const granularityValue = {
-  date: 'DATE',
-  normal: 'NORMAL'
+  date: "DATE",
+  normal: "NORMAL",
 };

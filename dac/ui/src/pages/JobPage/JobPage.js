@@ -13,33 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect }   from 'react-redux';
-import Immutable  from 'immutable';
-import PropTypes from 'prop-types';
-import DocumentTitle from 'react-document-title';
-import { injectIntl } from 'react-intl';
-import { flexElementAuto } from '@app/uiTheme/less/layout.less';
-import { getClusterInfo } from '@app/utils/infoUtils';
-import { getSupport } from '@app/utils/supportUtils';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import DocumentTitle from "react-document-title";
+import { injectIntl } from "react-intl";
+import { flexElementAuto } from "@app/uiTheme/less/layout.less";
+import { getClusterInfo } from "@app/utils/infoUtils";
+import { getSupport } from "@app/utils/supportUtils";
 
 import {
-  updateQueryState, filterJobsData, loadItemsForFilter, loadNextJobs, setClusterType
-} from 'actions/jobs/jobs';
+  updateQueryState,
+  filterJobsData,
+  loadItemsForFilter,
+  loadNextJobs,
+  setClusterType,
+} from "actions/jobs/jobs";
 
-import { getJobs, getDataWithItemsForFilters } from 'selectors/jobs';
-import { getViewState } from 'selectors/resources';
-import SideNav from '@app/components/SideNav/SideNav';
+import { getJobs, getDataWithItemsForFilters } from "selectors/jobs";
+import { getViewState } from "selectors/resources";
+import SideNav from "@app/components/SideNav/SideNav";
 
-import { parseQueryState } from 'utils/jobsQueryState';
-import jobsUtils from 'utils/jobsUtils';
+import { parseQueryState } from "utils/jobsQueryState";
+import jobsUtils from "utils/jobsUtils";
 
-import RunningJobsHeader from './components/RunningJobsHeader';
-import JobsContent from './components/JobsContent';
+import RunningJobsHeader from "./components/RunningJobsHeader";
+import JobsContent from "./components/JobsContent";
 
-import './JobPage.less';
+import "./JobPage.less";
 
-const VIEW_ID = 'JOB_PAGE_VIEW_ID';
+const VIEW_ID = "JOB_PAGE_VIEW_ID";
 
 @injectIntl
 export class JobPage extends PureComponent {
@@ -55,7 +59,6 @@ export class JobPage extends PureComponent {
     clusterType: PropTypes.string,
     admin: PropTypes.bool,
 
-
     //actions
     updateQueryState: PropTypes.func.isRequired,
     filterJobsData: PropTypes.func.isRequired,
@@ -63,12 +66,12 @@ export class JobPage extends PureComponent {
     loadNextJobs: PropTypes.func,
     style: PropTypes.object,
     intl: PropTypes.object.isRequired,
-    setClusterType: PropTypes.func
+    setClusterType: PropTypes.func,
   };
 
   componentDidMount() {
     this.receiveProps(this.props);
-    if (this.props.clusterType === 'NA') {
+    if (this.props.clusterType === "NA") {
       this.handleCluster();
     }
   }
@@ -79,8 +82,11 @@ export class JobPage extends PureComponent {
 
   receiveProps(nextProps, prevProps = {}) {
     const { queryState } = nextProps;
-    if (!Object.keys(nextProps.location.query).length) { // first load, or re-clicking "Jobs" in the header
-      nextProps.updateQueryState(queryState.setIn(['filters', 'qt'], ['UI', 'EXTERNAL']));
+    if (!Object.keys(nextProps.location.query).length) {
+      // first load, or re-clicking "Jobs" in the header
+      nextProps.updateQueryState(
+        queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"])
+      );
     } else if (!nextProps.queryState.equals(prevProps.queryState)) {
       nextProps.filterJobsData(nextProps.queryState, VIEW_ID);
     }
@@ -88,25 +94,31 @@ export class JobPage extends PureComponent {
 
   handleCluster = async () => {
     const clusterInfo = await getClusterInfo();
-    const supportInfo = getSupport(this.props.admin) !== undefined ? getSupport(this.props.admin) : false;
+    const supportInfo =
+      getSupport(this.props.admin) !== undefined
+        ? getSupport(this.props.admin)
+        : false;
     const data = {
       clusterType: clusterInfo.clusterType,
-      isSupport: supportInfo
+      isSupport: supportInfo,
     };
-    clusterInfo.clusterType !== undefined ? this.props.setClusterType(data) : this.props.setClusterType('NP');
-  }
+    clusterInfo.clusterType !== undefined
+      ? this.props.setClusterType(data)
+      : this.props.setClusterType("NP");
+  };
 
   render() {
-    const { jobId, jobs, queryState, viewState, style, location, intl } = this.props;
+    const { jobId, jobs, queryState, viewState, style, location, intl } =
+      this.props;
     const runningJobsCount = jobsUtils.getNumberOfRunningJobs(jobs);
 
     return (
       <div style={style}>
-        <DocumentTitle title={intl.formatMessage({ id: 'Job.Jobs' })} />
-        <div className={'jobsPageBody'}>
-          <SideNav/>
-          <div className={'jobPageContentDiv'}>
-            <RunningJobsHeader jobCount={runningJobsCount}/>
+        <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
+        <div className={"jobsPageBody"}>
+          <SideNav />
+          <div className={"jobPageContentDiv"}>
+            <RunningJobsHeader jobCount={runningJobsCount} />
             <JobsContent
               className={flexElementAuto} // Page object adds flex in style
               loadNextJobs={this.props.loadNextJobs}
@@ -136,12 +148,12 @@ function mapStateToProps(state, ownProps) {
     jobId,
     jobs: getJobs(state, ownProps),
     queryState: parseQueryState(location.query),
-    next: state.jobs.jobs.get('next'),
-    isNextJobsInProgress: state.jobs.jobs.get('isNextJobsInProgress'),
+    next: state.jobs.jobs.get("next"),
+    isNextJobsInProgress: state.jobs.jobs.get("isNextJobsInProgress"),
     dataWithItemsForFilters: getDataWithItemsForFilters(state),
     viewState: getViewState(state, VIEW_ID),
-    clusterType: state.jobs.jobs.get('clusterType'),
-    admin: state.account.get('user').get('admin')
+    clusterType: state.jobs.jobs.get("clusterType"),
+    admin: state.account.get("user").get("admin"),
   };
 }
 
@@ -150,5 +162,5 @@ export default connect(mapStateToProps, {
   filterJobsData,
   loadItemsForFilter,
   loadNextJobs,
-  setClusterType
+  setClusterType,
 })(JobPage);

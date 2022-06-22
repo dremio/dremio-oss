@@ -42,7 +42,7 @@ public class TestTruncateTable extends PlanTestBase {
     try (AutoCloseable c = disableIcebergFlag()) {
       assertThatThrownBy(() -> test(truncSql))
         .isInstanceOf(UserException.class)
-        .hasMessageContaining("Please contact customer support for steps to enable the iceberg tables feature.");
+        .hasMessageContaining("TRUNCATE TABLE clause is not supported in the query for this source");
     }
   }
 
@@ -77,13 +77,13 @@ public class TestTruncateTable extends PlanTestBase {
   @Test
   public void nonIcebergTableShouldThrowError() throws Exception {
     for (String testSchema: SCHEMAS_FOR_TEST) {
-      String ctas = "create table " + testSchema + ".truncTable5 as SELECT * FROM INFORMATION_SCHEMA.CATALOGS";
+      String ctas = "create table " + TEMP_SCHEMA + ".truncTable5 as SELECT * FROM INFORMATION_SCHEMA.CATALOGS";
       test(ctas);
-      String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable5";
+      String truncSql = "TRUNCATE TABLE " + TEMP_SCHEMA + ".truncTable5";
       try (AutoCloseable c = enableIcebergTables()) {
         assertThatThrownBy(() -> test(truncSql))
           .isInstanceOf(UserException.class)
-          .hasMessageContaining("Table [" + testSchema + ".truncTable5] is not configured to support DML operations");
+          .hasMessageContaining("Table [" + TEMP_SCHEMA + ".truncTable5] is not configured to support DML operations");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), "truncTable5"));
       }

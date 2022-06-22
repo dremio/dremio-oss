@@ -14,37 +14,40 @@
  * limitations under the License.
  */
 
+import { shallow } from "enzyme";
 
-import { shallow } from 'enzyme';
+import Radio from "./Radio";
 
-import Radio from './Radio';
-
-describe('Radio', () => {
+describe("Radio", () => {
   let wrapper;
   let instance;
   beforeEach(() => {
-    wrapper = shallow(<Radio radioValue='foo' value='foo'/>);
+    wrapper = shallow(<Radio radioValue="foo" value="foo" />);
     instance = wrapper.instance();
   });
 
-  it('should render checked when only when value=radioValue if props.checked is not defined', () => {
-    expect(wrapper.find('Checkbox').props().checked).to.be.true;
-    wrapper.setProps({value: 'bar'});
-    expect(wrapper.find('Checkbox').props().checked).to.be.false;
+  it("should render checked when only when value=radioValue if props.checked is not defined", () => {
+    expect(wrapper.find("Checkbox").props().checked).to.be.true;
+    wrapper.setProps({ value: "bar" });
+    expect(wrapper.find("Checkbox").props().checked).to.be.false;
   });
 
-  it('should return props.checked if it is defined', () => {
-    wrapper.setProps({checked: true, value: 'bar'});
-    expect(wrapper.find('Checkbox').props().checked).to.be.true;
+  it("should return props.checked if it is defined", () => {
+    wrapper.setProps({ checked: true, value: "bar" });
+    expect(wrapper.find("Checkbox").props().checked).to.be.true;
 
-    wrapper.setProps({checked: false, value: 'foo'});
-    expect(wrapper.find('Checkbox').props().checked).to.be.false;
+    wrapper.setProps({ checked: false, value: "foo" });
+    expect(wrapper.find("Checkbox").props().checked).to.be.false;
   });
 
-  describe('#renderDummyRadio', () => {
-    it('should render dot only if isChecked', () => {
-      expect(shallow(instance.renderDummyRadio(false)).find('div')).to.have.length(1);
-      expect(shallow(instance.renderDummyRadio(true)).find('div')).to.have.length(2);
+  describe("#renderDummyRadio", () => {
+    it("should render dot only if isChecked", () => {
+      expect(
+        shallow(instance.renderDummyRadio(false)).find("div")
+      ).to.have.length(1);
+      expect(
+        shallow(instance.renderDummyRadio(true)).find("div")
+      ).to.have.length(2);
     });
   });
 });

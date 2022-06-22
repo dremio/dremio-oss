@@ -16,15 +16,12 @@
 
 package com.dremio.sabot.op.common.ht2;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.util.BloomFilter;
-import com.dremio.exec.util.ValueListFilter;
+import com.dremio.common.util.CloseableIterator;
 import com.google.common.base.Preconditions;
 import com.koloboke.collect.hash.HashConfig;
 
@@ -43,11 +40,11 @@ public interface HashTable {
 
   void computeHash(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashOutAddr8B);
 
-  void add(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long ordinalOutAddr);
+  int add(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long ordinalOutAddr);
 
   void find(int numRecords, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr8B, long ordinalOutAddr);
 
-  void addSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr4B, long ordinalOutAddr);
+  int addSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr4B, long ordinalOutAddr);
 
   void findSv2(int numRecords, long sv2Addr, long keyFixedVectorAddr, long keyVarVectorAddr, long hashVectorAddr4B, long ordinalOutAddr);
 
@@ -55,6 +52,9 @@ public interface HashTable {
 
   int getCumulativeVarKeyLength(long offsetVectorAddr, int numRecords);
 
+  void getVarKeyLengths(long keyOffsetAddr, int numRecords, long outAddr);
+
+  /* Size, for historical reasons, is the current ordinal (i.e total number of records + gaps) */
   int size();
 
   int capacity();
@@ -63,16 +63,30 @@ public interface HashTable {
 
   long getRehashTime(TimeUnit timeUnit);
 
+  class HashTableKeyAddress {
+    private final long fixedKeyAddress;
+    private final long varKeyAddress; /* 0, if no variable length columns present */
+
+    public HashTableKeyAddress(long fixedKeyAddress, long varKeyAddress) {
+      this.fixedKeyAddress = fixedKeyAddress;
+      this.varKeyAddress = varKeyAddress;
+    }
+
+    public long getFixedKeyAddress() {
+        return fixedKeyAddress;
+      }
+
+    public long getVarKeyAddress() {
+        return varKeyAddress;
+      }
+  }
+
+  CloseableIterator<HashTableKeyAddress> keyIterator();
+
+  /* Used in API testing */
+  long[] getDataPageAddresses();
+
   void close() throws Exception;
-
-  /* XXX: Until bloom filter is supported by NativeHashTable, i.e DX-42676 */
-  default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    return Optional.empty();
-  }
-
-  default Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return Optional.empty();
-  }
 
   /* XXX: Until tracing is supported by NativeHashTable, i.e DX-42630 */
   default void traceStart(int numRecords) {}
@@ -153,4 +167,3 @@ public interface HashTable {
     }
   }
 }
-

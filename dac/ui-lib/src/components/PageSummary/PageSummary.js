@@ -13,26 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
 
-import { ReactComponent as SummaryIcon } from '../../art/Summary.svg';
-import { ReactComponent as ArrowUpIcon } from '../../art/ArrowUp.svg';
-import { ReactComponent as ArrowDownIcon } from '../../art/ArrowDown.svg';
+import { ReactComponent as SummaryIcon } from "../../art/Summary.svg";
+import { ReactComponent as ArrowUpIcon } from "../../art/ArrowUp.svg";
+import { ReactComponent as ArrowDownIcon } from "../../art/ArrowDown.svg";
 
-import './pageSummary.scss';
+import "./pageSummary.scss";
 
 const PageSummary = (props) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const {
-    classes: {
-      root,
-      header,
-      body
-    },
+    classes: { root, header, body },
     data,
-    title
+    title,
   } = props;
 
   const toggleSummary = () => setIsCollapsed(!isCollapsed);
@@ -40,23 +36,27 @@ const PageSummary = (props) => {
   return (
     <div className={`summary gutter ${root}`}>
       <div className={`summary__header ${header}`}>
-        <SummaryIcon className='summary__header__icon margin-right' />
-        <h3 className='summary__header__title'>{title}</h3>
-        {
-          isCollapsed ? (
-            <ArrowUpIcon className='summary__header__icon' onClick={toggleSummary}/>
-          ) : (
-            <ArrowDownIcon className='summary__header__icon' onClick={toggleSummary}/>
-          )
-        }
+        <SummaryIcon className="summary__header__icon margin-right" />
+        <h3 className="summary__header__title">{title}</h3>
+        {isCollapsed ? (
+          <ArrowUpIcon
+            className="summary__header__icon"
+            onClick={toggleSummary}
+          />
+        ) : (
+          <ArrowDownIcon
+            className="summary__header__icon"
+            onClick={toggleSummary}
+          />
+        )}
       </div>
       {!isCollapsed && (
         <div className={`summary__body gutter-top ${body}`}>
           {data &&
             data.map(({ label, value }) => (
-              <div className='item gutter' key={label}>
-                <span className='item__label margin-bottom--half'>{label}</span>
-                <span className='item__value'>{value}</span>
+              <div className="item gutter" key={label}>
+                <span className="item__label margin-bottom--half">{label}</span>
+                <span className="item__value">{value}</span>
               </div>
             ))}
         </div>
@@ -66,22 +66,18 @@ const PageSummary = (props) => {
 };
 
 PageSummary.propTypes = {
-  data: PropTypes.arrayOf(PropTypes.shape({
-    label: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.node
-    ]),
-    value: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.node
-    ])
-  })),
+  data: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
+      value: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
+    })
+  ),
   title: PropTypes.string,
   classes: PropTypes.shape({
     root: PropTypes.string,
     header: PropTypes.string,
-    body: PropTypes.string
-  })
+    body: PropTypes.string,
+  }),
 };
 
 export default PageSummary;

@@ -15,95 +15,67 @@
  */
 package com.dremio.exec.util;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
-import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.dremio.exec.proto.UserBitShared;
 
 /**
  * Test cases for the Utilities class.
  */
-@RunWith(Enclosed.class)
 public class UtilitiesTest {
+  private static Stream<Arguments> testGetWorkloadTypeFromClientInfo() {
+    return Stream.of(
+      Arguments.of("",              UserBitShared.WorkloadType.UNKNOWN),
+      Arguments.of("jdbC",          UserBitShared.WorkloadType.JDBC),
+      Arguments.of("JDBC",          UserBitShared.WorkloadType.JDBC),
+      Arguments.of("Java",          UserBitShared.WorkloadType.JDBC),
+      Arguments.of("JAVA",          UserBitShared.WorkloadType.JDBC),
+      Arguments.of("oDbc",          UserBitShared.WorkloadType.ODBC),
+      Arguments.of("ODBC",          UserBitShared.WorkloadType.ODBC),
+      Arguments.of("C++",           UserBitShared.WorkloadType.ODBC),
+      Arguments.of("c++",           UserBitShared.WorkloadType.ODBC),
+      Arguments.of("Arrow Flight",  UserBitShared.WorkloadType.FLIGHT),
+      Arguments.of("ARROW FLIGHT",  UserBitShared.WorkloadType.FLIGHT)
+    );
+  }
 
   /**
    * Test getting the workload type from the client RPC info.
    */
-  @RunWith(Parameterized.class)
-  public static class ClientInfoWorkloadTypeTest {
+  @ParameterizedTest(name = "ClientInfo name: {0}, WorkloadType: {1}")
+  @MethodSource
+  public void testGetWorkloadTypeFromClientInfo(String clientInfoName, UserBitShared.WorkloadType workloadType) {
+    final UserBitShared.RpcEndpointInfos clientInfo = UserBitShared.RpcEndpointInfos.newBuilder()
+      .setName(clientInfoName)
+      .build();
 
-    @Parameterized.Parameters(name = "ClientInfo name: {0}, WorkloadType: {1}")
-    public static List<Object[]> parameters() {
-      return Arrays.asList(
-        new Object[]{"",              UserBitShared.WorkloadType.UNKNOWN},
-        new Object[]{"jdbC",          UserBitShared.WorkloadType.JDBC},
-        new Object[]{"JDBC",          UserBitShared.WorkloadType.JDBC},
-        new Object[]{"Java",          UserBitShared.WorkloadType.JDBC},
-        new Object[]{"JAVA",          UserBitShared.WorkloadType.JDBC},
-        new Object[]{"oDbc",          UserBitShared.WorkloadType.ODBC},
-        new Object[]{"ODBC",          UserBitShared.WorkloadType.ODBC},
-        new Object[]{"C++",           UserBitShared.WorkloadType.ODBC},
-        new Object[]{"c++",           UserBitShared.WorkloadType.ODBC},
-        new Object[]{"Arrow Flight",  UserBitShared.WorkloadType.FLIGHT},
-        new Object[]{"ARROW FLIGHT",  UserBitShared.WorkloadType.FLIGHT}
-      );
-    }
-
-    private final String clientInfoName;
-    private final UserBitShared.WorkloadType workloadType;
-
-    public ClientInfoWorkloadTypeTest(String clientInfoName, UserBitShared.WorkloadType workloadType) {
-      this.clientInfoName = clientInfoName;
-      this.workloadType = workloadType;
-    }
-
-    @Test
-    public void testGetWorkloadTypeFromClientInfo() {
-      final UserBitShared.RpcEndpointInfos clientInfo = UserBitShared.RpcEndpointInfos.newBuilder()
-        .setName(clientInfoName)
-        .build();
-
-      assertEquals(workloadType, Utilities.getByClientType(clientInfo));
-    }
+    assertEquals(workloadType, Utilities.getByClientType(clientInfo));
   }
 
-  @RunWith(Parameterized.class)
-  public static class HumanReadableWorkloadTypeTest {
-    @Parameterized.Parameters(name = "WorkloadType: {0}, Human Readable Name: {1}")
-    public static List<Object[]> parameters() {
-      return Arrays.asList(
-        new Object[] {UserBitShared.WorkloadType.UNKNOWN, "Other"},
-        new Object[] {UserBitShared.WorkloadType.DDL, "DDL"},
-        new Object[] {UserBitShared.WorkloadType.INTERNAL_RUN, "Internal Run"},
-        new Object[] {UserBitShared.WorkloadType.JDBC, "JDBC"},
-        new Object[] {UserBitShared.WorkloadType.ODBC, "ODBC"},
-        new Object[] {UserBitShared.WorkloadType.ACCELERATOR, "Reflections"},
-        new Object[] {UserBitShared.WorkloadType.REST, "REST"},
-        new Object[] {UserBitShared.WorkloadType.UI_PREVIEW, "UI Preview"},
-        new Object[] {UserBitShared.WorkloadType.UI_RUN, "UI Run"},
-        new Object[] {UserBitShared.WorkloadType.UI_DOWNLOAD, "UI Download"},
-        new Object[] {UserBitShared.WorkloadType.FLIGHT, "Flight"});
-    }
-
-    private final UserBitShared.WorkloadType workloadType;
-    private final String humanReadableName;
-
-    public HumanReadableWorkloadTypeTest(UserBitShared.WorkloadType workloadType, String humanReadableName) {
-      this.workloadType = workloadType;
-      this.humanReadableName = humanReadableName;
-    }
-
-    @Test
-    public void testHumanReadableWorkloadName() {
-      assertEquals(humanReadableName, Utilities.getHumanReadableWorkloadType(workloadType));
-    }
+  private static Stream<Arguments> testHumanReadableWorkloadName() {
+    return Stream.of(
+      Arguments.of(UserBitShared.WorkloadType.UNKNOWN, "Other"),
+      Arguments.of(UserBitShared.WorkloadType.DDL, "DDL"),
+      Arguments.of(UserBitShared.WorkloadType.INTERNAL_RUN, "Internal Run"),
+      Arguments.of(UserBitShared.WorkloadType.JDBC, "JDBC"),
+      Arguments.of(UserBitShared.WorkloadType.ODBC, "ODBC"),
+      Arguments.of(UserBitShared.WorkloadType.ACCELERATOR, "Reflections"),
+      Arguments.of(UserBitShared.WorkloadType.REST, "REST"),
+      Arguments.of(UserBitShared.WorkloadType.UI_PREVIEW, "UI Preview"),
+      Arguments.of(UserBitShared.WorkloadType.UI_RUN, "UI Run"),
+      Arguments.of(UserBitShared.WorkloadType.UI_DOWNLOAD, "UI Download"),
+      Arguments.of(UserBitShared.WorkloadType.FLIGHT, "Flight"));
   }
 
+  @ParameterizedTest(name = "WorkloadType: {0}, Human Readable Name: {1}")
+  @MethodSource
+  public void testHumanReadableWorkloadName(UserBitShared.WorkloadType workloadType, String humanReadableName) {
+    assertEquals(humanReadableName, Utilities.getHumanReadableWorkloadType(workloadType));
+  }
 }

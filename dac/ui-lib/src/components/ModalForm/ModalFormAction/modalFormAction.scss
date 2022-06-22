@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-@import '../../../styles/constants/index.scss';
+@import "../../../styles/constants/index.scss";
 
 .modalFormAction {
   display: flex;
@@ -28,7 +28,7 @@
 
   & + .modalFormAction {
     &:not(.modalFormAction--right) {
-      margin-left: map-get($map: $gutter-sizes, $key: half);
+      margin-left: map-get($map: $gutter-sizes, $key: full);
     }
   }
 }

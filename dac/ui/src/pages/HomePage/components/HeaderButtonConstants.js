@@ -16,3 +16,4 @@
 
 export const SHOW_ADD_FOLDER = true;
 export const SHOW_ADD_FILE = true;
+export const HANDLE_THROUGH_API = false;

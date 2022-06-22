@@ -30,7 +30,9 @@ class SourcesMapper {
       }
     }
     if (info.config.authenticationTimeoutMillis) {
-      info.config.authenticationTimeoutMillis = Number(info.config.authenticationTimeoutMillis);
+      info.config.authenticationTimeoutMillis = Number(
+        info.config.authenticationTimeoutMillis
+      );
     }
     if (info.config.subpartitionSize) {
       info.config.subpartitionSize = Number(info.config.subpartitionSize);
@@ -39,16 +41,19 @@ class SourcesMapper {
     // Temp hack to support SECRET auth option in the UI:
     // If user chose MASTER option, wipe out secret field, otherwise next time it will cause the UI to assume SECRET type
     // If user chose SECRET option, switch it to MASTER, since BE does not support SECRET and just uses secretResourceUrl
-    if (info.config.authenticationType === 'MASTER' && info.config.secretResourceUrl) {
-      info.config.secretResourceUrl = '';
-    } else if (info.config.authenticationType === 'SECRET') {
-      info.config.authenticationType = 'MASTER';
-    } else if (info.config.authenticationType === 'KERBEROS') {
+    if (
+      info.config.authenticationType === "MASTER" &&
+      info.config.secretResourceUrl
+    ) {
+      info.config.secretResourceUrl = "";
+    } else if (info.config.authenticationType === "SECRET") {
+      info.config.authenticationType = "MASTER";
+    } else if (info.config.authenticationType === "KERBEROS") {
       info.config.useKerberos = true;
       info.config.username = null;
       info.config.password = null;
     }
-    return {...info, type: sourceType};
+    return { ...info, type: sourceType };
   }
 }
 

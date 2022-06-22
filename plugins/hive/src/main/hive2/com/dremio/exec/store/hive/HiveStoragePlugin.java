@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive;
 
+import static com.dremio.exec.store.hive.HiveConfFactory.HIVE_DEFAULT_CTAS_FORMAT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.DIR_LIST_INPUT_SPLIT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.ICEBERG_MANIFEST_SPLIT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.INPUT_SPLIT;
@@ -30,12 +31,12 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +47,6 @@ import javax.inject.Provider;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
@@ -55,7 +55,10 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.UnknownTableException;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -69,7 +72,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
-import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.connector.ConnectorException;
@@ -90,16 +92,19 @@ import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.dotfile.View;
-import com.dremio.exec.hadoop.HadoopFsCacheWrapper;
-import com.dremio.exec.hadoop.HadoopFsSupplierProvider;
+import com.dremio.exec.hadoop.HadoopFsCacheWrapperDremioClassLoader;
+import com.dremio.exec.hadoop.HadoopFsSupplierProviderDremioClassLoader;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -113,12 +118,21 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.dfs.AddColumn;
+import com.dremio.exec.store.dfs.AddPrimaryKey;
 import com.dremio.exec.store.dfs.AsyncStreamConf;
+import com.dremio.exec.store.dfs.ChangeColumn;
+import com.dremio.exec.store.dfs.CreateParquetTableEntry;
+import com.dremio.exec.store.dfs.DropColumn;
+import com.dremio.exec.store.dfs.DropPrimaryKey;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.exec.AsyncReaderUtils;
+import com.dremio.exec.store.hive.exec.HadoopFsCacheWrapperPluginClassLoader;
+import com.dremio.exec.store.hive.exec.HadoopFsSupplierProviderPluginClassLoader;
 import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.exec.store.hive.exec.HiveDirListingRecordReader;
 import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
@@ -129,6 +143,7 @@ import com.dremio.exec.store.hive.exec.HiveSplitCreator;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
+import com.dremio.exec.store.hive.exec.dfs.HadoopFsWrapperWithCachePluginClassLoader;
 import com.dremio.exec.store.hive.exec.metadatarefresh.HiveFullRefreshReadSignatureProvider;
 import com.dremio.exec.store.hive.exec.metadatarefresh.HiveIncrementalRefreshReadSignatureProvider;
 import com.dremio.exec.store.hive.exec.metadatarefresh.HivePartialRefreshReadSignatureProvider;
@@ -150,9 +165,12 @@ import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
 import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.iceberg.hive.IcebergHiveModel;
 import com.dremio.exec.store.iceberg.hive.IcebergHiveTableIdentifier;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -175,10 +193,9 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
-import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
 import com.dremio.service.namespace.SourceState.SourceStatus;
@@ -208,7 +225,7 @@ import io.protostuff.ByteString;
 
 public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin,
     MutablePlugin, SupportsReadSignature, SupportsListingDatasets, SupportsAlteringDatasetMetadata, SupportsPF4JStoragePlugin,
-    SupportsInternalIcebergTable, SupportsImpersonation {
+    SupportsInternalIcebergTable, SupportsImpersonation, SupportsIcebergMutablePlugin, HadoopFsSupplierProviderPluginClassLoader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
 
   private LoadingCache<String, HiveClient> clientsByUser;
@@ -224,13 +241,16 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   private final HiveSettings hiveSettings;
   private final OptionManager optionManager;
   private final Provider<StoragePluginId> pluginIdProvider;
+  private final SabotContext context;
+  private final String confUniqueIdentifier;
 
   private final AtomicBoolean isOpen = new AtomicBoolean(false);
 
   private int signatureValidationParallelism = 16;
   private long signatureValidationTimeoutMS = 2_000L;
 
-  private final HadoopFsSupplierProvider hadoopFsSupplierProvider = new HadoopFsCacheWrapper();
+  private final HadoopFsSupplierProviderDremioClassLoader hadoopFsSupplierProviderDremioClassLoader = new HadoopFsCacheWrapperDremioClassLoader();
+  private final HadoopFsSupplierProviderPluginClassLoader hadoopFsSupplierProviderPluginClassLoader = new HadoopFsCacheWrapperPluginClassLoader();
 
   @VisibleForTesting
   public HiveStoragePlugin(HiveConf hiveConf, SabotContext context, String name) {
@@ -247,7 +267,9 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     this.optionManager = context.getOptionManager();
     this.dremioConfig = context.getDremioConfig();
     this.pluginIdProvider = pluginIdProvider;
-
+    this.context= context;
+    this.confUniqueIdentifier = name+UUID.randomUUID();
+    HiveConfFactory.setConf(hiveConf, HiveFsUtils.UNIQUE_CONF_IDENTIFIER_PROPERTY_NAME, confUniqueIdentifier);
     storageImpersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
 
     // Hive Metastore impersonation is enabled if:
@@ -273,7 +295,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
   @Override
   public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path, Iterable<Map.Entry<String, String>> conf, String queryUser) {
-      return hadoopFsSupplierProvider.getHadoopFsSupplier(path, conf, queryUser);
+      return hadoopFsSupplierProviderDremioClassLoader.getHadoopFsSupplierDremioClassLoader(path, conf);
   }
 
   private FileSystem createFileSystem(String filePath, OperatorContext operatorContext,
@@ -288,7 +310,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       if (disableHDFSCache) {
         jobConf.setBoolean("fs.hdfs.impl.disable.cache", true);
       }
-      return createFS(new DremioHadoopFileSystemWrapper(new Path(uri), jobConf, operatorContext != null ? operatorContext.getStats() : null, cacheAndAsyncConf.isAsyncEnabled()),
+      return createFS(new DremioHadoopFileSystemWrapper(new Path(uri), jobConf, operatorContext != null ? operatorContext.getStats() : null, cacheAndAsyncConf.isAsyncEnabled(), this.getHadoopFsSupplierPluginClassLoader(uri.toString(), jobConf).get()),
         operatorContext, cacheAndAsyncConf);
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
@@ -317,14 +339,20 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     }
   }
 
+  public String getDefaultCtasFormatProperty() {
+    return hiveConf.get(HIVE_DEFAULT_CTAS_FORMAT);
+  }
+
   @Override
   public boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
 
     if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(optionManager)) {
+      logger.debug("Not using unlimited splits for {} since required support keys are not enabled", handle.getDatasetPath().toString());
       return false;
     }
 
     if (!metadataSourceAvailable(getSabotContext().getCatalogService())) {
+      logger.debug("Not using unlimited splits for {} since metadata source plugin is not available", handle.getDatasetPath().toString());
       return false;
     }
 
@@ -349,7 +377,11 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
           throw new ConnectorException(
             MessageFormatter.format("Dataset path '{}', table not found.", tablePathComponents).getMessage());
         }
-        return HiveMetadataUtils.isValidInputFormatForIcebergExecution(table, hiveConf);
+        boolean isSupportedFormat = HiveMetadataUtils.isValidInputFormatForIcebergExecution(table, hiveConf);
+        if (!isSupportedFormat) {
+          logger.debug("Not using unlimited splits for {} since table format is not supported", handle.getDatasetPath().toString());
+        }
+        return isSupportedFormat;
       }
     } catch (InvalidProtocolBufferException | TException | ConnectorException e) {
       return false;
@@ -498,8 +530,54 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig,
                                          IcebergTableProps icebergTableProps, WriterOptions writerOptions,
                                          Map<String, Object> storageOptions, boolean isResultsTable) {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support table creation via CTAS.");
+    Preconditions.checkArgument(icebergTableProps != null, "Iceberg properties are not provided");
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents(), false);
+    com.dremio.io.file.Path tableFolderPath = null;
+    String tableFolderLocation = null;
+    HiveClient client = getClient(schemaConfig.getUserName());
+
+    try {
+      switch (icebergTableProps.getIcebergOpType()) {
+        case CREATE:
+          // do an early check for create privileges since the createTable call will only happen after all
+          // data files are written
+          client.checkCreateTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+          tableFolderLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, writerOptions.getTableLocation());
+          break;
+
+        case DELETE:
+        case INSERT:
+        case MERGE:
+        case UPDATE:
+          client.checkDmlPrivileges(
+              schemaComponents.getDbName(),
+              schemaComponents.getTableName(),
+              getPrivilegeActionTypesForIcebergDml(icebergTableProps.getIcebergOpType()));
+          tableFolderLocation = HiveMetadataUtils.getIcebergTableLocation(getClient(SystemUser.SYSTEM_USERNAME), schemaComponents);
+          break;
+
+        default:
+          break;
+      }
+    } catch (TException e) {
+      throw UserException.validationError(e).message("Failure to check if table already exists at path %s.", tableSchemaPath).build(logger);
+    }
+
+    Preconditions.checkArgument(tableFolderLocation != null, "Table folder location can not be null");
+    tableFolderPath = com.dremio.io.file.Path.of(tableFolderLocation);
+    icebergTableProps = new IcebergTableProps(icebergTableProps);
+    icebergTableProps.setTableLocation(tableFolderPath.toString());
+    icebergTableProps.setTableName(schemaComponents.getTableName());
+    icebergTableProps.setDatabaseName(schemaComponents.getDbName());
+    Preconditions.checkState(icebergTableProps.getUuid() != null &&
+            !icebergTableProps.getUuid().isEmpty(),
+        String.format("Unexpected state. UUID must be set for DatabaseName: %s TableName %s", schemaComponents.getDbName(), schemaComponents.getTableName()));
+    tableFolderPath = tableFolderPath.resolve(icebergTableProps.getUuid());
+
+    return new CreateParquetTableEntry(schemaConfig.getUserName(), this, tableFolderPath.toString(), icebergTableProps, writerOptions, tableSchemaPath);
   }
+
 
   @Override
   public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
@@ -507,59 +585,183 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents(), false);
 
     String tableLocation = HiveMetadataUtils.resolveCreateTableLocation(hiveConf, schemaComponents, writerOptions.getTableLocation());
-    FileSystem systemUserFS;
-    try {
-      systemUserFS = createFS(tableLocation, SystemUser.SYSTEM_USERNAME, null);
-    } catch (IOException e) {
-      throw UserException.validationError(e).message("Failure creating File System instance for path ", tableLocation).buildSilently();
-    }
-
-    IcebergModel icebergModel = new IcebergHiveModel(schemaComponents.getDbName(), schemaComponents.getTableName(), systemUserFS, schemaConfig.getUserName(), null, this);
+    IcebergModel icebergModel = getIcebergModel(tableLocation, schemaComponents, schemaConfig.getUserName());
 
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(schemaComponents.getTableName(),
       icebergModel.getTableIdentifier(tableLocation), batchSchema,
-      writerOptions.getPartitionColumns(), null);
+      writerOptions.getPartitionColumns(), null,
+      writerOptions.getDeserializedPartitionSpec());
     icebergOpCommitter.commit();
   }
 
   @Override
   public StoragePluginId getId() {
-    return pluginIdProvider.get();
+    return context.getCatalogService().getManagedSource(getName()).getId();
+  }
+
+  public IcebergModel getIcebergModel(String location, HiveMetadataUtils.SchemaComponents schemaComponents, String userName) {
+    FileSystem fs = null;
+    try {
+      fs = createFS(location, SystemUser.SYSTEM_USERNAME, null);
+    } catch (IOException e) {
+      throw UserException.validationError(e).message("Failure creating File System instance for path %s", location).buildSilently();
+    }
+    return new IcebergHiveModel(schemaComponents.getDbName(), schemaComponents.getTableName(), fs, userName, null, this);
+  }
+
+  @Override
+  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context, FileSystem fs) {
+    if (fs == null) {
+      try {
+        fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+      } catch (IOException e) {
+        throw UserException.validationError(e).message("Failure creating File System instance for path %s", tableProps.getTableLocation()).buildSilently();
+      }
+    }
+    return new IcebergHiveModel(tableProps.getDatabaseName(), tableProps.getTableName(), fs, userName, null, this);
   }
 
   @Override
   public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support dropping table.");
+
+    final HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents(), true);
+    try {
+      client.dropTable(schemaComponents.getDbName(), schemaComponents.getTableName(), false);
+    } catch (NoSuchObjectException | UnknownTableException e) {
+      String message = MessageFormatter.arrayFormat("Table not found to drop for Source '{}', database '{}', tablename '{}'",
+        new String[]{this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName()}).getMessage();
+      logger.error(message, e);
+      throw UserException.validationError(e).message(message).buildSilently();
+    } catch (TException e) {
+      String message = MessageFormatter.arrayFormat("Problem occured while dropping table for Source '{}', database '{}', tablename '{}'.Please check the log for details",
+        new String[]{this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName()}).getMessage();
+      logger.error(message, e);
+      throw new RuntimeException(message, e);
+    }
   }
+
+  @Override
+  public void alterTable(NamespaceKey tableSchemaPath, DatasetConfig datasetConfig, AlterTableOption alterTableOption,
+                          SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    icebergModel.alterTable(icebergModel.getTableIdentifier(metadataLocation), alterTableOption);
+  }
+
 
   @Override
   public void truncateTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support table truncation.");
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+      HiveMetadataUtils.resolveSchemaComponents(tableSchemaPath.getPathComponents(), false);
+    client.checkTruncateTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    DatasetConfig datasetConfig = null;
+    try {
+      datasetConfig = context.getNamespaceService(schemaConfig.getUserName()).getDataset(tableSchemaPath);
+    } catch (NamespaceException e) {
+      logger.error("Unable to get datasetConfig for the table to truncate");
+      throw UserException.unsupportedError(e).message("Unable to get the table info from Dremio.Failed to truncate the table.Please check the logs").buildSilently();
+    }
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName());
+    icebergModel.truncateTable(icebergModel.getTableIdentifier(metadataLocation));
   }
 
   @Override
-  public void addColumns(NamespaceKey tableSchemaPath,
+  public void addColumns(NamespaceKey key,
+                         DatasetConfig datasetConfig,
                          SchemaConfig schemaConfig,
                          List<Field> columnsToAdd,
                          TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support schema update.");
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    AddColumn columnOperations = new AddColumn(key, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    columnOperations.performOperation(columnsToAdd);
   }
 
   @Override
-  public void dropColumn(NamespaceKey tableSchemaPath,
+  public void dropColumn(NamespaceKey key,
+                         DatasetConfig datasetConfig,
                          SchemaConfig schemaConfig,
                          String columnToDrop,
                          TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support schema update.");
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    DropColumn columnOperations = new DropColumn(key, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    columnOperations.performOperation(columnToDrop);
   }
 
   @Override
-  public void changeColumn(NamespaceKey tableSchemaPath,
+  public void changeColumn(NamespaceKey key,
+                           DatasetConfig datasetConfig,
                            SchemaConfig schemaConfig,
                            String columnToChange,
-                           Field field,
+                           Field fieldFromSql,
                            TableMutationOptions tableMutationOptions) {
-    throw new UnsupportedOperationException("Hive2 plugin doesn't support schema update.");
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    ChangeColumn columnOperations = new ChangeColumn(key, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    columnOperations.performOperation(columnToChange, fieldFromSql);
+  }
+
+  @Override
+  public void addPrimaryKey(NamespaceKey table,
+                            DatasetConfig datasetConfig,
+                            SchemaConfig schemaConfig,
+                            List<Field> columns) {
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    op.performOperation(columns);
+  }
+
+  @Override
+  public void dropPrimaryKey(NamespaceKey table,
+                             DatasetConfig datasetConfig,
+                             SchemaConfig schemaConfig) {
+    HiveClient client = getClient(schemaConfig.getUserName());
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(table.getPathComponents(), false);
+    client.checkAlterTablePrivileges(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig,
+      getIcebergModel(metadataLocation, schemaComponents, schemaConfig.getUserName()), com.dremio.io.file.Path.of(metadataLocation), this);
+    op.performOperation();
   }
 
   @Override
@@ -574,12 +776,12 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   @Override
-  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view) throws IOException {
+  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view, ViewOptions viewOptions) throws IOException {
     throw new UnsupportedOperationException("Hive2 plugin doesn't support view creation via CREATE VIEW.");
   }
 
   @Override
-  public void dropView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig) throws IOException {
+  public void dropView(NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig) throws IOException {
     throw new UnsupportedOperationException("Hive2 plugin doesn't support view drop via DROP VIEW.");
   }
 
@@ -707,6 +909,11 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   @Override
   public boolean isImpersonationEnabled() {
     return storageImpersonationEnabled;
+  }
+
+  @Override
+  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf) {
+    return hadoopFsSupplierProviderPluginClassLoader.getHadoopFsSupplierPluginClassLoader(path, conf);
   }
 
   private enum TaskType {
@@ -1029,8 +1236,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   }
 
   protected HiveClient getClient(String user) {
-    Preconditions.checkState(isCoordinator, "Hive client only available on coordinator nodes");
-    if (!isOpen.get()) {
+   if (!isOpen.get()) {
       throw buildAlreadyClosedException();
     }
 
@@ -1085,6 +1291,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
         HiveMetadataUtils.isIgnoreAuthzErrors(options),
         HiveMetadataUtils.getMaxLeafFieldCount(options),
         HiveMetadataUtils.getMaxNestedFieldLevels(options),
+        TimeTravelOption.getTimeTravelOption(options),
         includeComplexTypes,
         hiveConf,
         this);
@@ -1268,9 +1475,19 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     }
 
     try {
-      hadoopFsSupplierProvider.close();
+      hadoopFsSupplierProviderDremioClassLoader.close();
     } catch (Exception e) {
-      logger.warn("Failed to close hadoopFsSupplierProvider", e);
+      logger.warn("Failed to close hadoopFsSupplierProviderDremioClassLoader", e);
+    }
+
+    try {
+      hadoopFsSupplierProviderPluginClassLoader.close();
+    } catch (Exception e) {
+      logger.warn("Failed to close hadoopFsSupplierProviderPluginClassLoader", e);
+    }
+
+    if(HiveFsUtils.isFsPluginCacheEnabled(hiveConf)) {
+      HadoopFsWrapperWithCachePluginClassLoader.cleanCache(confUniqueIdentifier);
     }
   }
 
@@ -1283,7 +1500,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       throw Throwables.propagate(e);
     }
 
-    if (isCoordinator) {
+    if (isCoordinator || optionManager.getOption(ExecConstants.CREATE_HIVECLIENT_ON_EXECUTOR_NODES)) {
       try {
         if (hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
           logger.info("Hive Metastore SASL enabled. Kerberos principal: " +
@@ -1467,6 +1684,23 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   public FooterReadTableFunction getFooterReaderTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       return new HiveFooterReaderTableFunction(fec, context, props, functionConfig);
+    }
+  }
+
+  protected List<HivePrivilegeObject.HivePrivObjectActionType> getPrivilegeActionTypesForIcebergDml(IcebergCommandType commandType) {
+    switch (commandType) {
+      case INSERT:
+        return ImmutableList.of(HivePrivilegeObject.HivePrivObjectActionType.INSERT);
+      case DELETE:
+        return ImmutableList.of(HivePrivilegeObject.HivePrivObjectActionType.DELETE);
+      case UPDATE:
+        return ImmutableList.of(HivePrivilegeObject.HivePrivObjectActionType.UPDATE);
+      case MERGE:
+        return ImmutableList.of(
+            HivePrivilegeObject.HivePrivObjectActionType.INSERT, HivePrivilegeObject.HivePrivObjectActionType.DELETE, HivePrivilegeObject.HivePrivObjectActionType.UPDATE);
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unexpected command type %s - expected DML command type", commandType));
     }
   }
 }

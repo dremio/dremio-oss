@@ -14,47 +14,49 @@
  * limitations under the License.
  */
 
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global {
-   .exploreJobStatus {
-     display: flex;
-     align-items: center;
-     height: 100%;
+:global {
+  .exploreJobStatus {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    margin-right: -8px;
 
-     &__item {
-       align-items: center;
-       display: flex;
-       flex-direction: row;
-       gap: 5px;
-       position: relative;
-       border-right: 1px solid @SECONDARY_200;
-       height: 100%;
-       padding-right: 10px;
-       margin-right: 10px;
-     }
+    &__item {
+      align-items: center;
+      display: flex;
+      flex-direction: row;
+      gap: 5px;
+      position: relative;
+      border-right: 1px solid @SECONDARY_200;
+      height: 100%;
+      padding-right: 10px;
+      margin-right: 10px;
+      font-size: 14px;
+    }
 
-     &__label {
+    &__label {
       font-weight: 500;
       padding-right: 3px;
-     }
+    }
 
-     &__value {
+    &__value {
       align-items: center;
       display: inline-flex;
-     }
+    }
 
-     &__name {
+    &__name {
       margin-right: 6px;
-     }
+    }
 
-     &__textLink {
+    &__textLink {
       color: @PRIMARY_600;
       margin-right: 0;
-     }
+    }
 
-     &__menuText {
-       margin-right: 0;
-     }
-   }
- }
+    &__menuText {
+      margin-right: 0;
+    }
+  }
+}

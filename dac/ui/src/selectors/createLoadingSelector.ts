@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { oc } from 'ts-optchain';
-
 export function createLoadingSelector(actions: string[], defaultValue = true) {
-  return function(state: { loading: { [key: string]: boolean } }) {
-    return (actions).some((action) => oc(state).loading[action](defaultValue));
+  return function (state: { loading: { [key: string]: boolean } }) {
+    return actions.some((action) => state?.loading?.[action] ?? defaultValue);
   };
 }
-
-

@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Switch from '@material-ui/core/Switch';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Switch from "@material-ui/core/Switch";
 
-import { ToggleWithMixin } from '@inject/components/Fields/ToggleMixin.js';
+import { ToggleWithMixin } from "@inject/components/Fields/ToggleMixin.js";
 
-import './Toggle.less';
+import "./Toggle.less";
 
 export class Toggle extends Component {
   static propTypes = {
@@ -34,16 +34,16 @@ export class Toggle extends Component {
     disabled: PropTypes.bool,
     field: PropTypes.shape({
       onChange: PropTypes.func,
-      name: PropTypes.string
+      name: PropTypes.string,
     }),
     form: PropTypes.shape({
-      initialValues: PropTypes.object
-    })
-  }
+      initialValues: PropTypes.object,
+    }),
+  };
 
   static defaultProps = {
-    labelPosition: 'right'
-  }
+    labelPosition: "right",
+  };
 
   render() {
     const {
@@ -65,29 +65,33 @@ export class Toggle extends Component {
     const initialValues = form ? form.initialValues : undefined;
 
     const conditionalRenderingButtonStyling = this.checkToRenderToggle();
-    const isDefaultChecked = defaultChecked || (initialValues && initialValues[name]) || false;
+    const isDefaultChecked =
+      defaultChecked || (initialValues && initialValues[name]) || false;
 
     return (
       <FormControlLabel
-        control={ conditionalRenderingButtonStyling ? (
-          <Switch
-            color='primary'
-            onChange={onChange || formikChangeHandler}
-            checked={value}
-            className='toggle field'
-            size={size}
-            disabled={disabled}
-            defaultChecked={isDefaultChecked}
-            {...field}
-            {...form}
-            {...otherProps}
-          />
-        ) : ( <div style={{marginLeft: 15}}></div> )
-        // DX-34369: do we need this marginLeft?
+        control={
+          conditionalRenderingButtonStyling ? (
+            <Switch
+              color="primary"
+              onChange={onChange || formikChangeHandler}
+              checked={value}
+              className="toggle field"
+              size={size}
+              disabled={disabled}
+              defaultChecked={isDefaultChecked}
+              {...field}
+              {...form}
+              {...otherProps}
+            />
+          ) : (
+            <div style={{ marginLeft: 15 }}></div>
+          )
+          // DX-34369: do we need this marginLeft?
         }
         label={label}
         className={className ? className : null}
-        style={{ marginRight: 0, ...style}}
+        style={{ marginRight: 0, ...style }}
       />
     );
   }

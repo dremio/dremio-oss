@@ -13,33 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import DurationBreakdown from '@app/pages/JobPageNew/components/DurationBreakdown';
-import jobsUtils from '@app/utils/jobsUtils';
-import './TotalExecutionTime.less';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import DurationBreakdown from "@app/pages/JobPageNew/components/DurationBreakdown";
+import jobsUtils from "@app/utils/jobsUtils";
+import "./TotalExecutionTime.less";
 
-const TotalExecutionTime = (
-  {
-    pending,
-    metadataRetrival,
-    planning,
-    engineStart,
-    queued,
-    executionPlanning,
-    starting,
-    running,
-    total,
-    intl
-  }
-) => {
+const TotalExecutionTime = ({
+  pending,
+  metadataRetrival,
+  planning,
+  engineStart,
+  queued,
+  executionPlanning,
+  starting,
+  running,
+  total,
+  intl,
+}) => {
   return (
-    <div className='totalExecutionTime'>
-      <div className='totalExecutionTime__titleWrapper'>
-        <div className='totalExecutionTime__title' >
-          {intl.formatMessage({ id: 'TotalExecutionTime' })}
+    <div className="totalExecutionTime">
+      <div className="totalExecutionTime__titleWrapper">
+        <div className="totalExecutionTime__title">
+          {intl.formatMessage({ id: "TotalExecutionTime" })}
         </div>
-        <div className='totalExecutionTime__content'>
+        <div className="totalExecutionTime__content">
           {jobsUtils.formatJobDurationWithMS(total)} (100%)
         </div>
       </div>
@@ -53,7 +51,7 @@ const TotalExecutionTime = (
         executionPlanning={executionPlanning}
         starting={starting}
         running={running}
-        durationTitleClass='totalExecutionTime__progressTitle'
+        durationTitleClass="totalExecutionTime__progressTitle"
       />
     </div>
   );
@@ -69,7 +67,7 @@ TotalExecutionTime.propTypes = {
   starting: PropTypes.number,
   running: PropTypes.number,
   total: PropTypes.number,
-  intl: PropTypes.object.isRequired
+  intl: PropTypes.object.isRequired,
 };
 
 TotalExecutionTime.defaultProps = {
@@ -81,7 +79,7 @@ TotalExecutionTime.defaultProps = {
   executionPlanning: 0,
   starting: 0,
   running: 0,
-  total: 0
+  total: 0,
 };
 
 export default injectIntl(TotalExecutionTime);

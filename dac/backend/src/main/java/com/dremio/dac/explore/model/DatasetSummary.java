@@ -48,22 +48,25 @@ public class DatasetSummary {
   private final List<Field> fields;
   private final DatasetType datasetType;
   private final DatasetVersion datasetVersion;
+  private final Map<String, VersionContextReq> references;
 
   public DatasetSummary(@JsonProperty("fullPath") List<String> fullPath,
                         @JsonProperty("jobCount") int jobCount,
                         @JsonProperty("descendants") int descendants,
                         @JsonProperty("fields") List<Field> fields,
                         @JsonProperty("datasetType") DatasetType datasetType,
-                        @JsonProperty("datasetVersion") DatasetVersion datasetVersion) {
+                        @JsonProperty("datasetVersion") DatasetVersion datasetVersion,
+                        @JsonProperty("references") Map<String, VersionContextReq> references) {
     this.fullPath = fullPath;
     this.jobCount = jobCount;
     this.descendants = descendants;
     this.fields = fields;
     this.datasetType = datasetType;
     this.datasetVersion = datasetVersion;
+    this.references = references;
   }
 
-  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants) {
+  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants, Map<String, VersionContextReq> references) {
     List<String> fullPath = datasetConfig.getFullPathList();
 
     DatasetType datasetType = datasetConfig.getType();
@@ -93,7 +96,7 @@ public class DatasetSummary {
       datasetVersion = null;
     }
 
-    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion);
+    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion, references);
   }
 
   public DatasetVersion getDatasetVersion() {
@@ -118,6 +121,10 @@ public class DatasetSummary {
 
   public List<Field> getFields() {
     return fields;
+  }
+
+  public Map<String, VersionContextReq> getReferences() {
+    return references;
   }
 
   // links

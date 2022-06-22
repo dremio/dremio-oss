@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
-import noop from 'lodash.noop';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
+import { noop } from "lodash";
 
-import FormControl from '@material-ui/core/FormControl';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import RadioGroup from '@material-ui/core/RadioGroup';
-import MaterialRadio from '@material-ui/core/Radio';
+import FormControl from "@material-ui/core/FormControl";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import RadioGroup from "@material-ui/core/RadioGroup";
+import MaterialRadio from "@material-ui/core/Radio";
 
-import Label from '../Label';
+import Label from "../Label";
 
 const Radio = (props) => {
   const {
@@ -34,24 +34,48 @@ const Radio = (props) => {
     name,
     onChange,
     options = [],
-    value
+    value,
   } = props;
 
-  const rootClassName = clsx('radio-root', { [classes.root]: classes.root });
-  const labelClassName = clsx('radio-label', { [classes.label]: classes.label });
-  const optionContainerClassName = clsx('radio-option-container', { [classes.optionsContainer]: classes.optionsContainer });
+  const rootClassName = clsx("radio-root", { [classes.root]: classes.root });
+  const labelClassName = clsx("radio-label", {
+    [classes.label]: classes.label,
+  });
+  const optionContainerClassName = clsx("radio-option-container", {
+    [classes.optionsContainer]: classes.optionsContainer,
+  });
 
-  const rowAlign = align === 'row';
+  const rowAlign = align === "row";
   return (
     <div className={rootClassName}>
       {label && <Label value={label} className={labelClassName} />}
-      <FormControl component='fieldset' classes={{ root: optionContainerClassName }}>
-        <RadioGroup aria-label={name} name={name} value={value} defaultValue={defaultValue} onChange={onChange} row={rowAlign}>
-          {
-            options.map(({ label: labelText, optValue, disabled, ...otherProps }, index) =>
-              <FormControlLabel key={`${name}_radio_${index}`} value={optValue} disabled={disabled} control={<MaterialRadio color='primary' />} label={labelText} {...otherProps}/>
+      <FormControl
+        component="fieldset"
+        classes={{ root: optionContainerClassName }}
+      >
+        <RadioGroup
+          aria-label={name}
+          name={name}
+          value={value}
+          defaultValue={defaultValue}
+          onChange={onChange}
+          row={rowAlign}
+        >
+          {options.map(
+            (
+              { label: labelText, optValue, disabled, ...otherProps },
+              index
+            ) => (
+              <FormControlLabel
+                key={`${name}_radio_${index}`}
+                value={optValue}
+                disabled={disabled}
+                control={<MaterialRadio color="primary" />}
+                label={labelText}
+                {...otherProps}
+              />
             )
-          }
+          )}
         </RadioGroup>
       </FormControl>
     </div>
@@ -59,14 +83,11 @@ const Radio = (props) => {
 };
 
 Radio.propTypes = {
-  align: PropTypes.oneOf([
-    'row',
-    'column'
-  ]),
+  align: PropTypes.oneOf(["row", "column"]),
   classes: PropTypes.shape({
     root: PropTypes.string,
     label: PropTypes.string,
-    optionsContainer: PropTypes.string
+    optionsContainer: PropTypes.string,
   }),
   defaultValue: PropTypes.string,
   label: PropTypes.string,
@@ -75,20 +96,20 @@ Radio.propTypes = {
   options: PropTypes.arrayOf(
     PropTypes.shape({
       label: PropTypes.string,
-      value: PropTypes.string
+      value: PropTypes.string,
     })
   ).isRequired,
-  value: PropTypes.string
+  value: PropTypes.string,
 };
 
 Radio.defaultProps = {
-  align: 'column',
+  align: "column",
   classes: {},
-  defaultValue: '',
+  defaultValue: "",
   label: null,
-  name: '',
+  name: "",
   onChange: noop,
-  value: ''
+  value: "",
 };
 
 export default Radio;

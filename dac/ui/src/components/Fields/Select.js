@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
-import { get } from 'lodash/object';
+import PropTypes from "prop-types";
+import { get } from "lodash/object";
 
-import { SelectView } from '@app/components/Fields/SelectView';
-import { formDefault } from 'uiTheme/radium/typography';
-import classNames from 'classnames';
-import SelectItem from './SelectItem';
-import { button, label as labelCls, list as listCls } from './Select.less';
+import { SelectView } from "@app/components/Fields/SelectView";
+import { formDefault } from "uiTheme/radium/typography";
+import classNames from "classnames";
+import SelectItem from "./SelectItem";
+import { button, label as labelCls, list as listCls } from "./Select.less";
 
 export default class Select extends PureComponent {
   static propTypes = {
@@ -42,31 +42,26 @@ export default class Select extends PureComponent {
     valueField: PropTypes.string, // a field name value item holds value. 'option' is a default
     itemRenderer: PropTypes.func, // function(item) {}
     selectedValueRenderer: PropTypes.func, // renders a selected value in main button content
-    itemClass: PropTypes.string
+    itemClass: PropTypes.string,
   };
 
   static defaultProps = {
     items: [],
     comparator: (a, b) => a === b,
-    valueField: 'option'
+    valueField: "option",
   };
 
   state = { anchorEl: null };
 
   getButtonLabel(value) {
+    const { items, selectedValueRenderer, comparator } = this.props;
 
-    const {
-      items,
-      selectedValueRenderer,
-      comparator
-    } = this.props;
-
-    const current = items.find(item => {
+    const current = items.find((item) => {
       return comparator(value, this.getValue(item));
     });
 
     if (!current) {
-      return '';
+      return "";
     }
     if (selectedValueRenderer) {
       return selectedValueRenderer(current);
@@ -86,10 +81,10 @@ export default class Select extends PureComponent {
 
   getDisplayValue(item) {
     const { itemRenderer } = this.props;
-    const label = get(item, 'label', this.getValue(item));
+    const label = get(item, "label", this.getValue(item));
     const labelInfo = {
-      dataQa: item.dataQa || (typeof label === 'string' ? label : ''),
-      label
+      dataQa: item.dataQa || (typeof label === "string" ? label : ""),
+      label,
     };
     if (itemRenderer) {
       labelInfo.label = itemRenderer(item);
@@ -111,7 +106,8 @@ export default class Select extends PureComponent {
           disabled={item.disabled}
           className={itemClass}
           onClick={this.handleChange.bind(this, closeDDFn)}
-          {...this.getDisplayValue(item)}/>
+          {...this.getDisplayValue(item)}
+        />
       );
     });
   }
@@ -124,29 +120,37 @@ export default class Select extends PureComponent {
       customLabelStyle,
       className,
       listClass,
-      value
+      value,
     } = this.props;
 
-    const defaultOption = this.props.items.length ? this.getValue(this.props.items[0]) : undefined;
-    const selectedValue = value === undefined || value === null ? defaultOption : value;
+    const defaultOption = this.props.items.length
+      ? this.getValue(this.props.items[0])
+      : undefined;
+    const selectedValue =
+      value === undefined || value === null ? defaultOption : value;
     const buttonLabel = this.getButtonLabel(selectedValue);
 
     // TODO: can't easily remove textOverflow in favor of <EllipsedText> because the content comes in externally
     return (
       <SelectView
-        content={<span className={labelCls} style={{...formDefault, ...customLabelStyle}}>{buttonLabel}</span>}
+        content={
+          <span
+            className={labelCls}
+            style={{ ...formDefault, ...customLabelStyle }}
+          >
+            {buttonLabel}
+          </span>
+        }
         disabled={disabled}
-        className={classNames(['field', button, className])}
+        className={classNames(["field", button, className])}
         style={style}
         listClass={classNames([listCls, listClass])}
-        listStyle={{width: 388}}
+        listStyle={{ width: 388 }}
         dataQa={dataQa}
-        rootAttrs={{ 'role': 'listbox' }}
+        rootAttrs={{ role: "listbox" }}
         listWidthSameAsAnchorEl
       >
-        {
-          ({ closeDD }) => this.renderItems(selectedValue, closeDD)
-        }
+        {({ closeDD }) => this.renderItems(selectedValue, closeDD)}
       </SelectView>
     );
   }

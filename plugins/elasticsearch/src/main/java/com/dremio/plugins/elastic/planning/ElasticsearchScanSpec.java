@@ -17,8 +17,8 @@ package com.dremio.plugins.elastic.planning;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Objects;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 
 /**
  * Scan specification for reading from Elastic.

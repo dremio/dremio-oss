@@ -13,38 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import { CLEAR_FULL_CELL_VALUE, LOAD_FULL_CELL_VALUE_SUCCESS } from 'actions/explore/dataset/data';
-import exploreFullCell from './exploreFullCell';
+import {
+  CLEAR_FULL_CELL_VALUE,
+  LOAD_FULL_CELL_VALUE_SUCCESS,
+} from "actions/explore/dataset/data";
+import exploreFullCell from "./exploreFullCell";
 
-describe('explore dataset reducer', () => {
-
-  const initialState =  Immutable.fromJS({
+describe("explore dataset reducer", () => {
+  const initialState = Immutable.fromJS({
     fullCell: {
-      value: 'val',
+      value: "val",
       isInProgress: false,
-      isFailed: false
-    }
+      isFailed: false,
+    },
   });
 
-  it('returns unaltered state by default', () => {
-    const result = exploreFullCell(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = exploreFullCell(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  it('should clear cell value', () => {
+  it("should clear cell value", () => {
     const result = exploreFullCell(initialState, {
-      type: CLEAR_FULL_CELL_VALUE
+      type: CLEAR_FULL_CELL_VALUE,
     });
-    expect(result.getIn(['fullCell', 'value'])).to.be.empty;
+    expect(result.getIn(["fullCell", "value"])).to.be.empty;
   });
 
-  it('should set full value of cell', () => {
+  it("should set full value of cell", () => {
     const result = exploreFullCell(initialState, {
       type: LOAD_FULL_CELL_VALUE_SUCCESS,
-      payload: 'lallalallallalalla'
+      payload: "lallalallallalalla",
     });
-    expect(result.getIn(['fullCell', 'value'])).to.be.equal('lallalallallalalla');
+    expect(result.getIn(["fullCell", "value"])).to.be.equal(
+      "lallalallallalalla"
+    );
   });
 });

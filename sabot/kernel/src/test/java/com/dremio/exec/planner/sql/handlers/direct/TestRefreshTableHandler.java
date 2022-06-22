@@ -93,7 +93,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandler.toResult("", refreshTable);
 //    Refresh Metadata for files are not supported.
@@ -126,7 +126,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandler.toResult("", refreshTable);
 //    Refresh Metadata for files are not supported.
@@ -161,7 +161,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.of(SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createCharString("2021", SqlParserPos.ZERO))));
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -193,7 +193,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.of(SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createNull(SqlParserPos.ZERO))));
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -227,7 +227,7 @@ public class TestRefreshTableHandler {
         SqlNodeList.of(new SqlIdentifier("month", SqlParserPos.ZERO), SqlLiteral.createCharString("Jan", SqlParserPos.ZERO))));
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -260,7 +260,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -289,7 +289,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -318,7 +318,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
+    when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.UNCHANGED);
 
     final List<SimpleCommandResult> result = refreshTableHandler.toResult("", refreshTable);
     assertFalse(result.isEmpty());
@@ -347,7 +347,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandlerDisabled.toResult("", refreshTable);
   }
@@ -368,7 +368,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.of(SqlNodeList.of(new SqlIdentifier("year", SqlParserPos.ZERO), SqlLiteral.createCharString("2021", SqlParserPos.ZERO))));
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandlerDisabled.toResult("", refreshTable);
   }
@@ -389,7 +389,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandlerDisabled.toResult("", refreshTable);
   }
@@ -410,7 +410,7 @@ public class TestRefreshTableHandler {
       SqlNodeList.EMPTY);
 
     final ArgumentCaptor<DatasetRetrievalOptions> optionsCaptor = ArgumentCaptor.forClass(DatasetRetrievalOptions.class);
-    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture())).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
+    lenient().when(catalog.refreshDataset(eq(TABLE_KEY), optionsCaptor.capture(), eq(false))).thenReturn(DatasetCatalog.UpdateStatus.CHANGED);
 
     refreshTableHandlerDisabled.toResult("", refreshTable);
   }

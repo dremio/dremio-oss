@@ -147,6 +147,7 @@ public class ScriptStoreImpl implements ScriptStore {
     public void convert(DocumentWriter writer,
                         String key,
                         Script record) {
+      writer.write(ScriptStoreIndexedKeys.ID, record.getScriptId());
       writer.write(ScriptStoreIndexedKeys.NAME, record.getName());
       writer.write(ScriptStoreIndexedKeys.CREATED_AT, record.getCreatedAt());
       writer.write(ScriptStoreIndexedKeys.CREATED_BY, record.getCreatedBy());

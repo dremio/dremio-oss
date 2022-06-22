@@ -13,48 +13,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useIntl } from 'react-intl';
-import CommitHash from '@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash';
-import UserIcon from '@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/UserIcon/UserIcon';
-import { formatDate } from '@app/utils/date';
-import { CommitMeta } from '@app/services/nessie/client';
+import { useIntl } from "react-intl";
+import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
+import UserIcon from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/UserIcon/UserIcon";
+import { formatDate } from "@app/utils/date";
+import { CommitMeta } from "@app/services/nessie/client";
 
-import './CommitDetails.less';
+import "./CommitDetails.less";
 
-function CommitDetails({ commitMeta, branch }: { commitMeta: CommitMeta, branch: string }) {
+function CommitDetails({
+  commitMeta,
+  branch,
+}: {
+  commitMeta: CommitMeta;
+  branch: string;
+}) {
   const intl = useIntl();
   return (
-    <span className='commitDetails'>
-      <div className='commitDetails-header'>
+    <span className="commitDetails">
+      <div className="commitDetails-header">
         {commitMeta.hash && (
-          <span className='commitDetails-hash'>
+          <span className="commitDetails-hash">
             <CommitHash branch={branch} hash={commitMeta.hash} />
           </span>
         )}
-        <span className='commitDetails-desc text-ellipsis' title={commitMeta.message}>
+        <span
+          className="commitDetails-desc text-ellipsis"
+          title={commitMeta.message}
+        >
           {commitMeta.message}
         </span>
       </div>
-      <div className='commitDetails-content'>
-        <span className='commitDetails-details'>
+      <div className="commitDetails-content">
+        <span className="commitDetails-details">
           {commitMeta.author && (
-            <span className='commitDetails-metaSection'>
-              <div className='commitDetails-metaHeader'>
-                {intl.formatMessage({ id: 'Common.Author' })}
+            <span className="commitDetails-metaSection">
+              <div className="commitDetails-metaHeader">
+                {intl.formatMessage({ id: "Common.Author" })}
               </div>
-              <div className='commitDetails-userInfo commitDetails-metaDetail' title={commitMeta.author}>
+              <div
+                className="commitDetails-userInfo commitDetails-metaDetail"
+                title={commitMeta.author}
+              >
                 <UserIcon user={commitMeta.author} />
-                <span className='commitDetails-userName text-ellipsis'>{commitMeta.author}</span>
+                <span className="commitDetails-userName text-ellipsis">
+                  {commitMeta.author}
+                </span>
               </div>
             </span>
           )}
           {commitMeta.commitTime && (
-            <span className='commitDetails-metaSection'>
-              <div className='commitDetails-metaHeader'>
-                {intl.formatMessage({ id: 'Common.CommitTime' })}
+            <span className="commitDetails-metaSection">
+              <div className="commitDetails-metaHeader">
+                {intl.formatMessage({ id: "Common.CommitTime" })}
               </div>
-              <div className='commitDetails-commitTime commitDetails-metaDetail'>
-                {formatDate(commitMeta.commitTime + '', 'MM/DD/YYYY hh:mm A')}
+              <div className="commitDetails-commitTime commitDetails-metaDetail">
+                {formatDate(commitMeta.commitTime + "", "MM/DD/YYYY hh:mm A")}
               </div>
             </span>
           )}

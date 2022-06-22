@@ -24,7 +24,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
  */
 public class DremioRelMdUtil {
   public static boolean isStatisticsEnabled(RelOptPlanner planner, boolean isNoOp) {
-    return !isNoOp && PrelUtil.getPlannerSettings(planner).useStatistics();
+    return !isNoOp && (PrelUtil.getPlannerSettings(planner).useStatistics() || PrelUtil.getPlannerSettings(planner).semiJoinCosting());
   }
 
   public static boolean isRowCountStatisticsEnabled(RelOptPlanner planner, boolean isNoOp) {

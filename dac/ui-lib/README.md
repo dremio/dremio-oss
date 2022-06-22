@@ -13,14 +13,14 @@ npm install --save dremio-ui-lib
 ## Usage
 
 ```jsx
-import React, { Component } from 'react'
+import React, { Component } from "react";
 
-import MyComponent from 'dremio-ui-lib'
-import 'dremio-ui-lib/dist/index.css'
+import MyComponent from "dremio-ui-lib";
+import "dremio-ui-lib/dist/index.css";
 
 class Example extends Component {
   render() {
-    return <MyComponent />
+    return <MyComponent />;
   }
 }
 ```

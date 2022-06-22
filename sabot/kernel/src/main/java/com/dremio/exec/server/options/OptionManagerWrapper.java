@@ -100,7 +100,7 @@ public final class OptionManagerWrapper extends BaseOptionManager {
     }
   }
 
-  final protected <T> T handleFallback(Function<OptionManager, T> handler) {
+  protected final <T> T handleFallback(Function<OptionManager, T> handler) {
     for (OptionManager optionManager : optionManagers) {
       if (optionManager != null) {
         T result = handler.apply(optionManager);
@@ -112,7 +112,7 @@ public final class OptionManagerWrapper extends BaseOptionManager {
     return null;
   }
 
-  final protected boolean handleFallbackBoolean(Function<OptionManager, Boolean> handler) {
+  protected final boolean handleFallbackBoolean(Function<OptionManager, Boolean> handler) {
     for (OptionManager optionManager : optionManagers) {
       if (optionManager != null) {
         Boolean result = handler.apply(optionManager);

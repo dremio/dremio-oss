@@ -59,7 +59,7 @@ import com.google.common.collect.ImmutableMap;
 public class NLJEOperator implements DualInputOperator {
 
   //TODO: remove static map.
-  private final static Map<String, String> VECTOR_MAP = ImmutableMap.<String, String>builder()
+  private static final Map<String, String> VECTOR_MAP = ImmutableMap.<String, String>builder()
       .put("geo_nearby", "com.dremio.joust.geo.NearbyBeyond")
       .put("geo_beyond", "com.dremio.joust.geo.NearbyBeyond")
       .put("all", "com.dremio.sabot.op.join.nlje.AllVectorFunction").build();

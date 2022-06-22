@@ -13,24 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { formLabel } from 'uiTheme/radium/typography';
+import { formLabel } from "uiTheme/radium/typography";
 
-import RecommendedJoins from './RecommendedJoins';
+import RecommendedJoins from "./RecommendedJoins";
 
-@Radium
-export default class ChooseDataset extends Component {
+class ChooseDataset extends Component {
   static propTypes = {
     currentDatasetName: PropTypes.string.isRequired,
     recommendedJoins: PropTypes.instanceOf(Immutable.List),
     activeRecommendedJoin: PropTypes.instanceOf(Immutable.Map),
     loadExploreEntities: PropTypes.func,
     location: PropTypes.object,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   constructor(props) {
@@ -38,29 +37,24 @@ export default class ChooseDataset extends Component {
   }
 
   render() {
-    return  (
+    return (
       <div style={[styles.searchRoot]}>
         <div style={[styles.header, formLabel]}>
-          <div style={styles.name}>
-            Dataset
-          </div>
-          <div style={styles.type}>
-            Join Type
-          </div>
-          <div style={styles.cur}>
-            {la('Current Dataset Key')}
-          </div>
-          <div style={[styles.cur, {left: 10}]}>
-            Matching Key
-          </div>
+          <div style={styles.name}>Dataset</div>
+          <div style={styles.type}>Join Type</div>
+          <div style={styles.cur}>{la("Current Dataset Key")}</div>
+          <div style={[styles.cur, { left: 10 }]}>Matching Key</div>
         </div>
-        {this.props.recommendedJoins.size > 0 && <RecommendedJoins
-          fields={this.props.fields}
-          recommendedJoins={this.props.recommendedJoins}
-          activeRecommendedJoin={this.props.activeRecommendedJoin}
-          loadExploreEntities={this.props.loadExploreEntities}
-          location={this.props.location}
-          previewRecommendation={this.previewRecommendation}/>}
+        {this.props.recommendedJoins.size > 0 && (
+          <RecommendedJoins
+            fields={this.props.fields}
+            recommendedJoins={this.props.recommendedJoins}
+            activeRecommendedJoin={this.props.activeRecommendedJoin}
+            loadExploreEntities={this.props.loadExploreEntities}
+            location={this.props.location}
+            previewRecommendation={this.previewRecommendation}
+          />
+        )}
       </div>
     );
   }
@@ -68,33 +62,34 @@ export default class ChooseDataset extends Component {
 
 const styles = {
   header: {
-    marginLeft: 24,
+    marginLeft: 16,
     height: 40,
-    display: 'flex'
+    display: "flex",
   },
   name: {
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    minWidth: 300
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    minWidth: 300,
   },
   type: {
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    position: 'relative',
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    position: "relative",
     left: -17,
-    minWidth: 100
+    minWidth: 100,
   },
   cur: {
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    position: 'relative',
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    position: "relative",
     left: -10,
-    minWidth: 200
+    minWidth: 200,
   },
   searchRoot: {
-    flex: 1
-  }
+    flex: 1,
+  },
 };
+export default Radium(ChooseDataset);

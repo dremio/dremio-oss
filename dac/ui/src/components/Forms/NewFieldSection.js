@@ -13,24 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { PrevalidatedTextField } from 'components/Fields';
-import FieldWithError from 'components/Fields/FieldWithError';
-import Checkbox from 'components/Fields/Checkbox';
-import { applyValidators, isRequired } from 'utils/validation';
-import { base, text, row } from './NewFieldSection.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { PrevalidatedTextField } from "components/Fields";
+import FieldWithError from "components/Fields/FieldWithError";
+import Checkbox from "components/Fields/Checkbox";
+import { applyValidators, isRequired } from "utils/validation";
+import { base, text, row } from "./NewFieldSection.less";
 
 export default class NewFieldSection extends Component {
-
   static getFields() {
-    return ['newFieldName', 'dropSourceField'];
+    return ["newFieldName", "dropSourceField"];
   }
 
   static getInitialValues() {
     return {
-      dropSourceField: true
+      dropSourceField: true,
     };
   }
 
@@ -39,32 +38,34 @@ export default class NewFieldSection extends Component {
     columnName: PropTypes.string,
     fields: PropTypes.object,
     showDropSource: PropTypes.bool,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   static defaultProps = {
-    showDropSource: true
-  }
+    showDropSource: true,
+  };
 
   static validate(values) {
-    return applyValidators(values, [isRequired('newFieldName', la('New Field Name'))]);
+    return applyValidators(values, [
+      isRequired("newFieldName", la("New Field Name")),
+    ]);
   }
 
   componentWillMount() {
-    const {dropSourceField} = this.props.fields;
+    const { dropSourceField } = this.props.fields;
     this.managePostfix(dropSourceField.value);
   }
 
   handleCheckboxChange = (e) => {
-    const {dropSourceField} = this.props.fields;
+    const { dropSourceField } = this.props.fields;
     this.managePostfix(e.target.checked);
     dropSourceField.onChange(e.target.checked);
-  }
+  };
 
   managePostfix(checked) {
     if (!this.props.showDropSource) return;
 
-    const {newFieldName} = this.props.fields;
+    const { newFieldName } = this.props.fields;
     const sourceColumnName = this.getSourceColumnName();
     if (!checked && newFieldName.value === sourceColumnName) {
       newFieldName.onChange(`${sourceColumnName}_1`);
@@ -74,16 +75,20 @@ export default class NewFieldSection extends Component {
   }
 
   getSourceColumnName() {
-    const { fields: { newFieldName }, columnName } = this.props;
+    const {
+      fields: { newFieldName },
+      columnName,
+    } = this.props;
     return columnName || (newFieldName && newFieldName.initialValue);
   }
 
-  render() { // todo: loc
+  render() {
+    // todo: loc
     const {
       fields: { newFieldName, dropSourceField },
       style,
       showDropSource,
-      className
+      className,
     } = this.props;
 
     // use a PrevalidatedTextField so that the value isn't sent as-typing -
@@ -92,21 +97,21 @@ export default class NewFieldSection extends Component {
       <div className={classNames(base, className)} style={style}>
         <FieldWithError
           {...newFieldName}
-          errorPlacement='bottom'
-          label={la('New Field Name')}>
-          <PrevalidatedTextField
-            {...newFieldName}
-            className={text}/>
+          errorPlacement="bottom"
+          label={la("New Field Name")}
+        >
+          <PrevalidatedTextField {...newFieldName} className={text} />
         </FieldWithError>
-        { showDropSource && <FieldWithError
-          label={la('Options')}
-          {...dropSourceField}>
-          <Checkbox
-            {...dropSourceField}
-            onChange={this.handleCheckboxChange}
-            label={`Drop Source Field (${this.getSourceColumnName()})`}
-            className={row}/>
-        </FieldWithError> }
+        {showDropSource && (
+          <FieldWithError label={la("Options")} {...dropSourceField}>
+            <Checkbox
+              {...dropSourceField}
+              onChange={this.handleCheckboxChange}
+              label={`Drop Source Field (${this.getSourceColumnName()})`}
+              className={row}
+            />
+          </FieldWithError>
+        )}
       </div>
     );
   }

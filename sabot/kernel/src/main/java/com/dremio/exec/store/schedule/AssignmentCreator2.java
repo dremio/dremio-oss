@@ -53,7 +53,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
   // This is a test-hook. Primary purpose is for test code to be able to verify that the
   // function assignLeftOvers has been called
   @VisibleForTesting
-  public final static AtomicLong LEFTOVER_ASSIGNMENTS = new AtomicLong(0);
+  public static final AtomicLong LEFTOVER_ASSIGNMENTS = new AtomicLong(0);
 
   private final boolean isInstanceAffinity;
   private final List<WorkWrapper> workList;

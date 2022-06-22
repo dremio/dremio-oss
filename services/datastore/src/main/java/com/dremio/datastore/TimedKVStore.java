@@ -55,6 +55,7 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     findByCondition,
     getCounts,
     findForAllTenants,
+    reindex,
   }
 
   private final KVStore<K, V> delegate;
@@ -199,6 +200,13 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     public Iterable<Document<K, V>> find(FindByCondition find, FindOption ... options) {
       try(final OpTimer ctx = time(Ops.findByCondition)) {
         return indexedStore.find(find, options);
+      }
+    }
+
+    @Override
+    public long reindex(FindByCondition findByCondition, FindOption... options) {
+      try(final OpTimer ctx = time(Ops.reindex)) {
+        return indexedStore.reindex(findByCondition, options);
       }
     }
 

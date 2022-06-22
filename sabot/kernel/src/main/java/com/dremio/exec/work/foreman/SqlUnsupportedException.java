@@ -51,5 +51,3 @@ public abstract class SqlUnsupportedException extends ForemanSetupException {
     }
   }
 }
-
-

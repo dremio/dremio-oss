@@ -13,29 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-@Radium
-export default class RightTreeTab extends Component {
-
+class RightTreeTab extends Component {
   static propTypes = {
     eventKey: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   render() {
     return (
-      <div
-        className='tab-content'
-        style={styles.tabContent}>{this.props.children}</div>
+      <div className="tab-content" style={styles.tabContent}>
+        {this.props.children}
+      </div>
     );
   }
 }
 
 const styles = {
   tabContent: {
-    padding: 10
-  }
+    padding: 10,
+  },
 };
+export default Radium(RightTreeTab);

@@ -33,7 +33,7 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.Pair;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.dremio.common.expression.BasePath.SchemaPathVisitor;
 import com.dremio.common.expression.CompleteType;
@@ -75,8 +75,8 @@ public class SchemaField extends RexInputRef {
     ElasticSpecialType.NESTED
   );
 
-  private final static String OPEN_BQ = "[\"";
-  private final static String CLOSE_BQ = "\"]";
+  private static final String OPEN_BQ = "[\"";
+  private static final String CLOSE_BQ = "\"]";
 
   private final SchemaPath path;
   private final CompleteType type;

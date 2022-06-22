@@ -13,23 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import MainHeaderItem from '@app/components/MainHeaderItem';
-import HeaderLink from '@app/components/HeaderItemsTypes/HeaderLink';
+import MainHeaderItem from "@app/components/MainHeaderItem";
+import HeaderLink from "@app/components/HeaderItemsTypes/HeaderLink";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderAdmin() {
-      let adminActiveStyle = 'adminSettingsIcon dremioIconOld-HeaderSettings';
-      const {router} = this.context;
-      if (router.isActive('/admin')) {
-        adminActiveStyle = 'adminSettingsIcon dremioIconOld-HeaderSettings active';
+      let adminActiveStyle = "adminSettingsIcon dremioIconOld-HeaderSettings";
+      const { router } = this.context;
+      if (router.isActive("/admin")) {
+        adminActiveStyle =
+          "adminSettingsIcon dremioIconOld-HeaderSettings active";
       }
 
       return (
         <MainHeaderItem>
-          <HeaderLink to='/admin'>
-            <div className='headerLinkContent'>
-              <div className={adminActiveStyle} title={'Admin Settings'}></div>
+          <HeaderLink to="/admin">
+            <div className="headerLinkContent">
+              <div className={adminActiveStyle} title={"Admin Settings"}></div>
             </div>
           </HeaderLink>
         </MainHeaderItem>
@@ -38,6 +40,6 @@ export default function(input) {
 
     renderHeaderExtra() {
       return null;
-    }
+    },
   });
 }

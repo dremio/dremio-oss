@@ -28,7 +28,7 @@ import com.dremio.common.util.TestTools;
 public class ITTestParallelization extends ElasticBaseTestQuery {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Test
   public void test() throws Exception {

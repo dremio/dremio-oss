@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -28,13 +31,15 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
-import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Throwables;
 
 /**
  * Changes column name, type specified by {@link SqlAlterTableChangeColumn}
@@ -56,6 +61,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
     SqlAlterTableChangeColumn sqlChangeColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableChangeColumn.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlChangeColumn.getTable());
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     DremioTable table = catalog.getTableNoResolve(path);
     SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
@@ -73,7 +79,7 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
         currentColumnName, path).buildSilently();
     }
 
-    if (DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !currentColumnName.equalsIgnoreCase(columnNewName)) {
+    if (CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !currentColumnName.equalsIgnoreCase(columnNewName)) {
       throw UserException.validationError().message("Column [%s] cannot be renamed",
         currentColumnName).buildSilently();
     }
@@ -96,13 +102,40 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
 
     Field columnField = SqlHandlerUtil.fieldFromSqlColDeclaration(config, newColumnSpec, sql);
 
-    catalog.changeColumn(path, sqlChangeColumn.getColumnToChange(), columnField, tableMutationOptions);
+    catalog.changeColumn(path, table.getDatasetConfig(), sqlChangeColumn.getColumnToChange(), columnField, tableMutationOptions);
 
-    if (!DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
       //only fire the refresh dataset query when the query is on a native iceberg table
       DataAdditionCmdHandler.refreshDataset(catalog, path, false);
     }
+
+    try {
+      handleFineGrainedAccess(
+        config.getContext(),
+        path,
+        sqlChangeColumn.getColumnToChange(),
+        columnNewName);
+    } catch (InvalidRelException ex) {
+      return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] modified. However, policy attachments need to be manually corrected",
+        currentColumnName)));
+    }
+
     return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] modified",
         currentColumnName)));
+  }
+
+  public void handleFineGrainedAccess(QueryContext context, NamespaceKey key, String oldColumn, String newColumn) throws Exception {
+  }
+
+  public static ChangeColumnHandler create(Catalog catalog, SqlHandlerConfig config) {
+    try {
+      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseChangeColumnHandler");
+      final Constructor<?> ctor = cl.getConstructor(Catalog.class, SqlHandlerConfig.class);
+      return (ChangeColumnHandler) ctor.newInstance(catalog, config);
+    } catch (ClassNotFoundException e) {
+      return new ChangeColumnHandler(catalog, config);
+    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e2) {
+      throw Throwables.propagate(e2);
+    }
   }
 }

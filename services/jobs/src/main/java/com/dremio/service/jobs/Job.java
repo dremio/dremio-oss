@@ -26,6 +26,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
+import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
@@ -35,6 +36,7 @@ import com.google.common.base.Preconditions;
 public class Job {
 
   private final JobId jobId;
+  private final SessionId sessionId;
   private final List<JobAttempt> attempts = new CopyOnWriteArrayList<>();
   private final JobResultsStore resultsStore;
   private volatile long recordCount;
@@ -47,8 +49,9 @@ public class Job {
    */
   private boolean completed;
 
-  public Job(JobId jobId, JobAttempt jobAttempt) {
+  public Job(JobId jobId, JobAttempt jobAttempt, SessionId sessionId) {
     this.jobId = jobId;
+    this.sessionId = sessionId;
     this.resultsStore = null;
     this.completed = false;
     attempts.add( checkNotNull(jobAttempt, "jobAttempt is null"));
@@ -56,13 +59,14 @@ public class Job {
 
   /**
    * Create an instance which loads the job results lazily.
-   *
    * @param jobId
    * @param jobResult
    * @param resultsStore
+   * @param sessionId
    */
-  public Job(JobId jobId, JobResult jobResult, JobResultsStore resultsStore) {
+  public Job(JobId jobId, JobResult jobResult, JobResultsStore resultsStore, SessionId sessionId) {
     this.jobId = jobId;
+    this.sessionId = sessionId;
     this.attempts.addAll(jobResult.getAttemptsList());
     this.resultsStore = checkNotNull(resultsStore);
     this.completed = jobResult.getCompleted();
@@ -78,6 +82,10 @@ public class Job {
 
   public JobId getJobId() {
     return jobId;
+  }
+
+  public SessionId getSessionId() {
+    return sessionId;
   }
 
   public JobAttempt getJobAttempt() {
@@ -97,8 +105,9 @@ public class Job {
   @Override
   public String toString() {
     final JobAttempt jobAttempt = getJobAttempt();
-    return format("{JobId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
-            jobId.getId(), jobAttempt.getInfo().getSql(),
+    final String sessionIdStr = sessionId == null ? null : sessionId.getId();
+    return format("{JobId: %s, SessionId: %s, SQL: %s, Dataset: %s, DatasetVersion: %s}",
+            jobId.getId(), sessionIdStr, jobAttempt.getInfo().getSql(),
             PathUtils.constructFullPath(jobAttempt.getInfo().getDatasetPathList()),
             jobAttempt.getInfo().getDatasetVersion()); //todo
   }
@@ -108,7 +117,7 @@ public class Job {
     if (data != null) {
       return data;
     }
-    return resultsStore.get(getJobId());
+    return resultsStore.get(getJobId(), getSessionId());
   }
 
   void setData(JobData data){
@@ -142,7 +151,7 @@ public class Job {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(jobId, attempts, completed);
+    return Objects.hashCode(jobId, attempts, completed, sessionId);
   }
 
   @Override
@@ -150,17 +159,23 @@ public class Job {
     if (obj != null) {
       if (obj instanceof Job) {
         Job other = (Job) obj;
-        return Objects.equal(jobId, other.jobId) && Objects.equal(attempts, other.attempts) && Objects.equal(completed, other.completed);
+        return Objects.equal(jobId, other.jobId) &&
+          Objects.equal(attempts, other.attempts) &&
+          Objects.equal(completed, other.completed) &&
+          Objects.equal(sessionId, other.sessionId);
       }
     }
     return false;
   }
 
   JobResult toJobResult(Job job) {
-    return new JobResult()
+    JobResult jobResult = new JobResult()
       .setCompleted(completed)
       .setAttemptsList(job.getAttempts());
+    if (sessionId != null) {
+      jobResult.setSessionId(sessionId);
+    }
+    return jobResult;
   }
 
 }
-

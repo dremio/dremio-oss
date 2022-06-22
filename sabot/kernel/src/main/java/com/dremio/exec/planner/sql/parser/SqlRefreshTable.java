@@ -238,4 +238,3 @@ public class SqlRefreshTable extends SqlSystemCall {
       fileRefresh, partitionRefresh, filesList, partitionList).toSqlString(DremioSqlDialect.CALCITE).getSql();
   }
 }
-

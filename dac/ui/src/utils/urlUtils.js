@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
+import invariant from "invariant";
 
 /**
  * Adds query parameter to a {@see url}
@@ -23,8 +23,10 @@ import invariant from 'invariant';
  * @param {string!} value - parameter value
  */
 export const addParameterToUrl = (url, paramName, value) => {
-  invariant(url, 'url must be defined');
-  invariant(paramName, 'paramName must be defined');
-  invariant(value, 'value must be defined');
-  return `${url}${url.includes('?') ? '&' : '?'}${encodeURIComponent(paramName)}=${encodeURIComponent(value)}`;
+  invariant(url, "url must be defined");
+  invariant(paramName, "paramName must be defined");
+  invariant(value, "value must be defined");
+  return `${url}${url.includes("?") ? "&" : "?"}${encodeURIComponent(
+    paramName
+  )}=${encodeURIComponent(value)}`;
 };

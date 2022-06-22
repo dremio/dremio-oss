@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import { connect }   from 'react-redux';
-import { injectIntl } from 'react-intl';
-import shallowEqual from 'shallowequal';
-import PropTypes from 'prop-types';
-import { USERS_VIEW_ID, searchUsers, removeUser } from 'actions/admin';
-import { showConfirmationDialog } from 'actions/confirmation';
-import { getUsers } from 'selectors/admin';
-import { getViewState } from 'selectors/resources';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import { injectIntl } from "react-intl";
+import shallowEqual from "shallowequal";
+import PropTypes from "prop-types";
+import { USERS_VIEW_ID, searchUsers, removeUser } from "actions/admin";
+import { showConfirmationDialog } from "actions/confirmation";
+import { getUsers } from "selectors/admin";
+import { getViewState } from "selectors/resources";
 
-import UsersView from './UsersView';
+import UsersView from "./UsersView";
 
 export class Users extends PureComponent {
   static propTypes = {
@@ -34,22 +34,24 @@ export class Users extends PureComponent {
     users: PropTypes.instanceOf(Immutable.List),
     viewState: PropTypes.instanceOf(Immutable.Map),
     showConfirmationDialog: PropTypes.func,
-    intl: PropTypes.object
-  }
+    intl: PropTypes.object,
+  };
 
   componentWillMount() {
     this.loadPageData(this.props.location);
   }
 
   componentWillReceiveProps(nextProps) {
-    if (!shallowEqual(this.props.location.query, nextProps.location.query)
-      || nextProps.viewState.get('invalidated')
+    if (
+      !shallowEqual(this.props.location.query, nextProps.location.query) ||
+      nextProps.viewState.get("invalidated")
     ) {
       this.loadPageData(nextProps.location);
     }
   }
 
-  loadPageData(location) { // todo: throttle this. also do we need to deal with cancelling a previous search?
+  loadPageData(location) {
+    // todo: throttle this. also do we need to deal with cancelling a previous search?
     const { filter } = location.query || {};
     this.props.searchUsers(filter);
     // paging not yet implimented:
@@ -60,32 +62,36 @@ export class Users extends PureComponent {
   }
 
   removeUser = (user) => {
-    this.props.removeUser(user).then(() => {
+    return this.props.removeUser(user).then(() => {
       this.props.searchUsers();
+      return null;
     });
-  }
+  };
 
   handleRemoveUser = (user) => {
     const {
-      intl: {
-        formatMessage
-      }
+      intl: { formatMessage },
     } = this.props;
-    const name = user.get('name');
-    const email = user.get('email');
+    const name = user.get("name");
+    const email = user.get("email");
     const username = name || email;
     this.props.showConfirmationDialog({
-      title: formatMessage({id:'Admin.User.Dialog.RemoveUser'}),
-      text: formatMessage({id:'Admin.User.Dialog.ConfirmRemoveUserMesage'}, { username }),
-      confirmText: formatMessage({id:'Admin.User.Dialog.RemoveUserConfirmText'}),
-      confirm: () => this.removeUser(user)
+      title: formatMessage({ id: "Admin.User.Dialog.RemoveUser" }),
+      text: formatMessage(
+        { id: "Admin.User.Dialog.ConfirmRemoveUserMesage" },
+        { username }
+      ),
+      confirmText: formatMessage({
+        id: "Admin.User.Dialog.RemoveUserConfirmText",
+      }),
+      confirm: () => this.removeUser(user),
     });
-  }
+  };
 
   search = (e) => {
     const value = e.target.value;
     this.props.searchUsers(value);
-  }
+  };
 
   render() {
     return (
@@ -102,12 +108,12 @@ export class Users extends PureComponent {
 function mapStateToProps(state) {
   return {
     users: getUsers(state),
-    viewState: getViewState(state, USERS_VIEW_ID)
+    viewState: getViewState(state, USERS_VIEW_ID),
   };
 }
 
 export default connect(mapStateToProps, {
   searchUsers,
   removeUser,
-  showConfirmationDialog
+  showConfirmationDialog,
 })(injectIntl(Users));

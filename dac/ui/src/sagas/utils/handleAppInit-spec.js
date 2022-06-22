@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, put, select } from 'redux-saga/effects';
-import { replace } from 'react-router-redux';
-import { getLocation } from '@app/selectors/routing';
+import { call, put, select } from "redux-saga/effects";
+import { replace } from "react-router-redux";
+import { getLocation } from "@app/selectors/routing";
 import {
-  LOGIN_PATH, SIGNUP_PATH, SSO_LANDING_PATH
-} from '@app/sagas/loginLogout';
-import { expect } from 'chai';
-import handleAppInit from '@app/sagas/utils/handleAppInit';
-import socket from '@app/utils/socket';
+  LOGIN_PATH,
+  SIGNUP_PATH,
+  SSO_LANDING_PATH,
+} from "@app/sagas/loginLogout";
+import { expect } from "chai";
+import handleAppInit from "@app/sagas/utils/handleAppInit";
+import socket from "@app/utils/socket";
 
-describe('handleAppInit', () => {
+describe("handleAppInit", () => {
   let gen;
 
   const testBoot = () => {
@@ -33,37 +35,40 @@ describe('handleAppInit', () => {
   };
 
   const testRedirect = (fromUrl) => {
-    const redirectUrl = 'some/url';
-    expect(gen.next({
-      pathname: fromUrl,
-      query: { redirect: redirectUrl }
-    }).value).to.be.eql(put(replace(redirectUrl)));
+    const redirectUrl = "some/url";
+    expect(
+      gen.next({
+        pathname: fromUrl,
+        query: { redirect: redirectUrl },
+      }).value
+    ).to.be.eql(put(replace(redirectUrl)));
 
     expect(gen.next().done).to.be.true;
-
   };
 
-  it('redirects from login page', () => {
+  it("redirects from login page", () => {
     testBoot();
     testRedirect(LOGIN_PATH);
   });
 
-  it('redirects from sign up page', () => {
+  it("redirects from sign up page", () => {
     testBoot();
     testRedirect(SIGNUP_PATH);
   });
 
-  it('redirects from social login page', () => {
+  it("redirects from social login page", () => {
     testBoot();
     testRedirect(SSO_LANDING_PATH);
   });
 
-  it('does not redirect form other pages', () => {
+  it("does not redirect form other pages", () => {
     testBoot();
-    const redirectUrl = 'some/url';
-    expect(gen.next({
-      pathname: '/home',
-      query: { redirect: redirectUrl }
-    }).done).to.be.true;
+    const redirectUrl = "some/url";
+    expect(
+      gen.next({
+        pathname: "/home",
+        query: { redirect: redirectUrl },
+      }).done
+    ).to.be.true;
   });
 });

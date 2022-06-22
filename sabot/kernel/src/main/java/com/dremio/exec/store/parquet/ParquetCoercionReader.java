@@ -15,10 +15,8 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.ValueVector;
@@ -37,7 +35,6 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.TypeCoercion;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator;
 
 /**
  * FilteringFileCoercionReader for Parquet files
@@ -46,32 +43,32 @@ import com.dremio.sabot.op.scan.ScanOperator;
 public class ParquetCoercionReader extends FilteringFileCoercionReader {
   private static final Logger logger = LoggerFactory.getLogger(ParquetCoercionReader.class);
 
-  private final List<ParquetFilterCondition> filterConditions;
+  private final ParquetFilters filters;
   private OutputMutator outgoingMutator;
   private boolean setupCalledByFilteringReader; // setUp() state
   private boolean closeCalledByFilteringReader; // close() state
   private boolean needsFilteringAfterCoercion; // true if a pushdown filter is modified
   private CopyingFilteringReader filteringReader;
-  private ScanOperator.ScanMutator filteringReaderInputMutator;
+  private OutputMutator filteringReaderInputMutator;
 
   protected ParquetCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
                                   BatchSchema originalSchema, TypeCoercion typeCoercion,
-                                  List<ParquetFilterCondition> parqfilterConditions) {
+                                  ParquetFilters filters) {
     super(context, columns, inner, originalSchema, typeCoercion);
-    filterConditions = Optional.ofNullable(parqfilterConditions).orElse(Collections.emptyList());
+    this.filters = filters;
     resetReaderState();
   }
 
   public static ParquetCoercionReader newInstance(OperatorContext context, List<SchemaPath> columns,
                                                   RecordReader inner, BatchSchema originalSchema,
-                                                  TypeCoercion typeCoercion, List<ParquetFilterCondition> filterConditions) {
-    return new ParquetCoercionReader(context, columns, inner, originalSchema, typeCoercion, filterConditions);
+                                                  TypeCoercion typeCoercion, ParquetFilters filters) {
+    return new ParquetCoercionReader(context, columns, inner, originalSchema, typeCoercion, filters);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     if (setupCalledByFilteringReader) {
-      this.filteringReaderInputMutator = (ScanOperator.ScanMutator) output;
+      this.filteringReaderInputMutator = output;
     } else {
       if (inner instanceof UpPromotingParquetReader) {
         ((UpPromotingParquetReader) inner).setupMutator(output);
@@ -95,10 +92,10 @@ public class ParquetCoercionReader extends FilteringFileCoercionReader {
       }
       outgoing.buildSchema(BatchSchema.SelectionVectorMode.NONE);
 
-      if (!filterConditions.isEmpty()) {
+      if (filters.hasPushdownFilters()) {
 
         // filter expressions on columns with schema mismatch
-        final List<LogicalExpression> logicalExpressions = filterConditions.stream()
+        final List<LogicalExpression> logicalExpressions = filters.getPushdownFilters().stream()
           .filter(fc -> fc.getFilter().exact() && fc.isModifiedForPushdown())
           .map(ParquetFilterCondition::getExpr)
           .filter(Objects::nonNull)

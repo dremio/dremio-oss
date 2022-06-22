@@ -13,27 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moize from 'moize';
-import { getEntries } from '@app/services/nessie/impl/TreeApi';
-import { useMemo } from 'react';
-import { usePromise } from 'react-smart-promise';
+import moize from "moize";
+import { getEntries } from "@app/services/nessie/impl/TreeApi";
+import { useMemo } from "react";
+import { usePromise } from "react-smart-promise";
 
-const QUERY_POSTFIX = '(\\\\.|$)';
+const QUERY_POSTFIX = "(\\\\.|$)";
 
 const memoGetEntries = moize(getEntries, {
   maxSize: 1,
   isPromise: true,
-  isDeepEqual: true
+  isDeepEqual: true,
 });
 
 function formatQuery(path: string[] = []) {
-  return `entry.namespace.matches('${path.join('\\\\.') + QUERY_POSTFIX}')`;
+  return `entry.namespace.matches('${
+    path.map((c) => decodeURIComponent(c)).join("\\\\.") + QUERY_POSTFIX
+  }')`;
 }
 
 function useNamespaceList({
   reference,
   hash: hashOnRef,
-  path
+  path,
 }: {
   reference: string;
   hash?: string | null;
@@ -41,14 +43,16 @@ function useNamespaceList({
 }) {
   return usePromise(
     useMemo(
-      () => !reference ?
-        null :
-        () => memoGetEntries({
-          ref: reference,
-          ...(hashOnRef && { hashOnRef }),
-          namespaceDepth: path ? path.length + 1 : 1,
-          filter: formatQuery(path)
-        }),
+      () =>
+        !reference
+          ? null
+          : () =>
+              memoGetEntries({
+                ref: reference,
+                ...(hashOnRef && { hashOnRef }),
+                namespaceDepth: path ? path.length + 1 : 1,
+                filter: formatQuery(path),
+              }),
       [reference, hashOnRef, path]
     )
   );

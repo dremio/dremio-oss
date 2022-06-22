@@ -130,6 +130,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     return fieldVectorMap;
   }
 
+  @Override
   public VectorContainer getContainer() {
     return container;
   }

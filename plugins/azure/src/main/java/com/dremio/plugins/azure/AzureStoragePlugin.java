@@ -37,7 +37,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.DirectorySupportLackingFileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -48,7 +48,7 @@ import com.google.common.annotations.VisibleForTesting;
 /**
  * Storage plugin for Microsoft Azure Storage
  */
-class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
+class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<AzureStorageConf> {
 
   private static final Logger logger = LoggerFactory.getLogger(AzureStoragePlugin.class);
 

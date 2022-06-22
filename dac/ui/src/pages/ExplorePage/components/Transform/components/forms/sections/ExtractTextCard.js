@@ -13,31 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import Tabs from 'components/Tabs';
-import { Radio } from 'components/Fields';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import Tabs from "components/Tabs";
+import { Radio } from "components/Fields";
 
-import { formLabel, fixedWidthBold } from 'uiTheme/radium/typography';
-import { inlineLabel, inlineFieldWrap } from 'uiTheme/radium/exploreTransform';
+import { formLabel, fixedWidthBold } from "uiTheme/radium/typography";
+import { inlineLabel, inlineFieldWrap } from "uiTheme/radium/exploreTransform";
 
-import ExtractPosition from './../../cardContent/ExtractPosition';
-import ExtractPattern from './../../cardContent/ExtractPattern';
-import CardContentView from './../../cardContent/CardContentView';
+import ExtractPosition from "./../../cardContent/ExtractPosition";
+import ExtractPattern from "./../../cardContent/ExtractPattern";
+import CardContentView from "./../../cardContent/CardContentView";
 
-import TransformCard from './../../TransformCard';
-import { styles } from './ExtractListCard';
+import TransformCard from "./../../TransformCard";
+import { styles } from "./ExtractListCard";
 
-@Radium
-export default class ExtractTextCard extends Component {
-
+class ExtractTextCard extends Component {
   static getFields() {
     return [
       ...ExtractPosition.getFields(),
       ...ExtractPattern.getFields(),
-      'type'
+      "type",
     ];
   }
 
@@ -46,17 +44,17 @@ export default class ExtractTextCard extends Component {
     card: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     active: PropTypes.bool,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
   };
 
   static validate(values) {
-    if (values.type === 'position') {
+    if (values.type === "position") {
       return ExtractPosition.validate(values);
-    } else if (values.type === 'pattern') {
+    } else if (values.type === "pattern") {
       return ExtractPattern.validate(values);
     }
     return {
-      type: 'Type is required.'
+      type: "Type is required.",
     };
   }
 
@@ -67,49 +65,56 @@ export default class ExtractTextCard extends Component {
   renderFront() {
     const { card } = this.props;
     if (!card) {
-      return <div/>;
+      return <div />;
     }
 
     return (
       <div style={styles.cardStyle}>
         <div style={styles.header}>
-          <span style={fixedWidthBold} data-qa='card-title'>On: {card.get('description')}</span>
+          <span style={fixedWidthBold} data-qa="card-title">
+            On: {card.get("description")}
+          </span>
         </div>
         <CardContentView
-          data={card.get('examplesList') || Immutable.List()}
-          isInProgress={card.get('isInProgress')}
+          data={card.get("examplesList") || Immutable.List()}
+          isInProgress={card.get("isInProgress")}
         />
       </div>
     );
   }
 
   renderBack() {
-    const {fields, columnName} = this.props;
+    const { fields, columnName } = this.props;
     return (
       <div>
         <div style={inlineFieldWrap}>
-          <span style={inlineLabel}>
-            Extract By
-          </span>
+          <span style={{ ...inlineLabel, paddingRight: 2 }}>Extract By</span>
           <Radio
             {...fields.type}
-            radioValue='position'
-            label='Position'
-            style={{...formLabel, ...styles.radio}}/>
+            radioValue="position"
+            label="Position"
+            style={{ ...formLabel, ...styles.radio, marginRight: 8 }}
+          />
           <Radio
             {...fields.type}
-            radioValue='pattern'
-            label='Pattern'
-            style={{...formLabel, ...styles.radio}}/>
+            radioValue="pattern"
+            label="Pattern"
+            style={{ ...formLabel, ...styles.radio }}
+          />
         </div>
-        <div className='transform-card-content'>
+        <div className="transform-card-content">
           <Tabs activeTab={fields.type.value}>
             <ExtractPosition
-              tabId='position'
-              firstElementLabel='First Character Position'
-              lastElementLabel='Last Character Position'
-              fields={fields}/>
-            <ExtractPattern tabId='pattern' columnName={columnName} fields={fields}/>
+              tabId="position"
+              firstElementLabel="First Character Position"
+              lastElementLabel="Last Character Position"
+              fields={fields}
+            />
+            <ExtractPattern
+              tabId="pattern"
+              columnName={columnName}
+              fields={fields}
+            />
           </Tabs>
         </div>
       </div>
@@ -117,7 +122,7 @@ export default class ExtractTextCard extends Component {
   }
 
   render() {
-    const {card, active, onClick} = this.props;
+    const { card, active, onClick } = this.props;
 
     return (
       <TransformCard
@@ -125,7 +130,9 @@ export default class ExtractTextCard extends Component {
         back={this.renderBack()}
         card={card}
         active={active}
-        onClick={onClick}/>
+        onClick={onClick}
+      />
     );
   }
 }
+export default Radium(ExtractTextCard);

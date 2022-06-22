@@ -13,46 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import SimpleButton from 'components/Buttons/SimpleButton';
-import WizardFooter from './WizardFooter';
+import SimpleButton from "components/Buttons/SimpleButton";
+import WizardFooter from "./WizardFooter";
 
-@Radium
-export default class DefaultWizardFooter extends Component {
+class DefaultWizardFooter extends Component {
   static propTypes = {
     style: PropTypes.object,
     isPreviewAvailable: PropTypes.bool,
     submitting: PropTypes.bool,
     handleSubmit: PropTypes.func,
     onFormSubmit: PropTypes.func.isRequired,
-    onCancel: PropTypes.func.isRequired
+    onCancel: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
-    isPreviewAvailable: true
+    isPreviewAvailable: true,
   };
 
   constructor(props) {
     super(props);
     this.state = {
-      submitType: null
+      submitType: null,
     };
   }
 
   onCancel = (e) => {
     e.preventDefault();
     this.props.onCancel();
-  }
+  };
 
   onButtonClick = (submitType, e, ...rest) => {
     if (e && e.preventDefault) {
       e.preventDefault();
     }
-    this.setState({submitType});
+    this.setState({ submitType });
     const { handleSubmit, onFormSubmit } = this.props;
     if (onFormSubmit && handleSubmit) {
       return handleSubmit((values) => {
@@ -60,33 +58,34 @@ export default class DefaultWizardFooter extends Component {
       })(e, ...rest);
     }
     return onFormSubmit(submitType);
-  }
+  };
 
   render() {
     const { submitting, isPreviewAvailable } = this.props;
     const submitType = submitting && this.state.submitType;
 
     return (
-      <WizardFooter style={{...styles.wizardParent, ...this.props.style}}>
+      <WizardFooter style={{ ...styles.wizardParent, ...this.props.style }}>
         <SimpleButton
-          buttonStyle='primary'
-          onClick={this.onButtonClick.bind(this, 'apply')}
-          submitting={submitType === 'apply'}
-          className='wizard-apply-button'
+          buttonStyle="primary"
+          onClick={this.onButtonClick.bind(this, "apply")}
+          submitting={submitType === "apply"}
+          className="wizard-apply-button"
         >
           Apply
         </SimpleButton>
-        {isPreviewAvailable && <SimpleButton
-          buttonStyle='secondary'
-          onClick={this.onButtonClick.bind(this, 'preview')}
-          disabled={submitting && submitType !== 'preview'}
-          submitting={submitType === 'preview'}
-          className='wizard-preview-button'>
-          Preview
-        </SimpleButton>}
-        <SimpleButton
-          buttonStyle='secondary'
-          onClick={this.onCancel}>
+        {isPreviewAvailable && (
+          <SimpleButton
+            buttonStyle="secondary"
+            onClick={this.onButtonClick.bind(this, "preview")}
+            disabled={submitting && submitType !== "preview"}
+            submitting={submitType === "preview"}
+            className="wizard-preview-button"
+          >
+            Preview
+          </SimpleButton>
+        )}
+        <SimpleButton buttonStyle="secondary" onClick={this.onCancel}>
           Cancel
         </SimpleButton>
       </WizardFooter>
@@ -96,6 +95,7 @@ export default class DefaultWizardFooter extends Component {
 
 const styles = {
   wizardParent: {
-    width: '100%'
-  }
+    width: "100%",
+  },
 };
+export default DefaultWizardFooter;

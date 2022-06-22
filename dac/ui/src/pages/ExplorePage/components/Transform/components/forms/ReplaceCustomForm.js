@@ -13,23 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
 
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
-import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import exploreUtils from 'utils/explore/exploreUtils';
-import TransformForm, {formWrapperProps} from '../../../forms/TransformForm';
-import ReplaceFooter from './../ReplaceFooter';
-import CustomCondition from './../ContentWithoutCards/CustomCondition';
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
+import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import exploreUtils from "utils/explore/exploreUtils";
+import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
+import ReplaceFooter from "./../ReplaceFooter";
+import CustomCondition from "./../ContentWithoutCards/CustomCondition";
 
 const SECTIONS = [ReplaceFooter, NewFieldSection];
 
 export class ReplaceCustomForm extends Component {
-
   static propTypes = {
     submit: PropTypes.func,
     transform: PropTypes.instanceOf(Immutable.Map),
@@ -41,7 +40,7 @@ export class ReplaceCustomForm extends Component {
     columnType: PropTypes.string,
     loadTransformValuesPreview: PropTypes.func,
     submitForm: PropTypes.func,
-    dataset: PropTypes.instanceOf(Immutable.Map)
+    dataset: PropTypes.instanceOf(Immutable.Map),
   };
 
   constructor(props) {
@@ -49,40 +48,51 @@ export class ReplaceCustomForm extends Component {
   }
 
   submit = (values, submitType) => {
-    const transformType = this.props.transform.get('transformType');
-    const data = transformType === 'replace'
-      ? {
-        ...fieldsMappers.getCommonValues(values, this.props.transform),
-        fieldTransformation: {
-          type: 'ReplaceCustom',
-          ...fieldsMappers.getReplaceCustom(values)
-        }
-      }
-      : {
-        ...filterMappers.getCommonFilterValues(values, this.props.transform),
-        filter: filterMappers.mapFilterExcludeCustom(values, this.props.transform)
-      };
+    const transformType = this.props.transform.get("transformType");
+    const data =
+      transformType === "replace"
+        ? {
+            ...fieldsMappers.getCommonValues(values, this.props.transform),
+            fieldTransformation: {
+              type: "ReplaceCustom",
+              ...fieldsMappers.getReplaceCustom(values),
+            },
+          }
+        : {
+            ...filterMappers.getCommonFilterValues(
+              values,
+              this.props.transform
+            ),
+            filter: filterMappers.mapFilterExcludeCustom(
+              values,
+              this.props.transform
+            ),
+          };
 
     return this.props.submit(data, submitType);
-  }
+  };
 
   renderFooter() {
-    const {fields, transform, submitForm} = this.props;
-    return transform.get('transformType') === 'replace'
-      ? <ReplaceFooter
-        tabId='replace'
+    const { fields, transform, submitForm } = this.props;
+    return transform.get("transformType") === "replace" ? (
+      <ReplaceFooter
+        tabId="replace"
         fields={fields}
         submitForm={submitForm}
-        transform={transform}/>
-      : null;
+        transform={transform}
+      />
+    ) : null;
   }
 
   render() {
-    const {fields, submitForm} = this.props;
+    const { fields, submitForm } = this.props;
     return (
-      <TransformForm {...formWrapperProps(this.props)} onFormSubmit={this.submit}>
-        <div className='transform-selection' style={styles.selections}>
-          <CustomCondition submitForm={submitForm} fields={fields}/>
+      <TransformForm
+        {...formWrapperProps(this.props)}
+        onFormSubmit={this.submit}
+      >
+        <div className="transform-selection" style={styles.selections}>
+          <CustomCondition submitForm={submitForm} fields={fields} />
         </div>
         {this.renderFooter()}
       </TransformForm>
@@ -91,26 +101,31 @@ export class ReplaceCustomForm extends Component {
 }
 
 function mapStateToProps(state, props) {
-  const columnName = props.transform.get('columnName');
+  const columnName = props.transform.get("columnName");
   const escapedColumnName = exploreUtils.escapeFieldNameForSQL(columnName);
   return {
     initialValues: {
       newFieldName: columnName,
       dropSourceField: true,
-      replacementValue: '',
-      replaceType: 'VALUE',
-      booleanExpression: `${escapedColumnName} IS NOT NULL \nOR\n${escapedColumnName} IS NULL`
-    }
+      replacementValue: "",
+      replaceType: "VALUE",
+      booleanExpression: `${escapedColumnName} IS NOT NULL \nOR\n${escapedColumnName} IS NULL`,
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'replaceCustom',
-  fields: ['booleanExpression']
-}, SECTIONS, mapStateToProps, null)(ReplaceCustomForm);
+export default connectComplexForm(
+  {
+    form: "replaceCustom",
+    fields: ["booleanExpression"],
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(ReplaceCustomForm);
 
 const styles = {
   selections: {
-    marginBottom: 5
-  }
+    marginBottom: 5,
+  },
 };

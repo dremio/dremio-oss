@@ -13,25 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { fixedWidthBold, formLabel } from 'uiTheme/radium/typography';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { fixedWidthBold, formLabel } from "uiTheme/radium/typography";
 
-import ReplacePattern from './../../cardContent/ReplacePattern';
-import CardContentView from './../../cardContent/CardContentView';
-import TransformCard from './../../TransformCard';
-import { styles } from './ExtractListCard';
+import ReplacePattern from "./../../cardContent/ReplacePattern";
+import CardContentView from "./../../cardContent/CardContentView";
+import TransformCard from "./../../TransformCard";
+import { styles } from "./ExtractListCard";
 
-@Radium
-export default class ReplacePatternCard extends Component {
-
+class ReplacePatternCard extends Component {
   static getFields() {
-    return [
-      ...ReplacePattern.getFields(),
-      'type'
-    ];
+    return [...ReplacePattern.getFields(), "type"];
   }
 
   static validate(values) {
@@ -42,43 +37,45 @@ export default class ReplacePatternCard extends Component {
     card: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     active: PropTypes.bool,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
   };
 
   renderFront() {
-    const {card} = this.props;
+    const { card } = this.props;
     return (
       <div style={styles.cardStyle}>
         <div style={styles.header}>
-          <span style={fixedWidthBold}>On: {card.get('description')}</span>
+          <span style={fixedWidthBold}>On: {card.get("description")}</span>
         </div>
         <CardContentView
-          data={card.get('examplesList') || Immutable.List()}
-          isInProgress={card.get('isInProgress')}
+          data={card.get("examplesList") || Immutable.List()}
+          isInProgress={card.get("isInProgress")}
         />
       </div>
     );
   }
 
   renderBack() {
-    const {fields} = this.props;
+    const { fields } = this.props;
     return (
-      <div className='transform-card-content'>
+      <div className="transform-card-content">
         <div style={[styles.header, formLabel]}>Edit Selection</div>
-        <ReplacePattern fields={fields}/>
+        <ReplacePattern fields={fields} />
       </div>
     );
   }
 
   render() {
-    const {card, active, onClick} = this.props;
+    const { card, active, onClick } = this.props;
     return (
       <TransformCard
         front={this.renderFront()}
         back={this.renderBack()}
         card={card}
         active={active}
-        onClick={onClick}/>
+        onClick={onClick}
+      />
     );
   }
 }
+export default Radium(ReplacePatternCard);

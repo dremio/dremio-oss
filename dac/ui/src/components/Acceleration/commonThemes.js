@@ -17,14 +17,14 @@
 export const commonThemes = {
   aggregationIconTheme: {
     Container: {
-      margin: '5px 10px 0 10px',
-      height: 26
-    }
+      margin: "5px 10px 0 10px",
+      height: 26,
+    },
   },
   rawIconTheme: {
     Container: {
-      margin: '-1px 10px 0 10px',
-      height: 26
-    }
-  }
+      margin: "-1px 10px 0 10px",
+      height: 26,
+    },
+  },
 };

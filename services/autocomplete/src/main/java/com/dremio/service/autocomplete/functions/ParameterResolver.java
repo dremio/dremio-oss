@@ -29,17 +29,25 @@ import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.Pair;
 
+import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.service.autocomplete.DremioToken;
-import com.dremio.service.autocomplete.SqlQueryUntokenizer;
-import com.dremio.service.autocomplete.columns.Column;
-import com.dremio.service.autocomplete.columns.DremioQueryParser;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.service.autocomplete.AutocompleteEngineContext;
+import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
+import com.dremio.service.autocomplete.parsing.SqlNodeParser;
+import com.dremio.service.autocomplete.parsing.ValidatingParser;
+import com.dremio.service.autocomplete.statements.grammar.FromClause;
+import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.dremio.service.autocomplete.tokens.QueryBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -47,68 +55,43 @@ import com.google.common.collect.ImmutableSet;
  * Resolves all the possible columns and functions that could be used as parameters to a function being built.
  */
 public final class ParameterResolver {
-  private static final class DremioTokens {
-    public static final DremioToken COMMA = new DremioToken(ParserImplConstants.COMMA, ",");
-    public static final DremioToken SELECT = new DremioToken(ParserImplConstants.SELECT, "SELECT");
+  private static final DremioToken COMMA_TOKEN = DremioToken.createFromParserKind(ParserImplConstants.COMMA);
 
-    private DremioTokens() {
-    }
-  }
-
-  private final SqlFunctionDictionary sqlFunctionDictionary;
+  private final FunctionDictionary functionDictionary;
   private final SqlValidator sqlValidator;
   private final SqlValidatorScope sqlValidatorScope;
-  private final DremioQueryParser queryParser;
+  private final SqlNodeParser queryParser;
 
   public ParameterResolver(
-    SqlFunctionDictionary sqlFunctionDictionary,
+    FunctionDictionary functionDictionary,
     SqlValidator sqlValidator,
     SqlValidatorScope sqlValidatorScope,
-    DremioQueryParser queryParser) {
-    Preconditions.checkNotNull(sqlFunctionDictionary);
+    SqlNodeParser queryParser) {
+    Preconditions.checkNotNull(functionDictionary);
     Preconditions.checkNotNull(sqlValidator);
     Preconditions.checkNotNull(sqlValidatorScope);
     Preconditions.checkNotNull(queryParser);
 
+    this.functionDictionary = functionDictionary;
     this.sqlValidator = sqlValidator;
     this.sqlValidatorScope = sqlValidatorScope;
-    this.sqlFunctionDictionary = sqlFunctionDictionary;
     this.queryParser = queryParser;
   }
 
-  public SqlFunctionDictionary getSqlFunctionDictionary() {
-    return sqlFunctionDictionary;
-  }
-
-  public Optional<Resolutions> resolve(
+  public Optional<Result> resolve(
     ImmutableList<DremioToken> tokens,
-    ImmutableSet<Column> columns,
-    ImmutableList<DremioToken> fromClause) {
-    Optional<Pair<Resolutions, DebugInfo>> resolutionsDebugInfoPair = resolveWithDebugInfo(
-      tokens,
-      columns,
-      fromClause);
-    if (!resolutionsDebugInfoPair.isPresent()) {
-      return Optional.empty();
-    }
-
-    return Optional.of(resolutionsDebugInfoPair.get().left);
-  }
-
-  public Optional<Pair<Resolutions, DebugInfo>> resolveWithDebugInfo(
-    ImmutableList<DremioToken> tokens,
-    ImmutableSet<Column> columns,
-    ImmutableList<DremioToken> fromClause) {
+    ImmutableSet<ColumnAndTableAlias> columns,
+    FromClause fromClause) {
     Preconditions.checkNotNull(tokens);
     Preconditions.checkNotNull(columns);
     Preconditions.checkNotNull(fromClause);
 
-    Optional<Pair<SqlFunction, Integer>> functionSpecAndIndex = getSqlFunctionAndIndex(tokens);
+    Optional<Pair<Function, Integer>> functionSpecAndIndex = getFunctionAndIndex(tokens);
     if (!functionSpecAndIndex.isPresent()) {
       return Optional.empty();
     }
 
-    SqlFunction sqlFunction = functionSpecAndIndex.get().left;
+    Function function = functionSpecAndIndex.get().left;
     int index = functionSpecAndIndex.get().right;
 
     ImmutableList<DremioToken> functionTokens = tokens.subList(index, tokens.size());
@@ -118,19 +101,58 @@ public final class ParameterResolver {
       columns,
       fromClause);
 
-    DebugInfo debugInfo = new DebugInfo(sqlFunction.getName(), parameterTypesUsedSoFar);
-
-    Resolutions resolutions = resolveImplementation(
-      sqlFunction,
+    Result result = resolveImplementation(
+      function,
       ImmutableList.copyOf(parameterTypesUsedSoFar),
       columns);
 
-    return Optional.of(new Pair<>(resolutions, debugInfo));
+    return Optional.of(result);
   }
 
-  private Optional<Pair<SqlFunction, Integer>> getSqlFunctionAndIndex(ImmutableList<DremioToken> tokens) {
+  public static ParameterResolver create(
+    final SqlOperatorTable operatorTable,
+    final SimpleCatalog<?> catalog) {
+    final DremioCatalogReader catalogReader = new DremioCatalogReader(
+      catalog,
+      JavaTypeFactoryImpl.INSTANCE);
+    final SqlOperatorTable chainedOperatorTable = ChainedSqlOperatorTable.of(
+      operatorTable,
+      catalogReader);
+    SqlValidatorAndScopeFactory.Result validatorAndScope = SqlValidatorAndScopeFactory.create(
+      operatorTable,
+      catalog);
+    List<SqlFunction> sqlFunctions = chainedOperatorTable
+      .getOperatorList()
+      .stream()
+      .filter(sqlOperator -> sqlOperator instanceof SqlFunction)
+      .map(function -> (SqlFunction) function).collect(Collectors.toList());
+    FunctionDictionary functionDictionary = FunctionDictionary.create(
+      sqlFunctions,
+      validatorAndScope.getSqlValidator(),
+      validatorAndScope.getScope(),
+      false);
+    SqlNodeParser parser = ValidatingParser.create(
+      chainedOperatorTable,
+      catalog);
+    return new ParameterResolver(
+      functionDictionary,
+      validatorAndScope.getSqlValidator(),
+      validatorAndScope.getScope(),
+      parser);
+  }
+
+  public static ParameterResolver create(
+    AutocompleteEngineContext context) {
+    return create(
+      context.getOperatorTable(),
+      context.getCatalog());
+  }
+
+  private Optional<Pair<Function, Integer>> getFunctionAndIndex(ImmutableList<DremioToken> tokens) {
+    // Look for a function with an open parens without a matching close parens
+    int i = tokens.size() - 1;
     int parensCounter = 1;
-    for (int i = tokens.size() - 1; i >= 0; i--) {
+    for (; (i > 0) && (parensCounter > 0); i--) {
       DremioToken token = tokens.get(i);
       switch (token.getKind()) {
         case ParserImplConstants.LPAREN:
@@ -142,26 +164,25 @@ public final class ParameterResolver {
         default:
           // Do Nothing
       }
-
-      if (parensCounter != 0) {
-        continue;
-      }
-
-      Optional<SqlFunction> optionalSqlFunction = sqlFunctionDictionary.tryGetValue(token.getImage());
-      if (optionalSqlFunction.isPresent()) {
-        return Optional.of(new Pair<>(optionalSqlFunction.get(), i));
-      }
     }
 
-    return Optional.empty();
+    if (parensCounter > 0) {
+      return Optional.empty();
+    }
+
+    DremioToken functionToken = tokens.get(i);
+    final int finalI = i;
+    return functionDictionary
+      .tryGetValue(functionToken.getImage())
+      .map(function -> new Pair<>(function, finalI));
   }
 
   private List<SqlTypeName> getParameterTypesUsedSoFar(
     ImmutableList<DremioToken> tokens,
-    Set<Column> columns,
-    ImmutableList<DremioToken> fromClause) {
+    Set<ColumnAndTableAlias> columns,
+    FromClause fromClause) {
     if (tokens.size() == 2) {
-      return Collections.EMPTY_LIST;
+      return Collections.emptyList();
     }
 
     // We are going to get something of the form:
@@ -169,7 +190,7 @@ public final class ParameterResolver {
     // We need to parse out the tokens for A and C and get their types
     // Start at 2, since we want to skip the function name and '('
     if (tokens.get(tokens.size() - 1).getKind() != ParserImplConstants.COMMA) {
-      tokens = new ImmutableList.Builder<DremioToken>().addAll(tokens).add(DremioTokens.COMMA).build();
+      tokens = new ImmutableList.Builder<DremioToken>().addAll(tokens).add(COMMA_TOKEN).build();
     }
 
     List<SqlTypeName> types = new ArrayList<>();
@@ -210,19 +231,13 @@ public final class ParameterResolver {
     return types;
   }
 
-  private SqlNode getSqlNode(ImmutableList<DremioToken> tokens, ImmutableList<DremioToken> fromClause) {
-    ImmutableList<DremioToken> modifiedQueryTokens = new ImmutableList.Builder<DremioToken>()
-      .add(DremioTokens.SELECT)
-      .addAll(tokens)
-      .addAll(fromClause)
-      .build();
-
-    String text = SqlQueryUntokenizer.untokenize(modifiedQueryTokens);
-    SqlNode sqlNode = queryParser.parse(text);
+  private SqlNode getSqlNode(ImmutableList<DremioToken> tokens, FromClause fromClause) {
+    String queryText = QueryBuilder.build(tokens, fromClause);
+    SqlNode sqlNode = queryParser.toSqlNode(queryText);
     return ((SqlSelect) sqlNode).getSelectList().get(0);
   }
 
-  private SqlTypeName deriveSqlNodeType(SqlNode sqlNode, Set<Column> columns) {
+  private SqlTypeName deriveSqlNodeType(SqlNode sqlNode, Set<ColumnAndTableAlias> columns) {
     SqlTypeName type;
     if (sqlNode instanceof SqlLiteral) {
       SqlLiteral sqlLiteral = (SqlLiteral) sqlNode;
@@ -239,12 +254,15 @@ public final class ParameterResolver {
     } else if (sqlNode instanceof SqlIdentifier) {
       SqlIdentifier sqlIdentifier = (SqlIdentifier) sqlNode;
       String name = sqlIdentifier.names.get(sqlIdentifier.names.size() - 1);
-      Optional<Column> optionalColumn = columns
+      Optional<ColumnAndTableAlias> optionalColumn = columns
         .stream()
-        .filter(column -> column.getName().equalsIgnoreCase(name))
+        .filter(column -> column.getColumn().getName().equalsIgnoreCase(name))
         .findAny();
+      if (!optionalColumn.isPresent()) {
+        throw new RuntimeException("FAILED TO FIND COLUMN WITH NAME: " + name);
+      }
 
-      type = optionalColumn.get().getType().getSqlTypeName();
+      type = optionalColumn.get().getColumn().getType();
     } else {
       throw new RuntimeException("Cannot derive SqlNode with kind: " + sqlNode.getKind());
     }
@@ -252,49 +270,63 @@ public final class ParameterResolver {
     return type;
   }
 
-  private Resolutions resolveImplementation(
-    SqlFunction sqlFunction,
+  private Result resolveImplementation(
+    Function function,
     ImmutableList<SqlTypeName> typePrefix,
-    ImmutableSet<Column> columns) {
-    Set<Column> resolvedColumns = columns
+    ImmutableSet<ColumnAndTableAlias> columns) {
+    Set<ColumnAndTableAlias> resolvedColumns = columns
       .stream()
-      .filter(column -> hasMatchingSignatures(
-        sqlFunction,
-        typePrefix,
-        column.getType().getSqlTypeName()))
+      .filter(column -> {
+        if (function.getSignatures().isEmpty()) {
+          return true;
+        }
+
+        return hasMatchingSignatures(
+          function,
+          typePrefix,
+          column.getColumn().getType());
+      })
       .collect(Collectors.toSet());
 
-    Set<SqlFunction> resolvedFunctions = sqlFunctionDictionary
+    Set<Function> resolvedFunctions = functionDictionary
       .getValues()
       .stream()
-      .filter(subFunction -> getPossibleReturnTypes(
-        subFunction,
-        ImmutableSet.<SqlTypeName>builder()
-          .addAll(columns
-            .stream()
-            .map(column -> column.getType().getSqlTypeName())
-            .collect(Collectors.toSet()))
-          .build())
-        .stream()
-        .filter(possibleReturnType -> hasMatchingSignatures(
-          sqlFunction,
-          typePrefix,
-          possibleReturnType))
-        .findAny()
-        .isPresent())
+      .filter(subFunction -> {
+        if (function.getSignatures().isEmpty()) {
+          return true;
+        }
+
+        return getPossibleReturnTypes(
+          subFunction,
+          ImmutableSet.<SqlTypeName>builder()
+            .addAll(columns
+              .stream()
+              .map(column -> column.getColumn().getType())
+              .collect(Collectors.toSet()))
+            .build())
+          .stream()
+          .anyMatch(possibleReturnType -> hasMatchingSignatures(
+            function,
+            typePrefix,
+            possibleReturnType));
+      })
       .collect(Collectors.toSet());
 
-    return new Resolutions(resolvedColumns, resolvedFunctions);
+    Result.Resolutions resolutions = new Result.Resolutions(resolvedColumns, resolvedFunctions);
+
+    ImmutableList<FunctionSignature> signaturesMatched = getSignaturesMatched(function, typePrefix);
+    FunctionContext functionContext = new FunctionContext(
+      function,
+      typePrefix,
+      signaturesMatched);
+
+    return new Result(resolutions, functionContext);
   }
 
-  private boolean hasMatchingSignatures(
-    SqlFunction sqlFunction,
-    ImmutableList<SqlTypeName> typesPrefix,
-    SqlTypeName candidateType) {
-    Function function = FunctionFactory.createFromSqlFunction(
-      sqlFunction,
-      this.sqlValidator,
-      this.sqlValidatorScope);
+  private static ImmutableList<FunctionSignature> getSignaturesMatched(
+    Function function,
+    ImmutableList<SqlTypeName> typesPrefix) {
+    ImmutableList.Builder<FunctionSignature> functionSignatureBuilder = new ImmutableList.Builder<>();
     for (FunctionSignature functionSignature : function.getSignatures()) {
       // This could be better with a trie
       ImmutableList<SqlTypeName> operandTypes = functionSignature.getOperandTypes();
@@ -304,7 +336,28 @@ public final class ParameterResolver {
           .subList(0, typesPrefix.size())
           .equals(typesPrefix);
         if (prefixesMatch) {
-          boolean nextOperandMatchesColumn = operandTypes.get(typesPrefix.size()) == candidateType;
+          functionSignatureBuilder.add(functionSignature);
+        }
+      }
+    }
+
+    return functionSignatureBuilder.build();
+  }
+
+  private static boolean hasMatchingSignatures(
+    Function function,
+    ImmutableList<SqlTypeName> typesPrefix,
+    SqlTypeName candidateType) {
+    for (FunctionSignature functionSignature : function.getSignatures()) {
+      // This could be better with a trie
+      ImmutableList<SqlTypeName> operandTypes = functionSignature.getOperandTypes();
+      boolean functionSignatureIsLonger = operandTypes.size() > typesPrefix.size();
+      if (functionSignatureIsLonger) {
+        boolean prefixesMatch = operandTypes
+          .subList(0, typesPrefix.size())
+          .equals(typesPrefix);
+        if (prefixesMatch) {
+          boolean nextOperandMatchesColumn = candidateType == SqlTypeName.ANY || operandTypes.get(typesPrefix.size()) == candidateType;
           if (nextOperandMatchesColumn) {
             return true;
           }
@@ -315,17 +368,13 @@ public final class ParameterResolver {
     return false;
   }
 
-  private Set<SqlTypeName> getPossibleReturnTypes(
-    SqlFunction sqlFunction,
+  private static Set<SqlTypeName> getPossibleReturnTypes(
+    Function function,
     ImmutableSet<SqlTypeName> possibleColumnTypes) {
     Set<SqlTypeName> possibleReturnTypes = new HashSet<>();
-    Function function = FunctionFactory.createFromSqlFunction(
-      sqlFunction,
-      this.sqlValidator,
-      this.sqlValidatorScope);
     for (FunctionSignature functionSignature : function.getSignatures()) {
       ImmutableList<SqlTypeName> operandTypes = functionSignature.getOperandTypes();
-      boolean allOperandsArePossible = operandTypes.stream().allMatch(operandType -> possibleColumnTypes.contains(operandType));
+      boolean allOperandsArePossible = possibleColumnTypes.containsAll(operandTypes);
       if (allOperandsArePossible) {
         possibleReturnTypes.add(functionSignature.getReturnType());
       }
@@ -335,51 +384,52 @@ public final class ParameterResolver {
   }
 
   /**
-   * The resolutions from the ParameterResolver.
+   * Result of parameter resolution.
    */
-  public static final class Resolutions {
-    private final Set<Column> columns;
-    private final Set<SqlFunction> functions;
+  public static final class Result {
+    private final Resolutions resolutions;
+    private final FunctionContext functionContext;
 
-    public Resolutions(
-      Set<Column> columns,
-      Set<SqlFunction> functions) {
-      Preconditions.checkNotNull(columns);
-      Preconditions.checkNotNull(functions);
-
-      this.columns = columns;
-      this.functions = functions;
+    public Result(
+      Resolutions resolutions,
+      FunctionContext functionContext) {
+      Preconditions.checkNotNull(resolutions);
+      this.resolutions = resolutions;
+      this.functionContext = functionContext;
     }
 
-    public Set<Column> getColumns() {
-      return columns;
+    public Resolutions getResolutions() {
+      return resolutions;
     }
 
-    public Set<SqlFunction> getFunctions() {
-      return functions;
-    }
-  }
-
-  /**
-   * Debug information for how we resolved the parameters.
-   */
-  public static final class DebugInfo {
-    private final String functionName;
-    private final List<SqlTypeName> typesUsedSoFar;
-
-    private DebugInfo(
-      String functionName,
-      List<SqlTypeName> typesUsedSoFar) {
-      this.functionName = functionName;
-      this.typesUsedSoFar = typesUsedSoFar;
+    public FunctionContext getFunctionContext() {
+      return functionContext;
     }
 
-    public String getFunctionName() {
-      return functionName;
-    }
+    /**
+     * The resolutions from the ParameterResolver.
+     */
+    public static final class Resolutions {
+      private final Set<ColumnAndTableAlias> columns;
+      private final Set<Function> functions;
 
-    public List<SqlTypeName> getTypesUsedSoFar() {
-      return typesUsedSoFar;
+      public Resolutions(
+        Set<ColumnAndTableAlias> columns,
+        Set<Function> functions) {
+        Preconditions.checkNotNull(columns);
+        Preconditions.checkNotNull(functions);
+
+        this.columns = columns;
+        this.functions = functions;
+      }
+
+      public Set<ColumnAndTableAlias> getColumns() {
+        return columns;
+      }
+
+      public Set<Function> getFunctions() {
+        return functions;
+      }
     }
   }
 }

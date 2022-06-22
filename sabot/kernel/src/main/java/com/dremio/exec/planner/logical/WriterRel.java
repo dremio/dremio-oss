@@ -20,9 +20,11 @@ import java.util.List;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.exec.planner.common.WriterRelBase;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 
 public class WriterRel extends WriterRelBase implements Rel {
 
@@ -31,6 +33,9 @@ public class WriterRel extends WriterRelBase implements Rel {
   public WriterRel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, CreateTableEntry createTableEntry, RelDataType expectedInboundRowType) {
     super(LOGICAL, cluster, traitSet, input, createTableEntry);
     this.expectedInboundRowType = expectedInboundRowType;
+    if (DmlUtils.isInsertOperation(createTableEntry)) {
+      rowType = DmlUtils.evaluateOutputRowType(getCluster(), TableModify.Operation.INSERT);
+    }
   }
 
   @Override

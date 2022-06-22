@@ -13,36 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import ImmutablePropTypes from 'react-immutable-proptypes';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import ImmutablePropTypes from "react-immutable-proptypes";
 
-import { connect } from 'react-redux';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import isEmpty from 'lodash/isEmpty';
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import isEmpty from "lodash/isEmpty";
 
-import { getViewState } from 'selectors/resources';
-import { getExploreState } from '@app/selectors/explore';
+import { getViewState } from "selectors/resources";
+import { getExploreState } from "@app/selectors/explore";
 
-import dataStoreUtils from 'utils/dataStoreUtils';
-import exploreUtils from 'utils/explore/exploreUtils';
+import dataStoreUtils from "utils/dataStoreUtils";
+import exploreUtils from "utils/explore/exploreUtils";
 
 import {
   loadTransformCards,
   loadTransformCardPreview,
   loadTransformValuesPreview,
-  LOAD_TRANSFORM_CARDS_VIEW_ID
-} from 'actions/explore/recommended';
-import { resetViewState } from 'actions/resources';
+  LOAD_TRANSFORM_CARDS_VIEW_ID,
+} from "actions/explore/recommended";
+import { resetViewState } from "actions/resources";
 
-import { MAP, LIST } from '@app/constants/DataTypes';
+import { MAP, LIST } from "@app/constants/DataTypes";
 
-import TransformView from './TransformView';
+import TransformView from "./TransformView";
 
-@Radium
 export class Transform extends PureComponent {
-
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     submit: PropTypes.func.isRequired,
@@ -53,7 +50,7 @@ export class Transform extends PureComponent {
     // connected
     transform: ImmutablePropTypes.contains({
       transformType: PropTypes.string,
-      columnType: PropTypes.string.isRequired
+      columnType: PropTypes.string,
     }),
     sqlSize: PropTypes.number,
     cardsViewState: PropTypes.instanceOf(Immutable.Map),
@@ -63,40 +60,44 @@ export class Transform extends PureComponent {
     loadTransformCards: PropTypes.func.isRequired,
     loadTransformCardPreview: PropTypes.func.isRequired,
     loadTransformValuesPreview: PropTypes.func.isRequired,
-    resetViewState: PropTypes.func
+    resetViewState: PropTypes.func,
   };
 
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
     this.subTitles = dataStoreUtils.getSubtypeForTransformTab();
     this.loadTransformCardPreview = this.loadTransformCardPreview.bind(this);
-    this.loadTransformValuesPreview = this.loadTransformValuesPreview.bind(this);
+    this.loadTransformValuesPreview =
+      this.loadTransformValuesPreview.bind(this);
   }
 
   componentDidMount() {
     this.props.resetViewState(LOAD_TRANSFORM_CARDS_VIEW_ID);
-    this.loadTransformCards(this.props).then((action) => {
+    return this.loadTransformCards(this.props).then((action) => {
       if (!action) {
         return;
       }
 
       const { transform, location } = this.props;
-      if (transform.get('method') === 'Values' && action.payload.values) {
-        const allUnique = action.payload.values.availableValues.every((item) => item.count === 1);
+      if (transform.get("method") === "Values" && action.payload.values) {
+        const allUnique = action.payload.values.availableValues.every(
+          (item) => item.count === 1
+        );
         if (allUnique) {
           this.context.router.replace({
             ...location,
             state: {
               ...location.state,
-              method: 'Pattern'
-            }
+              method: "Pattern",
+            },
           });
         }
       }
+      return null;
     });
   }
 
@@ -108,7 +109,7 @@ export class Transform extends PureComponent {
 
   loadTransformCardPreview(index, model) {
     const { transform } = this.props;
-    const columnName = transform.get('columnName');
+    const columnName = transform.get("columnName");
 
     const selection = exploreUtils.transformHasSelection(transform)
       ? { columnName }
@@ -116,60 +117,82 @@ export class Transform extends PureComponent {
     const actionType = this.transformTypeURLMapper(transform);
     const data = {
       selection,
-      rule: model
+      rule: model,
     };
-    return this.props.loadTransformCardPreview(data, transform, this.props.dataset, actionType, index);
+    return this.props.loadTransformCardPreview(
+      data,
+      transform,
+      this.props.dataset,
+      actionType,
+      index
+    );
   }
 
   loadTransformCards(props) {
     const { transform } = props;
-    const method = transform.get('method');
+    const method = transform.get("method");
     if (
-      exploreUtils.needSelection(method) && !exploreUtils.transformHasSelection(transform) ||
+      (exploreUtils.needSelection(method) &&
+        !exploreUtils.transformHasSelection(transform)) ||
       !exploreUtils.needsToLoadCardFormValuesFromServer(transform)
     ) {
       return Promise.resolve();
     }
 
-    const transformSelection = transform.get('selection').toJS();
-    const columnName = transform.get('columnName');
+    const transformSelection = transform.get("selection").toJS();
+    const columnName = transform.get("columnName");
     const actionType = this.transformTypeURLMapper(transform);
-    const selection = !isEmpty(transformSelection) ? transformSelection : exploreUtils.getDefaultSelection(columnName);
-    return props.loadTransformCards(selection, transform, this.props.dataset, actionType);
+    const selection = !isEmpty(transformSelection)
+      ? transformSelection
+      : exploreUtils.getDefaultSelection(columnName);
+    return props.loadTransformCards(
+      selection,
+      transform,
+      this.props.dataset,
+      actionType
+    );
   }
 
   loadTransformValuesPreview(values) {
     const { transform } = this.props;
-    const transformType = transform.get('transformType');
-    const columnName = transform.get('columnName');
+    const transformType = transform.get("transformType");
+    const columnName = transform.get("columnName");
 
     const selection = !exploreUtils.transformHasSelection(transform)
       ? { columnName }
-      : transform.get('selection') && transform.get('selection').toJS();
+      : transform.get("selection") && transform.get("selection").toJS();
 
     const data = {
       selection,
-      values
+      values,
     };
-    this.props.loadTransformValuesPreview(data, transform, this.props.dataset, transformType);
+    this.props.loadTransformValuesPreview(
+      data,
+      transform,
+      this.props.dataset,
+      transformType
+    );
   }
 
   handleTransformChange = (newTransform) => {
-    const {location} = this.props;
-    this.context.router.push({...location, state: newTransform.toJS()});
+    const { location } = this.props;
+    this.context.router.push({ ...location, state: newTransform.toJS() });
   };
 
   transformTypeURLMapper(transform) {
-    const transformType = transform.get('transformType');
-    const columnType = transform.get('columnType');
+    const transformType = transform.get("transformType");
+    const columnType = transform.get("columnType");
 
-    if (transformType === 'split') {
+    if (transformType === "split") {
       return transformType;
     }
     switch (columnType) {
-    case MAP: return `${transformType}_map`;
-    case LIST: return `${transformType}_list`;
-    default: return transformType;
+      case MAP:
+        return `${transformType}_map`;
+      case LIST:
+        return `${transformType}_list`;
+      default:
+        return transformType;
     }
   }
 
@@ -194,11 +217,7 @@ export class Transform extends PureComponent {
   }
 
   render() {
-    return (
-      <div>
-        { this.renderContent() }
-      </div>
-    );
+    return <div>{this.renderContent()}</div>;
   }
 }
 
@@ -207,9 +226,9 @@ function mapStateToProps(state) {
   const transform = exploreUtils.getTransformState(location);
   return {
     transform,
-    sqlSize: getExploreState(state).ui.get('sqlSize'),
+    sqlSize: getExploreState(state).ui.get("sqlSize"),
     cardsViewState: getViewState(state, LOAD_TRANSFORM_CARDS_VIEW_ID),
-    location
+    location,
   };
 }
 
@@ -217,5 +236,5 @@ export default connect(mapStateToProps, {
   loadTransformCards,
   loadTransformCardPreview,
   loadTransformValuesPreview,
-  resetViewState
+  resetViewState,
 })(Transform);

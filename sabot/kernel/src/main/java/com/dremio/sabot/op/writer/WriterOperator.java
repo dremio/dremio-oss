@@ -74,6 +74,7 @@ public class WriterOperator implements SingleInputOperator {
   private IntVector partitionNumberVector;
   private VarBinaryVector schemaVector;
   private ListVector partitionDataVector;
+  private IntVector operationTypeVector;
 
   private PartitionWriteManager partitionManager;
 
@@ -127,6 +128,7 @@ public class WriterOperator implements SingleInputOperator {
     icebergMetadataVector = output.addOrGet(RecordWriter.ICEBERG_METADATA);
     schemaVector = output.addOrGet(RecordWriter.FILE_SCHEMA);
     partitionDataVector  = output.addOrGet(RecordWriter.PARTITION_DATA);
+    operationTypeVector = output.addOrGet(RecordWriter.OPERATION_TYPE);
     output.buildSchema();
     output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
@@ -237,6 +239,10 @@ public class WriterOperator implements SingleInputOperator {
 
       fileSizeVector.setSafe(i, e.fileSize);
 
+      if(e.operationType != null) {
+        operationTypeVector.setSafe(i, e.operationType);
+      }
+
       i++;
     }
 
@@ -301,8 +307,16 @@ public class WriterOperator implements SingleInputOperator {
     private final List<OutputEntry> entries = new ArrayList<>();
 
     @Override
-    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partitions) {
-      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema, partitions));
+    public void recordsWritten(long recordCount,
+                               long fileSize,
+                               String path,
+                               byte[] metadata,
+                               Integer partitionNumber,
+                               byte[] icebergMetadata,
+                               byte[] schema,
+                               Collection<IcebergPartitionData> partitions,
+                               Integer operationType) {
+      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema, partitions, operationType));
     }
 
   }
@@ -323,8 +337,17 @@ public class WriterOperator implements SingleInputOperator {
     private final byte[] schema;
     private final Integer partitionNumber;
     private final Collection<IcebergPartitionData> partitions;
+    private final Integer operationType;
 
-    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, byte[] icebergMetadata, Integer partitionNumber, byte[] schema, Collection<IcebergPartitionData> partitions) {
+    OutputEntry(long recordCount,
+                long fileSize,
+                String path,
+                byte[] metadata,
+                byte[] icebergMetadata,
+                Integer partitionNumber,
+                byte[] schema,
+                Collection<IcebergPartitionData> partitions,
+                Integer operationType) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
@@ -333,6 +356,7 @@ public class WriterOperator implements SingleInputOperator {
       this.partitionNumber = partitionNumber;
       this.schema = schema;
       this.partitions = partitions;
+      this.operationType = operationType;
     }
 
   }

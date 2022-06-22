@@ -130,7 +130,7 @@ public class UserResource {
     checkUser(userName, "create");
     User activeUser = SimpleUser.newBuilder(userForm.getUserConfig()).setActive(true).build();
     User newUser = com.dremio.dac.api.UserResource.addUser(activeUser, userForm.getPassword(),
-      userService, namespaceService);
+      userService, namespaceService, this.securityContext);
 
     return new UserUI(new UserResourcePath(userName), userName, newUser);
   }

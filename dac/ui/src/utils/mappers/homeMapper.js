@@ -13,23 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
 // todo: real classes and computed getters. encapsulation!
 // todo: change loadSource() to use normalizr. Make server/client models consistent.
 
 class HomeMapper {
-
   decorateSource(source) {
     const uiProperties = Immutable.Map({
-      id: source.get('id'),
-      iconClass: 'Database',
+      id: source.get("id"),
+      iconClass: "Database",
       isActivePin: false,
-      href: source.get('resourcePath'),
+      href: source.get("resourcePath"),
       links: Immutable.Map({
-        self: source.get('resourcePath')
+        self: source.get("resourcePath"),
       }),
-      isFile: false
+      isFile: false,
     });
     return source.merge(uiProperties);
   }

@@ -19,6 +19,8 @@ import java.util.List;
 
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.model.job.QueryError;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -48,17 +50,23 @@ public class InvalidQueryException extends IllegalArgumentException {
     private final List<String> context;
     private final List<QueryError> errors;
     private final DatasetSummary datasetSummary;
+    private final JobId jobId;
+    private final SessionId sessionId;
 
     @JsonCreator
     public Details(
         @JsonProperty("sql") String sql,
         @JsonProperty("context") List<String> context,
         @JsonProperty("errors") List<QueryError> errors,
-        @JsonProperty("datasetSummary") DatasetSummary datasetSummary) {
+        @JsonProperty("datasetSummary") DatasetSummary datasetSummary,
+        @JsonProperty("jobId") JobId jobId,
+        @JsonProperty("sessionId") SessionId sessionId) {
       this.sql = sql;
       this.context = context;
       this.errors = errors;
       this.datasetSummary = datasetSummary;
+      this.jobId = jobId;
+      this.sessionId = sessionId;
     }
 
     public String getSql() {
@@ -74,5 +82,13 @@ public class InvalidQueryException extends IllegalArgumentException {
     }
 
     public DatasetSummary getDatasetSummary() { return datasetSummary; }
+
+    public JobId getJobId() {
+      return jobId;
+    }
+
+    public SessionId getSessionId() {
+      return sessionId;
+    }
   }
 }

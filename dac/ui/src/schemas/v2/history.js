@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema, arrayOf } from 'normalizr';
+import { Schema, arrayOf } from "normalizr";
 
-import historyItem from './historyItem';
+import historyItem from "./historyItem";
 
-const history = new Schema('history', {
-  idAttribute: 'tipVersion'
+const history = new Schema("history", {
+  idAttribute: "tipVersion",
 });
 
 history.define({
-  items: arrayOf(historyItem)
+  items: arrayOf(historyItem),
 });
 
 export default history;

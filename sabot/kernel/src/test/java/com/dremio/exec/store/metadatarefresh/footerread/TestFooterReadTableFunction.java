@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -60,6 +61,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -165,13 +167,16 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
 
+      IntVector outputOperationType = (IntVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
+
       VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
 
       tableFunction.startRow(0);
       assertEquals(1, tableFunction.processRow(0, 5));
 
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), file0Schema, file0PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      verifyOutput(outputDatafileVector.get(0), outputOperationType.get(0), outputSchemaVector.get(0), file0Schema, file0PartitionData, OperationType.ADD_DATAFILE);
 
       assertEquals(0, tableFunction.processRow(1, 5)); // one input row returns at most output 1 row
       tableFunction.closeRow();
@@ -183,26 +188,26 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       incomingRow.accept(getFullPath("int96.parquet", FileType.PARQUET), 431L, currentTime, 0, false);
       tableFunction.startRow(0);
       assertEquals(1, tableFunction.processRow(0, 5));
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), deletedFile0Schema, file0PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE);
+      verifyOutput(outputDatafileVector.get(0), outputOperationType.get(0), outputSchemaVector.get(0), deletedFile0Schema, file0PartitionData, OperationType.DELETE_DATAFILE);
       tableFunction.closeRow();
 
       tableFunction.startRow(1);
       assertEquals(1, tableFunction.processRow(1, 5));
-      verifyOutput(outputDatafileVector.get(1), outputSchemaVector.get(1),
+      verifyOutput(outputDatafileVector.get(1), outputOperationType.get(1), outputSchemaVector.get(1),
         BatchSchema.of(Field.nullable("EXPR$0", new ArrowType.Decimal(32, 20, 128))),
-        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
       tableFunction.closeRow();
 
       //Validate output for Deleted File at index 1
       incomingRow.accept(getFullPath("decimals.parquet", FileType.PARQUET), 12219L, currentTime, 1, false);
       tableFunction.startRow(1);
       assertEquals(1, tableFunction.processRow(1, 5));
-      verifyOutput(outputDatafileVector.get(1), outputSchemaVector.get(1), BatchSchema.EMPTY, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE);
+      verifyOutput(outputDatafileVector.get(1), outputOperationType.get(1), outputSchemaVector.get(1), BatchSchema.EMPTY, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.DELETE_DATAFILE);
       tableFunction.closeRow();
 
       tableFunction.startRow(2);
       assertEquals(1, tableFunction.processRow(2, 5));
-      verifyOutput(outputDatafileVector.get(2), outputSchemaVector.get(2), file2Schema, file2PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      verifyOutput(outputDatafileVector.get(2), outputOperationType.get(2), outputSchemaVector.get(2), file2Schema, file2PartitionData, OperationType.ADD_DATAFILE);
       tableFunction.closeRow();
 
       //Validate output for Deleted File at index 2
@@ -212,7 +217,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       incomingRow.accept(getFullPath("intTypes/int_8.parquet", FileType.PARQUET), 343L, currentTime, 2, false);
       tableFunction.startRow(2);
       assertEquals(1, tableFunction.processRow(2, 5));
-      verifyOutput(outputDatafileVector.get(2), outputSchemaVector.get(2), deletedFile2Schema, file2PartitionData, IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE);
+      verifyOutput(outputDatafileVector.get(2), outputOperationType.get(2), outputSchemaVector.get(2), deletedFile2Schema, file2PartitionData, OperationType.DELETE_DATAFILE);
       tableFunction.closeRow();
 
       // empty parquet, outputs 0 rows
@@ -254,13 +259,16 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
 
+      IntVector outputOperationType = (IntVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
+
       VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
 
       tableFunction.startRow(0);
 
       assertEquals(1, tableFunction.processRow(0, 5));
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0), tableSchema, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      verifyOutput(outputDatafileVector.get(0), outputOperationType.get(0), outputSchemaVector.get(0), tableSchema, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
     }
     catch (Exception e) {
       e.printStackTrace();
@@ -282,14 +290,17 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
 
+      IntVector outputOperationType = (IntVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
+
       VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
 
       tableFunction.startRow(0);
       assertEquals(1, tableFunction.processRow(0, 5));
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0),
+      verifyOutput(outputDatafileVector.get(0), outputOperationType.get(0), outputSchemaVector.get(0),
         BatchSchema.of(Field.nullable("col1", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), Field.nullable("col2", new ArrowType.Utf8())),
-        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
       tableFunction.closeRow();
     } catch (Exception e) {
       fail(e.getMessage());
@@ -319,12 +330,15 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
 
+      IntVector outputOperationType = (IntVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
+
       VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
         MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
 
       tableFunction.startRow(0);
       assertEquals(1, tableFunction.processRow(0, 5));
-      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0),
+      verifyOutput(outputDatafileVector.get(0), outputOperationType.get(0), outputSchemaVector.get(0),
         BatchSchema.of(Field.nullable("id", new ArrowType.Utf8()),
           Field.nullable("count", new ArrowType.Int(32, true)),
           Field.nullable("creationTime", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
@@ -344,7 +358,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
           Field.nullable("status", new ArrowType.Utf8()),
           Field.nullable("text", new ArrowType.Utf8()),
           Field.nullable("type", new ArrowType.Utf8())),
-        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
       tableFunction.closeRow();
     } catch (Exception e) {
       fail(e.getMessage());
@@ -369,12 +383,12 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     assertTrue(footer.getRowCount() > file1RowCount);
   }
 
-  private void verifyOutput(byte[] outputDataFileBinary, byte[] outputSchemaBinary, BatchSchema expectedSchema,
-                            IcebergPartitionData expectedPartitionData, IcebergMetadataInformation.IcebergMetadataFileType metadataFileType) throws IOException, ClassNotFoundException {
+  private void verifyOutput(byte[] outputDataFileBinary, Integer operationTypeValue, byte[] outputSchemaBinary, BatchSchema expectedSchema,
+                            IcebergPartitionData expectedPartitionData, OperationType expectedOperationType) throws IOException, ClassNotFoundException {
     BatchSchema actualSchema = BatchSchema.deserialize(outputSchemaBinary);
     assertTrue(expectedSchema.equalsTypesWithoutPositions(actualSchema));
     IcebergMetadataInformation icebergMetaInfo = IcebergSerDe.deserializeFromByteArray(outputDataFileBinary);
-    assertEquals(metadataFileType, icebergMetaInfo.getIcebergMetadataFileType());
+    assertEquals(expectedOperationType, OperationType.valueOf(operationTypeValue));
     DataFile actualDataFile = IcebergSerDe.deserializeDataFile(icebergMetaInfo.getIcebergMetadataFileByte());
     int partitions = actualDataFile.partition().size();
     assertEquals(expectedPartitionData.size(), actualDataFile.partition().size());
@@ -449,4 +463,3 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     void accept(A path, B size, C mTime, D index, E isAdded);
   }
 }
-

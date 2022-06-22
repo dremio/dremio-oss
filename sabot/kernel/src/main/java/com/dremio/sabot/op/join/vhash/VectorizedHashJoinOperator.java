@@ -67,6 +67,7 @@ import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.RuntimeFilterManager;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
+import com.dremio.exec.util.ValueListWithBloomFilter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
@@ -316,13 +317,22 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       i++;
     }
 
+    Preconditions.checkState(buildFields.size() != 0);
+    Preconditions.checkState(probeFields.size() != 0);
     this.probePivot = PivotBuilder.getBlockDefinition(probeFields);
     this.buildPivot = PivotBuilder.getBlockDefinition(buildFields);
 
     this.comparator = new NullComparator(requiredBits, probePivot.getBitCount());
 
-    Preconditions.checkArgument(probePivot.getBlockWidth() == buildPivot.getBlockWidth(), "Block width of build [%s] and probe pivots are not equal [%s].", buildPivot.getBlockWidth(), probePivot.getBlockWidth());
-    Preconditions.checkArgument(probePivot.getBitCount() == buildPivot.getBitCount(), "Bit width of build [%s] and probe pivots are not equal [%s].", buildPivot.getBitCount(), probePivot.getBitCount());
+    Preconditions.checkArgument(probePivot.getBlockWidth() == buildPivot.getBlockWidth(),
+      "Block width of build [%s] and probe pivots are not equal [%s].",
+      buildPivot.getBlockWidth(), probePivot.getBlockWidth());
+    Preconditions.checkArgument(probePivot.getVariableCount() == buildPivot.getVariableCount(),
+      "Variable column count of build [%s] and probe pivots are not equal [%s].",
+      buildPivot.getVariableCount(), probePivot.getVariableCount());
+    Preconditions.checkArgument(probePivot.getBitCount() == buildPivot.getBitCount(),
+      "Bit width of build [%s] and probe pivots are not equal [%s].",
+      buildPivot.getBitCount(), probePivot.getBitCount());
 
     this.mode = mode;
     switch(mode){
@@ -808,9 +818,14 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
               probeTarget.getNonPartitionBuildTableKeys().get(colId), runtimeValFilterCap);
       if (valueListFilter.isPresent()) {
         closeOnErr.add(valueListFilter.get());
+
+        ExecProtos.RuntimeFilterType type = ExecProtos.RuntimeFilterType.VALUE_LIST;
+        if(valueListFilter.get() instanceof ValueListWithBloomFilter) {
+          type = ExecProtos.RuntimeFilterType.VALUE_LIST_WITH_BLOOM_FILTER;
+        }
         final CompositeColumnFilter nonPartitionColFilter = CompositeColumnFilter.newBuilder()
                 .addColumns(probeTarget.getNonPartitionProbeTableKeys().get(colId))
-                .setFilterType(ExecProtos.RuntimeFilterType.VALUE_LIST)
+                .setFilterType(type)
                 .setValueCount(valueListFilter.get().getValueCount())
                 .setSizeBytes(valueListFilter.get().getSizeInBytes()).build();
         runtimeFilterBuilder.addNonPartitionColumnFilter(nonPartitionColFilter);

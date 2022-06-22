@@ -74,6 +74,11 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         entity = CompoundIdentifier();
       }
       |
+      (<FUNCTION>) {
+        grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FUNCTION, getPos()));
+        entity = CompoundIdentifier();
+      }
+      |
       (<FOLDER> | <SCHEMA>) {
         grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FOLDER, getPos()));
         entity = CompoundIdentifier();
@@ -260,6 +265,33 @@ void Privilege(List<SqlNode> list) :
     <CREATE> <EXTERNAL> <TOKENS> <PROVIDER>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_EXTERNAL_TOKENS_PROVIDER, getPos())); }
     |
+    <INSERT>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.INSERT, getPos())); }
+    |
+    <TRUNCATE>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.TRUNCATE, getPos())); }
+    |
+    <DELETE>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.DELETE, getPos())); }
+    |
+    <UPDATE>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.UPDATE, getPos())); }
+    |
+    <CREATE> <USER>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_USER, getPos())); }
+    |
+    <CREATE> <ROLE>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_ROLE, getPos())); }
+    |
+    <EXECUTE>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.EXECUTE, getPos())); }
+    |
+    <CREATE> <SOURCE>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.CREATE_SOURCE, getPos())); }
+    |
+    <UPLOAD>
+    { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.UPLOAD_FILE, getPos())); }
+    |
     <ALL>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.ALL, getPos())); }
   )
@@ -299,6 +331,11 @@ SqlNode SqlRevoke() :
       |
       (<VDS> | <VIEW>) {
         grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.VDS, getPos()));
+        entity = CompoundIdentifier();
+      }
+      |
+      (<FUNCTION>) {
+        grant = new SqlGrant.Grant(SqlLiteral.createSymbol(SqlGrant.GrantType.FUNCTION, getPos()));
         entity = CompoundIdentifier();
       }
       |
@@ -421,6 +458,11 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
     |
     (<VDS> | <VIEW>) {
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.VDS, getPos()));
+      entity = CompoundIdentifier();
+    }
+    |
+    (<FUNCTION>) {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.FUNCTION, getPos()));
       entity = CompoundIdentifier();
     }
     |

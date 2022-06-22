@@ -21,10 +21,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
@@ -33,10 +35,12 @@ import org.apache.calcite.sql.parser.StringAndPos;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.dac.api.Folder;
 import com.dremio.dac.explore.model.AnalyzeRequest;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.SuggestionResponse;
@@ -49,13 +53,12 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
-import com.dremio.service.autocomplete.ImmutableAutocompleteRequest;
+import com.dremio.service.autocomplete.AutocompleteRequestImplementation;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -114,6 +117,12 @@ public class TestSQLResource extends BaseTestServer {
     expectSuccess(getBuilder(getAPIv2().path("space/testSpace")).buildPut(Entity.json(new Space(null, "testSpace", null, null, null, 0, null))), Space.class);
     DatasetPath d1Path = new DatasetPath("testSpace.supplier");
     createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
+
+    Folder newFolder = new Folder(null, Arrays.asList("testSpace", "myFolder"), null, null);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {});
+
+    DatasetPath d2Path = new DatasetPath("testSpace.myFolder.supplier");
+    createDatasetFromSQLAndSave(d2Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
   }
 
   @After
@@ -146,7 +155,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(21, returnedSuggestions.getSuggestions().size());
+    assertEquals(30, returnedSuggestions.getSuggestions().size());
   }
 
   @Test
@@ -165,7 +174,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(5, returnedSuggestions.getSuggestions().size());
+    assertEquals(7, returnedSuggestions.getSuggestions().size());
     for (int i = 0; i < 4; i++) {
       SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
       if (suggestion.getType().equals("TABLE")) {
@@ -215,15 +224,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(2, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 2; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("TABLE")) {
-        assertEquals("testSpace.supplier", suggestion.getName());
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("testSpace", suggestion.getName());
-      }
-    }
+    assertEquals(4, returnedSuggestions.getSuggestions().size());
   }
 
   @Test
@@ -560,30 +561,50 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testBasicAutocomplete() throws Exception {
     String query = "SELECT ";
-    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    String autocompleteResponse = testAutocomplete(query, query.length(), new ArrayList<>());
     Assert.assertNotNull(autocompleteResponse);
   }
 
   @Test
-  public void testCatalogEntryCompletion() throws Exception {
+  public void testCatalogEntryCompletionWithContext() {
     String query = "SELECT * FROM ";
-    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    String autocompleteResponse = testAutocomplete(query, query.length(), ImmutableList.of("testSpace"));
     Assert.assertNotNull(autocompleteResponse);
     Assert.assertTrue(autocompleteResponse.contains("CatalogEntry"));
+    Assert.assertTrue(autocompleteResponse.contains("supplier"));
   }
 
   @Test
-  public void testColumnCompletion() throws Exception {
+  public void testColumnCompletion() {
     String query = "SELECT  FROM testSpace.supplier";
-    String autocompleteResponse = testAutocomplete(query, 6);
+    String autocompleteResponse = testAutocomplete(query, 7, new ArrayList<>());
     Assert.assertNotNull(autocompleteResponse);
     Assert.assertTrue(autocompleteResponse.contains("Column"));
   }
 
   @Test
+  @Ignore
+  public void testColumnCompletionWithNessie() {
+    String query = "SELECT  FROM testSpace.supplier AT BRANCH branchA";
+    String autocompleteResponse = testAutocomplete(query, 7, new ArrayList<>());
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("Column"));
+  }
+
+  @Test
+  public void testColumnCompletionWithContext() throws Exception {
+    String query = "SELECT  FROM supplier";
+    String autocompleteResponse = testAutocomplete(query, 7, ImmutableList.of("testSpace", "myFolder"));
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("Column"));
+    Assert.assertTrue(autocompleteResponse.contains("supplier"));
+    Assert.assertTrue(autocompleteResponse.contains("s_name"));
+  }
+
+  @Test
   public void testFunctionCompletion() throws Exception {
     String query = "SELECT * FROM testSpace.supplier WHERE AB";
-    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    String autocompleteResponse = testAutocomplete(query, query.length(), new ArrayList<>());
     Assert.assertNotNull(autocompleteResponse);
     Assert.assertTrue(autocompleteResponse.contains("Function"));
   }
@@ -591,9 +612,19 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testFunctionCompletion2() throws Exception {
     String query = "SELECT * FROM testSpace.supplier WHERE ABS(";
-    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    String autocompleteResponse = testAutocomplete(query, query.length(), new ArrayList<>());
     Assert.assertNotNull(autocompleteResponse);
     Assert.assertTrue(autocompleteResponse.contains("Column"));
+  }
+
+  @Test
+  public void testFolderRegression() throws Exception {
+    String query = "SELECT * FROM testSpace.";
+    String autocompleteResponse = testAutocomplete(query, query.length(), new ArrayList<>());
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("CatalogEntry"));
+    Assert.assertTrue(autocompleteResponse.contains("myFolder"));
+    Assert.assertTrue(autocompleteResponse.contains("Folder"));
   }
 
   public SuggestionResponse testSuggestSQL(String queryString, int cursorPos, List<String> context) throws Exception {
@@ -605,7 +636,7 @@ public class TestSQLResource extends BaseTestServer {
     );
   }
 
-  public ValidationResponse testValidateSQL(String queryString, int cursorPos, List<String> context) throws Exception {
+  public ValidationResponse testValidateSQL(String queryString, int cursorPos, List<String> context) {
     final String endpoint = "/sql/analyze/validate";
 
     return expectSuccess(
@@ -614,20 +645,16 @@ public class TestSQLResource extends BaseTestServer {
     );
   }
 
-  private String testAutocomplete(String queryString, int cursorPos) throws JsonProcessingException {
+  private String testAutocomplete(String queryString, int cursorPos, List<String> context) {
     final String endpoint = "/sql/autocomplete";
 
     Response response = expectSuccess(
       getBuilder(getAPIv2().path(endpoint))
           .buildPost(
             Entity.entity(
-              ImmutableAutocompleteRequest.builder()
-                .query(queryString)
-                .cursor(cursorPos)
-                .build(),
+              new AutocompleteRequestImplementation(queryString, context, cursorPos),
               MediaType.APPLICATION_JSON_TYPE)));
     String json = response.readEntity(String.class);
     return json;
   }
 }
-

@@ -20,9 +20,14 @@ import java.sql.Date;
 import java.sql.ResultSetMetaData;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.joda.time.Period;
 
@@ -104,8 +109,24 @@ public class PreparedStatementProvider {
     final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
     prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
 
-    // Capture flatbuffer arrow schema representation of fields for use by some clients.
+    final Schema arrowSchema = buildArrowSchema(batchSchema);
+
+    return getCreatePreparedStatementArrowResp(arrowSchema, prepStmtBuilder, respBuilder, queryId);
+  }
+
+  public static CreatePreparedStatementArrowResp buildArrow(BatchSchema batchSchema, ServerPreparedStatementState handle,
+                                                  QueryId queryId) {
+    final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
+    final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
+    prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
+
     final Schema arrowSchema = new Schema(batchSchema.getFields());
+
+    return getCreatePreparedStatementArrowResp(arrowSchema, prepStmtBuilder, respBuilder, queryId);
+  }
+
+  private static CreatePreparedStatementArrowResp getCreatePreparedStatementArrowResp(Schema arrowSchema, PreparedStatementArrow.Builder prepStmtBuilder, CreatePreparedStatementArrowResp.Builder respBuilder, QueryId queryId) {
+    // Capture flatbuffer arrow schema representation of fields for use by some clients.
     prepStmtBuilder.setArrowSchema(ByteString.copyFrom(arrowSchema.toByteArray()));
 
     respBuilder.setStatus(RequestStatus.OK);
@@ -115,21 +136,63 @@ public class PreparedStatementProvider {
     return respBuilder.build();
   }
 
-  public static CreatePreparedStatementArrowResp buildArrow(BatchSchema batchSchema, ServerPreparedStatementState handle,
-                                                  QueryId queryId) {
-    final CreatePreparedStatementArrowResp.Builder respBuilder = CreatePreparedStatementArrowResp.newBuilder();
-    final PreparedStatementArrow.Builder prepStmtBuilder = PreparedStatementArrow.newBuilder();
-    prepStmtBuilder.setServerHandle(PreparedStatementHandle.newBuilder().setServerInfo(handle.toByteString()));
+  /**
+   * Recreates a {@link Schema} while adding {@link Field} metadata.
+   *
+   * @param schema      the current schema
+   * @return a {@link Schema} filled with ColumnMetadata
+   */
+  private static Schema buildArrowSchema(final Schema schema) {
+    final List<Field> newFields = new ArrayList<>();
+    for (final Field field : schema.getFields()) {
+      newFields.add(
+        new Field(
+          field.getName(),
+          new FieldType(
+            field.isNullable(),
+            field.getType(),
+            field.getDictionary(),
+            createTempFieldMetadata(field.getType())),
+          field.getChildren()));
+    }
 
-    // Capture flatbuffer arrow schema representation of fields for use by some clients.
-    final Schema arrowSchema = new Schema(batchSchema.getFields());
-    prepStmtBuilder.setArrowSchema(ByteString.copyFrom(arrowSchema.toByteArray()));
+    return new Schema(newFields);
+  }
 
-    respBuilder.setStatus(RequestStatus.OK);
-    respBuilder.setPreparedStatement(prepStmtBuilder.build());
-    respBuilder.setQueryId(queryId);
+  /**
+   * Creates Field Metadata to be used by the Flight Service in the context of ColumnMetadata.
+   *
+   * @param arrowType   {@link Field}'s {@link ArrowType}
+   * @return a map representing FlightSqlColumnMetadata
+   */
+  private static Map<String, String> createTempFieldMetadata(final ArrowType arrowType) {
+    final Map<String, String> flightSqlColumnMetadata = new HashMap<String, String>() {
+      {
+        put("TYPE_NAME", "");
+        put("SCHEMA_NAME", "");
+        put("TABLE_NAME", "");
+        put("IS_AUTO_INCREMENT", "false");
+        put("IS_CASE_SENSITIVE", "false");
+        put("IS_READ_ONLY", "true");
+        put("IS_SEARCHABLE", "true");
+      }
+    };
 
-    return respBuilder.build();
+    if (arrowType != null) {
+      final CompleteType type = new CompleteType(arrowType);
+
+      Integer precision = type.getPrecision();
+      if (precision != null){
+        flightSqlColumnMetadata.put("PRECISION", precision.toString());
+      }
+
+      Integer scale = type.getScale();
+      if (scale != null){
+        flightSqlColumnMetadata.put("SCALE", scale.toString());
+      }
+    }
+
+    return flightSqlColumnMetadata;
   }
 
   /**

@@ -13,69 +13,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import exploreUtils from 'utils/explore/exploreUtils';
-import fullDatasetSchema from 'schemas/v2/fullDataset';
-import { constructFullPath } from 'utils/pathUtils';
+import exploreUtils from "utils/explore/exploreUtils";
+import fullDatasetSchema from "schemas/v2/fullDataset";
+import { constructFullPath } from "utils/pathUtils";
 
-import { RSAA } from 'redux-api-middleware';
-import { APIV2Call } from '@app/core/APICall';
-import { postDatasetOperation } from './dataset/common';
+import { RSAA } from "redux-api-middleware";
+import { APIV2Call } from "@app/core/APICall";
+import { postDatasetOperation } from "./dataset/common";
 
-export const UPDATE_JOIN_DATASET_VERSION = 'UPDATE_JOIN_DATASET_VERSION';
-export const CLEAR_JOIN_DATASET = 'CLEAR_JOIN_DATASET';
+export const UPDATE_JOIN_DATASET_VERSION = "UPDATE_JOIN_DATASET_VERSION";
+export const CLEAR_JOIN_DATASET = "CLEAR_JOIN_DATASET";
 
 export const loadJoinDataset = (datasetPathList, viewId) => (dispatch) => {
   // do not encode the path as getHrefForUntitledDatasetConfig will do that for us
   const fullPath = constructFullPath(datasetPathList);
   const newVersion = exploreUtils.getNewDatasetVersion();
-  const href = exploreUtils.getHrefForUntitledDatasetConfig(fullPath, newVersion);
-  dispatch(postDatasetOperation({href, schema: fullDatasetSchema, viewId}));
+  const href = exploreUtils.getHrefForUntitledDatasetConfig(
+    fullPath,
+    newVersion
+  );
+  dispatch(postDatasetOperation({ href, schema: fullDatasetSchema, viewId }));
 
   dispatch({
     type: UPDATE_JOIN_DATASET_VERSION,
     joinVersion: newVersion,
-    joinDatasetPathList: datasetPathList
+    joinDatasetPathList: datasetPathList,
   });
 };
 
 export const clearJoinDataset = () => {
   return {
-    type: CLEAR_JOIN_DATASET
+    type: CLEAR_JOIN_DATASET,
   };
 };
 
-export const SET_JOIN_TAB = 'SET_JOIN_TAB';
+export const SET_JOIN_TAB = "SET_JOIN_TAB";
 
 export const setJoinTab = (tabId) => {
   return {
     type: SET_JOIN_TAB,
-    tabId
+    tabId,
   };
 };
 
-export const RESET_JOINS = 'RESET_JOIN_STATE';
+export const RESET_JOINS = "RESET_JOIN_STATE";
 
 export const resetJoins = () => {
   return {
-    type: RESET_JOINS
+    type: RESET_JOINS,
   };
 };
 
-export const SET_JOIN_STEP = 'SET_JOIN_STEP';
+export const SET_JOIN_STEP = "SET_JOIN_STEP";
 
 export const setJoinStep = (step) => {
   return {
     type: SET_JOIN_STEP,
-    step
+    step,
   };
 };
 
-export const LOAD_RECOMMENDED_JOIN_START = 'LOAD_RECOMMENDED_JOIN_START';
-export const LOAD_RECOMMENDED_JOIN_SUCCESS = 'LOAD_RECOMMENDED_JOIN_SUCCESS';
-export const LOAD_RECOMMENDED_JOIN_FAILURE = 'LOAD_RECOMMENDED_JOIN_FAILURE';
+export const LOAD_RECOMMENDED_JOIN_START = "LOAD_RECOMMENDED_JOIN_START";
+export const LOAD_RECOMMENDED_JOIN_SUCCESS = "LOAD_RECOMMENDED_JOIN_SUCCESS";
+export const LOAD_RECOMMENDED_JOIN_FAILURE = "LOAD_RECOMMENDED_JOIN_FAILURE";
 
-function fetchRecommendedJoin({href}) {
-  const meta = {viewId: 'RecommendedJoins'};
+function fetchRecommendedJoin({ href }) {
+  const meta = { viewId: "RecommendedJoins" };
 
   const apiCall = new APIV2Call().fullpath(href);
 
@@ -84,30 +87,35 @@ function fetchRecommendedJoin({href}) {
       types: [
         { type: LOAD_RECOMMENDED_JOIN_START, meta },
         { type: LOAD_RECOMMENDED_JOIN_SUCCESS, meta },
-        { type: LOAD_RECOMMENDED_JOIN_FAILURE, meta }
+        { type: LOAD_RECOMMENDED_JOIN_FAILURE, meta },
       ],
-      method: 'GET',
-      headers: {'Content-Type': 'application/json'},
-      endpoint: apiCall
-    }
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      endpoint: apiCall,
+    },
   };
 }
 
-export function loadRecommendedJoin({href}) {
+export function loadRecommendedJoin({ href }) {
   return (dispatch) => {
-    return dispatch(fetchRecommendedJoin({href}));
+    return dispatch(fetchRecommendedJoin({ href }));
   };
 }
 
-export const SET_ACTIVE_RECOMMENDED_JOIN = 'SET_ACTIVE_RECOMMENDED_JOIN';
+export const SET_ACTIVE_RECOMMENDED_JOIN = "SET_ACTIVE_RECOMMENDED_JOIN";
 
 export const setActiveRecommendedJoin = (recommendation) => {
-  return {type: SET_ACTIVE_RECOMMENDED_JOIN, recommendation};
+  return { type: SET_ACTIVE_RECOMMENDED_JOIN, recommendation };
 };
 
-export const RESET_ACTIVE_RECOMMENDED_JOIN = 'RESET_ACTIVE_RECOMMENDED_JOIN';
-export const resetActiveRecommendedJoin = () => ({type: RESET_ACTIVE_RECOMMENDED_JOIN});
+export const RESET_ACTIVE_RECOMMENDED_JOIN = "RESET_ACTIVE_RECOMMENDED_JOIN";
+export const resetActiveRecommendedJoin = () => ({
+  type: RESET_ACTIVE_RECOMMENDED_JOIN,
+});
 
-export const EDIT_RECOMMENDED_JOIN = 'EDIT_RECOMMENDED_JOIN';
-export const editRecommendedJoin = (recommendation, version) =>
-  ({type: EDIT_RECOMMENDED_JOIN, recommendation, version});
+export const EDIT_RECOMMENDED_JOIN = "EDIT_RECOMMENDED_JOIN";
+export const editRecommendedJoin = (recommendation, version) => ({
+  type: EDIT_RECOMMENDED_JOIN,
+  recommendation,
+  version,
+});

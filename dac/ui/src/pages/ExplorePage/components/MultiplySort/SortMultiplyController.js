@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import SortMultiply from './SortMultiply';
+import SortMultiply from "./SortMultiply";
 
-const DEFAULT_DIRECTION = 'DESC';
+const DEFAULT_DIRECTION = "DESC";
 
 export default class SortMultiplyController extends Component {
   static propTypes = {
@@ -28,14 +28,14 @@ export default class SortMultiplyController extends Component {
     columns: PropTypes.instanceOf(Immutable.List),
     defaultItem: PropTypes.instanceOf(Immutable.Map),
     location: PropTypes.object,
-    handleModelChange: PropTypes.func
+    handleModelChange: PropTypes.func,
   };
 
   constructor(props) {
     super(props);
 
     this.state = {
-      isDragInProgress: false
+      isDragInProgress: false,
     };
   }
 
@@ -50,13 +50,13 @@ export default class SortMultiplyController extends Component {
     if (!dropData.index && dropData.index !== 0) {
       const newColumn = {
         name: columnName,
-        direction: DEFAULT_DIRECTION
+        direction: DEFAULT_DIRECTION,
       };
 
       fields.sortColumns.addField(newColumn);
       this.handleDragStop();
     }
-  }
+  };
 
   handleDragStart = () => this.setState({ isDragInProgress: true });
 
@@ -64,14 +64,14 @@ export default class SortMultiplyController extends Component {
 
   addAnother = () => {
     const { fields } = this.props;
-    fields.sortColumns.addField({direction: DEFAULT_DIRECTION});
-  }
+    fields.sortColumns.addField({ direction: DEFAULT_DIRECTION });
+  };
 
   initModel() {
     if (this.props.location.state.columnName) {
       const item = {
         name: this.props.location.state.columnName,
-        direction: DEFAULT_DIRECTION
+        direction: DEFAULT_DIRECTION,
       };
       this.props.fields.sortColumns.addField(item);
     }
@@ -85,7 +85,7 @@ export default class SortMultiplyController extends Component {
         isDragInProgress={this.state.isDragInProgress}
         handleDragStart={this.handleDragStart}
         columns={this.props.columns}
-        dragType='groupBy'
+        dragType="groupBy"
         handleDragStop={this.handleDragStop}
         handleDrop={this.handleDrop}
         addAnother={this.addAnother}

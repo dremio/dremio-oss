@@ -38,7 +38,7 @@ import com.google.common.collect.ImmutableList;
 public class TestInfoSchema extends BaseTestQuery {
 
   private static final String[] baselineColNames = {"COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION",
-    "NUMERIC_SCALE", "EXTENDED_PROPERTIES"};
+    "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY"};
 
 
   @Test
@@ -156,9 +156,9 @@ public class TestInfoSchema extends BaseTestQuery {
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
         .baselineColumns(baselineColNames)
-        .baselineValues("CATALOG_NAME", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("CATALOG_DESCRIPTION", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("CATALOG_CONNECT", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("CATALOG_NAME", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("CATALOG_DESCRIPTION", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("CATALOG_CONNECT", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 
@@ -168,10 +168,10 @@ public class TestInfoSchema extends BaseTestQuery {
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\"")
         .unOrdered()
         .baselineColumns(baselineColNames)
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("TABLE_TYPE", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("TABLE_TYPE", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 
@@ -211,7 +211,7 @@ public class TestInfoSchema extends BaseTestQuery {
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
         .baselineColumns(baselineColNames)
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 
@@ -221,7 +221,7 @@ public class TestInfoSchema extends BaseTestQuery {
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\" TABLE_CATALOG")
         .unOrdered()
         .baselineColumns(baselineColNames)
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 
@@ -233,9 +233,9 @@ public class TestInfoSchema extends BaseTestQuery {
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
         .baselineColumns(baselineColNames)
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 
@@ -246,8 +246,8 @@ public class TestInfoSchema extends BaseTestQuery {
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.SCHEMATA 'SCHEMA%'")
         .unOrdered()
         .baselineColumns(baselineColNames)
-        .baselineValues("SCHEMA_NAME", "CHARACTER VARYING", "YES", null, null, "[]")
-        .baselineValues("SCHEMA_OWNER", "CHARACTER VARYING", "YES", null, null, "[]")
+        .baselineValues("SCHEMA_NAME", "CHARACTER VARYING", "YES", null, null, "[]", null)
+        .baselineValues("SCHEMA_OWNER", "CHARACTER VARYING", "YES", null, null, "[]", null)
         .go();
   }
 

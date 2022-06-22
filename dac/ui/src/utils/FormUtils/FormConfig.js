@@ -13,24 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
-import FormTabConfig from 'utils/FormUtils/FormTabConfig';
-import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
+import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
+import FormTabConfig from "utils/FormUtils/FormTabConfig";
+import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
 
 export default class FormConfig {
   constructor(formConfigJson, functionalElements) {
     this._config = formConfigJson || {};
     if (this._config.tabs) {
       this._config.tabs = this._config.tabs.map(
-        tab => new FormTabConfig(tab, functionalElements));
+        (tab) => new FormTabConfig(tab, functionalElements)
+      );
     }
     if (this._config.sections) {
       this._config.sections = this._config.sections.map(
-        section => new FormSectionConfig(section, functionalElements));
+        (section) => new FormSectionConfig(section, functionalElements)
+      );
     }
     if (this._config.elements) {
-      this._config.elements = this._config.elements.map(
-        element => SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(element, functionalElements));
+      this._config.elements = this._config.elements.map((element) =>
+        SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
+          element,
+          functionalElements
+        )
+      );
     }
   }
 
@@ -59,29 +65,58 @@ export default class FormConfig {
   }
 
   getFields() {
-    return this.getDirectElements().reduce((fields, element) => fields.concat(element.getFields()), [])
-      .concat(this.getDirectSections().reduce((fields, section) => fields.concat(section.getFields()), []))
-      .concat(this.getTabs().reduce((fields, tab) => fields.concat(tab.getFields()), []));
+    return this.getDirectElements()
+      .reduce((fields, element) => fields.concat(element.getFields()), [])
+      .concat(
+        this.getDirectSections().reduce(
+          (fields, section) => fields.concat(section.getFields()),
+          []
+        )
+      )
+      .concat(
+        this.getTabs().reduce(
+          (fields, tab) => fields.concat(tab.getFields()),
+          []
+        )
+      );
   }
 
   addInitValues(initValues, state, props) {
-    initValues = this.getDirectElements().reduce((accum, element) => element.addInitValues(accum, state, props), initValues);
-    initValues = this.getDirectSections().reduce((accum, section) => section.addInitValues(accum, state, props), initValues);
-    return this.getTabs().reduce((accum, tab) => tab.addInitValues(accum, state, props), initValues);
+    initValues = this.getDirectElements().reduce(
+      (accum, element) => element.addInitValues(accum, state, props),
+      initValues
+    );
+    initValues = this.getDirectSections().reduce(
+      (accum, section) => section.addInitValues(accum, state, props),
+      initValues
+    );
+    return this.getTabs().reduce(
+      (accum, tab) => tab.addInitValues(accum, state, props),
+      initValues
+    );
   }
 
   addValidators(validations) {
-    validations = this.getDirectElements().reduce((accum, element) => element.addValidators(accum), validations);
-    validations = this.getDirectSections().reduce((accum, section) => section.addValidators(accum), validations);
-    return this.getTabs().reduce((accum, tab) => tab.addValidators(accum), validations);
+    validations = this.getDirectElements().reduce(
+      (accum, element) => element.addValidators(accum),
+      validations
+    );
+    validations = this.getDirectSections().reduce(
+      (accum, section) => section.addValidators(accum),
+      validations
+    );
+    return this.getTabs().reduce(
+      (accum, tab) => tab.addValidators(accum),
+      validations
+    );
   }
 
   getAllElements() {
     let elements = this.getDirectElements();
-    this.getDirectSections().forEach(section => {
+    this.getDirectSections().forEach((section) => {
       elements = elements.concat(section.getAllElements());
     });
-    this.getTabs().forEach(tab => {
+    this.getTabs().forEach((tab) => {
       elements = elements.concat(tab.getAllElements());
     });
     return elements;
@@ -93,24 +128,28 @@ export default class FormConfig {
   }
 
   findTabByName(tabName) {
-    return this.getTabs().find(tab => tab.getName() === tabName);
+    return this.getTabs().find((tab) => tab.getName() === tabName);
   }
 
   getDefaultTab() {
-    return this.getTabs().find(tab => tab.isGeneral()) || this.getTabs()[0];
+    return this.getTabs().find((tab) => tab.isGeneral()) || this.getTabs()[0];
   }
 
   removeNotFoundElements() {
     if (this.getDirectElements().length) {
-      this._config.elements = this.getDirectElements().filter(element => element.foundInFunctionalConfig());
+      this._config.elements = this.getDirectElements().filter((element) =>
+        element.foundInFunctionalConfig()
+      );
     }
-    this.getDirectSections().forEach(section => section.removeNotFoundElements());
-    this.getTabs().forEach(tab => tab.removeNotFoundElements());
+    this.getDirectSections().forEach((section) =>
+      section.removeNotFoundElements()
+    );
+    this.getTabs().forEach((tab) => tab.removeNotFoundElements());
   }
 
-  addTab(tabConfig, position = 'tail') {
+  addTab(tabConfig, position = "tail") {
     this._config.tabs = this._config.tabs || [];
-    if (position === 'head') {
+    if (position === "head") {
       this._config.tabs.unshift(tabConfig);
     } else {
       this._config.tabs.push(tabConfig);

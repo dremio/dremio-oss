@@ -26,10 +26,12 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.JobsServiceTestUtils;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -52,15 +54,15 @@ public class TestUserSessionId extends BaseTestServer {
   @Test
   public void testSimpleSession() {
     final String sql = "SELECT 1";
-    final String sessionId1 = submitJobAndWaitUntilCompletion(
+    final String sessionId1 = getJobSubmissionAfterJobCompletion(
       getRequestFromSql(sql))
-      .getSessionId();
+      .getSessionId().getId();
     assertNotNull("Session id cannot be null", sessionId1);
 
     // If we create the request with the same session id, it will run in the same session
-    final String sessionId2 = submitJobAndWaitUntilCompletion(
+    final String sessionId2 = getJobSubmissionAfterJobCompletion(
       getRequestFromSqlAndSessionId(sql, sessionId1))
-      .getSessionId();
+      .getSessionId().getId();
     assertNotNull("Session id cannot be null", sessionId2);
     assertEquals(sessionId1, sessionId2);
   }
@@ -70,26 +72,28 @@ public class TestUserSessionId extends BaseTestServer {
     final String sql = "SELECT 1";
     final JobRequest jobRequest = getRequestFromSql(sql);
 
-    final String sessionId1 = submitJobAndWaitUntilCompletion(jobRequest).getSessionId();
+    final String sessionId1 = getJobSubmissionAfterJobCompletion(jobRequest).getSessionId().getId();
     assertNotNull("Session id cannot be null", sessionId1);
 
     // If we create the request without session id, it will create a new session
-    final String sessionId2 = submitJobAndWaitUntilCompletion(jobRequest).getSessionId();
+    final String sessionId2 = getJobSubmissionAfterJobCompletion(jobRequest).getSessionId().getId();
     assertNotNull("Session id cannot be null", sessionId2);
     assertNotEquals(sessionId1, sessionId2);
   }
 
   @Test
   public void testInvalidSessionId() {
+    final String sessionId = "foo";
     try {
       final String sql = "SELECT 1";
-      final JobRequest jobRequest = getRequestFromSqlAndSessionId(sql, "foo");
+      final JobRequest jobRequest = getRequestFromSqlAndSessionId(sql, sessionId);
       final LogicalPlanCaptureListener planCaptureListener = new LogicalPlanCaptureListener();
       JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
         l(LocalJobsService.class), jobRequest, planCaptureListener);
       fail("Session id must be invalid");
-    } catch (RuntimeException ex) {
-      assertEquals("Session expired/not found.", ex.getMessage());
+    } catch (UserException e) {
+      assertEquals(UserBitShared.DremioPBError.ErrorType.SYSTEM, e.getErrorType());
+      assertTrue(e.getMessage().contains(String.format("Session id %s expired/not found.", sessionId)));
     }
   }
 
@@ -101,7 +105,7 @@ public class TestUserSessionId extends BaseTestServer {
     JobRequest jobRequest = getRequestFromSql(String.format(alterQuery, "false"));
 
     // Capture the sessionId
-    final String sessionId = runQuery(jobRequest).getJobId().getSessionId();
+    final String sessionId = runQuery(jobRequest).getJobSubmission().getSessionId().getId();
 
     // Run the query and assert that leaf limit is disabled
     jobRequest = getRequestFromSqlAndSessionId(sampleQuery, sessionId);
@@ -131,26 +135,26 @@ public class TestUserSessionId extends BaseTestServer {
 
   private static Pair runQuery(JobRequest jobRequest) {
     final LogicalPlanCaptureListener planCaptureListener = new LogicalPlanCaptureListener();
-    final JobId jobId = JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
+    final JobSubmission jobSubmission = JobsServiceTestUtils.getJobSubmissionAfterJobCompletion(
       l(LocalJobsService.class), jobRequest, planCaptureListener);
-    return Pair.of(jobId, planCaptureListener.getPlan());
+    return Pair.of(jobSubmission, planCaptureListener.getPlan());
   }
 
   private static class Pair {
-    private final JobId jobId;
+    private final JobSubmission jobSubmission;
     private final String plan;
 
-    Pair(JobId jobId, String plan) {
-      this.jobId = jobId;
+    Pair(JobSubmission jobSubmission, String plan) {
+      this.jobSubmission = jobSubmission;
       this.plan = plan;
     }
 
-    public static Pair of(JobId jobId, String plan) {
+    public static Pair of(JobSubmission jobId, String plan) {
       return new Pair(jobId, plan);
     }
 
-    public JobId getJobId() {
-      return jobId;
+    public JobSubmission getJobSubmission() {
+      return jobSubmission;
     }
 
     public String getPlan() {

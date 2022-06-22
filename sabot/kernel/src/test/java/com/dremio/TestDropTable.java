@@ -136,6 +136,7 @@ public class TestDropTable extends PlanTestBase {
     final String tableName = "homogenous_table";
 
     // create a parquet table
+    test("ALTER SESSION SET \"store.format\"='parquet'");
     test(String.format(CREATE_SIMPLE_TABLE, tableName));
 
     testNoResult(REFRESH, tableName);
@@ -171,6 +172,41 @@ public class TestDropTable extends PlanTestBase {
         .baselineColumns("ok", "summary")
         .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tableName))
         .go();
+  }
+
+  @Test
+  public void testIsHomogenousShouldNotBeCalledForIcebergTables() throws Exception {
+    test("use dfs_test_hadoop");
+    final String TABLE_NAME = "test_table";
+    final String TABLE_PATH = TEMP_SCHEMA_HADOOP + "." + TABLE_NAME;
+    final String ID_COLUMN_NAME = "id";
+    final String DATA_COLUMN_NAME = "data";
+    final String CREATE_BASIC_ICEBERG_TABLE_SQL =
+      String.format("CREATE TABLE %s (%s BIGINT, %s VARCHAR) STORE AS (type => 'iceberg')", TABLE_PATH, ID_COLUMN_NAME, DATA_COLUMN_NAME);
+    final String CREATE_BASIC_ICEBERG_TABLE_JSON_SQL =
+      String.format("CREATE TABLE %s (%s BIGINT, %s VARCHAR) STORE AS (type => 'iceberg')", DOUBLE_QUOTE + TABLE_PATH + Path.SEPARATOR + "json_table" + DOUBLE_QUOTE,
+        ID_COLUMN_NAME, DATA_COLUMN_NAME);
+
+    final String tableName = TABLE_NAME;
+
+    // create an iceberg table
+    test(CREATE_BASIC_ICEBERG_TABLE_SQL);
+
+    // create a json table within the same directory
+    test("alter session set \"store.format\" = 'json'");
+    final String nestedJsonTable = tableName + Path.SEPARATOR + "json_table";
+    test(CREATE_BASIC_ICEBERG_TABLE_JSON_SQL);
+
+    // isHomogeneous() should not be called for iceberg tables
+    boolean isHomogeneousCalled = false;
+    try {
+      test(String.format(DROP_TABLE, tableName));
+    } catch (UserException e) {
+      Assert.assertTrue(e.getMessage().contains("Table contains different file formats"));
+      isHomogeneousCalled = true;
+    }
+
+    Assert.assertFalse("Dropping of non-homogeneous table should not be called for Iceberg tables", isHomogeneousCalled);
   }
 
   @Test // DRILL-4673

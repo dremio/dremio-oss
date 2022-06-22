@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
-const role = new Schema('role', {
-  idAttribute: 'id'
+import { Schema } from "normalizr";
+const role = new Schema("role", {
+  idAttribute: "id",
 });
 
 export default role;

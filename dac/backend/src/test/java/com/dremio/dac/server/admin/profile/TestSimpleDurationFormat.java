@@ -72,4 +72,3 @@ public class TestSimpleDurationFormat {
     assertEquals("1h20m", SimpleDurationFormat.formatNanos(4845825435267L));
   }
 }
-

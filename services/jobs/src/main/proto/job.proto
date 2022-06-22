@@ -49,18 +49,15 @@ enum JobState {
 
 message JobId {
   required string id =  1; // The Job Id
-  optional string name = 2; // TODO: used at all ?
-  optional string sessionId = 3; // Session Id
 }
 
-enum JobType {
-  // copied from QueryType
-  //TODO we should get rid of this class
-  SQL = 1;
-  LOGICAL = 2;
-  PHYSICAL = 3;
-  EXECUTION = 4;
-  PREPARED_STATEMENT = 5;
+message SessionId {
+  optional string id = 1; // The session Id
+}
+
+message JobSubmission {
+  optional JobId jobId = 1;
+  optional SessionId sessionId = 2;
 }
 
 message ParentDatasetInfo {
@@ -167,6 +164,7 @@ message JobInfo {
   optional int64 setup_time_ns = 42; //Sum of setupNanos across all minor fragments.
   optional int64 wait_time_ns = 43; //Sum of waitNanos across all minor fragments.
   optional int64 memory_allocated = 44; // Memory allocated by WLM (sum of peakLocalMemoryAllocated per node)
+  repeated string sink_path = 45;
 }
 
 message ResourceSchedulingInfo {
@@ -268,6 +266,7 @@ message JobStats {
 message JobResult {
   repeated JobAttempt attempts = 1;
   optional bool completed = 2 [default = true]; // because only "old" entries don't have this field, they are already completed
+  optional SessionId sessionId = 3; // Store session id as value in the KVStore
 }
 
 message JobAttempt {

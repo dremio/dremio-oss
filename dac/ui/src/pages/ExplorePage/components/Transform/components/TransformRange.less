@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .transform-range {
     text {
       fill: #999999;
-      font-family: 'Inter var';
+      font-family: "Inter var";
       font-size: 11px;
       text-anchor: start !important;
     }
@@ -33,6 +34,24 @@
 
     .rd3-chart {
       background-color: #fff;
+    }
+
+    .graph-body {
+      .lower-limit-bound,
+      .upper-limit-bound {
+        label {
+          margin-left: 8px;
+        }
+        & > span {
+          margin-left: 34px !important;
+        }
+      }
+    }
+
+    .keep-null-wrapper {
+      label > div {
+        margin-top: 0 !important;
+      }
     }
   }
 }

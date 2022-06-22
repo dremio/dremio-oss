@@ -42,13 +42,13 @@ import com.google.common.base.Preconditions;
  * Copy of CustomHashAggDataGenerator but does Decimal computations.
  */
 public class CustomHashAggDataGeneratorDecimal implements Generator {
-  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private final static ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
-  private final static CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
+  private static final FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
+  private static final CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
 
-  private final static Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
+  private static final Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
 
-  private final static Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
+  private static final Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
 
   /* arrays on heap that will store column values as we generate data for the schema */
   private BigDecimal[] decimalKeyValues;

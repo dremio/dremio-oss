@@ -13,27 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import Art from 'components/Art';
-import { getReflectionUiStatus } from 'utils/accelerationUtils';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import Art from "components/Art";
+import { getReflectionUiStatus } from "utils/accelerationUtils";
 
 export default class Status extends Component {
   static propTypes = {
     reflection: PropTypes.instanceOf(Immutable.Map).isRequired,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   render() {
     const { reflection, style } = this.props;
-    const uiStatus = reflection.get('uiStatus') || getReflectionUiStatus(reflection);
+    const uiStatus =
+      reflection.get("uiStatus") || getReflectionUiStatus(reflection);
 
-    return <Art src={`${uiStatus.get('icon')}.svg`}
-      style={{...style, height: 24}}
-      alt={uiStatus.get('text')}
-      className={uiStatus.get('className')}
-      title />;
+    return (
+      <Art
+        src={`${uiStatus.get("icon")}.svg`}
+        style={{ ...style, height: 24 }}
+        alt={uiStatus.get("text")}
+        className={uiStatus.get("className")}
+        title
+      />
+    );
   }
 }

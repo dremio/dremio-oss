@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { domUtils } from '@app/utils/domUtils';
-import BarChart from 'components/Charts/BarChart';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { domUtils } from "@app/utils/domUtils";
+import BarChart from "components/Charts/BarChart";
 
-import TransformRangeSlider, { POSITION_LEFT, POSITION_RIGHT } from './TransformRangeSlider';
+import TransformRangeSlider, {
+  POSITION_LEFT,
+  POSITION_RIGHT,
+} from "./TransformRangeSlider";
 
-@Radium
-export default class TransformRangeGraph extends Component {
+class TransformRangeGraph extends Component {
   static propTypes = {
     leftRangeOffset: PropTypes.number,
     rightRangeOffset: PropTypes.number,
@@ -32,8 +33,8 @@ export default class TransformRangeGraph extends Component {
     data: PropTypes.array,
     updateValue: PropTypes.func,
     width: PropTypes.number,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   container = null; // will store root container element
 
@@ -43,7 +44,7 @@ export default class TransformRangeGraph extends Component {
     this.state = {
       activeSlider: null,
       leftRangeOffset: 0,
-      rightRangeOffset: props.width
+      rightRangeOffset: props.width,
     };
 
     this.moveSlider = this.moveSlider.bind(this);
@@ -64,7 +65,7 @@ export default class TransformRangeGraph extends Component {
   setActiveSlider(slider) {
     domUtils.disableSelection();
     this.setState({
-      activeSlider: slider
+      activeSlider: slider,
     });
   }
 
@@ -72,16 +73,21 @@ export default class TransformRangeGraph extends Component {
     // for left should be plus two
     this.setState({
       leftRangeOffset: props.leftRangeOffset + 2 || 0,
-      rightRangeOffset: props.rightRangeOffset || props.width
+      rightRangeOffset: props.rightRangeOffset || props.width,
     });
   }
 
   moveSlider(event) {
     const { activeSlider } = this.state;
     if (activeSlider) {
-      const offset = this.container ? this.container.getBoundingClientRect().x : 0;
+      const offset = this.container
+        ? this.container.getBoundingClientRect().x
+        : 0;
       this.setState({
-        [`${activeSlider}RangeOffset`]: Math.min(Math.max(event.clientX - offset, 0), this.props.width)
+        [`${activeSlider}RangeOffset`]: Math.min(
+          Math.max(event.clientX - offset, 0),
+          this.props.width
+        ),
       });
     }
   }
@@ -116,17 +122,16 @@ export default class TransformRangeGraph extends Component {
   };
 
   render() {
-    const {
-      style,
-      data,
-      columnType,
-      width
-    } = this.props;
+    const { style, data, columnType, width } = this.props;
 
     const { activeSlider, leftRangeOffset, rightRangeOffset } = this.state;
     return (
-      <div onMouseMove={this.moveSlider} onMouseUp={this.stopSlide} style={[style]}
-        ref={this.onRef}>
+      <div
+        onMouseMove={this.moveSlider}
+        onMouseUp={this.stopSlide}
+        style={style}
+        ref={this.onRef}
+      >
         <BarChart
           type={columnType}
           data={data}
@@ -135,27 +140,28 @@ export default class TransformRangeGraph extends Component {
         />
         <TransformRangeSlider
           blockStyle={{
-            borderRight: '1px solid #505050',
-            width: leftRangeOffset
+            borderRight: "1px solid #505050",
+            width: leftRangeOffset,
           }}
           position={POSITION_LEFT}
           offset={leftRangeOffset}
           activeSlider={activeSlider}
           setActiveSlider={this.setActiveSlider}
-          dataQa='TransformRangeLeftSlider'
+          dataQa="TransformRangeLeftSlider"
         />
         <TransformRangeSlider
           blockStyle={{
-            borderLeft: '1px solid #505050',
-            left: rightRangeOffset
+            borderLeft: "1px solid #505050",
+            left: rightRangeOffset,
           }}
           position={POSITION_RIGHT}
           offset={rightRangeOffset}
           activeSlider={activeSlider}
           setActiveSlider={this.setActiveSlider}
-          dataQa='TransformRangeRightSlider'
+          dataQa="TransformRangeRightSlider"
         />
       </div>
     );
   }
 }
+export default TransformRangeGraph;

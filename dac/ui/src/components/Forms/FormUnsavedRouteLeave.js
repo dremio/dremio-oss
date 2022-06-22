@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
-import { isUnauthorisedReason } from 'store/authMiddleware';
-import { withRouter } from 'react-router';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { showUnsavedChangesConfirmDialog } from "actions/confirmation";
+import { isUnauthorisedReason } from "store/authMiddleware";
+import { withRouter } from "react-router";
 
 /**
  * Returns specified form component wrapped into component preset with hooks to get confirmation dialog
@@ -36,12 +36,12 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
       route: PropTypes.object,
       routes: PropTypes.array.isRequired,
       router: PropTypes.object,
-      showUnsavedChangesConfirmDialog: PropTypes.func
+      showUnsavedChangesConfirmDialog: PropTypes.func,
     };
 
     state = {
       isFormDirty: false,
-      ignoreUnsavedChanges: false
+      ignoreUnsavedChanges: false,
     };
 
     /**
@@ -59,11 +59,16 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
 
     componentDidMount() {
       const { route, routes, router } = this.props;
-      router.setRouteLeaveHook(route || this.getLastRoute(routes), this.routeWillLeave);
+      router.setRouteLeaveHook(
+        route || this.getLastRoute(routes),
+        this.routeWillLeave
+      );
     }
 
     leaveConfirmed(nextLocation) {
-      this.setState({ignoreUnsavedChanges: true}, () => this.props.router.push(nextLocation));
+      this.setState({ ignoreUnsavedChanges: true }, () =>
+        this.props.router.push(nextLocation)
+      );
     }
 
     getLastRoute = (routes) => {
@@ -71,9 +76,13 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
     };
 
     routeWillLeave = (nextLocation) => {
-      if (this.state.isFormDirty && !isUnauthorisedReason(nextLocation) && !this.state.ignoreUnsavedChanges) {
+      if (
+        this.state.isFormDirty &&
+        !isUnauthorisedReason(nextLocation) &&
+        !this.state.ignoreUnsavedChanges
+      ) {
         this.props.showUnsavedChangesConfirmDialog({
-          confirm: () => this.leaveConfirmed(nextLocation)
+          confirm: () => this.leaveConfirmed(nextLocation),
         });
         return false;
       }
@@ -81,11 +90,11 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
     };
 
     updateFormDirtyState = (isFormDirty) => {
-      this.setState({isFormDirty});
+      this.setState({ isFormDirty });
     };
 
     hasDirtyChild() {
-      return Object.values(this.childDirtyStates).some(dirty => dirty);
+      return Object.values(this.childDirtyStates).some((dirty) => dirty);
     }
 
     /**
@@ -120,14 +129,16 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
     };
 
     render() {
-      return <WrappedFormController {...this.props}
-        updateFormDirtyState={this.updateFormDirtyState}
-        setChildDirtyState={this.setChildDirtyState}
-      />;
+      return (
+        <WrappedFormController
+          {...this.props}
+          updateFormDirtyState={this.updateFormDirtyState}
+          setChildDirtyState={this.setChildDirtyState}
+        />
+      );
     }
   };
 }
-
 
 export function wrapUnsavedChangesWithForm(FormController) {
   const Wrapped = withRouter(FormController);
@@ -135,5 +146,7 @@ export function wrapUnsavedChangesWithForm(FormController) {
 }
 
 export default function FormUnsavedRouteLeave(FormController) {
-  return connect(null, { showUnsavedChangesConfirmDialog })(wrapUnsavedChangesWithForm(FormController));
+  return connect(null, { showUnsavedChangesConfirmDialog })(
+    wrapUnsavedChangesWithForm(FormController)
+  );
 }

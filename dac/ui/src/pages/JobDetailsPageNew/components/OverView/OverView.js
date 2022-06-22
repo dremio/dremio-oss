@@ -13,127 +13,176 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import Immutable from 'immutable';
-import timeUtils from 'utils/timeUtils';
-import { getDuration } from 'utils/jobListUtils';
-import { ScansForFilter } from '@app/constants/Constants';
-import jobsUtils from '@app/utils/jobsUtils';
-import FileUtils from '@app/utils/FileUtils';
-import { getQueueInfo } from '@inject/pages/JobDetailsPageNew/utils';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import Immutable from "immutable";
+import timeUtils from "utils/timeUtils";
+import { getDuration } from "utils/jobListUtils";
+import { ScansForFilter } from "@app/constants/Constants";
+import jobsUtils from "@app/utils/jobsUtils";
+import FileUtils from "@app/utils/FileUtils";
+import { getQueueInfo } from "@inject/pages/JobDetailsPageNew/utils";
 
-import JobDetailsErrorInfo from '../OverView/JobDetailsErrorInfo';
-import { getFormatMessageIdForQueryType } from '../../utils';
-import JobSummary from '../Summary/Summary';
-import TotalExecutionTime from '../TotalExecutionTime/TotalExecutionTime';
-import HelpSection from '../../../JobPage/components/JobDetails/HelpSection';
-import SQL from '../SQL/SQL';
-import ReflectionsCreated from '../Reflections/ReflectionsCreated';
-import QueriedDataset from '../QueriedDataset/QueriedDataset';
-import Scans from '../Scans/Scans';
-import Acceleration from '../Reflections/Acceleration';
-import './OverView.less';
+import JobDetailsErrorInfo from "../OverView/JobDetailsErrorInfo";
+import { getFormatMessageIdForQueryType } from "../../utils";
+import JobSummary from "../Summary/Summary";
+import TotalExecutionTime from "../TotalExecutionTime/TotalExecutionTime";
+import HelpSection from "../../../JobPage/components/JobDetails/HelpSection";
+import SQL from "../SQL/SQL";
+import ReflectionsCreated from "../Reflections/ReflectionsCreated";
+import QueriedDataset from "../QueriedDataset/QueriedDataset";
+import Scans from "../Scans/Scans";
+import Acceleration from "../Reflections/Acceleration";
+import { Tooltip } from "dremio-ui-lib";
+import "./OverView.less";
 
-const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
+const VIEW_ID = "JOB_DETAILS_VIEW_ID";
 
 const renderErrorLog = (failureInfo) => {
-  return failureInfo && failureInfo.size > 0 && <JobDetailsErrorInfo failureInfo={failureInfo} />;
+  return (
+    failureInfo &&
+    failureInfo.size > 0 && <JobDetailsErrorInfo failureInfo={failureInfo} />
+  );
 };
 
 const renderCancellationLog = (cancellationInfo) => {
-  return cancellationInfo && <JobDetailsErrorInfo failureInfo={cancellationInfo} />;
+  return (
+    cancellationInfo && <JobDetailsErrorInfo failureInfo={cancellationInfo} />
+  );
 };
 
 const OverView = (props) => {
   const {
-    intl: {
-      formatMessage
-    },
+    intl: { formatMessage },
     jobDetails,
     downloadJobFile,
     isContrast,
     onClick,
-    location
+    location,
   } = props;
-  const attemptDetails = jobDetails.get('attemptDetails') || Immutable.List();
+  const attemptDetails = jobDetails.get("attemptDetails") || Immutable.List();
   const haveMultipleAttempts = attemptDetails.size > 1;
-  const durationLabelId = haveMultipleAttempts ? 'Job.TotalDuration' : 'Job.Duration';
-  const jobDuration = jobDetails.get('duration');
+  const durationLabelId = haveMultipleAttempts
+    ? "Job.TotalDuration"
+    : "Job.Duration";
+  const jobDuration = jobDetails.get("duration");
 
   const renderLastAttemptDuration = () => {
     const lastAttempt = attemptDetails && attemptDetails.last();
-    const totalTimeMs = lastAttempt && lastAttempt.get('totalTime');
+    const totalTimeMs = lastAttempt && lastAttempt.get("totalTime");
     return jobsUtils.formatJobDuration(totalTimeMs);
   };
 
   const downloadJobProfile = (viewId, jobId) => {
     downloadJobFile({
       url: `/support/${jobId}/download`,
-      method: 'POST',
-      viewId
+      method: "POST",
+      viewId,
     });
   };
 
   const jobSummaryData = [
-    { label: 'Job.Status', content: jobDetails.get('jobStatus') },
-    { label: 'Job.TotalMemory', content: FileUtils.getFormattedBytes(jobDetails.get('totalMemory')) },
-    { label: 'Job.CpuUsed', content: jobsUtils.formatJobDurationWithMS(jobDetails.get('cpuUsed')) },
-    { label: 'Job.QueryType', content: formatMessage({ id: getFormatMessageIdForQueryType(jobDetails) }) },
+    { label: "Job.Status", content: jobDetails.get("jobStatus") },
     {
-      label: 'Job.StartTime',
-      content: timeUtils.formatTime(jobDetails.get('startTime'))
+      label: "Job.TotalMemory",
+      content: FileUtils.getFormattedBytes(jobDetails.get("totalMemory")),
     },
-    ...(haveMultipleAttempts ? [{
-      label: 'Job.LastAttemptDuration',
-      content: renderLastAttemptDuration()
-    }] : []),
+    {
+      label: "Job.CpuUsed",
+      content: jobsUtils.formatJobDurationWithMS(jobDetails.get("cpuUsed")),
+    },
+    {
+      label: "Job.QueryType",
+      content: formatMessage({
+        id: getFormatMessageIdForQueryType(jobDetails),
+      }),
+    },
+    {
+      label: "Job.StartTime",
+      content: timeUtils.formatTime(jobDetails.get("startTime")),
+    },
+    ...(haveMultipleAttempts
+      ? [
+          {
+            label: "Job.LastAttemptDuration",
+            content: renderLastAttemptDuration(),
+          },
+        ]
+      : []),
     {
       label: `${durationLabelId}`,
-      content: `${jobsUtils.formatJobDurationWithMS(jobDuration)}`
+      content: `${jobsUtils.formatJobDurationWithMS(jobDuration)}`,
     },
-    { label: 'Job.Summary.WaitOnClient', content: `${jobsUtils.formatJobDuration(jobDetails.get('waitInClient'))}` },
-    { label: 'Common.User', content: jobDetails.get('queryUser') },
+    {
+      label: "Job.Summary.WaitOnClient",
+      content: `${jobsUtils.formatJobDuration(jobDetails.get("waitInClient"))}`,
+    },
+    { label: "Common.User", content: jobDetails.get("queryUser") },
     getQueueInfo(jobDetails),
     {
-      label: 'Job.Summary.Input',
-      content: `${FileUtils.getFormattedBytes(jobDetails.get('inputBytes'))} / ${jobsUtils.getFormattedNumber(jobDetails.get('inputRecords'))} Records`
+      label: "Job.Summary.Input",
+      content: `${FileUtils.getFormattedBytes(
+        jobDetails.get("inputBytes")
+      )} / ${jobsUtils.getFormattedNumber(
+        jobDetails.get("inputRecords")
+      )} Records`,
     },
     {
-      label: 'Job.Summary.Output',
-      content: `${FileUtils.getFormattedBytes(jobDetails.get('outputBytes'))} / ${jobsUtils.getFormattedNumber(jobDetails.get('outputRecords'))} Records`
-    }
+      label: "Job.Summary.Output",
+      content: `${FileUtils.getFormattedBytes(
+        jobDetails.get("outputBytes")
+      )} / ${jobsUtils.getFormattedNumber(
+        jobDetails.get("outputRecords")
+      )} Records`,
+      secondaryContent: jobDetails.get("isOutputLimited") && (
+        <div className="summary__content">
+          <div className="summary__contentHeader"></div>
+          <div className="summary__contentValue outputLimited">
+            {formatMessage({ id: "Job.Summary.OutputTruncation" })}
+            <Tooltip
+              title={formatMessage(
+                { id: "Explore.Run.Warning" },
+                { rows: jobDetails.get("outputRecords").toLocaleString() }
+              )}
+            >
+              <dremio-icon
+                name="interface/information"
+                style={{ height: 16, width: 16, marginLeft: 4 }}
+              ></dremio-icon>
+            </Tooltip>
+          </div>
+        </div>
+      ),
+    },
   ];
 
-  const durationDetails = jobDetails.get('durationDetails');
-  const jobId = jobDetails.get('id');
-  const failureInfo = jobDetails.get('failureInfo');
-  const cancellationInfo = jobDetails.get('cancellationInfo');
-  const queryType = jobDetails.get('queryType');
+  const durationDetails = jobDetails.get("durationDetails");
+  const jobId = jobDetails.get("id");
+  const failureInfo = jobDetails.get("failureInfo");
+  const cancellationInfo = jobDetails.get("cancellationInfo");
+  const queryType = jobDetails.get("queryType");
   return (
-    <div className='overview'>
-      <div className='overview__leftSidePanel'>
-        <JobSummary
-          jobSummary={jobSummaryData}
-        />
+    <div className="overview">
+      <div className="overview__leftSidePanel">
+        <JobSummary jobSummary={jobSummaryData} />
         <TotalExecutionTime
-          pending={getDuration(durationDetails, 'PENDING')}
-          metadataRetrival={getDuration(durationDetails, 'METADATA_RETRIEVAL')}
-          planning={getDuration(durationDetails, 'PLANNING')}
-          engineStart={getDuration(durationDetails, 'ENGINE_START')}
-          queued={getDuration(durationDetails, 'QUEUED')}
-          executionPlanning={getDuration(durationDetails, 'EXECUTION_PLANNING')}
-          starting={getDuration(durationDetails, 'STARTING')}
-          running={getDuration(durationDetails, 'RUNNING')}
+          pending={getDuration(durationDetails, "PENDING")}
+          metadataRetrival={getDuration(durationDetails, "METADATA_RETRIEVAL")}
+          planning={getDuration(durationDetails, "PLANNING")}
+          engineStart={getDuration(durationDetails, "ENGINE_START")}
+          queued={getDuration(durationDetails, "QUEUED")}
+          executionPlanning={getDuration(durationDetails, "EXECUTION_PLANNING")}
+          starting={getDuration(durationDetails, "STARTING")}
+          running={getDuration(durationDetails, "RUNNING")}
           total={jobDuration}
         />
         <HelpSection
           jobId={jobId}
           downloadFile={() => downloadJobProfile(VIEW_ID, jobId)}
-          className='helpSectionQvlogo'
+          className="helpSectionQvlogo"
         />
       </div>
-      <div className='overview__righSidePanel'>
+      <div className="overview__righSidePanel">
         <div>
           {renderErrorLog(failureInfo)}
           {renderCancellationLog(cancellationInfo)}
@@ -142,25 +191,31 @@ const OverView = (props) => {
           defaultContrast={isContrast}
           onClick={onClick}
           showContrast
-          sqlString={jobDetails.get('queryText')}
-          title={formatMessage({ id: 'SubmittedSQL' })}
-          sqlClass='overview__sqlBody' />
-        {queryType !== 'ACCELERATOR_DROP' &&
+          sqlString={jobDetails.get("queryText")}
+          title={formatMessage({ id: "SubmittedSQL" })}
+          sqlClass="overview__sqlBody"
+        />
+        {queryType !== "ACCELERATOR_DROP" && (
           <>
             <ReflectionsCreated
-              reflections={jobDetails.get('reflections')}
+              reflections={jobDetails.get("reflections")}
               location={location}
             />
-            <QueriedDataset queriedDataSet={jobDetails.get('queriedDatasets')} />
-            <Scans scansForFilter={ScansForFilter} scans={jobDetails.get('scannedDatasets')} />
+            <QueriedDataset
+              queriedDataSet={jobDetails.get("queriedDatasets")}
+            />
+            <Scans
+              scansForFilter={ScansForFilter}
+              scans={jobDetails.get("scannedDatasets")}
+            />
             <Acceleration
-              reflectionsUsed={jobDetails.get('reflectionsUsed')}
-              reflectionsNotUsed={jobDetails.get('reflectionsMatched')}
-              isAcceleration={jobDetails.get('accelerated')}
+              reflectionsUsed={jobDetails.get("reflectionsUsed")}
+              reflectionsNotUsed={jobDetails.get("reflectionsMatched")}
+              isAcceleration={jobDetails.get("accelerated")}
               location={location}
             />
           </>
-        }
+        )}
       </div>
     </div>
   );
@@ -179,6 +234,6 @@ OverView.propTypes = {
   downloadJobFile: PropTypes.func,
   isContrast: PropTypes.bool,
   onClick: PropTypes.func,
-  location: PropTypes.object
+  location: PropTypes.object,
 };
 export default injectIntl(OverView);

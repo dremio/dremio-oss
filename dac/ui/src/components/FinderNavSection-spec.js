@@ -13,49 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import FinderNavItem from '@app/components/FinderNavItem';
-import FinderNavSection from './FinderNavSection';
+import FinderNavItem from "@app/components/FinderNavItem";
+import FinderNavSection from "./FinderNavSection";
 
-describe('FinderNavSection', () => {
-
+describe("FinderNavSection", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      items: Immutable.fromJS([{id: '1'}, {id: '2'}, {id: '3'}]),
+      items: Immutable.fromJS([{ id: "1" }, { id: "2" }, { id: "3" }]),
       maxItemsCount: 5,
       toggleActivePin: sinon.spy(),
-      isInProgress: false
+      isInProgress: false,
     };
   });
 
-  it('renders items', () => {
-    const wrapper = shallow(<FinderNavSection {...commonProps}/>);
-    expect(wrapper.hasClass('holder')).to.be.true;
+  it("renders items", () => {
+    const wrapper = shallow(<FinderNavSection {...commonProps} />);
+    expect(wrapper.hasClass("holder")).to.be.true;
     expect(wrapper.find(FinderNavItem)).to.have.length(commonProps.items.size);
   });
 
-  it('renders show all when items.size > maxItemsCount', () => {
-    let wrapper = shallow(<FinderNavSection {...commonProps}/>);
-    expect(wrapper.find('.show-more-btn')).to.have.length(0);
+  it("renders show all when items.size > maxItemsCount", () => {
+    let wrapper = shallow(<FinderNavSection {...commonProps} />);
+    expect(wrapper.find(".show-more-btn")).to.have.length(0);
 
-    wrapper = shallow(<FinderNavSection {...commonProps} maxItemsCount={2}/>);
-    expect(wrapper.find('.show-more-btn')).to.have.length(1);
-    expect(wrapper.find('.show-more-btn').props().children).to.equal('Show All (3) »');
+    wrapper = shallow(<FinderNavSection {...commonProps} maxItemsCount={2} />);
+    expect(wrapper.find(".show-more-btn")).to.have.length(1);
+    expect(wrapper.find(".show-more-btn").props().children).to.equal(
+      "Show All (3) »"
+    );
     expect(wrapper.find(FinderNavItem)).to.have.length(2);
   });
 
-  it('without hidden items', () => {
-    const wrapper = shallow(<FinderNavSection {...commonProps} maxItemsCount={100} />);
-    expect(wrapper.find('.show-more-btn')).have.length(0);
+  it("without hidden items", () => {
+    const wrapper = shallow(
+      <FinderNavSection {...commonProps} maxItemsCount={100} />
+    );
+    expect(wrapper.find(".show-more-btn")).have.length(0);
     expect(wrapper.find(FinderNavItem)).have.length(commonProps.items.size);
   });
 
-  it('loading state', () => {
+  it("loading state", () => {
     const wrapper = shallow(<FinderNavSection {...commonProps} isInProgress />);
-    expect(wrapper.find('.loader')).have.length(0);
+    expect(wrapper.find(".loader")).have.length(0);
   });
 });

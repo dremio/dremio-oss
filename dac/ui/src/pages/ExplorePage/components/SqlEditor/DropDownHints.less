@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .drop-down-hints{
+  .drop-down-hints {
     position: absolute;
     background-color: #f5f5f5;
     z-index: 99;
@@ -53,46 +54,45 @@
       padding-right: 5px;
     }
 
-    .items-header{
+    .items-header {
       color: #9e9e9e;
       padding: 2px 4px 0 5px;
     }
 
-    .description{
+    .description {
       padding: 2px 4px 0 5px;
       color: black;
 
-      .variable-type{
+      .variable-type {
         font-style: italic;
       }
     }
 
-    .hint{
+    .hint {
       cursor: pointer;
       padding: 0 0 0 10px;
 
-      .hint-title{
+      .hint-title {
         color: black;
       }
 
       .hint-description {
-        transition: all .3s;
+        transition: all 0.3s;
         max-height: 0;
         overflow: hidden;
         color: #9e9e9e;
 
-        .example{
+        .example {
           font-style: italic;
         }
       }
     }
 
-    .hint:hover{
+    .hint:hover {
       background-color: #e5e5e5;
 
-
-      .hint-description{
-        transition: all .5s;
+      .hint-description {
+        transition: all 0.5s;
         max-height: 100px;
       }
     }

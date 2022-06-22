@@ -32,9 +32,15 @@ import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Joiner;
@@ -85,24 +91,48 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
     List<Exception> suppressed = new ArrayList<>();
     for (ViewTable view : finder.invalidViews) {
       try {
-        SqlConverter converter;
+        SqlValidatorAndToRelContext.Builder builder = SqlValidatorAndToRelContext.builder(sqlConverter)
+          .withSchemaPath(view.getView().getWorkspaceSchemaPath());
         if(view.getViewOwner() != null) {
-          converter = sqlConverter.withSchemaPathAndUser(view.getView().getWorkspaceSchemaPath(), view.getViewOwner());
-        } else {
-          converter = sqlConverter.withSchemaPath(view.getView().getWorkspaceSchemaPath());
+          builder = builder.withUser(view.getViewOwner());
         }
+        SqlValidatorAndToRelContext converter = builder.build();
+
         RelDataType rowType = converter.getValidatedRowType(view.getView().getSql());
         View newView = view.getView().withRowType(rowType);
 
         int count = 0;
+        boolean versionedView = false;
+        String sourceName = view.getPath().getRoot();
+        if (CatalogUtil.requestedPluginSupportsVersionedTables(sourceName, viewCatalog)) {
+          versionedView = true;
+        }
         while (true) {
+          VersionContext currVersionContext = null;
           boolean concurrentUpdate = false;
           try {
             Catalog updateViewCatalog = viewCatalog;
+            //TODO(DX-48432) : Fix after DX-48432 is figured out - ownership chaining with Arctic.
             if (view.getViewOwner() != null) {
               updateViewCatalog = updateViewCatalog.resolveCatalog(view.getViewOwner());
             }
-            updateViewCatalog.updateView(view.getPath(), newView);
+
+            ViewOptions viewOptions = null;
+            if (versionedView) {
+              ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(
+                updateViewCatalog,
+                sourceName,
+                sqlConverter.getSession().getSessionVersionForSource(sourceName)
+              );
+              currVersionContext = VersionContext.ofBranch(resolvedVersionContext.getRefName());
+              viewOptions = new ViewOptions.ViewOptionsBuilder()
+                .viewUpdate(true)
+                .version(resolvedVersionContext)
+                .batchSchema(CalciteArrowHelper.fromCalciteRowType(rowType))
+                .build();
+            }
+
+            updateViewCatalog.updateView(view.getPath(), newView, viewOptions);
           } catch (ConcurrentModificationException ex) {
             concurrentUpdate = true;
             if (count++ >= MAX_RETRIES) {
@@ -110,6 +140,12 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
             }
             logger.debug("concurrent update", ex);
             // fall-through
+          }
+
+          // Resolve the catalog to the new <source,version> mapping. The cached version
+          // in the current catalog will not be valid after the update to the view
+          if (versionedView) {
+            viewCatalog = viewCatalog.resolveCatalogResetContext(view.getPath().getRoot(), currVersionContext);
           }
 
           // check the latest view.

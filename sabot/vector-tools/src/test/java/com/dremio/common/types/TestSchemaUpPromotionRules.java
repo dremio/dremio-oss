@@ -28,7 +28,6 @@ import static com.dremio.common.expression.CompleteType.STRUCT;
 import static com.dremio.common.expression.CompleteType.TIME;
 import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
-import static com.dremio.common.types.SchemaUpPromotionRules.getResultantType;
 import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -49,6 +48,7 @@ public class TestSchemaUpPromotionRules {
   private static final CompleteType DEC_38_33 = new CompleteType(createDecimal(38, 33, null));
   private static final CompleteType DEC_38_35 = new CompleteType(createDecimal(38, 35, null));
   private static final CompleteType DEC_100_50 = new CompleteType(createDecimal(100, 50, null));
+  private static final SchemaUpPromotionRules upPromotionRules = new SchemaUpPromotionRules();
 
   @Test
   public void testGetResultantTypeApi() {
@@ -122,23 +122,23 @@ public class TestSchemaUpPromotionRules {
 
   @Test
   public void testUnsupportedDecimals() {
-    expectException(() -> getResultantType(DEC_10_5, DEC_100_50));
-    expectException(() -> getResultantType(DEC_100_50, DEC_10_5));
-    expectException(() -> getResultantType(DEC_100_50, DEC_100_50));
+    expectException(() -> upPromotionRules.getResultantType(DEC_10_5, DEC_100_50));
+    expectException(() -> upPromotionRules.getResultantType(DEC_100_50, DEC_10_5));
+    expectException(() -> upPromotionRules.getResultantType(DEC_100_50, DEC_100_50));
   }
 
   @Test
   public void testSomeUnsupportedTypes() {
-    assertThat(getResultantType(LIST, STRUCT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(STRUCT, LIST)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(STRUCT, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(INT, STRUCT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(LIST, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(INT, LIST)).isEqualTo(Optional.empty());
+    assertThat(upPromotionRules.getResultantType(LIST, STRUCT)).isEqualTo(Optional.empty());
+    assertThat(upPromotionRules.getResultantType(STRUCT, LIST)).isEqualTo(Optional.empty());
+    assertThat(upPromotionRules.getResultantType(STRUCT, INT)).isEqualTo(Optional.empty());
+    assertThat(upPromotionRules.getResultantType(INT, STRUCT)).isEqualTo(Optional.empty());
+    assertThat(upPromotionRules.getResultantType(LIST, INT)).isEqualTo(Optional.empty());
+    assertThat(upPromotionRules.getResultantType(INT, LIST)).isEqualTo(Optional.empty());
   }
 
   private CompleteType getType(CompleteType fileType, CompleteType tableType) {
-    return getResultantType(fileType, tableType).get();
+    return upPromotionRules.getResultantType(fileType, tableType).get();
   }
 
   private void expectException(Supplier<Optional<CompleteType>> supplier) {

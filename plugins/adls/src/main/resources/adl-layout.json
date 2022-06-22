@@ -54,6 +54,25 @@
             ]
           },
           {
+            "elements": [
+              {
+                "propName": "config.defaultCtasFormat",
+                "uiType": "container_selection",
+                "selectorType": "select",
+                "options": [
+                  {
+                    "value": "ICEBERG",
+                    "container": {}
+                  },
+                  {
+                    "value": "PARQUET",
+                    "container": {}
+                  }
+                ]
+              }
+            ]
+          },
+          {
             "name": "Connection Properties",
             "elements": [
               {

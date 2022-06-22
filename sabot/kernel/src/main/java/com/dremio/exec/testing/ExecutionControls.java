@@ -66,7 +66,7 @@ public class ExecutionControls {
     @Type(value = ExceptionInjection.class, name = "exception"),
     @Type(value = CountDownLatchInjectionImpl.class, name = "latch"),
     @Type(value = PauseInjection.class, name = "pause")})
-  public static abstract class InjectionMixIn {
+  public abstract static class InjectionMixIn {
   }
 
   /**

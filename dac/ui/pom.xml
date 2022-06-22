@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
@@ -34,9 +34,7 @@
     </dependency>
   </dependencies>
   <properties>
-    <npm.buildscript>buildprod</npm.buildscript>
-    <npm.installscript>run install-ci</npm.installscript>
-    <dremio.beta>false</dremio.beta>
+    <npm.buildscript>build</npm.buildscript>
   </properties>
   <build>
     <plugins>
@@ -139,7 +137,9 @@
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <nodeVersion>v14.18.2</nodeVersion>
+              <environmentVariables>
+                <SKIP_POST>true</SKIP_POST>
+              </environmentVariables>
               <arguments>${npm.installscript}</arguments>
             </configuration>
           </execution>
@@ -185,12 +185,6 @@
       <properties>
         <npm.buildscript>build</npm.buildscript>
       </properties>
-    </profile>
-    <profile>
-       <id>beta</id>
-       <properties>
-           <dremio.beta>true</dremio.beta>
-       </properties>
     </profile>
     <profile>
       <id>release</id>

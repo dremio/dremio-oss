@@ -14,27 +14,27 @@
  * limitations under the License.
  */
 
-import { useContext, useState } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { useContext, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 
-import Art from '@app/components/Art';
-import { useNessieContext } from '@app/pages/NessieHomePage/utils/context';
-import { Menu, MenuItem } from '@material-ui/core';
-import NewBranchDialog from '../../../NewBranchDialog/NewBranchDialog';
-import BranchButton from '../../../BranchButton/BranchButton';
-import MergeBranchDialog from '../../../MergeBranchDialog/MergeBranchDialog';
-import DeleteBranchDialog from '../../../DeleteBranchDialog/DeleteBranchDialog';
-import RenameBranchDialog from '../../../RenameBranchDialog/RenameBranchDialog';
+import Art from "@app/components/Art";
+import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { Menu, MenuItem } from "@material-ui/core";
+import NewBranchDialog from "../../../NewBranchDialog/NewBranchDialog";
+import BranchButton from "../../../BranchButton/BranchButton";
+import MergeBranchDialog from "../../../MergeBranchDialog/MergeBranchDialog";
+import DeleteBranchDialog from "../../../DeleteBranchDialog/DeleteBranchDialog";
+import RenameBranchDialog from "../../../RenameBranchDialog/RenameBranchDialog";
 
-import { BranchHistoryContext } from '../../BranchHistory';
-import NessieBreadcrumb from '../../../NessieBreadcrumb/NessieBreadcrumb';
+import { BranchHistoryContext } from "../../BranchHistory";
+import NessieBreadcrumb from "../../../NessieBreadcrumb/NessieBreadcrumb";
 import {
   DialogStatesType,
   manageDialogs,
-  redirectOnReferenceActions
-} from './utils';
+  redirectOnReferenceActions,
+} from "./utils";
 
-import './BranchHistoryHeader.less';
+import "./BranchHistoryHeader.less";
 
 function BranchHistoryHeader() {
   const { baseUrl } = useNessieContext();
@@ -47,7 +47,7 @@ function BranchHistoryHeader() {
     create: false,
     merge: false,
     rename: false,
-    delete: false
+    delete: false,
   } as DialogStatesType);
 
   const intl = useIntl();
@@ -61,47 +61,53 @@ function BranchHistoryHeader() {
   };
 
   return (
-    <div className='branch-history-header'>
-      <span className='branch-history-header-name'>
+    <div className="branch-history-header">
+      <span className="branch-history-header-name">
         <NessieBreadcrumb />
       </span>
-      <span className='branch-history-header-success'>{successMessage}</span>
-      <BranchButton onClick={() => manageDialogs(dialogStates, setDialogStates, 'create', true)} />
+      <span className="branch-history-header-success">{successMessage}</span>
+      <BranchButton
+        onClick={() =>
+          manageDialogs(dialogStates, setDialogStates, "create", true)
+        }
+      />
       <NewBranchDialog
         open={dialogStates.create}
         forkFrom={currentRef}
         closeDialog={() =>
-          manageDialogs(dialogStates, setDialogStates, 'create', false)
+          manageDialogs(dialogStates, setDialogStates, "create", false)
         }
         setSuccessMessage={setSuccessMessage}
       />
       {defaultRef.name !== currentRef.name && (
         <>
-          <span className='merge-branch-wrap'>
+          <span className="merge-branch-wrap">
             <BranchButton
-              onClick={() => manageDialogs(dialogStates, setDialogStates, 'merge', true)}
-              text={<FormattedMessage id='BranchHistory.Header.Merge' />}
-              iconType='GitBranch'
+              onClick={() =>
+                manageDialogs(dialogStates, setDialogStates, "merge", true)
+              }
+              text={<FormattedMessage id="BranchHistory.Header.Merge" />}
+              iconType="GitBranch"
             />
             <MergeBranchDialog
               open={dialogStates.merge}
               mergeFrom={currentRef}
               mergeTo={defaultRef}
               closeDialog={() =>
-                manageDialogs(dialogStates, setDialogStates, 'merge', false)
+                manageDialogs(dialogStates, setDialogStates, "merge", false)
               }
               setSuccessMessage={setSuccessMessage}
             />
           </span>
 
           <span
-            className='branch-history-header-ellipsis'
+            className="branch-history-header-ellipsis"
             onClick={openBranchOptions}
-            aria-haspopup='true'
+            aria-haspopup="true"
           >
             <Art
-              src='Ellipsis.svg'
-              alt={intl.formatMessage({ id: 'RepoView.BranchMenu' })}
+              src="Ellipsis.svg"
+              alt={intl.formatMessage({ id: "RepoView.BranchMenu" })}
               style={{ width: 24, height: 24 }}
             />
           </span>
@@ -112,37 +118,39 @@ function BranchHistoryHeader() {
           >
             <MenuItem
               onClick={() => {
-                manageDialogs(dialogStates, setDialogStates, 'rename', true);
+                manageDialogs(dialogStates, setDialogStates, "rename", true);
                 closeBranchOptions();
               }}
             >
-              <FormattedMessage id='BranchHistory.BranchOptions.RenameBranch' />
+              <FormattedMessage id="BranchHistory.BranchOptions.RenameBranch" />
             </MenuItem>
 
             <MenuItem
               onClick={() => {
-                manageDialogs(dialogStates, setDialogStates, 'delete', true);
+                manageDialogs(dialogStates, setDialogStates, "delete", true);
                 closeBranchOptions();
               }}
             >
-              <FormattedMessage id='RepoView.DeleteBranch' />
+              <FormattedMessage id="RepoView.DeleteBranch" />
             </MenuItem>
           </Menu>
           <RenameBranchDialog
             open={dialogStates.rename}
             referenceToRename={currentRef}
             closeDialog={() =>
-              manageDialogs(dialogStates, setDialogStates, 'rename', false)
+              manageDialogs(dialogStates, setDialogStates, "rename", false)
             }
-            handleNameChange={name => redirectOnReferenceActions(name, baseUrl)}
+            handleNameChange={(name) =>
+              redirectOnReferenceActions(name, baseUrl)
+            }
           />
           <DeleteBranchDialog
             open={dialogStates.delete}
             referenceToDelete={currentRef}
             closeDialog={() =>
-              manageDialogs(dialogStates, setDialogStates, 'delete', false)
+              manageDialogs(dialogStates, setDialogStates, "delete", false)
             }
-            specialHandling={() => redirectOnReferenceActions('', baseUrl)}
+            specialHandling={() => redirectOnReferenceActions("", baseUrl)}
           />
         </>
       )}

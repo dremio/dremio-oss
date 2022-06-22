@@ -40,6 +40,7 @@ public class ProbeCursor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProbeCursor.class);
 
   private final PageListMultimap list;
+  private final long inProbeSV2Addr;
   private final Consumer<Integer> refiller;
   private final boolean projectUnmatchedBuild;
   private final boolean projectUnmatchedProbe;
@@ -48,24 +49,26 @@ public class ProbeCursor {
   private Location location;
   private long unmatchedProbeCount;
 
-  public static ProbeCursor startProbe(PageListMultimap list, ProbeBuffers buffers,
+  public static ProbeCursor startProbe(PageListMultimap list, long inProbeSV2Addr, ProbeBuffers buffers,
                                        boolean projectUnmatchedBuild, boolean projectUnmatchedProbe,
                                        Consumer<Integer> refiller) {
-    return new ProbeCursor(list, projectUnmatchedBuild, projectUnmatchedProbe, buffers, refiller);
+    return new ProbeCursor(list, inProbeSV2Addr, buffers, projectUnmatchedBuild, projectUnmatchedProbe, refiller);
   }
 
   private ProbeCursor(
       PageListMultimap list,
+      long inProbeSV2Addr,
+      ProbeBuffers buffers,
       boolean projectUnmatchedBuild,
       boolean projectUnmatchedProbe,
-      ProbeBuffers buffers,
       Consumer<Integer> refiller) {
     super();
     this.list = list;
+    this.buffers = buffers;
+    this.inProbeSV2Addr = inProbeSV2Addr;
     this.refiller = refiller;
     this.projectUnmatchedBuild = projectUnmatchedBuild;
     this.projectUnmatchedProbe = projectUnmatchedProbe;
-    this.buffers = buffers;
     this.location = new Location(0, PageListMultimap.TERMINAL);
   }
 
@@ -91,7 +94,6 @@ public class ProbeCursor {
       refiller.accept(inRecords);
     }
 
-    final long inProbeSV2Addr = buffers.getInProbeSV2Offsets2B();
     final long inTableMatchOrdinalAddr = buffers.getInTableMatchOrdinals4B().memoryAddress();
     final long outProbeProjectAddr = buffers.getOutProbeProjectOffsets2B().memoryAddress();
     final long outBuildProjectAddr = buffers.getOutBuildProjectOffsets6B().memoryAddress();

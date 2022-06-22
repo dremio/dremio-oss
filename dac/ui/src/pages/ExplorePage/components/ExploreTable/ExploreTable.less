@@ -16,9 +16,11 @@
 @import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
 //but the change is in better direction. Duplicated styles from typography are not loaded
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .fixed-data-table { // todo: this needs to be scoped!
+  .fixed-data-table {
+    // todo: this needs to be scoped!
     background-color: #fff;
     padding-top: 0;
     position: relative;
@@ -33,16 +35,13 @@
       font-size: 50px;
     }
 
-    .explore-call-show-invisible {
-      white-space: pre;
-    }
-
-    .cell, .cell-wrap {
+    .cell,
+    .cell-wrap {
       outline: none;
       display: inline-block;
       overflow: hidden;
       margin: 0 5px;
-      white-space: nowrap;
+      white-space: pre;
       padding: 5px 0;
       height: 23px;
       line-height: 15px;
@@ -86,8 +85,8 @@
       height: 20px;
 
       &.click {
-      background-color: grey;
-      opacity: 0.3;
+        background-color: grey;
+        opacity: 0.3;
       }
     }
 
@@ -197,7 +196,8 @@
       cursor: ew-resize;
     }
 
-    .fixedDataTableCellLayout_columnResizerContainer:hover .fixedDataTableCellLayout_columnResizerKnob {
+    .fixedDataTableCellLayout_columnResizerContainer:hover
+      .fixedDataTableCellLayout_columnResizerKnob {
       visibility: visible;
     }
 
@@ -214,16 +214,24 @@
       transition: none;
     }
 
-    .public_fixedDataTable_header, .public_fixedDataTable_header .public_fixedDataTableCell_main {
+    .public_fixedDataTable_header,
+    .public_fixedDataTable_header .public_fixedDataTableCell_main {
       background: #f3f3f3;
     }
 
-    .public_fixedDataTableRow_highlighted, .public_fixedDataTableRow_highlighted .public_fixedDataTableCell_main {
+    .public_fixedDataTableRow_highlighted,
+    .public_fixedDataTableRow_highlighted .public_fixedDataTableCell_main {
       background-color: transparent;
     }
 
     .public_fixedDataTableRow_main {
       border-bottom: 1px solid #e1e1e1;
+    }
+
+    .action-menu-icon {
+      height: 16px;
+      width: 16px;
+      cursor: pointer;
     }
   }
 }

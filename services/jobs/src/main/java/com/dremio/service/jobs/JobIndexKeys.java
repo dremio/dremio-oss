@@ -46,13 +46,15 @@ import com.google.common.collect.ImmutableMap;
  * keys used to search/sort jobs
  */
 public final class JobIndexKeys {
-  private JobIndexKeys() {};
+  private JobIndexKeys() {}
 
   public static final String UI = "UI";
   public static final String EXTERNAL = "EXTERNAL";
   public static final String ACCELERATION = "ACCELERATION";
   public static final String INTERNAL = "INTERNAL";
   public static final String DOWNLOAD = "DOWNLOAD";
+  public static final String DAILY_JOBS = "DAILY_JOBS";
+  public static final String USER_JOBS = "USER_JOBS";
 
   public static final SearchQuery UI_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_PREVIEW.toString()),
@@ -89,17 +91,29 @@ public final class JobIndexKeys {
 
   public static final SearchQuery DOWNLOAD_JOBS_FILTER = SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_EXPORT.toString());
 
+  public static final SearchQuery DAILY_JOBS_FILTER = SearchQueryUtils.or(
+    UI_JOBS_FILTER,
+    EXTERNAL_JOBS_FILTER,
+    ACCELERATION_JOBS_FILTER,
+    INTERNAL_JOBS_FILTER);
+
+  public static final SearchQuery USER_JOBS_FILTER = SearchQueryUtils.or(
+    UI_JOBS_FILTER,
+    EXTERNAL_JOBS_FILTER);
+
   private static final Map<String, SearchQuery> QUERY_TYPE_FILTERS = ImmutableMap.of(
       UI, UI_JOBS_FILTER,
       EXTERNAL, EXTERNAL_JOBS_FILTER,
       ACCELERATION, ACCELERATION_JOBS_FILTER,
       INTERNAL, INTERNAL_JOBS_FILTER,
-      DOWNLOAD, DOWNLOAD_JOBS_FILTER
+      DOWNLOAD, DOWNLOAD_JOBS_FILTER,
+      DAILY_JOBS, DAILY_JOBS_FILTER,
+      USER_JOBS, USER_JOBS_FILTER
   );
   // Map short form to fields in search index. (This is done to keep url short)
   // Keep it short 2-3 letters.
   // Reserved keywords: gt, lt, le, ge, eq
-  // Set sortable if jobs can sorted by that field. Make sure to add DocValues during indexing.
+  // Set sortable if jobs can sort by that field. Make sure to add DocValues during indexing.
   public static final IndexKey JOBID = IndexKey.newBuilder("job", "JOBID", String.class)
     .setSortedValueType(SearchFieldSorting.FieldType.STRING)
     .setIncludeInSearchAllFields(true)

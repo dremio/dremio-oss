@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Link } from 'react-router';
-import { useNessieContext } from '../../utils/context';
+import { Link } from "react-router";
+import { useNessieContext } from "../../utils/context";
 
 function NessieLink({ to, ...props }: any) {
   const { baseUrl } = useNessieContext();
-  return (
-    <Link {...props} to={`${baseUrl}${to}`} />
-  );
+  return <Link {...props} to={`${baseUrl}${to}`} />;
 }
 export default NessieLink;

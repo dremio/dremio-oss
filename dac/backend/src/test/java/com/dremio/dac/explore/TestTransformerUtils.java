@@ -24,23 +24,22 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
+import com.dremio.dac.proto.model.dataset.VersionContext;
+import com.dremio.dac.proto.model.dataset.VersionContextType;
 import com.dremio.service.jobs.JobsVersionContext;
 
 public class TestTransformerUtils {
 
   @Test
   public void testCreateSourceVersionMapping() {
-    List<TransformUpdateSQL.SourceVersionReference> referencesList = new ArrayList<>();
-    TransformUpdateSQL.VersionContext versionContext1 =
-      new TransformUpdateSQL.VersionContext(TransformUpdateSQL.VersionContextType.BRANCH, "branch");
-    TransformUpdateSQL.VersionContext versionContext2 =
-      new TransformUpdateSQL.VersionContext(TransformUpdateSQL.VersionContextType.TAG, "tag");
-    TransformUpdateSQL.VersionContext versionContext3 =
-      new TransformUpdateSQL.VersionContext(TransformUpdateSQL.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a");
-    referencesList.add(new TransformUpdateSQL.SourceVersionReference("source1", versionContext1));
-    referencesList.add(new TransformUpdateSQL.SourceVersionReference("source2", versionContext2));
-    referencesList.add(new TransformUpdateSQL.SourceVersionReference("source3", versionContext3));
+    List<SourceVersionReference> referencesList = new ArrayList<>();
+    VersionContext versionContext1 = new VersionContext(VersionContextType.BRANCH, "branch");
+    VersionContext versionContext2 = new VersionContext(VersionContextType.TAG, "tag");
+    VersionContext versionContext3 = new VersionContext(VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a");
+    referencesList.add(new SourceVersionReference("source1", versionContext1));
+    referencesList.add(new SourceVersionReference("source2", versionContext2));
+    referencesList.add(new SourceVersionReference("source3", versionContext3));
 
     Map<String, JobsVersionContext> sourceVersionMappingExpected = new HashMap<>();
     sourceVersionMappingExpected.put("source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
@@ -51,4 +50,3 @@ public class TestTransformerUtils {
     assertThat(TransformerUtils.createSourceVersionMapping(referencesList)).usingRecursiveComparison().isEqualTo(sourceVersionMappingExpected);
   }
 }
-

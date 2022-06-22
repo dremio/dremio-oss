@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
- :global {
+:global {
   .timeDot {
     align-items: center;
     display: flex;
@@ -28,24 +28,28 @@
     &:hover,
     &.--active {
       .timeDot-container {
-        background: #43B8C9;
+        background: #43b8c9;
       }
     }
 
     &__buttons {
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: .8rem;
+      gap: 0.8rem;
+
+      a.dremio-icon-button {
+        text-decoration: none;
+      }
     }
   }
 
   .timeDot-container {
     background: transparent;
-    border: 2px solid #43B8C9;
+    border: 2px solid #43b8c9;
     border-radius: 50%;
     display: inline-flex;
     height: 1.6rem;
-    width: 1.6rem; 
+    width: 1.6rem;
   }
 
   .timeDot-content {
@@ -66,23 +70,22 @@
     align-items: center;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - -10px);
     overflow-y: auto;
     padding: 10px 0;
     width: 100%;
-    
+
     .timeDotWrapper:not(:first-child) .timeDot {
       margin-top: 16px;
 
       &::before {
-        content: '';
+        content: "";
         display: inline-block;
         height: 1.6rem;
-        width: .4rem;
-        background: #D2EDF2;
+        width: 0.4rem;
+        background: #d2edf2;
         position: absolute;
         top: -1.6rem;
       }
     }
   }
- }
+}

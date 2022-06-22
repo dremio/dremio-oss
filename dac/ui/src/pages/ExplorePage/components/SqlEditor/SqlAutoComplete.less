@@ -13,47 +13,73 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '../../../../components/colors.less';
+@import "../../../../components/colors.less";
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .sqlAutocomplete {
-    border: .1rem solid @athensGray;
-    border-radius: .4rem;
+    border: 0.1rem solid @athensGray;
+    border-radius: 0.4rem;
     min-height: 4rem;
     margin-left: 1rem;
-    margin-top: .8rem;
+    margin-top: 0.8rem;
+    min-width: 300px;
 
     &.vs-dark {
       background-color: #333333;
 
       .sqlAutocomplete__actions {
-        border-color: #6F6F6F;
+        border-color: #6f6f6f;
 
         .sqlAutocomplete__context {
           color: @white;
         }
       }
+
+      .mtk1 {
+        color: @monaco-grey;
+      }
     }
 
-    .sql__toggleIcon,
-    .function__toggleIcon {
+    .sqlEditor__toggleIcon,
+    .function__toggleIcon,
+    .sql__autocompleteIcon,
+    .keyboard__shortcutsIcon {
       align-items: center;
       cursor: pointer;
       display: flex;
-    }
 
-    .sql__toggleIcon {
-      transform: rotate(45deg);
-    }
-
-    .function__toggleIcon {
-      font-weight: 600;
-      right: 4.2rem;
+      img {
+        position: relative;
+        top: 0.1rem;
+        width: 2.4rem;
+        height: 2.4rem;
+      }
     }
 
     .react-monaco-editor-container {
       min-height: 4rem !important;
       height: 17rem;
+    }
+  }
+
+  .sql__lightIcon {
+    width: 24px;
+    height: 24px;
+    color: var(--dremio--color--neutral--600);
+    &:hover {
+      color: var(--dremio--color--link);
+    }
+  }
+
+  .sql__darkIcon {
+    width: 24px;
+    height: 24px;
+    color: var(--dremio--default--dark--mode);
+    &:hover {
+      color: var(--dremio--hover--dark--mode);
     }
   }
 
@@ -63,8 +89,9 @@
     display: flex;
     justify-content: flex-end;
     gap: 1.2rem;
-    padding: .8rem 1rem;
+    padding: 0.8rem 1rem;
     margin-bottom: 1rem;
+    flex-wrap: wrap;
   }
 
   .sqlAutocomplete__context {
@@ -72,15 +99,22 @@
     align-items: center;
   }
 
-  .sqlAutocomplete__contextText {
-      color: @teal;
-      cursor: pointer;
-      margin-left: .5rem;
+  .sqlAutocomplete__contextText-light,
+  .sqlAutocomplete__contextText-dark {
+    color: @teal;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+    max-width: 219px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-      &:hover {
-        color: @light-black;
-      }
-    
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
+  .sqlAutocomplete__contextText-dark {
+    color: #80dfe3;
+  }
 }

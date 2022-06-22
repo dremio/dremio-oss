@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-@font-size:16px;
-@line-height:20px;
-@font-weight:600;
+@font-size: 16px;
+@line-height: 20px;
+@font-weight: 600;
 :global {
   .title() {
-    color:@font-color1;
+    color: @font-color1;
     font-size: @font-size;
     font-weight: @font-weight;
     line-height: @line-height;
@@ -32,12 +32,12 @@
     &__leftSidePanel {
       flex-basis: 33%;
       flex-direction: column;
-      box-shadow: inset -1px 0px 0px @pale_liteGrey ;
+      box-shadow: inset -1px 0px 0px @pale_liteGrey;
       padding-left: 3px;
       padding-right: 10px;
     }
     &__righSidePanel {
-      flex-basis:67%;
+      flex-basis: 67%;
       flex-direction: column;
       padding-left: 15px;
       width: 100%;
@@ -48,9 +48,11 @@
       font-weight: normal !important;
       border-radius: 5px !important;
       height: 190px !important ;
-      font-size:11px !important;
-      line-height: 20px!important;
-      width: calc(100vw - 498px); // 498px is the offset of the left nav and the left colmun of content
+      font-size: 11px !important;
+      line-height: 20px !important;
+      width: calc(
+        100vw - 498px
+      ); // 498px is the offset of the left nav and the left colmun of content
     }
   }
   .failureInfo {
@@ -64,7 +66,7 @@
       position: relative;
     }
   }
-  .helpSectionQvlogo{
+  .helpSectionQvlogo {
     height: 92px;
     width: 144px;
     flex-basis: 50%;

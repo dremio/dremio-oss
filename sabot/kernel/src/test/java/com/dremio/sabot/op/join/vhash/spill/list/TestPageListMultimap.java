@@ -76,7 +76,7 @@ public class TestPageListMultimap extends ExecTest {
     assertEquals(new CarryAlongId(1,4), pos1.get(0));
 
     // the full list should be returned in insert order.
-    List<KeyAndCarryAlongId> fullList = list.findAll().collect(Collectors.toList());
+    List<KeyAndCarryAlongId> fullList = findAll(list);
     assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 1)), fullList.get(0));
     assertEquals(new KeyAndCarryAlongId(1, getCarryAlongId(1, 2)), fullList.get(1));
     assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 3)), fullList.get(2));
@@ -111,7 +111,7 @@ public class TestPageListMultimap extends ExecTest {
     assertEquals(new CarryAlongId(1,5), pos1.get(0));
 
     // the full list should be returned in insert order.
-    List<KeyAndCarryAlongId> fullList = list.findAll().collect(Collectors.toList());
+    List<KeyAndCarryAlongId> fullList = findAll(list);
     assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 1)), fullList.get(0));
     assertEquals(new KeyAndCarryAlongId(1, getCarryAlongId(1, 2)), fullList.get(1));
     assertEquals(new KeyAndCarryAlongId(2, getCarryAlongId(1, 3)), fullList.get(2));
@@ -163,7 +163,7 @@ public class TestPageListMultimap extends ExecTest {
       elements += recordsInBatch;
       batchId++;
     }
-    assertEquals(expectedFullList, list.findAll().collect(Collectors.toList()));
+    assertEquals(expectedFullList, findAll(list));
 
     list.moveToRead();
 
@@ -176,6 +176,16 @@ public class TestPageListMultimap extends ExecTest {
       List<CarryAlongId> pageList = find(i);
       assertEquals(objList, pageList);
     }
+  }
+
+  private List<KeyAndCarryAlongId> findAll(PageListMultimap listMultimap) {
+    List<KeyAndCarryAlongId> fullList = new ArrayList<>();
+    ArrayOfEntriesView arrayView = listMultimap.findAll();
+    for (int i = arrayView.getFirstValidIndex(); i < arrayView.size(); ++i) {
+      KeyAndCarryAlongId carryAlongId = new KeyAndCarryAlongId(arrayView.getKey(i), arrayView.getCarryAlongId(i));
+      fullList.add(carryAlongId);
+    }
+    return fullList;
   }
 
   @Test

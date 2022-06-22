@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.SimpleBigIntVector;
 
@@ -30,6 +31,7 @@ import com.dremio.exec.util.ValueListFilter;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashTable;
+import com.dremio.sabot.op.common.ht2.HashTableFilterUtil;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Pivots;
@@ -38,8 +40,8 @@ import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
 
 public class BlockJoinTable implements JoinTable {
-
   private static final int MAX_VALUES_PER_BATCH = 4096;
+
   private final HashTable table;
   private final PivotDef buildPivot;
   private final PivotDef probePivot;
@@ -55,7 +57,8 @@ public class BlockJoinTable implements JoinTable {
   public BlockJoinTable(PivotDef buildPivot, PivotDef probePivot, BufferAllocator allocator, NullComparator nullMask,
                         int minSize, int varFieldAverageSize, SabotConfig sabotConfig, OptionManager optionManager) {
     super();
-    Preconditions.checkArgument(buildPivot.getBlockWidth() == probePivot.getBlockWidth());
+    Preconditions.checkState(buildPivot.getBlockWidth() == probePivot.getBlockWidth());
+    Preconditions.checkState(buildPivot.getBlockWidth() != 0);
     this.table = HashTable.getInstance(sabotConfig,
       optionManager.getOption(ExecConstants.ENABLE_NATIVE_HASHTABLE_FOR_JOIN),
       new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator, minSize,
@@ -82,50 +85,52 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public long getProbePivotTime(TimeUnit unit){
+  public long getProbePivotTime(TimeUnit unit) {
     return probePivotWatch.elapsed(unit);
   }
 
   @Override
-  public long getProbeFindTime(TimeUnit unit){
+  public long getProbeFindTime(TimeUnit unit) {
     return probeFindWatch.elapsed(unit);
   }
 
   @Override
-  public long getBuildPivotTime(TimeUnit unit){
+  public long getBuildPivotTime(TimeUnit unit) {
     return pivotBuildWatch.elapsed(unit);
   }
 
   @Override
-  public long getInsertTime(TimeUnit unit){
+  public long getInsertTime(TimeUnit unit) {
     return insertWatch.elapsed(unit);
   }
 
   @Override
-  public long getBuildHashComputationTime(TimeUnit unit){
+  public long getBuildHashComputationTime(TimeUnit unit) {
     return buildHashComputationWatch.elapsed(unit);
   }
 
   @Override
-  public long getProbeHashComputationTime(TimeUnit unit){
+  public long getProbeHashComputationTime(TimeUnit unit) {
     return probeHashComputationWatch.elapsed(unit);
   }
 
   /**
    * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
    * the consumer. Instead, they get an empty optional.
+   *
    * @param fieldNames
    * @param sizeDynamically Size the filter according to the number of entries in table.
    * @return
    */
   @Override
   public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    return table.prepareBloomFilter(fieldNames, sizeDynamically, maxKeySize);
+    return HashTableFilterUtil.prepareBloomFilter(table, allocator, buildPivot,
+      fieldNames, sizeDynamically, maxKeySize);
   }
 
   @Override
   public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return table.prepareValueListFilter(fieldName, maxElements);
+    return HashTableFilterUtil.prepareValueListFilter(table, allocator, buildPivot, fieldName, maxElements);
   }
 
   @Override
@@ -157,9 +162,13 @@ public class BlockJoinTable implements JoinTable {
 
         // STEP 3: then we insert build side into hash table
         insertWatch.start();
-        table.add(records, keyFixedVectorAddr, keyVarVectorAddr,
-          hashVectorAddr8B, outAddr);
+        int recordsAdded = table.add(records, keyFixedVectorAddr, keyVarVectorAddr, hashVectorAddr8B, outAddr);
         insertWatch.stop();
+
+        if (recordsAdded < records) {
+          throw new OutOfMemoryException(String.format("Only %d records out of %d were added to the HashTable",
+            recordsAdded, records));
+        }
       }
 
       if (tableTracing) {

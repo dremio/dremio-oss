@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import DropdownMenu from '@app/components/Menus/DropdownMenu';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import DropdownMenu from "@app/components/Menus/DropdownMenu";
 
 export default class HeaderDropdown extends Component {
   static propTypes = {
@@ -28,21 +28,32 @@ export default class HeaderDropdown extends Component {
     tooltip: PropTypes.string,
     hideArrow: PropTypes.bool,
     arrowStyle: PropTypes.object,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   static defaultProps = {
-    name: ''
+    name: "",
   };
 
   render() {
-    const { dataQa, name, nameStyle, menu, style, icon, tooltip, hideArrow, arrowStyle, className } = this.props;
+    const {
+      dataQa,
+      name,
+      nameStyle,
+      menu,
+      style,
+      icon,
+      tooltip,
+      hideArrow,
+      arrowStyle,
+      className,
+    } = this.props;
 
     return (
       <DropdownMenu
         className={className}
         dataQa={dataQa}
-        style={{...styles.base, ...style}}
+        style={{ ...styles.base, ...style }}
         menu={menu}
         hideArrow={hideArrow}
         arrowStyle={arrowStyle}
@@ -57,6 +68,6 @@ export default class HeaderDropdown extends Component {
 
 const styles = {
   base: {
-    padding: '0 10px'
-  }
+    padding: "0 10px",
+  },
 };

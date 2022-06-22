@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 
 .label {
   display: flex;
   align-items: center;
-  font-size: $font-s;
+  font-size: $font;
   margin: map-get($map: $gutter-sizes, $key: full) 0px;
-  color: $oslo-gray;
+  color: $FIGMA_TEXT_MAIN;
 }

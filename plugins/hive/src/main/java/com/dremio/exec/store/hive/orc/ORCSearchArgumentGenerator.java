@@ -43,7 +43,6 @@ import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf.Type;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentFactory;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
-import org.apache.orc.ColumnStatistics;
 
 import com.dremio.common.collections.Tuple;
 import com.dremio.exec.planner.logical.RexToExpr;

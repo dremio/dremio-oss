@@ -13,35 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import SvgIcon from '@material-ui/core/SvgIcon';
-import { ReactComponent as EyeIcon } from '../../art/Eye.svg';
-import { ReactComponent as HideEyeIcon } from '../../art/HideEye.svg';
+import SvgIcon from "@material-ui/core/SvgIcon";
+import { ReactComponent as EyeIcon } from "../../art/Eye.svg";
+import { ReactComponent as HideEyeIcon } from "../../art/HideEye.svg";
 
-import './ToggleFieldVisibility.scss';
+import "./ToggleFieldVisibility.scss";
 
 const ToggleFieldVisibility = ({ onView }) => {
-  const [ viewField, setViewField ] = useState(false);
+  const [viewField, setViewField] = useState(false);
 
   const toggeleEyeIcon = () => {
     setViewField(!viewField);
     onView && onView(!viewField);
   };
 
-  const iconClass = clsx('toggleFieldVisibility__icon');
+  const iconClass = clsx("toggleFieldVisibility__icon");
   const icon = viewField ? EyeIcon : HideEyeIcon;
   return (
     <div className={iconClass} onClick={toggeleEyeIcon}>
-      <SvgIcon component={icon} fontSize='large' />
+      <SvgIcon component={icon} fontSize="large" />
     </div>
   );
 };
 
 ToggleFieldVisibility.propTypes = {
-  onView: PropTypes.func
+  onView: PropTypes.func,
 };
 
 export default ToggleFieldVisibility;

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable  from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/explore/ui';
-import * as QlikActions from 'actions/qlik';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import {hashHeightTopSplitter} from '@app/constants/explorePage/heightTopSplitter';
+import * as ActionTypes from "actions/explore/ui";
+import * as QlikActions from "actions/qlik";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
+import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter";
 
 function getInitialState() {
   return Immutable.fromJS({
@@ -31,7 +31,7 @@ function getInitialState() {
     qlikInProgress: false,
     qlikError: null,
     qlikAppCreationSuccess: false,
-    qlikAppInfo: null
+    qlikAppInfo: null,
   });
 }
 
@@ -39,44 +39,52 @@ function updateExploreSql(state, sqlState) {
   if (localStorageUtils) {
     localStorageUtils.setDefaultSqlState(sqlState);
   }
-  return state.set('sqlState', sqlState);
+  return state.set("sqlState", sqlState);
 }
 
 export default function grid(state = getInitialState(), action) {
   switch (action.type) {
+    case ActionTypes.TOGGLE_EXPLORE_SQL: {
+      return updateExploreSql(state, !state.get("sqlState"));
+    }
+    case ActionTypes.COLLAPSE_EXPLORE_SQL:
+      // do not use here updateExploreSql, as this action is used to collapse editor by default
+      // and this state should not be saved.
+      return state.set("sqlState", false);
+    case ActionTypes.EXPAND_EXPLORE_SQL: {
+      return updateExploreSql(state, true);
+    }
+    case ActionTypes.SET_SQL_EDITOR_SIZE:
+      localStorageUtils.setDefaultSqlHeight(action.size);
+      return state.set("sqlSize", action.size);
+    case ActionTypes.SHOW_QLIK_MODAL:
+      return state
+        .set("qlikDialogVisible", true)
+        .set("qlikShowDialogDataset", action.dataset)
+        .set("qlikAppCreationSuccess", false);
+    case ActionTypes.HIDE_QLIK_MODAL:
+      return state
+        .set("qlikDialogVisible", false)
+        .set("qlikShowDialogDataset", null);
+    case ActionTypes.RESIZE_PROGRESS_STATE:
+      return state.set("isResizeInProgress", action.state);
+    case ActionTypes.SHOW_QLIK_ERROR:
+      return state
+        .set("qlikError", Immutable.Map(action.payload))
+        .set("qlikInProgress", false);
+    case ActionTypes.HIDE_QLIK_ERROR:
+      return state.delete("qlikError");
+    case ActionTypes.SHOW_QLIK_PROGRESS:
+      return state.set("qlikInProgress", true);
+    case ActionTypes.HIDE_QLIK_PROGRESS:
+      return state.set("qlikInProgress", false);
+    case QlikActions.QLIK_APP_CREATION_SUCCESS:
+      return state
+        .set("qlikInProgress", false)
+        .set("qlikAppCreationSuccess", true)
+        .set("qlikAppInfo", action.info);
 
-  case ActionTypes.TOGGLE_EXPLORE_SQL: {
-    return updateExploreSql(state, !state.get('sqlState'));
-  }
-  case ActionTypes.COLLAPSE_EXPLORE_SQL:
-    // do not use here updateExploreSql, as this action is used to collapse editor by default
-    // and this state should not be saved.
-    return state.set('sqlState', false);
-  case ActionTypes.EXPAND_EXPLORE_SQL: {
-    return updateExploreSql(state, true);
-  }
-  case ActionTypes.SET_SQL_EDITOR_SIZE:
-    localStorageUtils.setDefaultSqlHeight(action.size);
-    return state.set('sqlSize', action.size);
-  case ActionTypes.SHOW_QLIK_MODAL:
-    return state.set('qlikDialogVisible', true).set('qlikShowDialogDataset', action.dataset)
-      .set('qlikAppCreationSuccess', false);
-  case ActionTypes.HIDE_QLIK_MODAL:
-    return state.set('qlikDialogVisible', false).set('qlikShowDialogDataset', null);
-  case ActionTypes.RESIZE_PROGRESS_STATE:
-    return state.set('isResizeInProgress', action.state);
-  case ActionTypes.SHOW_QLIK_ERROR:
-    return state.set('qlikError', Immutable.Map(action.payload)).set('qlikInProgress', false);
-  case ActionTypes.HIDE_QLIK_ERROR:
-    return state.delete('qlikError');
-  case ActionTypes.SHOW_QLIK_PROGRESS:
-    return state.set('qlikInProgress', true);
-  case ActionTypes.HIDE_QLIK_PROGRESS:
-    return state.set('qlikInProgress', false);
-  case QlikActions.QLIK_APP_CREATION_SUCCESS:
-    return state.set('qlikInProgress', false).set('qlikAppCreationSuccess', true).set('qlikAppInfo', action.info);
-
-  default:
-    return state;
+    default:
+      return state;
   }
 }

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import TextFormatForm from './TextFormatForm';
+import TextFormatForm from "./TextFormatForm";
 
-describe('TextFormatForm', () => {
+describe("TextFormatForm", () => {
   let minimalProps;
   let fieldDelimiter;
   let wrapper;
@@ -26,105 +26,106 @@ describe('TextFormatForm', () => {
     minimalProps = {
       fields: {
         Text: {
-          fieldDelimiter: (fieldDelimiter = fieldDelimiter = {
-            onChange: sinon.spy(),
-            value: '\n'
-          }),
+          fieldDelimiter:
+            (fieldDelimiter = fieldDelimiter =
+              {
+                onChange: sinon.spy(),
+                value: "\n",
+              }),
           lineDelimiter: {
             onChange: sinon.spy(),
-            value: '\n'
+            value: "\n",
           },
           quote: {
             onChange: sinon.spy(),
-            value: '"'
+            value: '"',
           },
           comment: {
             onChange: sinon.spy(),
-            value: '#'
+            value: "#",
           },
           escape: {
             onChange: sinon.spy(),
-            value: '`'
-          }
-        }
-      }
+            value: "`",
+          },
+        },
+      },
     };
-    wrapper = shallow(<TextFormatForm {...minimalProps}/>);
+    wrapper = shallow(<TextFormatForm {...minimalProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     expect(wrapper).to.have.length(1);
-    expect(wrapper.find('FormatField')).to.have.length(5);
-    expect(wrapper.find('Checkbox')).to.have.length(3);
+    expect(wrapper.find("FormatField")).to.have.length(5);
+    expect(wrapper.find("Checkbox")).to.have.length(3);
   });
-  describe('#onDelimiterChange', () => {
-    it('should remove JSON escaping', () => {
+  describe("#onDelimiterChange", () => {
+    it("should remove JSON escaping", () => {
       const onDelimiterChange = instance.onDelimiterChange(fieldDelimiter);
 
-      onDelimiterChange('\\n');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\n');
+      onDelimiterChange("\\n");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\n");
       fieldDelimiter.onChange.resetHistory();
 
-      onDelimiterChange('\\t\\n');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\t\n');
+      onDelimiterChange("\\t\\n");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\t\n");
       fieldDelimiter.onChange.resetHistory();
 
-      onDelimiterChange('\t');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\t');
+      onDelimiterChange("\t");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\t");
       fieldDelimiter.onChange.resetHistory();
 
       onDelimiterChange('"');
       expect(fieldDelimiter.onChange).to.be.calledWith('"');
       fieldDelimiter.onChange.resetHistory();
 
-      onDelimiterChange('\\u0000');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\u0000');
+      onDelimiterChange("\\u0000");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\u0000");
       fieldDelimiter.onChange.resetHistory();
 
-      onDelimiterChange('\\\\u0000');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\\u0000');
+      onDelimiterChange("\\\\u0000");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\\u0000");
       fieldDelimiter.onChange.resetHistory();
     });
-    it('should treat all-slashes as plain text', () => {
+    it("should treat all-slashes as plain text", () => {
       const onDelimiterChange = instance.onDelimiterChange(fieldDelimiter);
 
-      onDelimiterChange('\\\\');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\\\\');
+      onDelimiterChange("\\\\");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\\\\");
       fieldDelimiter.onChange.resetHistory();
     });
 
-    it('should treat invalid JSON as plain text', () => {
+    it("should treat invalid JSON as plain text", () => {
       const onDelimiterChange = instance.onDelimiterChange(fieldDelimiter);
 
       onDelimiterChange('\\"');
       expect(fieldDelimiter.onChange).to.be.calledWith('\\"');
       fieldDelimiter.onChange.resetHistory();
 
-      onDelimiterChange('\\uBADX');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\\uBADX');
+      onDelimiterChange("\\uBADX");
+      expect(fieldDelimiter.onChange).to.be.calledWith("\\uBADX");
       fieldDelimiter.onChange.resetHistory();
     });
-
   });
-  describe('#getDelimiterValue', () => {
-    it('should add JSON escaping', () => {
-      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\n');
-      fieldDelimiter.value = '\n\t';
-      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\n\\t');
+  describe("#getDelimiterValue", () => {
+    it("should add JSON escaping", () => {
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql("\\n");
+      fieldDelimiter.value = "\n\t";
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql("\\n\\t");
       fieldDelimiter.value = '"';
       expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('"');
-      fieldDelimiter.value = '\u0000';
-      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\u0000');
-      fieldDelimiter.value = '\\foo';
-      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\\\foo');
-      fieldDelimiter.value = '\u200a'; // not naturally escapsed by JSON.stringify
-      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\u200a');
+      fieldDelimiter.value = "\u0000";
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql("\\u0000");
+      fieldDelimiter.value = "\\foo";
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql("\\\\foo");
+      fieldDelimiter.value = "\u200a"; // not naturally escapsed by JSON.stringify
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql("\\u200a");
     });
 
-    it('should not add JSON escaping for all-slashes string', () => {
-      fieldDelimiter.value = '\\\\';
-      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql('\\\\');
+    it("should not add JSON escaping for all-slashes string", () => {
+      fieldDelimiter.value = "\\\\";
+      expect(instance.getDelimiterValue(fieldDelimiter)).to.eql("\\\\");
     });
   });
 });

@@ -26,4 +26,3 @@ package org.apache.arrow.vector.holders;
 public class ObjectHolder implements ValueHolder {
   public Object obj;
 }
-

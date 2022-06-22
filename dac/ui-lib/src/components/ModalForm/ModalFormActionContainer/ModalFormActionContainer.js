@@ -14,26 +14,27 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import './modalFormActionContainer.scss';
+import "./modalFormActionContainer.scss";
 
 const ModalFormActionContainer = (props) => {
-  const {
-    children,
-    classes
-  } = props;
+  const { children, classes } = props;
 
-  const rootClass = clsx(['modalFormActionContainer__root', { [classes.root]: classes.root }]);
-  const containerClass = clsx(['modalFormActionContainer__container', { [classes.root]: classes.root }]);
+  const rootClass = clsx([
+    "modalFormActionContainer__root",
+    { [classes.root]: classes.root },
+  ]);
+  const containerClass = clsx([
+    "modalFormActionContainer__container",
+    { [classes.root]: classes.root },
+  ]);
 
   return (
     <div className={rootClass}>
-      <div className={containerClass}>
-        {children}
-      </div>
+      <div className={containerClass}>{children}</div>
     </div>
   );
 };
@@ -43,14 +44,14 @@ ModalFormActionContainer.propTypes = {
     PropTypes.arrayOf(PropTypes.node),
     PropTypes.arrayOf(PropTypes.func),
     PropTypes.node,
-    PropTypes.func
+    PropTypes.func,
   ]),
   classes: PropTypes.object,
-  disableSpacing: PropTypes.bool
+  disableSpacing: PropTypes.bool,
 };
 
 ModalFormActionContainer.defaultProps = {
-  classes: {}
+  classes: {},
 };
 
 export default ModalFormActionContainer;

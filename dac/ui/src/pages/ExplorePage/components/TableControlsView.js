@@ -13,37 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
 
-import ExploreTableColumnFilter from 'pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter';
+import ExploreTableColumnFilter from "pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter";
 
-import { Button } from 'dremio-ui-lib';
-import ExploreCopyTableButton from '@app/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton';
+import { Button, Tooltip } from "dremio-ui-lib";
+import ExploreCopyTableButton from "@app/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton";
 
-import { sqlEditorButton } from 'uiTheme/radium/buttons';
+import modelUtils from "@app/utils/modelUtils";
+import { isSqlChanged } from "@app/sagas/utils";
+import { CombinedActionMenu } from "@app/components/Menus/ExplorePage/CombinedActionMenu";
+import { navigateToExploreDefaultIfNecessary } from "@app/utils/pathUtils";
+import DropdownMenu from "@app/components/Menus/DropdownMenu";
+import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
 
-import modelUtils from '@app/utils/modelUtils';
-import { isSqlChanged } from '@app/sagas/utils';
-import { CombinedActionMenu } from '@app/components/Menus/ExplorePage/CombinedActionMenu';
-import { navigateToExploreDefaultIfNecessary } from '@app/utils/pathUtils';
-import DropdownMenu from '@app/components/Menus/DropdownMenu';
-import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
-import Art from '@app/components/Art';
-
-import './TableControls.less';
-import { memoOne } from '@app/utils/memoUtils';
+import "./TableControls.less";
+import { memoOne } from "@app/utils/memoUtils";
+import {
+  columnFilterWrapper,
+  searchField,
+} from "@app/pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter.less";
+import { SearchField } from "components/Fields";
+import { formatMessage } from "@app/utils/locale";
+import ExploreTableJobStatus from "../components/ExploreTable/ExploreTableJobStatus";
 
 const datasetColumnsMemoize = memoOne((tableColumns) => {
-  return tableColumns && tableColumns.map(column => column.get('type')).toJS() || [];
+  return (
+    (tableColumns && tableColumns.map((column) => column.get("type")).toJS()) ||
+    []
+  );
 });
-@injectIntl
-@Radium
-class TableControls extends PureComponent {
 
+export class TableControlsView extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
@@ -72,7 +76,16 @@ class TableControls extends PureComponent {
     startDownloadDataset: PropTypes.func,
     currentSql: PropTypes.string,
     history: PropTypes.object,
-    location: PropTypes.object
+    location: PropTypes.object,
+    filteredColumnCount: PropTypes.number,
+    version: PropTypes.any,
+    jobsList: PropTypes.array,
+    showJobsTable: PropTypes.bool,
+    jobsCount: PropTypes.number,
+    filterQueries: PropTypes.func,
+    columnFilter: PropTypes.any,
+    queryFilter: PropTypes.string,
+    isQuerySuccess: PropTypes.bool,
   };
 
   constructor(props) {
@@ -81,27 +94,26 @@ class TableControls extends PureComponent {
     this.state = {
       tooltipState: false,
       anchorOrigin: {
-        horizontal: 'right',
-        vertical: 'bottom'
+        horizontal: "right",
+        vertical: "bottom",
       },
       targetOrigin: {
-        horizontal: 'right',
-        vertical: 'top'
+        horizontal: "right",
+        vertical: "top",
       },
-      isDownloading: false
+      isDownloading: false,
     };
   }
 
-
   renderCopyToClipboard = () => {
-    const { exploreViewState, dataset } = this.props;
+    const { dataset } = this.props;
 
-    const isDataAvailable = !exploreViewState.get('invalidated')
-      && !exploreViewState.get('isFailed')
-      && !exploreViewState.get('isInProgress');
-    const version = dataset && dataset.get('datasetVersion');
+    const version = dataset && dataset.get("datasetVersion");
+    const copyStyles = { margin: "0 10px" };
 
-    return (isDataAvailable && version) ? <ExploreCopyTableButton version={version} style={styles.copy}/> : null;
+    return version ? (
+      <ExploreCopyTableButton version={version} style={copyStyles} />
+    ) : null;
   };
 
   isTransformNeeded() {
@@ -117,11 +129,11 @@ class TableControls extends PureComponent {
         dataset,
         currentSql,
         queryContext,
-        viewId: exploreViewState.get('viewId'),
+        viewId: exploreViewState.get("viewId"),
         callback,
         // forces preview to reload a data if nothing is changed. Primary use case is
         // when a user clicks a preview button
-        forceDataLoad
+        forceDataLoad,
       });
     };
 
@@ -136,33 +148,39 @@ class TableControls extends PureComponent {
 
   navigateToExploreTableIfNecessary() {
     const { pageType, location } = this.props;
-    navigateToExploreDefaultIfNecessary(pageType, location, this.context.router);
+    navigateToExploreDefaultIfNecessary(
+      pageType,
+      location,
+      this.context.router
+    );
   }
 
   downloadDataset(format) {
-    this.transformIfNecessary(
-      (didTransform, dataset) => {
-        this.props.showConfirmationDialog({
-          title: this.props.intl.formatMessage({ id: 'Download.DownloadLimit' }),
-          confirmText: this.props.intl.formatMessage({ id: 'Download.Download' }),
-          text: this.props.intl.formatMessage({ id: 'Download.DownloadLimitValue' }),
-          doNotAskAgainKey: 'isDownloadWarningDisabled',
-          doNotAskAgainText: this.props.intl.formatMessage({ id: 'Download.DownloadLimitWarn' }),
-          confirm: () => this.props.startDownloadDataset(dataset, format)
-        });
-      }
-    );
+    this.transformIfNecessary((didTransform, dataset) => {
+      this.props.showConfirmationDialog({
+        title: this.props.intl.formatMessage({ id: "Download.DownloadLimit" }),
+        confirmText: this.props.intl.formatMessage({ id: "Download.Download" }),
+        text: this.props.intl.formatMessage({
+          id: "Download.DownloadLimitValue",
+        }),
+        doNotAskAgainKey: "isDownloadWarningDisabled",
+        doNotAskAgainText: this.props.intl.formatMessage({
+          id: "Download.DownloadLimitWarn",
+        }),
+        confirm: () => this.props.startDownloadDataset(dataset, format),
+      });
+    });
   }
 
   // Note: similar to but different from ExplorePageControllerComponent#shouldShowUnsavedChangesPopup
   isEditedDataset() {
     const { dataset, history, currentSql } = this.props;
-    if (!dataset.get('datasetType')) {
+    if (!dataset.get("datasetType")) {
       // not loaded yet
       return false;
     }
 
-    if (PHYSICAL_DATASET_TYPES.has(dataset.get('datasetType'))) {
+    if (PHYSICAL_DATASET_TYPES.has(dataset.get("datasetType"))) {
       return false;
     }
 
@@ -171,16 +189,19 @@ class TableControls extends PureComponent {
       return false;
     }
 
-    if (isSqlChanged(dataset.get('sql'), currentSql)) {
+    if (isSqlChanged(dataset.get("sql"), currentSql)) {
       return true;
     }
 
-    return history ? history.get('isEdited') : false;
+    return history ? history.get("isEdited") : false;
   }
 
   isCreatedAndNamedDataset() {
     const { dataset } = this.props;
-    return dataset.get('datasetVersion') !== undefined && modelUtils.isNamedDataset(dataset);
+    return (
+      dataset.get("datasetVersion") !== undefined &&
+      modelUtils.isNamedDataset(dataset)
+    );
   }
 
   // unlike acceleration button, settings button is always shown, but it is disabled when
@@ -196,33 +217,57 @@ class TableControls extends PureComponent {
 
   updateDownloading = () => {
     this.setState({
-      isDownloading: !this.state.isDownloading
+      isDownloading: !this.state.isDownloading,
     });
-  }
+  };
 
   // ellipsis button with settings, download, and analyze options
   renderSavedButton = () => {
     const { dataset, tableColumns } = this.props;
     const isSettingsDisabled = !this.shouldEnableSettingsButton();
-    const isActionDisabled = dataset.get('isNewQuery') || !dataset.get('datasetType'); // not new query nor loaded
+    const isActionDisabled =
+      dataset.get("isNewQuery") || !dataset.get("datasetType"); // not new query nor loaded
     const datasetColumns = datasetColumnsMemoize(tableColumns);
 
     return (
       <DropdownMenu
-        className='explore-ellipsis-button'
-        iconType='Ellipsis'
-        disabled={(isSettingsDisabled && isActionDisabled) || this.state.isDownloading}
+        className="explore-ellipsis-button"
+        iconType="Ellipsis"
+        disabled={
+          (isSettingsDisabled && isActionDisabled) || this.state.isDownloading
+        }
         isDownloading={this.state.isDownloading}
-        isButton
-        menu={<CombinedActionMenu
-          dataset={dataset}
-          datasetColumns={datasetColumns}
-          downloadAction={this.downloadDataset}
-          isSettingsDisabled={isSettingsDisabled}
-          updateDownloading={this.updateDownloading}
-        />}
+        arrowStyle={{
+          fontSize: "12px",
+          marginLeft: "0",
+          color: "#505862",
+          paddingLeft: "2px",
+        }}
+        menu={
+          <CombinedActionMenu
+            dataset={dataset}
+            datasetColumns={datasetColumns}
+            downloadAction={this.downloadDataset}
+            isSettingsDisabled={isSettingsDisabled}
+            updateDownloading={this.updateDownloading}
+          />
+        }
       />
     );
+  };
+
+  getWording = () => {
+    const { showJobsTable, jobsCount, columnCount, isQuerySuccess } =
+      this.props;
+    if (showJobsTable) {
+      return jobsCount === 1
+        ? "Explore.Middle.Counter.Job"
+        : "Explore.Middle.Counter.Jobs";
+    } else {
+      return columnCount !== 1 || !isQuerySuccess
+        ? "Explore.Middle.Counter.Columns"
+        : "Explore.Middle.Counter.Column";
+    }
   };
 
   render() {
@@ -233,109 +278,148 @@ class TableControls extends PureComponent {
       join,
       columnCount,
       intl,
-      disableButtons
+      disableButtons,
+      columnFilter,
+      queryFilter,
+      filteredColumnCount,
+      approximate,
+      version,
+      showJobsTable,
+      jobsCount,
+      filterQueries,
+      isQuerySuccess,
     } = this.props;
 
     return (
-      <div className='table-controls'>
-        <div className='left-controls'>
-          <div className='controls' style={styles.controlsInner}>
-            { columnCount }
-            <Button
-              variant='outlined'
-              color='primary'
-              size='medium'
-              onClick={addField}
-              disableRipple
-              disabled={disableButtons}>
-              <Art src='AddFields.svg' alt='addFields' title='AddFields' style={styles.blueIcon}/>
-              { intl.formatMessage({ id: 'Dataset.AddField' }) }
-            </Button>
-            <Button
-              variant='outlined'
-              color='primary'
-              size='medium'
-              onClick={groupBy}
-              disableRipple
-              disabled={disableButtons}>
-              <Art src='GroupBy.svg' alt='groupBy' title='GroupBy' style={styles.blueIcon}/>
-              { intl.formatMessage({ id: 'Dataset.GroupBy' }) }
-            </Button>
-            <Button
-              variant='outlined'
-              color='primary'
-              size='medium'
-              onClick={join}
-              disableRipple
-              disabled={disableButtons}>
-              <Art src='Join.svg' alt='join' title='Join' style={styles.blueIcon}/>
-              { intl.formatMessage({ id: 'Dataset.Join' }) }
-            </Button>
-            <div className='table-controls__right' style={styles.right}>
-              {this.renderCopyToClipboard()}
-              <ExploreTableColumnFilter
-                dataset={dataset}
-              />
-              { this.renderSavedButton() }
+      <div className="table-controls">
+        <div className="left-controls">
+          <div className="controls" style={styles.controlsInner}>
+            {showJobsTable && (
+              <div className={columnFilterWrapper} data-qa="columnFilter">
+                <SearchField
+                  value={queryFilter}
+                  onChange={(value) => filterQueries(value)}
+                  className={searchField}
+                  placeholder={intl.formatMessage({
+                    id: "Explore.SearchFilterJobId",
+                  })}
+                  dataQa="explore-column-filter"
+                />
+              </div>
+            )}
+            {!showJobsTable && (
+              <>
+                <Button
+                  className="controls-addField"
+                  variant="outlined"
+                  color="primary"
+                  size="medium"
+                  onClick={addField}
+                  disableRipple
+                  disabled={disableButtons}
+                >
+                  <Tooltip title="Add Field">
+                    <dremio-icon
+                      name="sql-editor/add-field"
+                      alt="Add Field"
+                      class={
+                        disableButtons
+                          ? "controls-addField-icon--disabled"
+                          : "controls-addField-icon"
+                      }
+                    />
+                  </Tooltip>
+                  {intl.formatMessage({ id: "Dataset.AddField" })}
+                </Button>
+                <Button
+                  className="controls-groupBy"
+                  variant="outlined"
+                  color="primary"
+                  size="medium"
+                  onClick={groupBy}
+                  disableRipple
+                  disabled={disableButtons}
+                >
+                  <Tooltip title="Group By">
+                    <dremio-icon
+                      name="sql-editor/group-by"
+                      alt="Group By"
+                      class={
+                        disableButtons
+                          ? "controls-groupBy-icon--disabled"
+                          : "controls-groupBy-icon"
+                      }
+                    />
+                  </Tooltip>
+                  {intl.formatMessage({ id: "Dataset.GroupBy" })}
+                </Button>
+                <Button
+                  className="controls-join"
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  onClick={join}
+                  disableRipple
+                  disabled={disableButtons}
+                >
+                  <Tooltip title="Join">
+                    <dremio-icon
+                      name="sql-editor/join"
+                      alt="Join"
+                      class={
+                        disableButtons
+                          ? "controls-join-icon--disabled"
+                          : "controls-join-icon"
+                      }
+                    />
+                  </Tooltip>
+                  {intl.formatMessage({ id: "Dataset.Join" })}
+                </Button>
+                <ExploreTableColumnFilter
+                  dataset={dataset}
+                  disabled={!isQuerySuccess}
+                />
+              </>
+            )}
+            <div className="table-controls__actions">
+              <div data-qa="columnFilterStats">
+                {columnFilter && (
+                  <span data-qa="columnFilterCount">
+                    {isQuerySuccess ? filteredColumnCount : 0} of{" "}
+                  </span>
+                )}
+                {showJobsTable ? jobsCount : isQuerySuccess ? columnCount : 0}{" "}
+                {formatMessage(this.getWording())}
+              </div>
             </div>
           </div>
+          {!showJobsTable && isQuerySuccess && (
+            <div className="table-controls__right" style={styles.right}>
+              <ExploreTableJobStatus
+                approximate={approximate}
+                version={version}
+              />
+              {this.renderSavedButton()}
+              {this.renderCopyToClipboard()}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 }
 
-export const styles = {
-  disabledStyle: {
-    pointerEvents: 'none',
-    opacity: 0.7
-  },
-  innerTextStyle: {
-    textAlign: 'left'
-  },
-  activeButton: {
-    ...sqlEditorButton,
-
-    color: 'rgb(0, 0, 0)',
-    ':hover': {
-      backgroundColor: 'rgb(229, 242, 247)'
-    }
-  },
-  iconBox: {
-    width: 24,
-    height: 24
-  },
-  iconContainer: {
-    marginRight: 1,
-    width: 24,
-    position: 'relative'
-  },
-  tableControls: {
-    marginTop: 0,
-    marginLeft: 0,
-    paddingLeft: 8,
-    paddingRight: 8,
-    height: 42,
-    display: 'flex',
-    alignItems: 'center'
-  },
+const styles = {
   controlsInner: {
-    height: 24
-  },
-  copy: {
-    marginRight: 10,
-    marginTop: 5
+    height: 24,
   },
   right: {
-    display: 'flex',
+    display: "flex",
     flex: 1,
-    justifyContent: 'flex-end'
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: "8px",
   },
-  blueIcon: {
-    height: 24,
-    width: 24,
-    filter: 'invert(64%) sepia(28%) saturate(773%) hue-rotate(139deg) brightness(93%) contrast(101%)'
-  }
 };
 
-export default TableControls;
+export default injectIntl(TableControlsView);

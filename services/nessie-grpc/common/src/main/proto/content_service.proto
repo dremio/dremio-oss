@@ -47,6 +47,7 @@ message Content {
     IcebergTable iceberg = 1;
     DeltaLakeTable deltaLake = 2;
     IcebergView iceberg_view = 3;
+    Namespace namespace = 4;
   }
 }
 
@@ -82,4 +83,9 @@ message DeltaLakeTable {
   repeated string metadataLocationHistory = 2;
   repeated string checkpointLocationHistory = 3;
   optional string lastCheckpoint = 4;
+}
+
+message Namespace {
+  repeated string elements = 1;
+  map<string, string> properties = 2;
 }

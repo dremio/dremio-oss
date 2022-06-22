@@ -13,17 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { JobState } from '@app/utils/jobsUtils';
+import { JobState } from "@app/utils/jobsUtils";
 
 export const getNumberOfRunningJobs = (jobs) => {
   if (jobs) {
-    return jobs.filter((item) => item.get('currentState') &&
-      item.get('currentState').toLowerCase() === JobState.RUNNING).size;
+    return jobs.filter(
+      (item) =>
+        item.get("currentState") &&
+        item.get("currentState").toLowerCase() === JobState.RUNNING
+    ).size;
   }
   return 0;
 };
 
 export const getDuration = (durationDetails, phase) => {
-  const filteredDuration = durationDetails && durationDetails.find(duration => duration.get('phaseName') === phase);
-  return filteredDuration ? Number(filteredDuration.get('phaseDuration')) / 1000 : 0;
+  const filteredDuration =
+    durationDetails &&
+    durationDetails.find((duration) => duration.get("phaseName") === phase);
+  return filteredDuration
+    ? Number(filteredDuration.get("phaseDuration")) / 1000
+    : 0;
 };

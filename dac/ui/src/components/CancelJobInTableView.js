@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-import {useState, useEffect} from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
-import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
-import { Button } from 'dremio-ui-lib';
-import Immutable from 'immutable';
-import { getJobProgress, getRunStatus, getExploreJobId } from 'selectors/explore';
-import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
-import { getLocation } from 'selectors/routing';
-import { cancelTransform } from 'actions/explore/dataset/transform';
-import { getExploreViewState } from 'selectors/resources';
-import Art from '@app/components/Art';
-import './CancelJobInTableView.less';
-
+import { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { injectIntl } from "react-intl";
+import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
+import { Button } from "dremio-ui-lib";
+import Immutable from "immutable";
+import {
+  getJobProgress,
+  getRunStatus,
+  getExploreJobId,
+} from "selectors/explore";
+import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
+import { getLocation } from "selectors/routing";
+import { cancelTransform } from "actions/explore/dataset/transform";
+import { getExploreViewState } from "selectors/resources";
+import Art from "@app/components/Art";
+import "./CancelJobInTableView.less";
 
 const CancelJobInTableView = (props) => {
   const [jobId, setJobId] = useState(props.jobId);
@@ -58,36 +61,38 @@ const CancelJobInTableView = (props) => {
   //     }
   // }, [props.jobProgress])
 
-  const viewId = props.exploreViewState.get('viewId');
+  const viewId = props.exploreViewState.get("viewId");
   return (
-    <div className='view-state-cancel-wrapper-overlay'>
+    <div className="view-state-cancel-wrapper-overlay">
       <div>
         {/* not doing this now, pending discussion
             <span className='view-state-wrapper-inner-span'>{queryMessage}</span> */}
         <Button
-          color='secondary'
+          color="secondary"
           type={ButtonTypes.SECONDARY}
-          data-qa='qa-cancel-job'
-          title={props.intl.formatMessage({ id: 'Query.Table.Cancel' })}
+          data-qa="qa-cancel-job"
+          title={props.intl.formatMessage({ id: "Query.Table.Cancel" })}
           onClick={() => {
-            jobId ? props.cancelJobAndShowNotification(jobId) : props.cancelTransform(viewId);
+            jobId
+              ? props.cancelJobAndShowNotification(jobId)
+              : props.cancelTransform(viewId);
           }}
           style={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            top: '40%'
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            top: "40%",
           }}
           disableMargin
         >
-          <Art src='Cancel.svg' alt='-' className='view-state-cancel-job' />
-          {`${props.intl.formatMessage({ id: 'Query.Table.Cancel' })}`}
+          <Art src="Cancel.svg" alt="-" className="view-state-cancel-job" />
+          {`${props.intl.formatMessage({ id: "Query.Table.Cancel" })}`}
         </Button>
       </div>
     </div>
   );
 };
-const mapStateToProps = state => {
+const mapStateToProps = (state) => {
   const location = getLocation(state);
   const version = location.query && location.query.version;
   const jobId = getExploreJobId(state);
@@ -98,13 +103,13 @@ const mapStateToProps = state => {
     jobProgress,
     runStatus,
     jobId,
-    exploreViewState
+    exploreViewState,
   };
 };
 
 const mapDispatchToProps = {
   cancelJobAndShowNotification,
-  cancelTransform
+  cancelTransform,
 };
 
 CancelJobInTableView.propTypes = {
@@ -113,7 +118,9 @@ CancelJobInTableView.propTypes = {
   jobProgress: PropTypes.object,
   jobId: PropTypes.string,
   cancelJobAndShowNotification: PropTypes.func,
-  cancelTransform: PropTypes.func
+  cancelTransform: PropTypes.func,
 };
 
-export default (injectIntl(connect(mapStateToProps, mapDispatchToProps)(CancelJobInTableView)));
+export default injectIntl(
+  connect(mapStateToProps, mapDispatchToProps)(CancelJobInTableView)
+);

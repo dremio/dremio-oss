@@ -13,40 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { compose } from 'redux';
-import { connect } from 'react-redux';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { Popover } from '@app/components/Popover';
-import {injectIntl} from 'react-intl';
+import { Component } from "react";
+import { compose } from "redux";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { Popover } from "@app/components/Popover";
+import { injectIntl } from "react-intl";
 
-import FontIcon from 'components/Icon/FontIcon';
-import DatasetsSearch from 'components/DatasetsSearch';
-import {loadSearchData} from 'actions/search';
-import { getSearchResult, getViewState } from 'selectors/resources';
-import { getSearchText } from '@app/selectors/search';
+import DatasetsSearch from "components/DatasetsSearch";
+import { loadSearchData } from "actions/search";
+import { getSearchResult, getViewState } from "selectors/resources";
+import { getSearchText } from "@app/selectors/search";
 
-import './SearchItem.less';
+import * as classes from "./SearchItem.less";
 
-@Radium
 export class SearchItem extends Component {
   static propTypes = {
     loadSearchData: PropTypes.func,
     search: PropTypes.instanceOf(Immutable.List).isRequired,
     searchViewState: PropTypes.instanceOf(Immutable.Map),
     searchText: PropTypes.string,
-    intl: PropTypes.object.isRequired
-  }
+    intl: PropTypes.object.isRequired,
+  };
   input = null; // ill store input ref
 
   constructor(props) {
     super(props);
     this.state = {
       searchVisible: false,
-      inputText: '',
-      anchorEl: null
+      inputText: "",
+      anchorEl: null,
     };
   }
 
@@ -59,11 +56,9 @@ export class SearchItem extends Component {
   }
 
   propsChange(prevProps, newProps) {
-    const {
-      searchText
-    } = newProps;
+    const { searchText } = newProps;
 
-    if (prevProps.searchText !== searchText && typeof searchText === 'string') {
+    if (prevProps.searchText !== searchText && typeof searchText === "string") {
       this.input.value = searchText;
       this.input.focus();
       this.onInput(); // simulate text change
@@ -72,71 +67,80 @@ export class SearchItem extends Component {
 
   onInput = () => {
     this.setState({
-      anchorEl: this.input
+      anchorEl: this.input,
     });
     const text = this.input.value;
     clearTimeout(this.updateSearch);
-    this.updateSearch = setTimeout(() => (this.startSearch(text)), 800);
-  }
+    this.updateSearch = setTimeout(() => this.startSearch(text), 800);
+  };
+
+  onFocus = () => {
+    this.searchTableRowRef.className = "searchTableRow --focused";
+  };
+
+  onBlur = () => {
+    this.searchTableRowRef.className = "searchTableRow";
+  };
 
   getInputText() {
-    const {intl} = this.props;
+    const { intl } = this.props;
 
-    const placeholderText = intl.formatMessage({id: 'SideNav.SearchPlaceHolder'}); //('Search Catalog...');
+    const placeholderText = intl.formatMessage({
+      id: "SideNav.SearchPlaceHolder",
+    }); //('Search Catalog...');
     return (
-      <div className='searchItem search-item'>
-        <FontIcon
-          key='icon'
-          type='Search'
-          theme={styles.fontIcon}
-        />
+      <div className="searchItem search-item">
+        <dremio-icon
+          name="interface/search"
+          class={classes["searchIcon"]}
+        ></dremio-icon>
         <input
-          key='textInput'
-          type='text'
+          key="textInput"
+          type="text"
           placeholder={placeholderText}
           ref={this.onInputRef}
           onInput={this.onInput}
-          className={'searchInput'}
+          className={"searchInput"}
+          onFocus={this.onFocus}
+          onBlur={this.onBlur}
         />
       </div>
     );
   }
 
   handleSearchShow() {
-    this.setState({searchVisible: true});
+    this.setState({ searchVisible: true });
   }
 
   handleSearchHide = () => {
-    this.setState({searchVisible: false});
+    this.setState({ searchVisible: false });
     this.input.focus();
-  }
+  };
 
   startSearch(text) {
     this.props.loadSearchData(text);
-    this.setState({inputText: text});
+    this.setState({ inputText: text });
     this.handleSearchShow();
   }
 
-  onInputRef = input => {
+  onInputRef = (input) => {
     this.input = input;
-  }
+  };
+
+  onFocusRef = (div) => {
+    this.searchTableRowRef = div;
+  };
 
   render() {
     const { searchVisible, inputText, anchorEl } = this.state;
-    const {search, searchViewState} = this.props;
+    const { search, searchViewState } = this.props;
 
-    let popoverStyle = styles.searchStyle;
-    if (searchVisible && anchorEl) {
-      popoverStyle = {
-        ...popoverStyle,
-        width: document.getElementsByTagName('body')[0].clientWidth - anchorEl.getBoundingClientRect().left - 50
-      };
-    }
+    const popoverStyle = styles.searchStyle;
 
     return (
-      <div className={'searchTable'}>
-        <div className={'searchTableRow'}>
-          <div className={'searchTableCol1'}>{this.getInputText()}</div>
+      <div className={"searchTable"}>
+        <div className={"searchTableRow"} ref={this.onFocusRef}>
+          <div className={"searchTableCol1"}>{this.getInputText()}</div>
         </div>
         <Popover
           anchorEl={searchVisible ? anchorEl : null}
@@ -148,7 +152,8 @@ export class SearchItem extends Component {
             searchData={search}
             searchViewState={searchViewState}
             inputValue={inputText}
-            handleSearchHide={this.handleSearchHide}/>
+            handleSearchHide={this.handleSearchHide}
+          />
         </Popover>
       </div>
     );
@@ -158,26 +163,20 @@ export class SearchItem extends Component {
 function mapStateToProps(state) {
   return {
     search: getSearchResult(state) || Immutable.List(),
-    searchViewState: getViewState(state, 'searchDatasets'),
-    searchText: getSearchText(state)
+    searchViewState: getViewState(state, "searchDatasets"),
+    searchText: getSearchText(state),
   };
 }
 
-export default compose(connect(mapStateToProps, {loadSearchData}), injectIntl)(SearchItem);
+export default compose(
+  connect(mapStateToProps, { loadSearchData }),
+  injectIntl
+)(SearchItem);
 
 const styles = {
   searchStyle: {
-    margin: '9px 0 0 -18px',
-    zIndex: 1001
+    margin: "9px 0 0 -18px",
+    width: 650,
+    zIndex: 1001,
   },
-  fontIcon: {
-    'Icon': {
-      width: 24,
-      height: 24
-    },
-    'Container': {
-      width: 24,
-      height: 24
-    }
-  }
 };

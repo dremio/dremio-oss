@@ -14,30 +14,22 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
 
-import './dialogContent.scss';
+import "./dialogContent.scss";
 
 const DialogContent = (props) => {
-  const {
-    children,
-    centerContent,
-    classes
-  } = props;
+  const { children, centerContent, classes } = props;
 
   const rootClass = clsx([
-    'dialogContent',
-    { 'dialogContent--center': centerContent },
-    { [classes.root]: classes.root }]
-  );
+    "dialogContent",
+    { "dialogContent--center": centerContent },
+    { [classes.root]: classes.root },
+  ]);
 
-  return (
-    <div className={rootClass}>
-      {children}
-    </div>
-  );
+  return <div className={rootClass}>{children}</div>;
 };
 
 DialogContent.propTypes = {
@@ -46,15 +38,15 @@ DialogContent.propTypes = {
     PropTypes.arrayOf(PropTypes.node),
     PropTypes.arrayOf(PropTypes.func),
     PropTypes.node,
-    PropTypes.func
+    PropTypes.func,
   ]),
   classes: PropTypes.object,
-  disableSpacing: PropTypes.bool
+  disableSpacing: PropTypes.bool,
 };
 
 DialogContent.defaultProps = {
   centerContent: false,
-  classes: {}
+  classes: {},
 };
 
 export default DialogContent;

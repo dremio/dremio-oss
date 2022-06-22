@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '~@app/uiTheme/less/color-schema.less';
+@import "~@app/uiTheme/less/color-schema.less";
 
 .dragged-item-mixin() {
   background-color: @ACTIVE_DRAG_AREA;
@@ -44,8 +44,10 @@
 
 .font-basic() {
   .fontBody();
-  font-family: 'Inter var', sans-serif;
+  font-family: "Inter var", sans-serif;
   font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "calt" on, "cv08" on;
 }
 
 .unavailable-font() {
@@ -105,7 +107,7 @@
 .clear-fix-mixin() {
   &:after {
     clear: both;
-    content: '';
+    content: "";
     display: table;
     height: 0;
   }
@@ -118,4 +120,10 @@
 .flex-center() {
   display: flex;
   align-items: center;
+}
+
+// Gray Icon Hover state
+.gray-icon-hover() {
+  filter: invert(53%) sepia(45%) saturate(6859%) hue-rotate(157deg)
+    brightness(70%) contrast(73%);
 }

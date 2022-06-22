@@ -169,4 +169,3 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
       path.toUri().getPath(), version, this, asyncHttpClientManager.getUtilityThreadPool());
   }
 }
-

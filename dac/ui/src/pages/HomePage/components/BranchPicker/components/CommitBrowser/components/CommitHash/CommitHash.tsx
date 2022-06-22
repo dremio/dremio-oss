@@ -14,27 +14,31 @@
  * limitations under the License.
  */
 //@ts-ignore
-import { CopyToClipboard } from 'dremio-ui-lib';
-import NessieLink from '@app/pages/NessieHomePage/components/NessieLink/NessieLink';
-import { getShortHash } from '@app/utils/nessieUtils';
+import { CopyToClipboard } from "dremio-ui-lib";
+import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
+import { getShortHash } from "@app/utils/nessieUtils";
 
-import './CommitHash.less';
+import "./CommitHash.less";
 
 function CommitHash({
   branch,
   hash,
-  disabled
+  disabled,
 }: {
   disabled?: boolean;
   branch: string;
   hash: string;
 }) {
   return (
-    <div className='commitEntryHash'>
-      <NessieLink disabled={disabled} to={`/commit/${branch}/${hash}`} title={hash}>
+    <div className="commitEntryHash">
+      <NessieLink
+        disabled={disabled}
+        to={`/commit/${branch}/${hash}`}
+        title={hash}
+      >
         {getShortHash(hash)}
       </NessieLink>
-      <CopyToClipboard tooltipText='Copied' value={hash} />
+      <CopyToClipboard tooltipText="Copied" value={hash} />
     </div>
   );
 }

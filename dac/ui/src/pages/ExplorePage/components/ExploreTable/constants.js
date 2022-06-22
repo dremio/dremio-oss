@@ -15,18 +15,18 @@
  */
 
 export const JOB_STATUS = {
-  notSubmitted: 'NOT_SUBMITTED',
-  starting: 'STARTING',
-  running: 'RUNNING',
-  completed: 'COMPLETED',
-  canceled: 'CANCELED',
-  failed: 'FAILED',
-  cancellationRequested: 'CANCELLATION_REQUESTED',
-  enqueued: 'ENQUEUED',
-  pending: 'PENDING',
-  planning: 'PLANNING',
-  metadataRetrieval: 'METADATA_RETRIEVAL',
-  engineStart: 'ENGINE_START',
-  queued: 'QUEUED',
-  executionPlanning: 'EXECUTION_PLANNING'
+  notSubmitted: "NOT_SUBMITTED",
+  starting: "STARTING",
+  running: "RUNNING",
+  completed: "COMPLETED",
+  canceled: "CANCELED",
+  failed: "FAILED",
+  cancellationRequested: "CANCELLATION_REQUESTED",
+  enqueued: "ENQUEUED",
+  pending: "PENDING",
+  planning: "PLANNING",
+  metadataRetrieval: "METADATA_RETRIEVAL",
+  engineStart: "ENGINE_START",
+  queued: "QUEUED",
+  executionPlanning: "EXECUTION_PLANNING",
 };

@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import allSVGs from '@app/art/svg.pattern';
+import allSVGs from "@app/art/svg.pattern";
 
-export {
-  allSVGs
-};
+export { allSVGs };

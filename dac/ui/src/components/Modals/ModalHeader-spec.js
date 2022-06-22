@@ -13,26 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import ModalHeader from './ModalHeader';
-describe('ModalHeader', () => {
+import { shallow } from "enzyme";
+import ModalHeader from "./ModalHeader";
+describe("ModalHeader", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {};
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ModalHeader {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ModalHeader {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render close button by default', () => {
-    const wrapper = shallow(<ModalHeader {...minimalProps}/>);
-    expect(wrapper.find('FontIcon').props().type).to.be.eql('XBig');
+  it("should render close button by default", () => {
+    const wrapper = shallow(<ModalHeader {...minimalProps} />);
+    expect(wrapper.find("FontIcon").props().type).to.be.eql("CloseBig");
   });
 
-  it('should hide close button when hideCloseButton is true', () => {
-    const wrapper = shallow(<ModalHeader {...minimalProps} hideCloseButton/>);
-    expect(wrapper.find('FontIcon')).to.have.length(0);
+  it("should hide close button when hideCloseButton is true", () => {
+    const wrapper = shallow(<ModalHeader {...minimalProps} hideCloseButton />);
+    expect(wrapper.find("FontIcon")).to.have.length(0);
   });
 });

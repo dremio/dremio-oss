@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Cards from '@app/pages/ExplorePage/components/Transform/components/Cards';
-import ReplacePatternCard from './ReplacePatternCard';
-import EmptyCard from './EmptyCard';
+import { Component } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
+import ReplacePatternCard from "./ReplacePatternCard";
+import EmptyCard from "./EmptyCard";
 
-@Radium
-export default class ReplacePatternCards extends Component {
-
+class ReplacePatternCards extends Component {
   static getFields() {
     return [
       ...ReplacePatternCard.getFields().map((field) => `cards[].${field}`),
-      'activeCard'
+      "activeCard",
     ];
   }
 
@@ -36,8 +34,8 @@ export default class ReplacePatternCards extends Component {
     if (activeCardValues) {
       return {
         cards: {
-          [values.activeCard]: ReplacePatternCard.validate(activeCardValues)
-        }
+          [values.activeCard]: ReplacePatternCard.validate(activeCardValues),
+        },
       };
     }
   }
@@ -45,11 +43,13 @@ export default class ReplacePatternCards extends Component {
   static propTypes = {
     cards: PropTypes.instanceOf(Immutable.List),
     fields: PropTypes.object,
-    hasSelection: PropTypes.bool
+    hasSelection: PropTypes.bool,
   };
 
   handleCardClick(index) {
-    const { fields: { activeCard }} = this.props;
+    const {
+      fields: { activeCard },
+    } = this.props;
     if (index !== activeCard.value) {
       activeCard.onChange(index);
     }
@@ -57,17 +57,20 @@ export default class ReplacePatternCards extends Component {
 
   render() {
     const { cards, fields, hasSelection } = this.props;
-    return <Cards>
-      {fields.cards.map((card, index) =>
-        <ReplacePatternCard
-          key={index}
-          card={cards.get(index) || Immutable.Map()}
-          fields={card}
-          active={index === fields.activeCard.value}
-          onClick={this.handleCardClick.bind(this, index)}
-        />
-      )}
-      {!hasSelection ? <EmptyCard /> : null}
-    </Cards>;
+    return (
+      <Cards>
+        {fields.cards.map((card, index) => (
+          <ReplacePatternCard
+            key={index}
+            card={cards.get(index) || Immutable.Map()}
+            fields={card}
+            active={index === fields.activeCard.value}
+            onClick={this.handleCardClick.bind(this, index)}
+          />
+        ))}
+        {!hasSelection ? <EmptyCard /> : null}
+      </Cards>
+    );
   }
 }
+export default Radium(ReplacePatternCards);

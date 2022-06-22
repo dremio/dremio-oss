@@ -18,7 +18,7 @@ package com.dremio.exec.store;
 /**
  * Thrown if Nessie does not have a default branch set.
  */
-public class NoDefaultBranchException extends Exception {
+public class NoDefaultBranchException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
   public NoDefaultBranchException() {

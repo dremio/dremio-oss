@@ -51,6 +51,7 @@ import com.google.gson.reflect.TypeToken;
 /**
  * class for building profile Phase data
  */
+@SuppressWarnings("checkstyle:VisibilityModifier")
 public class JobProfileVisualizerUI {
 
   //Class level variable declaration
@@ -226,7 +227,6 @@ public class JobProfileVisualizerUI {
 
         //This will build OperatorDataList for Phase.
         buildOperatorDataList(phaseId, operatorId, operatorType, baseMetrics, operatorData, graphObjectMap);
-
       }
     );
 
@@ -235,9 +235,10 @@ public class JobProfileVisualizerUI {
     long peakMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).max().orElse(0);
     long totalMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).sum();
     long recordsProcessed = hostProcessingRateSet.stream().collect(Collectors.summarizingLong(records->Long.valueOf(String.valueOf(records.getNumRecords())))).getSum();
+    long totalBufferForIncomingMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxIncomingMemoryUsed()).sum();
 
     phaseDataList.add(new PhaseData(
-      phaseId, processTime, peakMemory, recordsProcessed, -1L, TimeUnit.MILLISECONDS.toNanos(runTime), totalMemory
+      phaseId, processTime, peakMemory, recordsProcessed, -1L, TimeUnit.MILLISECONDS.toNanos(runTime), totalMemory, totalBufferForIncomingMemory
     ));
     phaseDataList.get(phaseDataList.size() -1).setOperatorDataList(operatorData);
   }
@@ -368,7 +369,7 @@ public class JobProfileVisualizerUI {
           }
         );
         phaseDataList.add(new PhaseData(
-          phaseId, default_Long, default_Long, default_Long, default_Long, default_Long, default_Long
+          phaseId, default_Long, default_Long, default_Long, default_Long, default_Long, default_Long, default_Long
         ));
         phaseDataList.get(phaseDataList.size() -1).setOperatorDataList(operatorDataList);
       }

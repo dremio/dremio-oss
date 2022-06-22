@@ -13,34 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Select from 'components/Fields/Select';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Select from "components/Fields/Select";
 
-import { FieldWithError, TextField, Checkbox } from 'components/Fields';
+import { FieldWithError, TextField, Checkbox } from "components/Fields";
 
-import { applyValidators, isRegularExpression } from 'utils/validation';
+import { applyValidators, isRegularExpression } from "utils/validation";
 
-@Radium
-export default class ReplacePattern extends Component {
+class ReplacePattern extends Component {
   static getFields() {
     return [
-      'replace.selectionPattern',
-      'replace.ignoreCase',
-      'replace.selectionType'
+      "replace.selectionPattern",
+      "replace.ignoreCase",
+      "replace.selectionType",
     ];
   }
 
   static propTypes = {
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   static validate(values) {
-    const {selectionType} = values.replace;
+    const { selectionType } = values.replace;
     const validators = [];
-    if (selectionType === 'MATCHES') {
-      validators.push(isRegularExpression('replace.selectionPattern'));
+    if (selectionType === "MATCHES") {
+      validators.push(isRegularExpression("replace.selectionPattern"));
     }
     return applyValidators(values, validators);
   }
@@ -49,57 +48,59 @@ export default class ReplacePattern extends Component {
     super(props);
     this.items = [
       {
-        option: 'CONTAINS',
-        label: 'Contains'
+        option: "CONTAINS",
+        label: "Contains",
       },
       {
-        option: 'STARTS_WITH',
-        label: 'Starts with'
+        option: "STARTS_WITH",
+        label: "Starts with",
       },
       {
-        option: 'ENDS_WITH',
-        label: 'Ends with'
+        option: "ENDS_WITH",
+        label: "Ends with",
       },
       {
-        option: 'MATCHES',
-        label: 'Matches regex'
+        option: "MATCHES",
+        label: "Matches regex",
       },
       {
-        option: 'EXACT',
-        label: 'Exactly matches'
+        option: "EXACT",
+        label: "Exactly matches",
       },
       {
-        option: 'IS_NULL',
-        label: 'Is null'
-      }
+        option: "IS_NULL",
+        label: "Is null",
+      },
     ];
   }
 
   render() {
-    const { fields: { replace: {ignoreCase, selectionPattern, selectionType}} } = this.props;
+    const {
+      fields: {
+        replace: { ignoreCase, selectionPattern, selectionType },
+      },
+    } = this.props;
     return (
       <div style={styles.base}>
         <Select
-          dataQa='ReplacePatternSelect'
+          dataQa="ReplacePatternSelect"
           items={this.items}
           style={styles.select}
           {...selectionType}
-          defaultItem={selectionType.value}/>
+          defaultItem={selectionType.value}
+        />
         <div>
-          {selectionType.value !== 'IS_NULL' &&
-            <FieldWithError
-              {...selectionPattern}
-              errorPlacement='right'>
+          {selectionType.value !== "IS_NULL" && (
+            <FieldWithError {...selectionPattern} errorPlacement="right">
               <TextField
-                data-qa='ReplacePatternText'
+                data-qa="ReplacePatternText"
                 {...selectionPattern}
-                style={[styles.input]}/>
+                style={styles.input}
+              />
             </FieldWithError>
-          }
-          <div style={[styles.input]}>
-            <Checkbox
-              {...ignoreCase}
-              label={la('Ignore case')}/>
+          )}
+          <div style={styles.input}>
+            <Checkbox {...ignoreCase} label={la("Ignore case")} />
           </div>
         </div>
       </div>
@@ -109,15 +110,17 @@ export default class ReplacePattern extends Component {
 
 const styles = {
   base: {
-    display: 'flex',
+    display: "flex",
     marginTop: 10,
-    marginLeft: 10
+    marginLeft: 10,
   },
   select: {
-    width: 200
+    width: 200,
+    background: "white",
   },
   input: {
     width: 200,
-    margin: '0 10px'
-  }
+    margin: "0 10px",
+  },
 };
+export default Radium(ReplacePattern);

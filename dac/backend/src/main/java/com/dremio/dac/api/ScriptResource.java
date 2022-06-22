@@ -19,15 +19,15 @@ package com.dremio.dac.api;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
+import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -39,8 +39,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
-import org.apache.parquet.Preconditions;
-
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.scripts.PaginatedResponse;
@@ -49,9 +47,14 @@ import com.dremio.service.script.DuplicateScriptNameException;
 import com.dremio.service.script.ScriptNotAccessible;
 import com.dremio.service.script.ScriptNotFoundException;
 import com.dremio.service.script.ScriptService;
+import com.dremio.service.script.proto.ScriptProto;
+import com.dremio.service.users.UserNotFoundException;
+import com.dremio.service.users.UserService;
+import com.dremio.service.users.proto.UID;
 
 @APIResource
 @Secured
+@RolesAllowed({"user", "admin"})
 @Path("/scripts")
 @Produces(APPLICATION_JSON)
 @Consumes(APPLICATION_JSON)
@@ -60,37 +63,44 @@ public class ScriptResource {
     org.slf4j.LoggerFactory.getLogger(ScriptResource.class);
   private final ScriptService scriptService;
   private final SecurityContext securityContext;
+  private final UserService userService;
 
   @Inject
-  public ScriptResource(ScriptService scriptService, @Context SecurityContext securityContext) {
+  public ScriptResource(ScriptService scriptService,
+                        @Context SecurityContext securityContext,
+                        UserService userService) {
     this.scriptService = scriptService;
     this.securityContext = securityContext;
+    this.userService = userService;
   }
 
   @GET
   public PaginatedResponse<ScriptData> getScripts(@QueryParam("offset") Integer offset,
                                                   @QueryParam("maxResults") Integer maxResults,
                                                   @QueryParam("search") String search,
-                                                  @QueryParam("orderBy") String orderBy) {
+                                                  @QueryParam("orderBy") String orderBy,
+                                                  @QueryParam("createdBy") String createdBy) {
     // validations and assigning default values
     offset = (offset == null) ? 0 : offset;
     maxResults = (maxResults == null) ? 25 : Math.min(maxResults, 1000);
     search = (search == null) ? "" : search;
     orderBy = (orderBy == null) ? "" : orderBy;
 
-    Long totalScripts = scriptService.getCountOfMatchingScripts(search, "");
-    List<ScriptData> scripts = scriptService.getScripts(offset, maxResults, search, orderBy, "")
-      .stream()
-      .map(ScriptData::fromScript)
-      .collect(Collectors.toList());
+    Long totalScripts = scriptService.getCountOfMatchingScripts(search, "", createdBy);
+    List<ScriptData> scripts =
+      scriptService.getScripts(offset, maxResults, search, orderBy, "", createdBy)
+        .stream()
+        .map(this::fromScript)
+        .collect(Collectors.toList());
     return new PaginatedResponse<>(totalScripts, scripts);
   }
 
   @POST
   public ScriptData postScripts(ScriptData scriptData) {
     try {
-      return ScriptData.fromScript(scriptService.createScript(ScriptData.toScriptRequest(scriptData)));
+      return fromScript(scriptService.createScript(ScriptData.toScriptRequest(scriptData)));
     } catch (DuplicateScriptNameException exception) {
+      logger.error(exception.getMessage(), exception);
       throw new BadRequestException(exception.getMessage());
     }
   }
@@ -98,57 +108,66 @@ public class ScriptResource {
   @GET
   @Path("/{id}")
   public ScriptData getScript(@PathParam("id") String scriptId) {
-    // check if scriptId is valid;
-    validateScriptId(scriptId);
     try {
-      return ScriptData.fromScript(scriptService.getScriptById(scriptId));
+      return fromScript(scriptService.getScriptById(scriptId));
     } catch (ScriptNotFoundException exception) {
+      logger.error(exception.getMessage(), exception);
       throw new NotFoundException(exception.getMessage());
     } catch (ScriptNotAccessible exception) {
-      throw new NotAuthorizedException(exception.getMessage());
-    }
-  }
-
-  private void validateScriptId(String scriptId) {
-    Preconditions.checkNotNull(scriptId, "scriptId must be provided.");
-    try {
-      UUID.fromString(scriptId);
-    } catch (IllegalArgumentException exception) {
-      throw new BadRequestException("scriptId must be valid UUID.");
+      logger.error(exception.getMessage(), exception);
+      throw new ForbiddenException(exception.getMessage());
     }
   }
 
   @PUT
   @Path("/{id}")
   public ScriptData updateScript(@PathParam("id") String scriptId, ScriptData scriptData) {
-    // check if scriptId is valid
-    validateScriptId(scriptId);
     // check if script exists with given scriptId
     try {
       // update the script
-      return ScriptData.fromScript(scriptService.updateScript(scriptId,
-                                                              ScriptData.toScriptRequest(scriptData)));
+      return fromScript(scriptService.updateScript(scriptId,
+                                                   ScriptData.toScriptRequest(scriptData)));
     } catch (ScriptNotFoundException exception) {
+      logger.error(exception.getMessage(), exception);
       throw new NotFoundException(exception.getMessage());
     } catch (DuplicateScriptNameException exception) {
+      logger.error(exception.getMessage(), exception);
       throw new BadRequestException(exception.getMessage());
     } catch (ScriptNotAccessible exception) {
-      throw new NotAuthorizedException(exception.getMessage());
+      logger.error(exception.getMessage(), exception);
+      throw new ForbiddenException(exception.getMessage());
     }
   }
 
   @DELETE
   @Path(("/{id}"))
   public Response deleteScript(@PathParam("id") String scriptId) {
-    validateScriptId(scriptId);
     try {
       scriptService.deleteScriptById(scriptId);
       return Response.noContent().build();
     } catch (ScriptNotFoundException exception) {
+      logger.error(exception.getMessage(), exception);
       throw new NotFoundException(exception.getMessage());
     } catch (ScriptNotAccessible exception) {
-      throw new NotAuthorizedException(exception.getMessage());
+      logger.error(exception.getMessage(), exception);
+      throw new ForbiddenException(exception.getMessage());
     }
+  }
+
+  public User getUserInfoById(String userId) {
+    try {
+      return User.fromUser(this.userService.getUser(new UID(userId)));
+    } catch (UserNotFoundException e) {
+      logger.warn("User with id: {} is not found while fetching user info.",
+                  userId);
+      return new User(userId, null, null, null, null, null, null, null, true);
+    }
+  }
+
+  private ScriptData fromScript(ScriptProto.Script script) {
+    return ScriptData.fromScriptWithUserInfo(script,
+                                             getUserInfoById(script.getCreatedBy()),
+                                             getUserInfoById(script.getModifiedBy()));
   }
 
 }

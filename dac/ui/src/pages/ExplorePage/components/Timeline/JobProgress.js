@@ -13,64 +13,65 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { createRef, PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Spinner from 'components/Spinner';
+import Spinner from "components/Spinner";
 
-import './JobProgress.less';
+import "./JobProgress.less";
 
 export default class JobProgress extends PureComponent {
   static propTypes = {
     start: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     end: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    hideSpinner: PropTypes.bool
+    hideSpinner: PropTypes.bool,
   };
 
   constructor(props) {
     super(props);
+    this.totalRef = createRef();
   }
 
   getCurrentProgress() {
     if (!this.props.end) {
       return (
         <div>
-          <span className='progress-message'>Job Inprogress</span>
-          <span className='progress-view-jobs'>View running jobs (3) »</span>
+          <span className="progress-message">Job Inprogress</span>
+          <span className="progress-view-jobs">View running jobs (3) »</span>
         </div>
       );
     }
 
-    const totalWidth = this.refs.total && this.refs.total.offsetWidth || 180;
+    const { current: { offsetWidth: totalWidth = 180 } = {} } = this.totalRef;
     const currentProgress = {
-      width: (this.props.start / this.props.end) * totalWidth
+      width: (this.props.start / this.props.end) * totalWidth,
     };
 
     return (
       <div>
-        <span className='result'>
-          <span className='end-items'>{this.props.start}</span>
+        <span className="result">
+          <span className="end-items">{this.props.start}</span>
           of
-          <span className='all-items'>{this.props.end}</span>
+          <span className="all-items">{this.props.end}</span>
           records
         </span>
-        <div className='progress-line' ref='total'/>
-        <div className='current-progress' style={currentProgress}/>
+        <div className="progress-line" ref={this.totalRef} />
+        <div className="current-progress" style={currentProgress} />
       </div>
     );
   }
 
   render() {
     return (
-      <div className='job-progress' onClick={this.toogleDropdown}>
-        <div className='spinner-part'>
-          <Spinner style={{display: this.props.hideSpinner ? 'none' : 'block'}}/>
+      <div className="job-progress" onClick={this.toogleDropdown}>
+        <div className="spinner-part">
+          <Spinner
+            style={{ display: this.props.hideSpinner ? "none" : "block" }}
+          />
           Processing...
         </div>
-        <div className='progress-part'>
-          {this.getCurrentProgress()}
-        </div>
+        <div className="progress-part">{this.getCurrentProgress()}</div>
       </div>
     );
   }

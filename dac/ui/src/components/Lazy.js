@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import LoadingOverlay from '@app/components/LoadingOverlay';
+import React from "react";
+import LoadingOverlay from "@app/components/LoadingOverlay";
 
 /**
  * A wrapper around React.lazy, which returns a functional component. It passes props through to
@@ -24,13 +24,15 @@ import LoadingOverlay from '@app/components/LoadingOverlay';
  * @param importFn - a function passed to React.lazy, which must call dynamic import().
  * {@see https://reactjs.org/docs/code-splitting.html#reactlazy}
  */
-export const lazy = importFn => {
+export const lazy = (importFn) => {
   const Comp = React.lazy(importFn);
-  return props => (<Comp {...props} />);
+  return (props) => <Comp {...props} />;
 };
 
 /**
  * A default implementation of ReactSuspense for Dremio with a spinner as fallback component
  * @param {*} props - props that overrides defaults
  */
-export const Suspense = (props) => (<React.Suspense fallback={<LoadingOverlay />} {...props} />);
+export const Suspense = (props) => (
+  <React.Suspense fallback={<LoadingOverlay />} {...props} />
+);

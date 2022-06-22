@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -578,4 +577,3 @@ public class TestTaskLeaderElection {
   }
 
 }
-

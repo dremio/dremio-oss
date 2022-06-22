@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -22,6 +24,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
@@ -31,20 +34,25 @@ import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.join.vhash.spill.io.SpillSerializable;
+import com.dremio.sabot.op.join.vhash.spill.list.ProbeBuffers;
+import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
+import com.dremio.sabot.op.join.vhash.spill.replay.JoinReplayEntry;
+import com.dremio.sabot.op.sort.external.SpillManager;
 
 /**
  * Join Setup Params: Common parameters used in several stages of hash-join.
  */
-public final class JoinSetupParams {
+public final class JoinSetupParams implements AutoCloseable {
   public static final int TABLE_HASH_SIZE = 4;
 
   // common
   private final OptionManager options;
   private final SabotConfig sabotConfig;
-  // Allocator used for temporary allocations (no limit)
+  // Allocator used for all internal allocations in the operator (has a limit)
   private final BufferAllocator opAllocator;
-  // Allocator used for long-lived data structures (i.e may stay around till the end-of-life of partition/operator)
-  private final BufferAllocator buildAllocator;
+  // Allocator used for generating output record batches (no limit)
+  private final BufferAllocator outputAllocator;
   // pivoted keys (fixed block) for incoming build or probe batch
   private final FixedBlockVector pivotedFixedBlock;
   // pivoted keys (variable block) for incoming build or probe batch
@@ -69,7 +77,7 @@ public final class JoinSetupParams {
   private final List<FieldVector> buildOutputCarryOvers;
   // schema of carry-over columns
   private final BatchSchema carryAlongSchema;
-  private final ImmutableBitSet carryAlongFieldsBitset;
+  private final ImmutableBitSet buildNonKeyFieldsBitset;
   private final NullComparator comparator;
 
   // Probe side
@@ -82,11 +90,27 @@ public final class JoinSetupParams {
    */
   private final List<FieldVector> probeIncomingKeys;
   private final List<FieldVector> probeOutputs;
+  private final ProbeBuffers probeBuffers;
+
+  private final SpillManager spillManager;
+
+  // used for spilling (shared across all partitions)
+  private final PagePool spillPagePool;
+  private final SpillSerializable spillSerializable;
+
+  // generation number (bumped on each recycle of the partitions)
+  private int generation = 1;
+
+  // memory releaser for the operator. Each switch from MemoryPartition to DiskPartition appends an entry to the list.
+  private final MultiMemoryReleaser multiMemoryReleaser = new MultiMemoryReleaser();
+
+  // list of replay entries for the operator. Each close of a DiskPartition appends an entry to the list.
+  private final LinkedList<JoinReplayEntry> replayEntries = new LinkedList<>();
 
   JoinSetupParams(OptionManager options,
                   SabotConfig sabotConfig,
                   BufferAllocator opAllocator,
-                  BufferAllocator buildAllocator,
+                  BufferAllocator outputAllocator,
                   FixedBlockVector pivotedFixedBlock,
                   VariableBlockVector pivotedVariableBlock,
                   JoinRelType joinType,
@@ -97,16 +121,19 @@ public final class JoinSetupParams {
                   List<FieldVector> buildOutputKeys,
                   List<FieldVector> buildOutputCarryOvers,
                   BatchSchema carryAlongSchema,
-                  ImmutableBitSet carryAlongFieldsBitset,
+                  ImmutableBitSet buildNonKeyFieldsBitset,
                   NullComparator comparator,
                   PivotDef probeKeyPivot,
                   List<FieldVector> probeIncomingKeys,
-                  List<FieldVector> probeOutputs) {
+                  List<FieldVector> probeOutputs,
+                  ProbeBuffers probeBuffers,
+                  SpillManager spillManager,
+                  PagePool spillPagePool) {
 
     this.options = options;
     this.sabotConfig = sabotConfig;
     this.opAllocator = opAllocator;
-    this.buildAllocator = buildAllocator;
+    this.outputAllocator = outputAllocator;
     this.pivotedFixedBlock = pivotedFixedBlock;
     this.pivotedVariableBlock = pivotedVariableBlock;
     this.joinType = joinType;
@@ -117,11 +144,15 @@ public final class JoinSetupParams {
     this.buildOutputKeys = buildOutputKeys;
     this.buildOutputCarryOvers = buildOutputCarryOvers;
     this.carryAlongSchema = carryAlongSchema;
-    this.carryAlongFieldsBitset = carryAlongFieldsBitset;
+    this.buildNonKeyFieldsBitset = buildNonKeyFieldsBitset;
     this.comparator = comparator;
     this.probeKeyPivot = probeKeyPivot;
     this.probeIncomingKeys = probeIncomingKeys;
     this.probeOutputs = probeOutputs;
+    this.probeBuffers = probeBuffers;
+    this.spillManager = spillManager;
+    this.spillPagePool = spillPagePool;
+    this.spillSerializable = new SpillSerializable();
   }
 
   public OptionManager getOptions() {
@@ -136,8 +167,8 @@ public final class JoinSetupParams {
     return opAllocator;
   }
 
-  public BufferAllocator getBuildAllocator() {
-    return buildAllocator;
+  public BufferAllocator getOutputAllocator() {
+    return outputAllocator;
   }
 
   public FixedBlockVector getPivotedFixedBlock() {
@@ -180,8 +211,8 @@ public final class JoinSetupParams {
     return carryAlongSchema;
   }
 
-  public ImmutableBitSet getCarryAlongFieldsBitset() {
-    return carryAlongFieldsBitset;
+  public ImmutableBitSet getBuildNonKeyFieldsBitset() {
+    return buildNonKeyFieldsBitset;
   }
 
   public NullComparator getComparator() {
@@ -200,7 +231,53 @@ public final class JoinSetupParams {
     return probeOutputs;
   }
 
+  public ProbeBuffers getProbeBuffers() {
+    return probeBuffers;
+  }
+
   public int getMaxInputBatchSize() {
     return (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
+  }
+
+  public SpillManager getSpillManager() {
+    return spillManager;
+  }
+
+  public PagePool getSpillPagePool() {
+    return spillPagePool;
+  }
+
+  public SpillSerializable getSpillSerializable() {
+    return spillSerializable;
+  }
+
+  public void bumpGeneration() {
+    ++generation;
+  }
+
+  public int getGeneration() {
+    return generation;
+  }
+
+  public MultiMemoryReleaser getMultiMemoryReleaser() {
+    return multiMemoryReleaser;
+  }
+
+  public LinkedList<JoinReplayEntry> getReplayEntries() {
+    return replayEntries;
+  }
+
+  @Override
+  public void close() throws Exception {
+    List<AutoCloseable> autoCloseables = new ArrayList<>();
+    autoCloseables.add(probeBuffers);
+    autoCloseables.add(pivotedFixedBlock);
+    autoCloseables.add(pivotedVariableBlock);
+    autoCloseables.addAll(probeIncomingKeys);
+    autoCloseables.addAll(buildOutputKeys);
+    autoCloseables.add(multiMemoryReleaser);
+    autoCloseables.add(spillManager);
+    autoCloseables.add(spillPagePool);
+    AutoCloseables.close(autoCloseables);
   }
 }

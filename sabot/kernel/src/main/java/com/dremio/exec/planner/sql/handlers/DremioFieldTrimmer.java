@@ -74,6 +74,7 @@ import org.apache.calcite.util.mapping.Mappings;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.LimitRel;
@@ -140,6 +141,33 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
               });
     }
     return new TrimResult(r, mapping);
+  }
+
+  public TrimResult trimFields(
+    TableModifyCrel tableModifyCrel,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields) {
+
+    // the output fields of TableModifyCrel (i.e., row count column) are not directly related to its input
+    // TableModifyCrel's input is trimmed independently here
+    final RelNode input = tableModifyCrel.getInput();
+    RelNode newInput = trim(input);
+
+    TableModifyCrel newTableModifyCrel = new TableModifyCrel(
+      tableModifyCrel.getCluster(),
+      tableModifyCrel.getTraitSet(),
+      tableModifyCrel.getTable(),
+      tableModifyCrel.getCatalogReader(),
+      newInput,
+      tableModifyCrel.getOperation(),
+      tableModifyCrel.getUpdateColumnList(),
+      tableModifyCrel.getSourceExpressionList(),
+      tableModifyCrel.isFlattened(),
+      tableModifyCrel.getCreateTableEntry(),
+      tableModifyCrel.getMergeUpdateColumnList());
+
+    final int fieldCount = tableModifyCrel.getRowType().getFieldCount();
+    return result(newTableModifyCrel, Mappings.createIdentity(fieldCount));
   }
 
   /**

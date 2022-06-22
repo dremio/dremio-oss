@@ -17,7 +17,6 @@ package com.dremio.common.utils.protos;
 
 import java.util.Arrays;
 
-
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.google.common.base.Preconditions;
 

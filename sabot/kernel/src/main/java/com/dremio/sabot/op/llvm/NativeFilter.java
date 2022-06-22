@@ -61,7 +61,7 @@ public class NativeFilter implements AutoCloseable {
    * @return instance of Native Filter.
    * @throws GandivaException when we fail to make the gandiva filter
    */
-  static public NativeFilter build(LogicalExpression expr, VectorAccessible input,
+  public static NativeFilter build(LogicalExpression expr, VectorAccessible input,
                                    SelectionVector2 selectionVector, FunctionContext functionContext,
                                    boolean optimize, boolean targetHostCPU) throws GandivaException {
     Set<ReferencedField> referencedFields = new LinkedHashSet<>();
@@ -111,4 +111,3 @@ public class NativeFilter implements AutoCloseable {
     filter.close();
   }
 }
-

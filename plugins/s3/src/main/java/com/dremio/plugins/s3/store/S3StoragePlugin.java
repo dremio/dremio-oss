@@ -49,7 +49,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.DirectorySupportLackingFileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.Path;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
@@ -65,7 +65,7 @@ import com.google.common.collect.ImmutableSet;
 /**
  * S3 Extension of FileSystemStoragePlugin
  */
-public class S3StoragePlugin extends FileSystemPlugin<AbstractS3PluginConfig> {
+public class S3StoragePlugin extends DirectorySupportLackingFileSystemPlugin<AbstractS3PluginConfig> {
 
   private static final Logger logger = LoggerFactory.getLogger(S3StoragePlugin.class);
 

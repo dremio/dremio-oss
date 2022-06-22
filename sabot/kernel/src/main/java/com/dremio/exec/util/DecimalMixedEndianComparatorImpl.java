@@ -76,5 +76,3 @@ public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEn
                              ArrowBuf right, int startIndexRight);
 
 }
-
-

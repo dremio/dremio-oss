@@ -18,8 +18,6 @@ package com.dremio.exec.store;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -34,7 +32,7 @@ public class BlockBasedSplitGenerator {
   private long currentOffset;
 
   public BlockBasedSplitGenerator(OperatorContext context, SupportsInternalIcebergTable plugin,
-                                  StoragePluginId pluginId, OpProps props, byte[] extendedBytes, boolean isInternalIcebergTable) {
+                                  byte[] extendedBytes, boolean isInternalIcebergTable) {
     this.splitCreator = plugin.createSplitCreator(context, extendedBytes, isInternalIcebergTable);
   }
 

@@ -159,8 +159,9 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
       return CreatePreparedStatementResp.getDefaultInstance();
     case RpcType.SERVER_META_VALUE:
       return GetServerMetaResp.getDefaultInstance();
+    default:
+      throw new RpcException(String.format("Unable to deal with RpcType of %d", rpcType));
     }
-    throw new RpcException(String.format("Unable to deal with RpcType of %d", rpcType));
   }
 
   @Override

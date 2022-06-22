@@ -13,19 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import invariant from 'invariant';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import invariant from "invariant";
 
-import FontIcon from 'components/Icon/FontIcon';
+import FontIcon from "components/Icon/FontIcon";
 
-import * as buttonStyles from 'uiTheme/radium/buttons';
+import * as buttonStyles from "uiTheme/radium/buttons";
 
-
-@Radium
-export default class SimpleButton extends Component {
-
+class SimpleButton extends Component {
   static propTypes = {
     onClick: PropTypes.func,
     disabled: PropTypes.bool,
@@ -33,34 +30,48 @@ export default class SimpleButton extends Component {
     buttonStyle: PropTypes.string,
     style: PropTypes.object,
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   static defaultProps = {
     disabled: false,
     submitting: false,
-    buttonStyle: 'secondary'
+    buttonStyle: "secondary",
   };
 
   renderSpinner() {
-    const {buttonStyle, submitting} = this.props;
+    const { buttonStyle, disabled, submitting } = this.props;
     if (!submitting) {
       return null;
     }
-    const loader = buttonStyle === 'primary' ? 'LoaderWhite' : 'Loader';
-    return <FontIcon type={loader + ' spinner'} theme={styles.spinner} />;
+    let loaderType = "LoaderWhite spinner";
+    if (disabled || submitting || buttonStyle !== "primary") {
+      loaderType = "Loader spinner";
+    }
+    return <FontIcon type={loaderType} theme={styles.spinner} />;
   }
 
   render() {
-    const {className, buttonStyle, disabled, submitting, style, children, ...props} = this.props;
-    invariant(buttonStyles[buttonStyle] !== undefined, `Unknown button style: "${buttonStyle}"`);
+    const {
+      className,
+      buttonStyle,
+      disabled,
+      submitting,
+      style,
+      children,
+      ...props
+    } = this.props;
+    invariant(
+      buttonStyles[buttonStyle] !== undefined,
+      `Unknown button style: "${buttonStyle}"`
+    );
 
     const combinedStyle = [
       styles.base,
       buttonStyles[buttonStyle],
       disabled ? buttonStyles.disabled : {},
       submitting ? buttonStyles.submitting[buttonStyle] : {},
-      style
+      style,
     ];
     return (
       <button
@@ -68,7 +79,8 @@ export default class SimpleButton extends Component {
         disabled={submitting || disabled}
         {...props}
         // DX-34369: need to fix how we use classname and style
-        style={combinedStyle}>
+        style={combinedStyle}
+      >
         {this.renderSpinner() || children}
       </button>
     );
@@ -77,13 +89,14 @@ export default class SimpleButton extends Component {
 
 const styles = {
   base: {
-    lineHeight: '27px',
-    textDecoration: 'none'
+    lineHeight: "27px",
+    textDecoration: "none",
   },
   spinner: {
     Container: {
-      display: 'block',
-      height: 24
-    }
-  }
+      display: "block",
+      height: 24,
+    },
+  },
 };
+export default Radium(SimpleButton);

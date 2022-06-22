@@ -13,42 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { getAnalyzeToolsConfig } from './config';
+import { getAnalyzeToolsConfig } from "./config";
 
-describe('getAnalyzeToolsConfig', () => {
-  let settings;
+describe("getAnalyzeToolsConfig", () => {
   let config;
 
   beforeEach(() => {
-    settings = Immutable.fromJS({
-      'client.tools.tableau': { value: true },
-      'client.tools.powerbi': { value: true },
-      'client.tools.qlik': { value: false }
-    });
     config = {
       analyzeTools: {
         tableau: { enabled: false },
         powerbi: { enabled: true },
-        qlik: { enabled: false }
-      }
+        qlik: { enabled: false },
+      },
     };
   });
 
-
-  it('should use settings if provided', () => {
-    const result = getAnalyzeToolsConfig(settings, config);
-    expect(result.tableau.enabled).to.equal(true);
-  });
-
-  it('should use config if settings is not defined', () => {
-    const result = getAnalyzeToolsConfig(null, config);
+  it("should fetch analyze tools settings from config", () => {
+    const result = getAnalyzeToolsConfig(config);
     expect(result.tableau.enabled).to.equal(false);
+    expect(result.powerbi.enabled).to.equal(true);
+    expect(result.qlik.enabled).to.equal(false);
   });
-
-  it('should use config if settings is empty', () => {
-    const result = getAnalyzeToolsConfig(Immutable.fromJS({}), config);
-    expect(result.tableau.enabled).to.equal(false);
-  });
-
 });

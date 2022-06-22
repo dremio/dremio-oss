@@ -55,6 +55,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.HiveFsUtils;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
@@ -106,7 +107,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     super(context, projectedColumns);
     this.tableAttr = tableAttr;
     this.split = split;
-    this.jobConf = jobConf;
+    this.jobConf = new JobConf(HiveFsUtils.getClonedConfWithDremioWrapperFs(jobConf));
     this.tableSerDe = tableSerDe;
     this.tableOI = tableOI;
     this.partitionSerDe = partitionSerDe == null ? tableSerDe : partitionSerDe;
@@ -142,7 +143,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
           for (StructField field : finalOI.getAllStructFieldRefs()) {
             logger.trace("field in finalOI: {}", field.getClass().getName());
           }
-          logger.trace("partitionSerDe class is {} {}", partitionSerDe.getClass().getName());
+          logger.trace("partitionSerDe class is {}", partitionSerDe.getClass().getName());
         }
 
         // We should always get the columns names from ObjectInspector. For some of the tables (ex. avro) metastore

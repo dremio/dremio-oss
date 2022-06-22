@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FontIcon from 'components/Icon/FontIcon';
-import { FormattedMessage } from 'react-intl';
+import FontIcon from "components/Icon/FontIcon";
+import { FormattedMessage } from "react-intl";
 
 const SampleDataMessage = () => (
-  <span style={styles.warntext} data-qa='sample-data-message'>
-    <FontIcon type='WarningSolid' style={styles.iconStyle} />
-    <FormattedMessage id='Dataset.SampleDatasetWarn'/>
+  <span style={styles.warntext} data-qa="sample-data-message">
+    <FontIcon type="WarningSolid" style={styles.iconStyle} />
+    <FormattedMessage id="Dataset.SampleDatasetWarn" />
   </span>
 );
 
@@ -27,11 +27,11 @@ export default SampleDataMessage;
 
 const styles = {
   warntext: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    userSelect: 'text'
+    display: "inline-flex",
+    alignItems: "center",
+    userSelect: "text",
   },
   iconStyle: {
-    height: 24
-  }
+    height: 24,
+  },
 };

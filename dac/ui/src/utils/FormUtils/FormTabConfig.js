@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
-import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
-import FormUtils from 'utils/FormUtils/FormUtils';
+import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
+import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
+import FormUtils from "utils/FormUtils/FormUtils";
 
 export default class FormTabConfig {
   constructor(configJson, functionalElements) {
@@ -23,11 +23,16 @@ export default class FormTabConfig {
 
     if (this._config.sections) {
       this._config.sections = this._config.sections.map(
-        section => new FormSectionConfig(section, functionalElements));
+        (section) => new FormSectionConfig(section, functionalElements)
+      );
     }
     if (this._config.elements) {
-      this._config.elements = this._config.elements.map(
-        element => SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(element, functionalElements));
+      this._config.elements = this._config.elements.map((element) =>
+        SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
+          element,
+          functionalElements
+        )
+      );
     }
   }
 
@@ -36,7 +41,7 @@ export default class FormTabConfig {
   }
 
   getName() {
-    return this._config.name || '';
+    return this._config.name || "";
   }
 
   getTitle(formConfig) {
@@ -49,7 +54,7 @@ export default class FormTabConfig {
     if (this._config.title) {
       return this._config.title;
     }
-    return this._config.name || '';
+    return this._config.name || "";
   }
 
   isGeneral() {
@@ -61,23 +66,41 @@ export default class FormTabConfig {
   }
 
   getFields() {
-    return this.getDirectElements().reduce((fields, element) => fields.concat(element.getFields()), [])
-      .concat(this.getSections().reduce((fields, section) => fields.concat(section.getFields()), []));
+    return this.getDirectElements()
+      .reduce((fields, element) => fields.concat(element.getFields()), [])
+      .concat(
+        this.getSections().reduce(
+          (fields, section) => fields.concat(section.getFields()),
+          []
+        )
+      );
   }
 
   addInitValues(initValues, state, props) {
-    initValues = this.getDirectElements().reduce((accum, element) => element.addInitValues(accum, state, props), initValues);
-    return this.getSections().reduce((accum, section) => section.addInitValues(accum, state, props), initValues);
+    initValues = this.getDirectElements().reduce(
+      (accum, element) => element.addInitValues(accum, state, props),
+      initValues
+    );
+    return this.getSections().reduce(
+      (accum, section) => section.addInitValues(accum, state, props),
+      initValues
+    );
   }
 
   addValidators(validations) {
-    validations = this.getDirectElements().reduce((accum, element) => element.addValidators(accum), validations);
-    return this.getSections().reduce((accum, section) => section.addValidators(accum), validations);
+    validations = this.getDirectElements().reduce(
+      (accum, element) => element.addValidators(accum),
+      validations
+    );
+    return this.getSections().reduce(
+      (accum, section) => section.addValidators(accum),
+      validations
+    );
   }
 
-  addSection(sectionConfig, position = 'tail') {
+  addSection(sectionConfig, position = "tail") {
     this._config.sections = this._config.sections || [];
-    if (position === 'head') {
+    if (position === "head") {
       this._config.sections.unshift(sectionConfig);
     } else {
       this._config.sections.push(sectionConfig);
@@ -90,7 +113,7 @@ export default class FormTabConfig {
 
   getAllElements() {
     let elements = this.getDirectElements();
-    this.getSections().forEach(section => {
+    this.getSections().forEach((section) => {
       elements = elements.concat(section.getAllElements());
     });
     return elements;
@@ -98,10 +121,10 @@ export default class FormTabConfig {
 
   removeNotFoundElements() {
     if (this.getDirectElements().length) {
-      this._config.elements = this.getDirectElements().filter(element => element.foundInFunctionalConfig());
+      this._config.elements = this.getDirectElements().filter((element) =>
+        element.foundInFunctionalConfig()
+      );
     }
-    this.getSections().forEach(section => section.removeNotFoundElements());
+    this.getSections().forEach((section) => section.removeNotFoundElements());
   }
-
 }
-

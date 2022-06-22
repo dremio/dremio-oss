@@ -181,7 +181,7 @@ public class ITTestNullValues extends ElasticBaseTestQuery {
               "  \"query\" : {\n" +
               "    \"script\" : {\n" +
               "      \"script\" : {\n" +
-              "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( doc[\\\"review_count\\\"].value == (int)(( ( doc[\\\"stars\\\"].value * 33 ) / doc[\\\"stars\\\"].value )).doubleValue() ))\",\n" +
+              "        \"source\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( doc[\\\"review_count\\\"].value == (int)(( ( doc[\\\"stars\\\"].value * 33 ) / doc[\\\"stars\\\"].value )).doubleValue() ))\",\n" +
               "        \"lang\" : \"painless\"\n" +
               "      },\n" +
               "      \"boost\" : 1.0\n" +

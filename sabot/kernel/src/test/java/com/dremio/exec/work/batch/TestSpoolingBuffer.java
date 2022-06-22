@@ -63,7 +63,7 @@ public class TestSpoolingBuffer extends ExecTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   // Test constants.
   private static final int batchAllocateSize = 1024;

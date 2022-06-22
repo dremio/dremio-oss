@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
- .dremioDialog {
-   overflow-x: auto;
+@import "../../styles/constants/index.scss";
+
+.dremioDialog {
+  &__backdrop {
+    background-color: $dialog_backdrop !important;
+  }
+  overflow-x: auto;
   &__container {
     &.--centered {
       top: unset;
       bottom: unset;
       height: 100%;
-    }  
+    }
   }
   &__paper {
-    border-radius: 5px 5px 0px 0px !important;
+    border-radius: 4px !important;
   }
 }

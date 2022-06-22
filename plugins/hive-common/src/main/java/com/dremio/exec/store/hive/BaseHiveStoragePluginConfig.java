@@ -22,17 +22,21 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.DoNotDisplay;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.MutablePluginConf;
 
 import io.protostuff.Tag;
 
 /**
  * Base configuration for the Hive storage plugin
  */
-public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>, P extends StoragePlugin> extends ConnectionConf<T, P>{
+public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>, P extends StoragePlugin> extends ConnectionConf<T, P>
+  implements MutablePluginConf {
   /*
    * Hostname where Hive metastore server is running
    */
@@ -90,6 +94,17 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
   @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
+
+
+  @Tag(15)
+  @NotMetadataImpacting
+  @DoNotDisplay
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
+  }
 
   /**
    * Gets the plugin identifier for the PF4J module. This can return null if no external bundle is to be used,

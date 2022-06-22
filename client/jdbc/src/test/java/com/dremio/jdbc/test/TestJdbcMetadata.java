@@ -32,7 +32,7 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
 
 
   @Rule
-  public TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Test
   public void catalogs() throws Exception{

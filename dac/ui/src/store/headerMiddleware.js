@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
-import APICall from '@app/core/APICall';
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import APICall from "@app/core/APICall";
 
 function headerMiddleware() {
-  return () => next => action => {
+  return () => (next) => (action) => {
     const apiCall = action[RSAA];
 
     if (apiCall) {
       // create a new action and remove isFileUpload if present
       const newAction = {
-        [RSAA]: apiCall
+        [RSAA]: apiCall,
       };
       const method = apiCall.method;
       const token = localStorageUtils.getAuthToken();
@@ -34,16 +34,22 @@ function headerMiddleware() {
         apiCall.endpoint = apiCall.endpoint.toString();
       }
 
-      if (method === 'GET' || method === 'POST' || method === 'PUT' || method === 'DELETE') {
+      if (
+        method === "GET" ||
+        method === "POST" ||
+        method === "PUT" ||
+        method === "DELETE"
+      ) {
         const { isFileUpload } = action;
         const defaultHeaders = {
           Authorization: token,
           // for file upload case leave headers empty and let a browser to set a content type
-          ...(isFileUpload ? null : { 'Content-Type': 'application/json' })
+          ...(isFileUpload ? null : { "Content-Type": "application/json" }),
         };
-        apiCall.headers = { // avoid mutating original
+        apiCall.headers = {
+          // avoid mutating original
           ...defaultHeaders,
-          ...apiCall.headers
+          ...apiCall.headers,
         };
 
         return next(newAction);

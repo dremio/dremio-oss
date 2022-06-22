@@ -23,6 +23,7 @@ import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -31,6 +32,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
+import com.dremio.context.SupportContext;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -72,8 +74,12 @@ public class ReflectionResource {
   }
 
   @POST
-  public Reflection createReflection(Reflection reflection) {
+  public Reflection createReflection(Reflection reflection) throws ForbiddenException {
     // TODO: handle exceptions
+    if(SupportContext.isSupportUser())
+    {
+      throw new ForbiddenException("Permission denied. A support user cannot create a reflection");
+    }
     final ReflectionGoal newReflection = reflectionServiceHelper.createReflection(reflection.toReflectionGoal());
     final String id = newReflection.getId().getId();
 
@@ -84,6 +90,10 @@ public class ReflectionResource {
   @Path("/{id}")
   public Reflection editReflection(@PathParam("id") String id, Reflection reflection) {
     try {
+      if(SupportContext.isSupportUser())
+      {
+        throw new ForbiddenException("Permission denied. A support user cannot edit a reflection");
+      }
       // force ids to match
       reflection.setId(id);
 
@@ -97,6 +107,10 @@ public class ReflectionResource {
   @DELETE
   @Path("/{id}")
   public Response deleteReflection(@PathParam("id") String id) {
+    if(SupportContext.isSupportUser())
+    {
+      throw new ForbiddenException("Permission denied. A support user cannot delete a reflection");
+    }
     reflectionServiceHelper.removeReflection(id);
     return Response.ok().build();
   }

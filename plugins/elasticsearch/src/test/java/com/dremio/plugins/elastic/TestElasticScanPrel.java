@@ -15,10 +15,8 @@
  */
 package com.dremio.plugins.elastic;
 
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.plugins.elastic.planning.rels.ElasticScanPrel;
-import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
-import com.dremio.plugins.elastic.planning.rels.ScanBuilder;
+import java.util.Collections;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -28,7 +26,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.Collections;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.plugins.elastic.planning.rels.ElasticScanPrel;
+import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
+import com.dremio.plugins.elastic.planning.rels.ScanBuilder;
 
 /**
  * Test ElasticScanPrel.

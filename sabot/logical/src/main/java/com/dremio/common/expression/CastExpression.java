@@ -17,11 +17,11 @@ package com.dremio.common.expression;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.google.common.collect.Iterators;
 
 public class CastExpression extends LogicalExpressionBase implements Iterable<LogicalExpression>{
 
@@ -42,7 +42,7 @@ public class CastExpression extends LogicalExpressionBase implements Iterable<Lo
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    return Collections.singleton(input).iterator();
+    return Iterators.singletonIterator(input);
   }
 
   @Override

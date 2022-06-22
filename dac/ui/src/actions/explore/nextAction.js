@@ -13,28 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { toggleExploreSql } from 'actions/explore/ui';
-import { openTableau, openQlikSense, openPowerBI } from 'actions/explore/download';
+import { toggleExploreSql } from "actions/explore/ui";
+import {
+  openTableau,
+  openQlikSense,
+  openPowerBI,
+} from "actions/explore/download";
 
 export const NEXT_ACTIONS = {
-  toggleSql: 'TOGGLE_SQL',
-  openTableau: 'OPEN_TABLEAU',
-  openQlik: 'OPEN_QLIK_AFTER',
-  openPowerBI: 'OPEN_POWER_BI'
+  toggleSql: "TOGGLE_SQL",
+  openTableau: "OPEN_TABLEAU",
+  openQlik: "OPEN_QLIK_AFTER",
+  openPowerBI: "OPEN_POWER_BI",
 };
 
 export const performNextAction = (dataset, nextAction) => {
   switch (nextAction) {
-  case NEXT_ACTIONS.toggleSql:
-    return toggleExploreSql();
-  case NEXT_ACTIONS.openTableau:
-    return openTableau(dataset);
-  case NEXT_ACTIONS.openQlik:
-    return openQlikSense(dataset);
-  case NEXT_ACTIONS.openPowerBI:
-    return openPowerBI(dataset);
-  default:
-    console.error('Unknown next action', nextAction);
-    return {type: 'NOP'};
+    case NEXT_ACTIONS.toggleSql:
+      return toggleExploreSql();
+    case NEXT_ACTIONS.openTableau:
+      return openTableau(dataset);
+    case NEXT_ACTIONS.openQlik:
+      return openQlikSense(dataset);
+    case NEXT_ACTIONS.openPowerBI:
+      return openPowerBI(dataset);
+    default:
+      console.error("Unknown next action", nextAction);
+      return { type: "NOP" };
   }
 };

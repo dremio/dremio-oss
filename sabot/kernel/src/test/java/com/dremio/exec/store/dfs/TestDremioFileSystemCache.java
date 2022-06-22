@@ -70,9 +70,9 @@ public class TestDremioFileSystemCache {
     FileSystem fs5 = dfsc.get(uri, conf1, null);
     assertTrue(fs1 != fs5); // as this is created by Hadoop FileSystem cache
 
-    // Now get one more same as fs5 conf and expect it to be same as fs5 as it is retrieved from Hadoop FileSystem cache
+    // Now get one more same as fs5 conf and and expect it to be different as it is not retrieved from Hadoop FileSystem cache.
     FileSystem fs6 = dfsc.get(uri, conf1, null);
-    assertTrue(fs5 == fs6);
+    assertTrue(fs5 != fs6);
   }
 
   /**
@@ -93,8 +93,8 @@ public class TestDremioFileSystemCache {
     conf2.set("blah", "boo");
     FileSystem fs2 = dfsc.get(uri, conf2, null);
 
-    // Make sure both are of same instance as we expect the Hadoop FileSystem to cache them
-    assertTrue(fs1 == fs2);
+    // Make sure both are not of same instance as we expect the Hadoop FileSystem cache to be disabled
+    assertTrue(fs1 != fs2);
 
     // now create a third filesystem as different user and make sure we got a different filesystem instance
     FileSystem fs3 = getAs("newUser", dfsc, uri, conf1, null);

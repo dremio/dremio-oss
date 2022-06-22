@@ -237,4 +237,12 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     testAndExpectUserException(query, ErrorType.DATA_READ, "Strict OXMl is not supported");
   }
 
+  @Test
+  public void testCountOneQueryXlsxWithNulls() throws Exception {
+    String filePath = getExcelDir() + "SkipProjectedWithNulls.xlsx";
+    String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("87");
+  }
+
 }

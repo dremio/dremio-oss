@@ -46,7 +46,7 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
     return name;
   }
 
-  protected SabotContext getSabotContext() {
+  public SabotContext getSabotContext() {
     return sabotContext;
   }
 
@@ -79,4 +79,13 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
   }
 
   public abstract Iterable<Map.Entry<String, String>> getConfigProperties();
+
+
+  public String getDefaultCtasFormat() {
+    return getDefaultCtasFormatProperty();
+  }
+
+  public abstract String getDefaultCtasFormatProperty();
+
+
 }

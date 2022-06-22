@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+:root {
+  --dremio--color--primary--100: #f1fafb;
+  --dremio--color--primary--150: #e9f5f9;
+  --dremio--color--primary--200: #c6e9ef;
+  --dremio--color--primary--500: #43b8c9;
+  --dremio--color--primary--600: #2e92a1;
+  --dremio--color--primary--700: #206771;
+  --dremio--color--primary--800: #133c42;
+
+  --dremio--color--neutral--000: #fff;
+  --dremio--color--neutral--100: #f6f7f8;
+  --dremio--color--neutral--150: #eeeff1;
+  --dremio--color--neutral--200: #d2d6da;
+  --dremio--color--neutral--300: #b0b7bf;
+  --dremio--color--neutral--600: #505862;
+  --dremio--color--neutral--700: #32383e;
+  --dremio--color--neutral--850: #202124;
+
+  --dremio--color--status--error--foreground: #ca3f32;
+  --dremio--color--status--success--foreground: #5abd4a;
+  --dremio--color--status--warning--foreground: #ffa940;
+  --dremio--color--status--information--foreground: #0684f9;
+
+  --dremio--color--status--error--background: #fdeded;
+  --dremio--color--status--success--background: #edf7ed;
+  --dremio--color--status--warning--background: #fff4e5;
+  --dremio--color--status--information--background: var(
+    --dremio--color--primary--150
+  );
+
+  --dremio--color--text--main: var(--dremio--color--neutral--850);
+  --dremio--color--text--faded: var(--dremio--color--neutral--600);
+  --dremio--color--text--disabled: var(--dremio--color--neutral--300);
+
+  --dremio--color--link: #008489;
+  --dremio--default--dark--mode: #b8bcc2;
+  --dremio--hover--dark--mode: #80dfe3;
+  --dremio--color--pale--navy: #e4f2f7;
+
+  --dremio--color--icon--main: var(--dremio--color--neutral--600);
+  --dremio--color--icon--dremio--disabled: var(--dremio--color--neutral--200);
+}

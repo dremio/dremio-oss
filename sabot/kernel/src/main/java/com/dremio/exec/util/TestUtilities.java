@@ -35,6 +35,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -72,7 +73,7 @@ public class TestUtilities {
   }
 
   public static void addDefaultTestPlugins(CatalogService catalog, final String tmpDirPath) {
-    addDefaultTestPlugins(catalog, tmpDirPath, false);
+    addDefaultTestPlugins(catalog, tmpDirPath, true);
   }
 
   public static void addDefaultTestPlugins(CatalogService catalog, final String tmpDirPath, boolean addHadoopDataLakes) {
@@ -159,6 +160,7 @@ public class TestUtilities {
       InternalFileConf conf = new InternalFileConf();
       conf.connection = "file:///";
       conf.path = "/";
+      conf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
       c.setConnectionConf(conf);
       c.setName("dfs_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -172,8 +174,25 @@ public class TestUtilities {
       conf.connection = "file:///";
       conf.path = tmpDirPath;
       conf.mutability = SchemaMutability.ALL;
+      conf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
       c.setConnectionConf(conf);
       c.setName("dfs_test_hadoop");
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
+
+    // Need to create a new source `dfs_static_test_hadoop` rooted at a known location because:
+    //  1. dfs_hadoop is immutable.
+    //  2. dfs_test_hadoop is mutable BUT is rooted at a tmpDirPath which won't work with statically created Iceberg tables.
+    {
+      SourceConfig c = new SourceConfig();
+      InternalFileConf conf = new InternalFileConf();
+      conf.connection = "file:///";
+      conf.path = "/tmp/iceberg-test-tables";
+      conf.mutability = SchemaMutability.ALL;
+      conf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+      c.setConnectionConf(conf);
+      c.setName("dfs_static_test_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }

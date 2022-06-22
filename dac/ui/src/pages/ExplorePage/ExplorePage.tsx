@@ -13,94 +13,110 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, CSSProperties } from 'react';
-import Immutable from 'immutable';
-import classNames from 'classnames';
-import { connect } from 'react-redux';
-import { hashHeightTopSplitter } from '@app/constants/explorePage/heightTopSplitter.js';
-import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
-import { clearEntities } from '@app/actions/resources/entities';
-import { flexElementAuto } from '@app/uiTheme/less/layout.less';
+import { PureComponent, CSSProperties } from "react";
+import Immutable from "immutable";
+import classNames from "classnames";
+import { connect } from "react-redux";
+import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter.js";
+import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { clearEntities } from "@app/actions/resources/entities";
+import { flexElementAuto } from "@app/uiTheme/less/layout.less";
 
-import './ExplorePage.less';
-import ExplorePageContentWrapper from './subpages/ExplorePageContentWrapper';
+import "./ExplorePage.less";
+import ExplorePageContentWrapper from "./subpages/ExplorePageContentWrapper";
 
-const EXPLORE_PAGE_MIN_HEIGHT = 700;
+const EXPLORE_PAGE_MIN_HEIGHT = 754;
 
 type ExplorePageViewProps = {
-  pageType?: PageTypes,
-  dataset?: any,
-  location: any,
-  rightTreeVisible: boolean,
-  sqlState?: boolean,
-  sqlSize?: number,
-  updateSqlPartSize: (newSize: number) => void,
-  toggleRightTree: () => void,
-  isResizeInProgress?: boolean,
-  onUnmount: () => void
+  pageType?: PageTypes;
+  dataset?: any;
+  location: any;
+  rightTreeVisible: boolean;
+  sqlState?: boolean;
+  sqlSize?: number;
+  updateSqlPartSize: (newSize: number) => void;
+  toggleRightTree: () => void;
+  isResizeInProgress?: boolean;
+  onUnmount: () => void;
 };
 type ExplorePageViewState = {
-  isError: boolean,
-  errorData: Immutable.Map<any, any>
+  isError: boolean;
+  errorData: Immutable.Map<any, any>;
 };
-export class ExplorePageView extends PureComponent<ExplorePageViewProps, ExplorePageViewState> {
+export class ExplorePageView extends PureComponent<
+  ExplorePageViewProps,
+  ExplorePageViewState
+> {
   state = {
     isError: false,
-    errorData: Immutable.Map<any, any>()
+    errorData: Immutable.Map<any, any>(),
   };
   componentWillMount() {
     this.initSqlEditor(this.props);
   }
   componentWillReceiveProps(nextProps: ExplorePageViewProps) {
     // init editor if changing page type or clicked on new query from non-newQuery view
-    if (nextProps.pageType !== this.props.pageType || this.clickedNewQuery(nextProps)) {
+    if (
+      nextProps.pageType !== this.props.pageType ||
+      this.clickedNewQuery(nextProps)
+    ) {
       this.initSqlEditor(nextProps);
     }
   }
   clickedNewQuery = (nextProps: ExplorePageViewProps) => {
-    return this.locationIncludesNewQuery(nextProps.location) && !this.locationIncludesNewQuery(this.props.location);
+    return (
+      this.locationIncludesNewQuery(nextProps.location) &&
+      !this.locationIncludesNewQuery(this.props.location)
+    );
   };
-  locationIncludesNewQuery = (location: any) => location && location.pathname && location.pathname.includes('new_query');
+  locationIncludesNewQuery = (location: any) =>
+    location && location.pathname && location.pathname.includes("new_query");
   componentWillUnmount() {
     this.props.onUnmount();
   }
   initSqlEditor(props: ExplorePageViewProps) {
     const { pageType, location } = props;
     switch (pageType) {
-    case PageTypes.details:
-      return;
-    case PageTypes.wiki:
-    case PageTypes.reflections:
-    case PageTypes.default:
-    case PageTypes.graph: {
-      const newSize =
-          (hashHeightTopSplitter as any)[location.query.type] || this.locationIncludesNewQuery(location)
+      case PageTypes.details:
+        return;
+      case PageTypes.wiki:
+      case PageTypes.reflections:
+      case PageTypes.default:
+      case PageTypes.graph: {
+        const newSize =
+          (hashHeightTopSplitter as any)[location.query.type] ||
+          this.locationIncludesNewQuery(location)
             ? hashHeightTopSplitter.getNewQueryDefaultSqlHeight()
             : hashHeightTopSplitter.getDefaultSqlHeight();
-      props.updateSqlPartSize(newSize);
-      break;
-    }
-    default:
-      throw new Error(`Not supported page type: '${pageType}'`);
+        props.updateSqlPartSize(newSize);
+        break;
+      }
+      default:
+        throw new Error(`Not supported page type: '${pageType}'`);
     }
   }
   startDrag() {}
   render() {
     const { dataset, isResizeInProgress } = this.props;
-    const selectState = isResizeInProgress ? 'text' : undefined;
-    const cursor = isResizeInProgress ? 'row-resize' : 'initial';
+    const selectState = isResizeInProgress ? "text" : undefined;
+    const cursor = isResizeInProgress ? "row-resize" : "initial";
     const dragStyle: CSSProperties = {
       MozUserSelect: selectState,
       WebkitUserSelect: selectState,
-      msUserSelect: selectState
+      msUserSelect: selectState,
     };
     const minHeightOverride = {
-      minHeight: EXPLORE_PAGE_MIN_HEIGHT
+      minHeight: EXPLORE_PAGE_MIN_HEIGHT,
     };
     // Note the DocumentTitle for this page lives in ExploreInfoHeader
     return (
-      <main id='grid-page'
-        className={classNames('mainContent', flexElementAuto, `-${this.props.pageType}`)}
+      <main
+        id="grid-page"
+        className={classNames(
+          "mainContent",
+          flexElementAuto,
+          `-${this.props.pageType}`
+        )}
         style={{ ...dragStyle, cursor, ...minHeightOverride }}
       >
         <ExplorePageContentWrapper
@@ -120,7 +136,15 @@ export class ExplorePageView extends PureComponent<ExplorePageViewProps, Explore
     );
   }
 }
-const clearExploreEntities = () => clearEntities(['history', 'historyItem', 'dataset', 'fullDataset', 'datasetUI', 'tableData']);
+const clearExploreEntities = () =>
+  clearEntities([
+    "history",
+    "historyItem",
+    "dataset",
+    "fullDataset",
+    "datasetUI",
+    "tableData",
+  ]);
 export default connect(null, {
-  onUnmount: clearExploreEntities
+  onUnmount: clearExploreEntities,
 })(ExplorePageView);

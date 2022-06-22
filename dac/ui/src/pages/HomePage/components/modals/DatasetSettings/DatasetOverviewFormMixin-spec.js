@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import DatasetOverviewFormBase from 'pages/HomePage/components/modals/DatasetSettings/DatasetOverviewForm';
-import DatasetOverviewFormMixin from './DatasetOverviewFormMixin';
+import DatasetOverviewFormBase from "pages/HomePage/components/modals/DatasetSettings/DatasetOverviewForm";
+import DatasetOverviewFormMixin from "./DatasetOverviewFormMixin";
 
 @DatasetOverviewFormMixin
 class DatasetOverviewForm extends DatasetOverviewFormBase {}
 
-describe('DatasetOverviewFormMixin', () => {
-  it('should render with minimal props without exploding', () => {
+describe("DatasetOverviewFormMixin", () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<DatasetOverviewForm />);
     expect(wrapper).to.have.length(1);
   });

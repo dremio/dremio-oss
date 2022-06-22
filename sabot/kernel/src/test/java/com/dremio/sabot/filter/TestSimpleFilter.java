@@ -99,10 +99,10 @@ public class TestSimpleFilter extends BaseTestOperator {
     gen.next(100);
     op.consumeData(100);
     op.outputData();
-    BatchPrinter.printBatch(f1Output);
+    BatchPrinter.printBatch(f1Output, true, false);
     op2.consumeData(100);
     op2.outputData();
-    BatchPrinter.printBatch(finalOutput);
+    BatchPrinter.printBatch(finalOutput, true, false);
   }
 
   @Test

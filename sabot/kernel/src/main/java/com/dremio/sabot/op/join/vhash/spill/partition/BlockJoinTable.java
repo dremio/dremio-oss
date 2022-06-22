@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.util.Preconditions;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
@@ -28,6 +29,7 @@ import com.dremio.exec.util.ValueListFilter;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashTable;
+import com.dremio.sabot.op.common.ht2.HashTableFilterUtil;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
@@ -37,6 +39,8 @@ import com.koloboke.collect.hash.HashConfig;
 public class BlockJoinTable implements JoinTable {
   private static final int MAX_VALUES_PER_BATCH = 4096;
   private final HashTable table;
+  private final BufferAllocator allocator;
+  private final PivotDef buildPivot;
   private final Stopwatch probeFindWatch = Stopwatch.createUnstarted();
   private final Stopwatch insertWatch = Stopwatch.createUnstarted();
   private boolean tableTracing;
@@ -44,6 +48,9 @@ public class BlockJoinTable implements JoinTable {
   public BlockJoinTable(PivotDef buildPivot, BufferAllocator allocator, NullComparator nullMask,
                         int minSize, int varFieldAverageSize, SabotConfig sabotConfig, OptionManager optionManager) {
     super();
+    this.allocator = allocator;
+    this.buildPivot = buildPivot;
+    Preconditions.checkState(buildPivot.getBlockWidth() != 0);
     this.table = HashTable.getInstance(sabotConfig,
       optionManager.getOption(ExecConstants.ENABLE_NATIVE_HASHTABLE_FOR_JOIN),
       new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator, minSize,
@@ -54,7 +61,7 @@ public class BlockJoinTable implements JoinTable {
   /* Copy the keys of the records specified in keyOffsetAddr to destination memory
    * keyOffsetAddr contains all the ordinals of keys
    * count is the number of keys
-   * keyFixedAddr is the destination memory for fiexed keys
+   * keyFixedAddr is the destination memory for fixed keys
    * keyVarAddr is the destination memory for variable keys
    */
   public void copyKeysToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr) {
@@ -64,6 +71,11 @@ public class BlockJoinTable implements JoinTable {
   // Get the total length of the variable keys for the all the ordinals in keyOffsetAddr, from hash table.
   public int getCumulativeVarKeyLength(final long keyOffsetAddr, final int count) {
     return table.getCumulativeVarKeyLength(keyOffsetAddr, count);
+  }
+
+  @Override
+  public void getVarKeyLengths(long keyOffsetAddr, int count, long outAddr) {
+    table.getVarKeyLengths(keyOffsetAddr, count, outAddr);
   }
 
   @Override
@@ -85,12 +97,13 @@ public class BlockJoinTable implements JoinTable {
    */
   @Override
   public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically, int maxKeySize) {
-    return table.prepareBloomFilter(fieldNames, sizeDynamically, maxKeySize);
+    return HashTableFilterUtil.prepareBloomFilter(table, allocator, buildPivot,
+      fieldNames, sizeDynamically, maxKeySize);
   }
 
   @Override
   public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
-    return table.prepareValueListFilter(fieldName, maxElements);
+    return HashTableFilterUtil.prepareValueListFilter(table, allocator, buildPivot, fieldName, maxElements);
   }
 
   @Override
@@ -99,7 +112,7 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public void insertPivoted(long sv2Addr, int records,
+  public int insertPivoted(long sv2Addr, int records,
                             long tableHashAddr4B, FixedBlockVector fixed, VariableBlockVector variable,
                             long outputAddr) {
     if (tableTracing) {
@@ -110,13 +123,15 @@ public class BlockJoinTable implements JoinTable {
     final long keyVarVectorAddr = variable.getMemoryAddress();
 
     insertWatch.start();
-    table.addSv2(records, sv2Addr, keyFixedVectorAddr, keyVarVectorAddr, tableHashAddr4B, outputAddr);
+    int recordsAdded = table.addSv2(records, sv2Addr, keyFixedVectorAddr, keyVarVectorAddr, tableHashAddr4B,
+      outputAddr);
     insertWatch.stop();
 
     if (tableTracing) {
-      table.traceOrdinals(outputAddr, records);
+      table.traceOrdinals(outputAddr, recordsAdded);
       table.traceInsertEnd();
     }
+    return recordsAdded;
   }
 
   @Override

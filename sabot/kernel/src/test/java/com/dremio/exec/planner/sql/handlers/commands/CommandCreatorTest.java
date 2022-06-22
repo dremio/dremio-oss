@@ -174,7 +174,7 @@ public class CommandCreatorTest {
     assertEquals(expectedCommand, actualCommand);
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testFoundCachedPlanWrongUser() throws ForemanException {
     // Arrange
     setSessionUser2();
@@ -183,13 +183,15 @@ public class CommandCreatorTest {
     final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
-    final CommandCreator commandCreator = buildCommandCreator(0);
+    final CommandCreator commandCreator = spy(buildCommandCreator(0));
+    // Override getSqlCommand, expecting that permissions checking of the underlying source would happen as normal
+    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
 
     // Act
     commandCreator.toCommand();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testFoundCachedPlanWrongUserNotReuseStatements() throws ForemanException {
     // Arrange
     setSessionUser2();
@@ -198,7 +200,9 @@ public class CommandCreatorTest {
     final PreparedPlan preparedPlan = new PreparedPlan(prepareId, USERNAME1, QUERY, null, null);
     plans.put(serverPreparedStatementState.getHandle(), preparedPlan);
 
-    final CommandCreator commandCreator = buildCommandCreator(0);
+    final CommandCreator commandCreator = spy(buildCommandCreator(0));
+    // Override getSqlCommand, expecting that permissions checking of the underlying source would happen as normal
+    doReturn(expectedCommand).when(commandCreator).getSqlCommand(any(), any());
 
     // Act
     commandCreator.toCommand();

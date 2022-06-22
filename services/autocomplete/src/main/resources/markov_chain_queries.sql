@@ -219,3 +219,11 @@ SELECT empno FROM emp AS e WHERE cast(e.empno as bigint) in (130, 131, 132, 133,
 SELECT SUM(n_nationkey) OVER w FROM (SELECT * FROM SALES.NATION) subQry WINDOW w AS (PARTITION BY REGION ORDER BY n_nationkey)
 with t (a, b) as (select * from (values (1, 2))) select * from t where exists (   select 1 from emp where deptno = t.a) SELECT outerEmp.deptno, outerEmp.sal FROM dept LEFT JOIN emp outerEmp ON outerEmp.deptno = dept.deptno AND dept.deptno IN (   SELECT emp_in.deptno   FROM emp emp_in)
 select deptno, collect(empno) within group (order by deptno, hiredate desc) from emp group by deptno
+SELECT * FROM EMP AT BRANCH branch_name
+SELECT * FROM EMP AT COMMIT commit_hash
+SELECT * FROM EMP AT TAG tag_name
+DROP ROLE asdf
+DROP TABLE asdf
+DROP VIEW asdf
+DROP VDS asdf
+DELETE FROM EMP WHERE EMP.NAME = 'Brandon'

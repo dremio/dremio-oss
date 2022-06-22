@@ -13,29 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { all, call, fork, put, takeLatest } from 'redux-saga/effects';
-import { push } from 'react-router-redux';
+import { all, call, fork, put, takeLatest } from "redux-saga/effects";
+import { push } from "react-router-redux";
 
-import { log } from '@app/utils/logger';
+import { log } from "@app/utils/logger";
 import {
-  LOGIN_USER_SUCCESS, LOGOUT_USER_SUCCESS, NO_USERS_ERROR, UNAUTHORIZED_ERROR
-} from '@app/actions/account';
-import intercomUtils from '@app/utils/intercomUtils';
-import socket from '@inject/utils/socket';
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
-import { isAuthorized } from '@inject/sagas/utils/isAuthorized';
-import { default as handleAppInitHelper } from '@inject/sagas/utils/handleAppInit';
-import { appInitComplete } from '@app/actions/app';
+  LOGIN_USER_SUCCESS,
+  LOGOUT_USER_SUCCESS,
+  NO_USERS_ERROR,
+  UNAUTHORIZED_ERROR,
+} from "@app/actions/account";
+import intercomUtils from "@app/utils/intercomUtils";
+import socket from "@inject/utils/socket";
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import { isAuthorized } from "@inject/sagas/utils/isAuthorized";
+import { default as handleAppInitHelper } from "@inject/sagas/utils/handleAppInit";
+import { appInitComplete } from "@app/actions/app";
 
 //#region Route constants. Unfortunately should store these constants here (not in routes.js) to
 // avoid module circular references
 
-export const SIGNUP_PATH = '/signup';
-export const LOGIN_PATH = '/login';
-export const SSO_LANDING_PATH = '/login/sso/landing';
+export const SIGNUP_PATH = "/signup";
+export const LOGIN_PATH = "/login";
+export const SSO_LANDING_PATH = "/login/sso/landing";
 
 export function getLoginUrl() {
-  return `${LOGIN_PATH}?redirect=${encodeURIComponent(window.location.href.slice(window.location.origin.length))}`;
+  return `${LOGIN_PATH}?redirect=${encodeURIComponent(
+    window.location.href.slice(window.location.origin.length)
+  )}`;
 }
 
 //#endregion
@@ -54,7 +59,7 @@ export function* afterAppStop() {
 
 //export for testing
 export function* handleLogin({ payload }) {
-  log('Add user data to local storage', payload);
+  log("Add user data to local storage", payload);
   yield call([localStorageUtils, localStorageUtils.setUserData], payload);
 
   yield call(handleAppInit);
@@ -64,10 +69,10 @@ export function* handleLogin({ payload }) {
 export function* checkAppState() {
   // We should always make this call to cover first user flow.
   const isUserValid = yield call(isAuthorized);
-  log('Is user valid', isUserValid);
+  log("Is user valid", isUserValid);
 
   if (!isUserValid) {
-    log('clear user data and token as a user is invalid');
+    log("clear user data and token as a user is invalid");
     yield call([localStorageUtils, localStorageUtils.clearUserData]);
     yield put(appInitComplete());
     return;
@@ -84,7 +89,7 @@ export const resetAppInitState = () => {
 
 export function* handleAppInit() {
   if (isAppInit) {
-    log('App is already initialiazed. Nothing to do.');
+    log("App is already initialiazed. Nothing to do.");
     return;
   }
   yield call(handleAppInitHelper);
@@ -93,10 +98,10 @@ export function* handleAppInit() {
 
 //export for testing
 export function* handleAppStop() {
-  log('intercom cleanup');
+  log("intercom cleanup");
   yield call([intercomUtils, intercomUtils.shutdown]);
   if (socket.exists) {
-    log('socket close');
+    log("socket close");
     yield call([socket, socket.close]);
   }
   isAppInit = false;
@@ -108,16 +113,12 @@ export function* handleLogout() {
     to use intercom
   */
   yield call(handleAppStop);
-  log('clear user data and token');
+  log("clear user data and token");
   yield call([localStorageUtils, localStorageUtils.clearUserData]);
-  log('go to login page');
+  log("go to login page");
   yield put(push(getLoginUrl()));
 }
 
 export default function* loginLogoutSagas() {
-  yield all([
-    fork(afterLogin),
-    fork(afterLogout),
-    fork(afterAppStop)
-  ]);
+  yield all([fork(afterLogin), fork(afterLogout), fork(afterAppStop)]);
 }

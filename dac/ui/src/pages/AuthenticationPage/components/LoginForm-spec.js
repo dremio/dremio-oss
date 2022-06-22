@@ -13,41 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { minimalFormProps } from 'testUtil';
+import { minimalFormProps } from "testUtil";
 
-import { LoginForm } from './LoginForm';
+import { LoginForm } from "./LoginForm";
 
-describe('LoginForm', () => {
-
+describe("LoginForm", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      ...minimalFormProps(['userName', 'password']),
-      loginUser: sinon.stub().returns(Promise.resolve({error: false})),
-      viewState: Immutable.Map()
+      ...minimalFormProps(["userName", "password"]),
+      loginUser: sinon.stub().returns(Promise.resolve({ error: false })),
+      viewState: Immutable.Map(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<LoginForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<LoginForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render 2 Fields', () => {
-    const wrapper = shallow(<LoginForm {...commonProps}/>);
-    expect(wrapper.find('FieldWithError')).to.have.length(2);
+  it("should render 2 Fields", () => {
+    const wrapper = shallow(<LoginForm {...commonProps} />);
+    expect(wrapper.find("FieldWithError")).to.have.length(2);
   });
 
-  describe('#submit', () => {
-    it('should call loginUser', () => {
-      const instance = shallow(<LoginForm {...commonProps}/>).instance();
+  describe("#submit", () => {
+    it("should call loginUser", () => {
+      const instance = shallow(<LoginForm {...commonProps} />).instance();
       const promise = instance.submit();
       expect(commonProps.loginUser).to.be.called;
       return promise;

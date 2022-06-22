@@ -16,6 +16,8 @@
 package com.dremio.service.coordinator;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -57,4 +59,10 @@ public interface ExecutorSetService extends Service {
    */
   Collection<NodeEndpoint> getAllAvailableEndpoints();
 
-}
+  /**
+   * Get all available endpoints across all engines and subEngines based on engines list
+   * @return
+   */
+  Map<EngineManagementProtos.SubEngineId, List<NodeEndpoint>> listAllEnginesExecutors() throws Exception;
+
+  }

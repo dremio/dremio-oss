@@ -56,6 +56,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
+import com.dremio.exec.store.hive.HiveFsUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
@@ -91,7 +92,7 @@ public class HadoopFileSystemWrapper
   }
 
   public HadoopFileSystemWrapper(Path path, Configuration fsConf, OperatorStats operatorStats) throws IOException {
-    this(fsConf, path.getFileSystem(fsConf), operatorStats);
+    this(fsConf, path.getFileSystem(HiveFsUtils.getClonedConfWithDremioWrapperFs(fsConf)), operatorStats);
   }
 
   public HadoopFileSystemWrapper(Path path, Configuration fsConf) throws IOException {

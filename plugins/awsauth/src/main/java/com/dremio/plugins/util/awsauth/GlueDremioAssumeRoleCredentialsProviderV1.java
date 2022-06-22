@@ -41,7 +41,7 @@ public class GlueDremioAssumeRoleCredentialsProviderV1 implements AWSCredentials
     Pointer<String> sessionToken = new Pointer<>("");
 
     try (Closeable ignored = swapClassLoader()) {
-      final DremioAssumeRoleCredentialsProviderV1 provider = new DremioAssumeRoleCredentialsProviderV1();
+      final com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1 provider = new com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1();
       Map<String, String> credentialsMap = provider.getCredentialsMap();
       accessKey.value = credentialsMap.get(DremioAssumeRoleCredentialsProviderV1.ACCESS_KEY);
       secretKey.value = credentialsMap.get(DremioAssumeRoleCredentialsProviderV1.SECRET_KEY);

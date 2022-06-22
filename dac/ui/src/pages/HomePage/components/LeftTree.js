@@ -13,40 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Radium from 'radium';
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import classNames from 'classnames';
-import {FormattedMessage, injectIntl} from 'react-intl';
-import Immutable from 'immutable';
 
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import { connect } from "react-redux";
+import classNames from "classnames";
+import { FormattedMessage, injectIntl } from "react-intl";
+import Immutable from "immutable";
 
-import FinderNav from 'components/FinderNav';
-import FinderNavItem from 'components/FinderNavItem';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import LinkButton from 'components/Buttons/LinkButton';
-import SimpleButton from 'components/Buttons/SimpleButton';
-import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
-import SpacesSection from '@app/pages/HomePage/components/SpacesSection';
+import PropTypes from "prop-types";
+import FinderNav from "components/FinderNav";
+import FinderNavItem from "components/FinderNavItem";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import SpacesSection from "@app/pages/HomePage/components/SpacesSection";
+import { Link } from "react-router";
 
-import { isExternalSourceType, isDataPlaneSourceType } from '@app/constants/sourceTypes';
-import { PALE_NAVY } from 'uiTheme/radium/colors';
+import {
+  isExternalSourceType,
+  isDataPlaneSourceType,
+  isDataLakeSourceType,
+} from "@app/constants/sourceTypes";
 
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import {createSampleSource, isSampleSource} from 'actions/resources/sources';
-import {toggleExternalSourcesExpanded} from 'actions/ui/ui';
-import DataPlaneSection from './DataPlaneSection/DataPlaneSection';
-
-import { emptyContainer, shortEmptyContainer } from './LeftTree.less';
+import ApiUtils from "utils/apiUtils/apiUtils";
+import { createSampleSource } from "actions/resources/sources";
+import {
+  toggleDataplaneSourcesExpanded,
+  toggleExternalSourcesExpanded,
+  toggleInternalSourcesExpanded,
+  toggleDatasetsExpanded,
+} from "actions/ui/ui";
+import * as VersionUtils from "@app/utils/versionUtils";
+import sendEventToIntercom from "@inject/sagas/utils/sendEventToIntercom";
+import INTERCOM_EVENTS from "@inject/constants/intercomEvents";
+import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
+import DataPlaneSection from "./DataPlaneSection/DataPlaneSection";
+import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 
 @injectIntl
-@Radium
-export class LeftTree extends PureComponent {
+export class LeftTree extends Component {
+  state = {
+    isAddingSampleSource: false,
+  };
+
   static contextTypes = {
     location: PropTypes.object,
     loggedInUser: PropTypes.object,
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   static propTypes = {
@@ -56,22 +68,30 @@ export class LeftTree extends PureComponent {
     sourcesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     createSampleSource: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
+    dataplaneSourcesExpanded: PropTypes.bool,
     externalSourcesExpanded: PropTypes.bool,
-    toggleExternalSourcesExpanded: PropTypes.func
-  };
-
-  state = {
-    isAddingSampleSource: false
+    internalSourcesExpanded: PropTypes.bool,
+    datasetsExpanded: PropTypes.bool,
+    toggleDatasetsExpanded: PropTypes.func,
+    toggleDataplaneSourcesExpanded: PropTypes.func,
+    toggleExternalSourcesExpanded: PropTypes.func,
+    toggleInternalSourcesExpanded: PropTypes.func,
+    currentProject: PropTypes.string,
+    isAdmin: PropTypes.bool,
   };
 
   addSampleSource = () => {
-    this.setState({isAddingSampleSource: true});
+    const edition = VersionUtils.getEditionFromConfig();
+    edition === "DCS" &&
+      sendEventToIntercom(INTERCOM_EVENTS.SOURCE_ADD_COMPLETE);
+    this.setState({ isAddingSampleSource: true });
     return this.props.createSampleSource().then((response) => {
       if (response && !response.error) {
-        const nextSource = ApiUtils.getEntityFromResponse('source', response);
-        this.context.router.push(nextSource.getIn(['links', 'self']));
+        const nextSource = ApiUtils.getEntityFromResponse("source", response);
+        this.context.router.push(nextSource.getIn(["links", "self"]));
       }
-      this.setState({isAddingSampleSource: false});
+      this.setState({ isAddingSampleSource: false });
+      return null;
     });
   };
 
@@ -79,123 +99,169 @@ export class LeftTree extends PureComponent {
     return {
       name: this.context.loggedInUser.userName,
       links: {
-        self: '/home'
+        self: "/home",
       },
-      resourcePath: '/home',
-      iconClass: 'Home'
+      resourcePath: "/home",
+      iconClass: "Home",
     };
   }
 
-  getInitialSourcesContent(sources, isExternalSourceList) {
-    const addHref = this.getAddSourceHref(isExternalSourceList);
-    const count = sources.size;
-
-    const isEmpty = count === 0;
-    const haveOnlySampleSource = isExternalSourceList ? false : !isEmpty && sources.toJS().every(isSampleSource);
-    const haveNonSampleSource = isExternalSourceList ? !isEmpty : sources.toJS().some(e => !isSampleSource(e));
-
-    // situations...
-
-    // - only sample source(s), user can't add: show nothing
-    if (haveOnlySampleSource && !this.getCanAddSource()) return null;
-
-    // - have a non-sample source: show nothing
-    if (haveNonSampleSource) return null;
-
-    // - no sources, user can add: show text and both buttons
-    // - no sources, user can't add: show text
-    // - only sample source(s), user can add: show text and add button
-    return <EmptyStateContainer
-      className={isExternalSourceList ? shortEmptyContainer : emptyContainer}
-      title={isEmpty ? <FormattedMessage id={isExternalSourceList ? 'Source.NoExternalSources' : 'Source.NoDataLakes'}/>
-        : <FormattedMessage id='Source.AddOwnSource'/>}>
-      {this.getCanAddSource() && isEmpty && !isExternalSourceList && this.props.sourceTypesIncludeS3 && <SimpleButton
-        buttonStyle='primary'
-        submitting={this.state.isAddingSampleSource}
-        style={{padding: '0 12px'}}
-        onClick={this.addSampleSource}>
-        <FormattedMessage id='Source.AddSampleSource'/>
-      </SimpleButton>}
-      {this.getCanAddSource() && <LinkButton
-        buttonStyle='primary'
-        data-qa={'add-sources'}
-        to={addHref}>
-        <FormattedMessage id={isExternalSourceList ? 'Source.AddExternalSource' : 'Source.AddDataLake'}/>
-      </LinkButton>}
-    </EmptyStateContainer>;
-  }
-
   getCanAddSource() {
-    return this.context.loggedInUser.admin;
+    const { isAdmin } = this.props;
+    const canCreateSource =
+      localStorageUtils.getUserPermissions()?.canCreateSource;
+
+    return isAdmin || canCreateSource;
   }
 
   getAddSourceHref(isExternalSource, isDataPlaneSource = false) {
-    return this.getCanAddSource() ?
-      {...this.context.location, state: {modal: 'AddSourceModal', isExternalSource, isDataPlaneSource}} : undefined;
+    return {
+      ...this.context.location,
+      state: {
+        modal: "AddSourceModal",
+        isExternalSource,
+        isDataPlaneSource,
+      },
+    };
+  }
+
+  onScroll(e) {
+    const scrollTop = e.currentTarget.scrollTop;
+    const scrollHeight = e.currentTarget.scrollHeight;
+    const clientHeight = e.currentTarget.clientHeight;
+    scrollTop > 0
+      ? this.setState({ addTopShadow: true })
+      : this.setState({ addTopShadow: false });
+
+    scrollHeight - scrollTop !== clientHeight
+      ? this.setState({ addBotShadow: true })
+      : this.setState({ addBotShadow: false });
   }
 
   render() {
-    const { className, sources, sourcesViewState, intl, externalSourcesExpanded, toggleExternalSourcesExpanded: handleToggle } = this.props;
-    const classes = classNames('left-tree', className);
+    const {
+      className,
+      sources,
+      sourcesViewState,
+      intl,
+      currentProject,
+      toggleDatasetsExpanded,
+      toggleExternalSourcesExpanded,
+      toggleInternalSourcesExpanded,
+      toggleDataplaneSourcesExpanded,
+      datasetsExpanded,
+      dataplaneSourcesExpanded,
+      externalSourcesExpanded,
+      internalSourcesExpanded,
+    } = this.props;
+    const { location } = this.context;
+    const { formatMessage } = intl;
+    const isHomeActive = location && location.pathname === "/";
+    const classes = classNames("left-tree", "left-tree-holder", className);
     const homeItem = this.getHomeObject();
-    const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')) && !isDataPlaneSourceType(source.get('type')));
-    const externalSources = sources.filter(source => isExternalSourceType(source.get('type')) && !isDataPlaneSourceType(source.get('type')));
-    const dataPlaneSources = sources.filter(source => isDataPlaneSourceType(source.get('type')));
+    const dataLakeSources = sources.filter((source) =>
+      isDataLakeSourceType(source.get("type"))
+    );
+    const externalSources = sources.filter(
+      (source) =>
+        isExternalSourceType(source.get("type")) &&
+        !isDataPlaneSourceType(source.get("type"))
+    );
+    const dataPlaneSources = sources.filter((source) =>
+      isDataPlaneSourceType(source.get("type"))
+    );
 
-    const haveOnlySampleSource = dataLakeSources.size && dataLakeSources.toJS().every(isSampleSource);
-    // When the user only added in a single source, allow more height to show the "Add own Data Lake" message
-    const dataLakeListHeight = haveOnlySampleSource ? '195px' : '155px';
     return (
-      <div className={classes} style={[styles.leftTreeHolder]}>
-        <h3 style={[styles.headerViewer]}>
-          <FormattedMessage id='Dataset.Datasets'/>
+      <div className={classes}>
+        <h3
+          className={`header-viewer ${
+            this.state.addTopShadow ? "add-shadow-top" : ""
+          }`}
+        >
+          {currentProject ? (
+            currentProject
+          ) : (
+            <FormattedMessage id="Dataset.Datasets" />
+          )}
         </h3>
-        <ul className='header-block' style={styles.homeWrapper}>
-          <FinderNavItem item={homeItem} />
-        </ul>
-        <SpacesSection />
-        <DataPlaneSection
-          dataPlaneSources={dataPlaneSources}
-          sourcesViewState={sourcesViewState}
-          addHref={this.getAddSourceHref(false, true)}
-          height={dataLakeListHeight}
-        />
-        <div className='left-tree-wrap' style={{
-          height: dataLakeSources.size ? dataLakeListHeight : '175px',
-          overflow: 'hidden'
-        }}>
-          <ViewStateWrapper viewState={sourcesViewState}>
-            <FinderNav
-              navItems={dataLakeSources}
-              title={intl.formatMessage({ id: 'Source.DataLakes' })}
-              addTooltip={intl.formatMessage({ id: 'Source.AddDataLake' })}
-              isInProgress={sourcesViewState.get('isInProgress')}
-              addHref={this.getAddSourceHref(false)}
-              listHref='/sources/datalake/list'
-              children={this.getInitialSourcesContent(dataLakeSources, false)}
-            />
-          </ViewStateWrapper>
-        </div>
-        <div className='left-tree-wrap' style={{
-          maxHeight: '155px',
-          overflow: 'hidden',
-          height: externalSourcesExpanded ? '100%' : 'auto'
-        }}>
-          <ViewStateWrapper viewState={sourcesViewState}>
-            <FinderNav
-              navItems={externalSources}
-              title={intl.formatMessage({ id: 'Source.ExternalSources' })}
-              addTooltip={intl.formatMessage({ id: 'Source.AddExternalSource' })}
-              isInProgress={sourcesViewState.get('isInProgress')}
-              addHref={this.getAddSourceHref(true)}
+        <div className="scrolling-container" onScroll={(e) => this.onScroll(e)}>
+          <ul className="home-wrapper">
+            <FinderNavItem item={homeItem} isHomeActive={isHomeActive} />
+          </ul>
+          <SpacesSection
+            isCollapsed={datasetsExpanded}
+            isCollapsible
+            onToggle={toggleDatasetsExpanded}
+          />
+          <div className="sources-title">
+            {formatMessage({ id: "Source.Sources" })}
+          </div>
+          {dataPlaneSources.size > 0 && (
+            <DataPlaneSection
+              isCollapsed={dataplaneSourcesExpanded}
               isCollapsible
-              isCollapsed={!externalSourcesExpanded}
-              onToggle={handleToggle}
-              listHref='/sources/external/list'
-              children={this.getInitialSourcesContent(externalSources, true)}
+              onToggle={toggleDataplaneSourcesExpanded}
+              dataPlaneSources={dataPlaneSources}
+              sourcesViewState={sourcesViewState}
             />
-          </ViewStateWrapper>
+          )}
+          {dataLakeSources.size > 0 && (
+            <div className="left-tree-wrap">
+              <ViewStateWrapper
+                viewState={sourcesViewState}
+                spinnerStyle={spacesSourcesListSpinnerStyleFinderNav}
+              >
+                <FinderNav
+                  isCollapsed={internalSourcesExpanded}
+                  isCollapsible
+                  onToggle={toggleInternalSourcesExpanded}
+                  navItems={dataLakeSources}
+                  title={formatMessage({ id: "Source.DataLakes" })}
+                  addTooltip={formatMessage({ id: "Source.AddDataLake" })}
+                  isInProgress={sourcesViewState.get("isInProgress")}
+                  listHref="/sources/datalake/list"
+                />
+              </ViewStateWrapper>
+            </div>
+          )}
+          {externalSources.size > 0 && (
+            <div className="left-tree-wrap">
+              <ViewStateWrapper viewState={sourcesViewState}>
+                <FinderNav
+                  isCollapsed={externalSourcesExpanded}
+                  isCollapsible
+                  onToggle={toggleExternalSourcesExpanded}
+                  location={location}
+                  navItems={externalSources}
+                  title={formatMessage({ id: "Source.ExternalSources" })}
+                  addTooltip={formatMessage({
+                    id: "Source.AddExternalSource",
+                  })}
+                  isInProgress={sourcesViewState.get("isInProgress")}
+                  listHref="/sources/external/list"
+                />
+              </ViewStateWrapper>
+            </div>
+          )}
         </div>
+        {this.getCanAddSource() && (
+          <div
+            className={`add-source-container ${
+              this.state.addBotShadow ? "add-shadow-bot" : ""
+            }`}
+          >
+            <Link
+              className="add-source"
+              data-qa={`add-source`}
+              to={this.getAddSourceHref(true)}
+            >
+              <dremio-icon name="interface/add-small" class="add-source-icon" />
+              {formatMessage({
+                id: "Source.AddSource",
+              })}
+            </Link>
+          </div>
+        )}
       </div>
     );
   }
@@ -203,62 +269,18 @@ export class LeftTree extends PureComponent {
 
 function mapStateToProps(state) {
   return {
-    externalSourcesExpanded: state.ui.get('externalSourcesExpanded')
+    externalSourcesExpanded: state.ui.get("externalSourcesExpanded"),
+    internalSourcesExpanded: state.ui.get("internalSourcesExpanded"),
+    dataplaneSourcesExpanded: state.ui.get("dataplaneSourcesExpanded"),
+    datasetsExpanded: state.ui.get("datasetsExpanded"),
+    isAdmin: getAdminStatus(state),
   };
 }
 
-export default connect(mapStateToProps, {createSampleSource, toggleExternalSourcesExpanded})(LeftTree);
-
-const styles = {
-  leftTreeHolder: {
-    width: '250px',
-    flexShrink: '0',
-    overflow: 'hidden',
-    borderRight: '1px solid rgba(0,0,0,.1)',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    maxHeight: '100%'
-  },
-  homeWrapper: {
-    flex: '0 0 auto',
-
-    // this lines up the separator lines between the two panels:
-    // (actually it's slightly off, but due to color differences/gestalt this actually looks more correct)
-    paddingTop: 5,
-    paddingBottom: 5
-  },
-  hItem: {
-    display: 'block',
-    width: '230px',
-    height: '28px',
-    padding: '2px 0',
-    position: 'relative',
-    cursor: 'pointer',
-    borderRadius: '2px',
-    ':hover': {
-      background: '#fff5dc'
-    }
-  },
-  userText: {
-    margin: '5px 0 0 6px',
-    display: 'inline-block'
-  },
-  fontIcon: {
-    Container: {
-      verticalAlign: 'top'
-    }
-  },
-  headerViewer: {
-    display: 'flex',
-    alignItems: 'center',
-    background: PALE_NAVY,
-    height: 38,
-    flex: '0 0 auto',
-    padding: '0 10px'
-  },
-  columnFlex: { // we need this in a number of places to keep the DOM tree in flex mode
-    flex: '2',
-    minHeight: '25vh'
-  }
-};
+export default connect(mapStateToProps, {
+  createSampleSource,
+  toggleDataplaneSourcesExpanded,
+  toggleExternalSourcesExpanded,
+  toggleInternalSourcesExpanded,
+  toggleDatasetsExpanded,
+})(LeftTree);

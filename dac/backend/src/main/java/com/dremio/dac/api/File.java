@@ -18,7 +18,9 @@ package com.dremio.dac.api;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Iterables;
 
 /**
  * File
@@ -39,5 +41,10 @@ public class File implements CatalogEntity {
 
   public List<String> getPath() {
     return path;
+  }
+
+  @JsonIgnore
+  public String getName() {
+    return Iterables.getLast(getPath());
   }
 }

@@ -25,6 +25,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableToggleSchemaLearning;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -47,6 +48,7 @@ public class SqlAlterTableToggleSchemaLearningHandler extends SimpleDirectHandle
     final SqlAlterTableToggleSchemaLearning sqlToggleSchemaLearning = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableToggleSchemaLearning.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlToggleSchemaLearning.getTable());
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
     DremioTable table = catalog.getTableNoResolve(path);
 
     if (table == null) {

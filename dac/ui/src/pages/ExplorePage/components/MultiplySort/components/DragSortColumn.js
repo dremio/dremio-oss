@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import Select from 'components/Fields/Select';
-import DragAreaColumn from 'components/DragComponents/DragAreaColumn';
-import { base, columnElement, /*icon as iconCls, customLabel,*/ select as selectCls } from './DragSortColumn.less';
+import Select from "components/Fields/Select";
+import DragAreaColumn from "components/DragComponents/DragAreaColumn";
+import {
+  base,
+  columnElement,
+  /*icon as iconCls, customLabel,*/ select as selectCls,
+} from "./DragSortColumn.less";
 
 //todo reuse this component for DragMeasureColumn
-@Radium
 class DragSortColumn extends Component {
   static propTypes = {
     isDragInProgress: PropTypes.bool,
@@ -33,7 +36,7 @@ class DragSortColumn extends Component {
     dragType: PropTypes.string.isRequired,
     onRemoveColumn: PropTypes.func,
     index: PropTypes.number,
-    onDragEnd: PropTypes.func
+    onDragEnd: PropTypes.func,
   };
 
   constructor(props) {
@@ -41,23 +44,23 @@ class DragSortColumn extends Component {
 
     this.options = [
       {
-        label: 'Descending',
-        option: 'DESC'
+        label: "Descending",
+        option: "DESC",
       },
       {
-        label: 'Ascending',
-        option: 'ASC'
-      }
+        label: "Ascending",
+        option: "ASC",
+      },
     ];
   }
 
   render() {
     const { field, index } = this.props;
     return (
-      <div className={classNames(['drag-sort-column', base])}>
+      <div className={classNames(["drag-sort-column", base])}>
         <Select
           {...field.direction}
-          dataQa='sortDirection'
+          dataQa="sortDirection"
           className={selectCls}
           items={this.options}
           iconStyle={styles.iconStyle}
@@ -69,7 +72,7 @@ class DragSortColumn extends Component {
             isDragInProgress={this.props.isDragInProgress}
             allColumns={this.props.allColumns}
             index={index}
-            dragOrigin='sort'
+            dragOrigin="sort"
             onRemoveColumn={this.props.onRemoveColumn}
             dragType={this.props.dragType}
           />
@@ -81,11 +84,11 @@ class DragSortColumn extends Component {
 
 const styles = {
   iconStyle: {
-    top: 0
+    top: 0,
   },
   customLabelStyle: {
-    top: 13
-  }
+    top: 13,
+  },
 };
 
-export default DragSortColumn;
+export default Radium(DragSortColumn);

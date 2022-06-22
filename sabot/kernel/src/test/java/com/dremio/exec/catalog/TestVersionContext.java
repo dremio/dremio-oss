@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 public class TestVersionContext {
@@ -44,8 +44,7 @@ public class TestVersionContext {
     assertFalse(versionContext.isBareCommit());
 
     assertEquals(VersionContext.Type.UNSPECIFIED, versionContext.getType());
-    assertNull(versionContext.getRefName());
-    assertNull(versionContext.getCommitHash());
+    assertNull(versionContext.getValue());
   }
 
   @Test
@@ -60,7 +59,7 @@ public class TestVersionContext {
     assertFalse(versionContext.isBareCommit());
 
     assertEquals(VersionContext.Type.REF, versionContext.getType());
-    assertEquals(REF_NAME, versionContext.getRefName());
+    assertEquals(REF_NAME, versionContext.getValue());
   }
 
   @Test
@@ -75,8 +74,7 @@ public class TestVersionContext {
     assertFalse(versionContext.isBareCommit());
 
     assertEquals(VersionContext.Type.TAG, versionContext.getType());
-    assertEquals(TAG_NAME, versionContext.getRefName());
-    assertNull(versionContext.getCommitHash());
+    assertEquals(TAG_NAME, versionContext.getValue());
   }
 
   @Test
@@ -91,8 +89,7 @@ public class TestVersionContext {
     assertFalse(versionContext.isBareCommit());
 
     assertEquals(VersionContext.Type.BRANCH, versionContext.getType());
-    assertEquals(BRANCH_NAME, versionContext.getRefName());
-    assertNull(versionContext.getCommitHash());
+    assertEquals(BRANCH_NAME, versionContext.getValue());
   }
 
   @Test
@@ -107,25 +104,24 @@ public class TestVersionContext {
     assertFalse(versionContext.isTag());
 
     assertEquals(VersionContext.Type.BARE_COMMIT, versionContext.getType());
-    assertNull(versionContext.getRefName());
-    assertEquals(REASONABLE_HASH, versionContext.getCommitHash());
+    assertEquals(REASONABLE_HASH, versionContext.getValue());
   }
 
   @Test
   public void bareCommitHashNotHexadecimal() {
-    Assert.assertThrows(IllegalArgumentException.class,
-      () -> VersionContext.ofBareCommit(NOT_HEXADECIMAL));
+    assertThatThrownBy(() -> VersionContext.ofBareCommit(NOT_HEXADECIMAL))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void bareCommitHashEmptyString() {
-    Assert.assertThrows(IllegalArgumentException.class,
-      () -> VersionContext.ofBareCommit(EMPTY_STRING));
+    assertThatThrownBy(() -> VersionContext.ofBareCommit(EMPTY_STRING))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void bareCommitHashTooLong() {
-    Assert.assertThrows(IllegalArgumentException.class,
-      () -> VersionContext.ofBareCommit(HASH_TOO_LONG));
+    assertThatThrownBy(() -> VersionContext.ofBareCommit(HASH_TOO_LONG))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 }

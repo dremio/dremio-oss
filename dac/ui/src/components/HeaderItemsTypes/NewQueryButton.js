@@ -13,28 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { FormattedMessage, injectIntl } from 'react-intl';
-import { getExploreState } from '@app/selectors/explore';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { FormattedMessage, injectIntl } from "react-intl";
+import { getExploreState } from "@app/selectors/explore";
 
-import { showConfirmationDialog } from 'actions/confirmation';
-import { resetNewQuery } from 'actions/explore/view';
+import { showConfirmationDialog } from "actions/confirmation";
+import { resetNewQuery } from "actions/explore/view";
 
-import { getLocation } from 'selectors/routing';
+import { getLocation } from "selectors/routing";
 
-import { EXPLORE_VIEW_ID } from 'reducers/explore/view';
+import { EXPLORE_VIEW_ID } from "reducers/explore/view";
 
-import FontIcon from 'components/Icon/FontIcon';
+import FontIcon from "components/Icon/FontIcon";
 
-import { parseResourceId } from 'utils/pathUtils';
+import { parseResourceId } from "utils/pathUtils";
 
-@injectIntl
-@Radium
+import * as classes from "./NewQueryButton.module.less";
+
 export class NewQueryButton extends Component {
-
   static propTypes = {
     location: PropTypes.object.isRequired,
     currentSql: PropTypes.string,
@@ -42,43 +40,45 @@ export class NewQueryButton extends Component {
     showConfirmationDialog: PropTypes.func,
     resetNewQuery: PropTypes.func,
     intl: PropTypes.object.isRequired,
-    fromSideBar: PropTypes.bool
+    fromSideBar: PropTypes.bool,
   };
 
   static contextTypes = {
     username: PropTypes.string,
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   constructor(props) {
     super(props);
+    this.state = {};
   }
 
   getNewQueryHref() {
     const { location } = this.props;
     const { username } = this.context;
     const resourceId = parseResourceId(location.pathname, username);
-    return '/new_query?context=' + encodeURIComponent(resourceId);
+    return "/new_query?context=" + encodeURIComponent(resourceId);
   }
 
   handleClick = (e) => {
     const { location, currentSql, intl } = this.props;
-    if (e.metaKey || e.ctrlKey) { // DX-10607, DX-11299 pass to default link behaviour, when cmd/ctrl is pressed on click
+    if (e.metaKey || e.ctrlKey) {
+      // DX-10607, DX-11299 pass to default link behaviour, when cmd/ctrl is pressed on click
       return;
     }
-    if (location.pathname === '/new_query') {
+    if (location.pathname === "/new_query") {
       if (currentSql && currentSql.trim()) {
         this.props.showConfirmationDialog({
-          title: intl.formatMessage({id: 'Common.UnsavedWarning'}),
+          title: intl.formatMessage({ id: "Common.UnsavedWarning" }),
           text: [
-            intl.formatMessage({id: 'NewQuery.UnsavedChangesWarning'}),
-            intl.formatMessage({id: 'NewQuery.UnsavedChangesWarningPrompt'})
+            intl.formatMessage({ id: "NewQuery.UnsavedChangesWarning" }),
+            intl.formatMessage({ id: "NewQuery.UnsavedChangesWarningPrompt" }),
           ],
-          confirmText: intl.formatMessage({id: 'Common.Continue'}),
-          cancelText: intl.formatMessage({id: 'Common.Cancel'}),
+          confirmText: intl.formatMessage({ id: "Common.Continue" }),
+          cancelText: intl.formatMessage({ id: "Common.Cancel" }),
           confirm: () => {
             this.props.resetNewQuery(EXPLORE_VIEW_ID);
-          }
+          },
         });
       } else {
         this.props.resetNewQuery(EXPLORE_VIEW_ID); // even if there's no SQL, clear any errors
@@ -90,112 +90,97 @@ export class NewQueryButton extends Component {
   };
 
   render() {
-    const {fromSideBar, intl} = this.props;
+    const { fromSideBar, intl } = this.props;
     if (fromSideBar) {
-      const {mouseOver} = this.state;
-      let iconType = 'PlusSignGray';
+      const { mouseOver } = this.state;
+      let iconType = "PlusSignGray";
       if (mouseOver) {
-        iconType = 'PlusSign';
+        iconType = "PlusSign";
       }
 
       return (
-        <div className='new-query-button' style={styles.baseSideBar} onMouseEnter={this.mouseEnter} onMouseLeave={this.mouseLeave}>
-          <a href={this.getNewQueryHref()} data-qa='new-query-button' onClick={this.handleClick} style={styles.linkSideBar}>
-            <FontIcon theme={styles.iconSideBar} type={iconType} tooltip={intl.formatMessage({id: 'NewQuery.NewQuery'})}/>
+        <div
+          className="new-query-button"
+          style={styles.baseSideBar}
+          onMouseEnter={this.mouseEnter}
+          onMouseLeave={this.mouseLeave}
+        >
+          <a
+            href={this.getNewQueryHref()}
+            data-qa="new-query-button"
+            onClick={this.handleClick}
+            className={classes["new-query-button__linkSideBar"]}
+          >
+            <FontIcon
+              theme={styles.iconSideBar}
+              type={iconType}
+              tooltip={intl.formatMessage({ id: "NewQuery.NewQuery" })}
+            />
           </a>
         </div>
       );
     }
 
     return (
-      <div className='new-query-button' style={styles.base}>
-        <a href={this.getNewQueryHref()} data-qa='new-query-button' onClick={this.handleClick} style={styles.link}>
-          <FontIcon theme={styles.icon} type='PlusSign' />
-          <FormattedMessage id='NewQuery.NewQuery'/>
+      <div className="new-query-button" style={styles.base}>
+        <a
+          href={this.getNewQueryHref()}
+          data-qa="new-query-button"
+          onClick={this.handleClick}
+          className={classes["new-query-button__link"]}
+        >
+          <FontIcon theme={styles.icon} type="PlusSign" />
+          <FormattedMessage id="NewQuery.NewQuery" />
         </a>
       </div>
     );
   }
 }
+NewQueryButton = injectIntl(NewQueryButton);
 
 function mapStateToProps(state) {
   const explorePage = getExploreState(state); //todo explore page state should not be here
   return {
     location: getLocation(state),
-    currentSql: explorePage ? explorePage.view.currentSql : null
+    currentSql: explorePage ? explorePage.view.currentSql : null,
   };
 }
 
 export default connect(mapStateToProps, {
   showConfirmationDialog,
-  resetNewQuery
+  resetNewQuery,
 })(NewQueryButton);
-
 
 const styles = {
   base: {
-    display: 'flex',
-    alignItems: 'center'
+    display: "flex",
+    alignItems: "center",
   },
   baseSideBar: {
     width: 45,
-    height: 45
-  },
-  link: {
-    display: 'block',
-    lineHeight: '28px',
-    textDecoration: 'none',
-    color: '#fff',
-    height: 32,
-    transition: 'all 0.5s',
-    fontSize: '13px',
-    padding: '1px 15px 0px 15px', // chris thinks this looks better
-    marginLeft: 10,
-    textAlign: 'left',
-    cursor: 'pointer',
-    border: '1px solid #333333',
-
-    ':hover': {
-      borderRadius: 5,
-      border: '1px solid rgba(255, 255, 255, .25)'
-    }
-  },
-  linkSideBar: {
-    display: 'block',
-    lineHeight: '20px',
-    textDecoration: 'none',
-    color: '#fff',
-    fontSize: '20px',
-    padding: '12px', // chris thinks this looks better
-    textAlign: 'left',
-    cursor: 'pointer',
-
-    ':hover': {
-      color: 'white'
-    }
+    height: 45,
   },
   icon: {
-    'Icon': {
-      width: '1.05em',
-      height: '1.05em'
+    Icon: {
+      width: "1.05em",
+      height: "1.05em",
     },
-    'Container': {
-      height: '1.05em',
-      display: 'inline-block',
-      verticalAlign: '-0.4em',
+    Container: {
+      height: "1.05em",
+      display: "inline-block",
+      verticalAlign: "-0.4em",
       marginRight: 9,
-      fontSize: 'inherit'
-    }
+      fontSize: "inherit",
+    },
   },
   iconSideBar: {
-    'Icon': {
-      width: '1.05em',
-      height: '1.05em'
+    Icon: {
+      width: "1.05em",
+      height: "1.05em",
     },
-    'Container': {
-      display: 'inline-block',
-      fontSize: 'inherit'
-    }
-  }
+    Container: {
+      display: "inline-block",
+      fontSize: "inherit",
+    },
+  },
 };
-

@@ -207,11 +207,11 @@ public class TestPreparedStatementProvider extends BaseTestQuery {
           result.getDisplaySize() == displaySize &&
           result.getClassName().equals(className) &&
           result.getSearchability() == ColumnSearchability.ALL &&
-          result.getAutoIncrement() == false &&
-          result.getCaseSensitivity() == false &&
+          !result.getAutoIncrement() &&
+          !result.getCaseSensitivity() &&
           result.getUpdatability() == ColumnUpdatability.READ_ONLY &&
-          result.getIsAliased() == true &&
-          result.getIsCurrency() == false;
+          result.getIsAliased() &&
+          !result.getIsCurrency();
     }
 
     @Override

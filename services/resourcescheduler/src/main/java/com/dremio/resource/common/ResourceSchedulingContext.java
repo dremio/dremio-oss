@@ -17,7 +17,6 @@ package com.dremio.resource.common;
 
 import java.util.Collection;
 
-
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;

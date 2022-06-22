@@ -21,8 +21,10 @@ import org.apache.arrow.util.Preconditions;
 
 public final class ExternalNamespaceEntry {
   public enum Type {
+    UNKNOWN,
     FOLDER,
-    ICEBERG
+    ICEBERG_TABLE,
+    ICEBERG_VIEW
   }
 
   private Type type;
@@ -58,12 +60,14 @@ public final class ExternalNamespaceEntry {
 
   private static Type mapType(String type) {
     switch(type) {
-      case "UNKNOWN":
+      case "NAMESPACE":
         return Type.FOLDER;
       case "ICEBERG_TABLE":
-        return Type.ICEBERG;
+        return Type.ICEBERG_TABLE;
+      case "ICEBERG_VIEW":
+        return Type.ICEBERG_VIEW;
       default:
-        throw new IllegalStateException("Unexpected value: " + type);
+        return Type.UNKNOWN;
     }
   }
 }

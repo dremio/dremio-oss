@@ -50,7 +50,7 @@ import com.google.common.collect.Iterables;
 public class TestBuilder {
 
   /**
-   * Test query to rung. Type of object depends on the {@link #queryType}
+   * Test query to run. Type of object depends on the {@link #queryType}
    */
   protected Object query;
   // the type of query for the test
@@ -282,11 +282,7 @@ public class TestBuilder {
   }
 
   boolean typeInfoSet() {
-    if (baselineTypeMap != null) {
-      return true;
-    } else {
-      return false;
-    }
+    return baselineTypeMap != null;
   }
 
   // indicate that the tests query should be checked for an empty result set
@@ -332,6 +328,28 @@ public class TestBuilder {
       baselineValues = new Object[] {null};
     }
     assertEquals("Must supply the same number of baseline values as columns.", baselineValues.length, baselineColumns.length);
+    for (String s : baselineColumns) {
+      ret.put(s, baselineValues[i]);
+      i++;
+    }
+    this.baselineRecords.add(ret);
+    return this;
+  }
+
+  public TestBuilder someBaselineValues(Object ... baselineValues) {
+    assert getExpectedSchema() == null : "The expected schema is not needed when baselineValues are provided ";
+    if (ordered == null) {
+      throw new RuntimeException("Ordering not set, before specifying baseline data you must explicitly call the ordered() or unOrdered() method on the " + this.getClass().getSimpleName());
+    }
+    if (baselineRecords == null) {
+      baselineRecords = new ArrayList<>();
+    }
+    Map<String, Object> ret = new LinkedHashMap<>();
+    int i = 0;
+    assertTrue("Must set expected columns before baseline values/records.", baselineColumns != null);
+    if (baselineValues == null) {
+      baselineValues = new Object[] {null};
+    }
     for (String s : baselineColumns) {
       ret.put(s, baselineValues[i]);
       i++;
@@ -488,11 +506,7 @@ public class TestBuilder {
 
     @Override
     boolean typeInfoSet() {
-      if (super.typeInfoSet() || baselineTypes != null) {
-        return true;
-      } else {
-        return false;
-      }
+      return super.typeInfoSet() || baselineTypes != null;
     }
 
     @Override

@@ -17,12 +17,13 @@
 package com.dremio.dac.util;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public class OperatorMetricsUtil {
   private static final String[] screenMetrics = {"BYTES_SENT" };
 
   // Below is the static Map to if we need to custmize the Metrics information.
-  public static final HashMap<Integer, String[]> operatorSpecificMetrics = new HashMap<>();
+  public static final Map<Integer, String[]> operatorSpecificMetrics = new HashMap<>();
 
   static {
     operatorSpecificMetrics.put(13, screenMetrics);

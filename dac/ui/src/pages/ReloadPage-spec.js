@@ -13,41 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import ReloadPage from './ReloadPage';
+import ReloadPage from "./ReloadPage";
 
-describe('ReloadPage', () => {
-
+describe("ReloadPage", () => {
   let props;
   let context;
   beforeEach(() => {
     props = {
       location: {
         state: {
-          to: {foo: 1}
-        }
-      }
+          to: { foo: 1 },
+        },
+      },
     };
 
     context = {
       router: {
-        replace: sinon.spy()
-      }
+        replace: sinon.spy(),
+      },
     };
   });
 
-  it('should render without exploding', () => {
-    const wrapper = shallow(<ReloadPage {...props}/>, {context});
+  it("should render without exploding", () => {
+    const wrapper = shallow(<ReloadPage {...props} />, { context });
     expect(wrapper).to.have.length(1);
-    expect(context.router.replace).to.have.been.calledWith(props.location.state.to);
+    expect(context.router.replace).to.have.been.calledWith(
+      props.location.state.to
+    );
   });
 
-  it('should fall back to home if there is an error', () => {
+  it("should fall back to home if there is an error", () => {
     delete props.location.state;
-    const wrapper = shallow(<ReloadPage {...props}/>, {context});
+    const wrapper = shallow(<ReloadPage {...props} />, { context });
     expect(wrapper).to.have.length(1);
-    expect(context.router.replace).to.have.been.calledWith('/');
+    expect(context.router.replace).to.have.been.calledWith("/");
   });
-
 });

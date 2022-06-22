@@ -13,56 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount } from 'enzyme';
-import { DataLoader } from '@app/components/DataLoader';
+import { mount } from "enzyme";
+import { DataLoader } from "@app/components/DataLoader";
 
-describe('DataLoader', () => {
+describe("DataLoader", () => {
   const onChange = sinon.stub();
 
   beforeEach(() => {
     onChange.resetHistory();
   });
 
-  it('calls onChange once on mount', () => {
+  it("calls onChange once on mount", () => {
     mount(<DataLoader onChange={onChange} />);
 
     expect(onChange).calledOnce;
   });
 
-  it('calls onChange once on mount even isInvalidated = true', () => {
+  it("calls onChange once on mount even isInvalidated = true", () => {
     mount(<DataLoader onChange={onChange} isInvalidated />);
 
     expect(onChange).callCount(1);
   });
 
-  it('calls onChange if keyValue is changed', () => {
+  it("calls onChange if keyValue is changed", () => {
     const wrapper = mount(<DataLoader onChange={onChange} />);
     onChange.resetHistory();
 
     wrapper.setProps({
-      keyValue: 1
+      keyValue: 1,
     });
 
     expect(onChange).calledOnce;
   });
 
-  it('calls onChange if isInvalidated changed to true', () => {
-    const wrapper = mount(<DataLoader onChange={onChange} isInvalidated={false} />);
+  it("calls onChange if isInvalidated changed to true", () => {
+    const wrapper = mount(
+      <DataLoader onChange={onChange} isInvalidated={false} />
+    );
     onChange.resetHistory();
 
     wrapper.setProps({
-      isInvalidated: true
+      isInvalidated: true,
     });
 
     expect(onChange).calledOnce;
   });
 
-  it('does NOT call onChange if isInvalidated changed to false', () => {
+  it("does NOT call onChange if isInvalidated changed to false", () => {
     const wrapper = mount(<DataLoader onChange={onChange} isInvalidated />);
     onChange.resetHistory();
 
     wrapper.setProps({
-      isInvalidated: false
+      isInvalidated: false,
     });
 
     expect(onChange).not.called;

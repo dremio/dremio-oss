@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+
 export const getSpaceUpdated = (values, props) => {
-  return props.entityId ? props.updateSpace(values) : props.createNewSpace(values);
+  return props.entityId
+    ? props.updateSpace(values)
+    : props.createNewSpace(values);
+};
+
+export const getAdminStatus = () => {
+  return localStorageUtils.isUserAnAdmin();
 };

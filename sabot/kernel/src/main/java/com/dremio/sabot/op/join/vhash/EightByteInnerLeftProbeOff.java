@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.ValueListFilter;
 import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.google.common.base.Preconditions;
@@ -362,5 +363,10 @@ public class EightByteInnerLeftProbeOff implements JoinTable {
       logger.warn("Error while creating bloomfilter for " + fieldNames, e);
       return Optional.empty();
     }
+  }
+
+  @Override
+  public Optional<ValueListFilter> prepareValueListFilter(String fieldName, int maxElements) {
+    return Optional.empty();
   }
 }

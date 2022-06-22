@@ -13,82 +13,101 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'chai';
-import { RSAA } from 'redux-api-middleware';
+import { expect } from "chai";
+import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from '@app/core/APICall';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from "@app/core/APICall";
+import { API_URL_V2 } from "@app/constants/Api";
 
-import * as Actions from './sqlActions.js';
+import * as Actions from "./sqlActions.js";
 
-describe('sql actions', () => {
-  describe('test constants', () => {
-    it('verify existence of CREATE_DATASET', () => {
+describe("sql actions", () => {
+  describe("test constants", () => {
+    it("verify existence of CREATE_DATASET", () => {
       expect(Actions.CREATE_DATASET_START).to.not.be.undefined;
       expect(Actions.CREATE_DATASET_SUCCESS).to.not.be.undefined;
       expect(Actions.CREATE_DATASET_FAILURE).to.not.be.undefined;
     });
-    it('verify existence of CREATE_DATASET_FROM_EXISTING', () => {
+    it("verify existence of CREATE_DATASET_FROM_EXISTING", () => {
       expect(Actions.CREATE_DATASET_FROM_EXISTING_START).to.not.be.undefined;
       expect(Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS).to.not.be.undefined;
       expect(Actions.CREATE_DATASET_FROM_EXISTING_FAILURE).to.not.be.undefined;
     });
-    it('verify existence of MOVE_DATASET', () => {
+    it("verify existence of MOVE_DATASET", () => {
       expect(Actions.MOVE_DATASET_START).to.not.be.undefined;
       expect(Actions.MOVE_DATASET_SUCCESS).to.not.be.undefined;
       expect(Actions.MOVE_DATASET_FAILURE).to.not.be.undefined;
     });
   });
 
-  describe('test action creators', () => {
-    it('test result of calling of function createDataset', () => {
-      const cpath = 'bla.bla';
+  describe("test action creators", () => {
+    it("test result of calling of function createDataset", () => {
+      const cpath = "bla.bla";
       const location = cpath;
       const dataset = {
-        data: { name: ''}
+        data: { name: "" },
       };
 
       const apiCall = new APIV2Call().path(`dataset${location}`);
 
       const expectedResult = {
         [RSAA]: {
-          types: [Actions.CREATE_DATASET_START, Actions.CREATE_DATASET_SUCCESS, Actions.CREATE_DATASET_FAILURE],
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          types: [
+            Actions.CREATE_DATASET_START,
+            Actions.CREATE_DATASET_SUCCESS,
+            Actions.CREATE_DATASET_FAILURE,
+          ],
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dataset),
-          endpoint: apiCall
-        }
+          endpoint: apiCall,
+        },
       };
-      const realResult = Actions.createDataset(cpath, dataset)((obj) => obj)[RSAA];
+      const realResult = Actions.createDataset(cpath, dataset)((obj) => obj)[
+        RSAA
+      ];
       expect(realResult).to.eql(expectedResult[RSAA]);
     });
-    it('test result of calling of function createDatasetFromExisting', () => {
-      const existingDataset = ['dataset', '1'];
-      const fullPathTarget = ['dataset', '1'];
+    it("test result of calling of function createDatasetFromExisting", () => {
+      const existingDataset = ["dataset", "1"];
+      const fullPathTarget = ["dataset", "1"];
       const dataset = {
-        data: { name: ''}
+        data: { name: "" },
       };
       const datasetConfig = {
-        data: { name: ''}
+        data: { name: "" },
       };
 
-      const realResult =
-        Actions.createDatasetFromExisting(existingDataset, fullPathTarget, dataset)((obj) => obj)[RSAA];
-      expect(realResult.types[1].type).to.eql(Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS);
-      expect(realResult.method).to.eql('PUT');
+      const realResult = Actions.createDatasetFromExisting(
+        existingDataset,
+        fullPathTarget,
+        dataset
+      )((obj) => obj)[RSAA];
+      expect(realResult.types[1].type).to.eql(
+        Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS
+      );
+      expect(realResult.method).to.eql("PUT");
       expect(realResult.body).to.eql(JSON.stringify(datasetConfig));
-      expect(realResult.endpoint.toString()).to.eql(`${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`);
+      expect(realResult.endpoint.toString()).to.eql(
+        `${API_URL_V2}/dataset/dataset.%221%22/copyFrom/dataset.%221%22`
+      );
     });
-    it('test result of calling of function createDatasetFromExisting', () => {
-      const fullPathSource = ['bla', 'bla'];
-      const fullPathTarget = ['bla', 'bla2'];
+    it("test result of calling of function createDatasetFromExisting", () => {
+      const fullPathSource = ["bla", "bla"];
+      const fullPathTarget = ["bla", "bla2"];
       const dataset = {
-        data: { name: ''}
+        data: { name: "" },
       };
-      const realResult = Actions.moveDataSet(fullPathSource,  fullPathTarget, dataset)((obj) => obj)[RSAA];
+      const realResult = Actions.moveDataSet(
+        fullPathSource,
+        fullPathTarget,
+        dataset
+      )((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(Actions.MOVE_DATASET_SUCCESS);
-      expect(realResult.method).to.eql('POST');
-      expect(realResult.endpoint.toString()).to.eql(`${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`);
+      expect(realResult.method).to.eql("POST");
+      expect(realResult.endpoint.toString()).to.eql(
+        `${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`
+      );
     });
   });
 });

@@ -13,19 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { Link } from 'react-router';
-import { getRootEntityLinkUrl } from '@app/selectors/home';
-import { link } from 'uiTheme/radium/allSpacesAndAllSources';
+import { PureComponent, Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { Link } from "react-router";
+import { getRootEntityLinkUrl } from "@app/selectors/home";
+import { link } from "uiTheme/radium/allSpacesAndAllSources";
 
 const mapStateToProps = (state, { entityId }) => {
-
   return {
-    linkTo: getRootEntityLinkUrl(state, entityId)
+    linkTo: getRootEntityLinkUrl(state, entityId),
   };
-
 };
 
 /**
@@ -40,11 +38,11 @@ export class EntityLink extends PureComponent {
     children: PropTypes.any,
 
     //connected
-    linkTo: PropTypes.string.isRequired
-  }
+    linkTo: PropTypes.string.isRequired,
+  };
 
   render() {
-    const { children,  className, activeClassName, linkTo } = this.props;
+    const { children, className, activeClassName, linkTo } = this.props;
 
     return (
       <Link
@@ -68,8 +66,8 @@ export class EntityLinkProviderView extends Component {
     children: PropTypes.func,
 
     //connected
-    linkTo: PropTypes.string.isRequired
-  }
+    linkTo: PropTypes.string.isRequired,
+  };
 
   render() {
     const { linkTo, children } = this.props;
@@ -77,4 +75,6 @@ export class EntityLinkProviderView extends Component {
   }
 }
 
-export const EntityLinkProvider = connect(mapStateToProps)(EntityLinkProviderView);
+export const EntityLinkProvider = connect(mapStateToProps)(
+  EntityLinkProviderView
+);

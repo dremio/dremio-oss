@@ -42,7 +42,11 @@ class VariableSizer implements Sizer {
 
   @Override
   public int getEstimatedRecordSizeInBits() {
-    return (incoming.getBufferSize() / incoming.getValueCount()) * BYTE_SIZE_BITS + OFFSET_SIZE_BITS + VALID_SIZE_BITS;
+    if (incoming.getValueCount() == 0) {
+      return 0;
+    } else {
+      return (incoming.getBufferSize() / incoming.getValueCount()) * BYTE_SIZE_BITS + OFFSET_SIZE_BITS + VALID_SIZE_BITS;
+    }
   }
 
   @Override
@@ -107,6 +111,8 @@ class VariableSizer implements Sizer {
         outgoing.loadFieldBuffers(new ArrowFieldNode(count, -1),
           ImmutableList.of(validityBuf, offsetBuf, dataBuf));
 
+        // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
+        validityBuf.setZero(0, validityLen);
         // copy data.
         PlatformDependent.putInt(offsetBuf.memoryAddress(), 0); // rest of the offsets will be filled in during the copy
         FieldBufferPreAllocedCopier.getCopiers(ImmutableList.of(incoming), ImmutableList.of(outgoing))

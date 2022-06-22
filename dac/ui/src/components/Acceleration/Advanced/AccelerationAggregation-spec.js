@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import AccelerationAggregation from './AccelerationAggregation';
+import AccelerationAggregation from "./AccelerationAggregation";
 
-describe('AccelerationAggregation', () => {
+describe("AccelerationAggregation", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -26,29 +26,32 @@ describe('AccelerationAggregation', () => {
   beforeEach(() => {
     minimalProps = {
       dataset: Immutable.fromJS({
-        id: '1',
-        path: ['path', 'name']
+        id: "1",
+        path: ["path", "name"],
       }),
-      reflections: Immutable.fromJS({canAlter: true}),
+      reflections: Immutable.fromJS({ canAlter: true }),
       fields: {
-        aggregationReflections: [{name:{value:'col1'}}, {name:{value:'col2'}}]
-      }
+        aggregationReflections: [
+          { name: { value: "col1" } },
+          { name: { value: "col2" } },
+        ],
+      },
     };
     minimalProps.fields.aggregationReflections.addField = sinon.spy();
     minimalProps.fields.aggregationReflections.removeField = sinon.spy();
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<AccelerationAggregation {...commonProps}/>);
+    wrapper = shallow(<AccelerationAggregation {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrap = shallow(<AccelerationAggregation {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrap = shallow(<AccelerationAggregation {...minimalProps} />);
     expect(wrap).to.have.length(1);
   });
 
-  it.skip('should add new layout', () => {
+  it.skip("should add new layout", () => {
     const defaultLayout = {
       enabled: true,
       distributionFields: [],
@@ -56,12 +59,14 @@ describe('AccelerationAggregation', () => {
       sortFields: [],
       measureFields: [],
       dimensionFields: [],
-      partitionDistributionStrategy: 'CONSOLIDATED',
+      partitionDistributionStrategy: "CONSOLIDATED",
       shouldDelete: false,
-      name: 'New Reflection',
-      type: 'AGGREGATION'
+      name: "New Reflection",
+      type: "AGGREGATION",
     };
     instance.addNewLayout();
-    expect(commonProps.fields.aggregationReflections.addField).to.have.been.calledWithMatch(defaultLayout);
+    expect(
+      commonProps.fields.aggregationReflections.addField
+    ).to.have.been.calledWithMatch(defaultLayout);
   });
 });

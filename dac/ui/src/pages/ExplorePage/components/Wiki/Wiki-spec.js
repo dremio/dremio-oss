@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { WikiView } from './Wiki';
+import { shallow } from "enzyme";
+import { WikiView } from "./Wiki";
 
-describe('Wiki component', () => {
-  const minimalProps =  {
+describe("Wiki component", () => {
+  const minimalProps = {
     addHasChangesHook: () => {},
     confirm: () => {},
-    confirmUnsavedChanges: () => {}
+    confirmUnsavedChanges: () => {},
   };
 
-  describe('initEntity', () => {
+  describe("initEntity", () => {
     const mockInitEntity = (wrapper, testFn) => {
       const spyFn = sinon.spy();
       const instance = wrapper.instance();
-      sinon.stub(instance, 'initEntity').callsFake(spyFn);
+      sinon.stub(instance, "initEntity").callsFake(spyFn);
 
       testFn(spyFn);
 
@@ -35,47 +35,53 @@ describe('Wiki component', () => {
       instance.initEntity.restore();
     };
 
-    it('should be called if not empty entityId is provided', () => {
+    it("should be called if not empty entityId is provided", () => {
       const wrapper = shallow(<WikiView {...minimalProps} />);
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({
-          entityId: 'not empty id'
+          entityId: "not empty id",
         });
 
         expect(spyFn).have.been.called; // initEntity should be called if not empty entity is provided
       });
     });
 
-    it('should be called if entity is changed', () => {
-      const entity1 = 'not empty id';
-      const entity2 = 'other id';
-      const wrapper = shallow(<WikiView {...minimalProps} entityId={entity1} />);
+    it("should be called if entity is changed", () => {
+      const entity1 = "not empty id";
+      const entity2 = "other id";
+      const wrapper = shallow(
+        <WikiView {...minimalProps} entityId={entity1} />
+      );
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({
-          entityId: entity2
+          entityId: entity2,
         });
 
         expect(spyFn).have.been.called;
       });
     });
 
-    it('should not be called if entity is not changed', () => {
-      const entity1 = 'not empty id';
-      const wrapper = shallow(<WikiView {...minimalProps} entityId={entity1} />);
+    it("should not be called if entity is not changed", () => {
+      const entity1 = "not empty id";
+      const wrapper = shallow(
+        <WikiView {...minimalProps} entityId={entity1} />
+      );
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({
-          entityId: entity1
+          entityId: entity1,
         });
 
         expect(spyFn).have.not.been.called;
       });
     });
 
-    it('should not be called if empty entity is provided', () => {
-      const wrapper = shallow(<WikiView {...minimalProps} entityId='entity id' />);
+    it("should not be called if empty entity is provided", () => {
+      const wrapper = shallow(
+        <WikiView {...minimalProps} entityId="entity id" />
+      );
       mockInitEntity(wrapper, (spyFn) => {
         wrapper.setProps({
-          entityId: null
+          entityId: null,
         });
 
         expect(spyFn).have.not.been.called;
@@ -83,4 +89,3 @@ describe('Wiki component', () => {
     });
   });
 });
-

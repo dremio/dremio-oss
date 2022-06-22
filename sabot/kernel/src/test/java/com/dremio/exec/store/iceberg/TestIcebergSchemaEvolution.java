@@ -126,7 +126,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testColumnRenameComplex() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testColumnRenameComplex("complex_column_rename_test", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
-      testColumnRenameComplex("complex_column_rename_test_v2", TEMP_SCHEMA, IcebergCatalogType.NESSIE);
     }
   }
 
@@ -172,7 +171,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testDropColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDropColumn("drop_column_test", TEMP_SCHEMA_HADOOP);
-      testDropColumn("drop_column_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -218,7 +216,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testAddColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testAddColumn("add_column_test", TEMP_SCHEMA_HADOOP);
-      testAddColumn("add_column_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -273,7 +270,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testDropAndAddColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDropAndAddColumn("drop_and_add_test", TEMP_SCHEMA_HADOOP);
-      testDropAndAddColumn("drop_and_add_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -328,7 +324,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testDropAndAddSameColumn() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testDropAndAddSameColumn("drop_and_add_same_column_test", TEMP_SCHEMA_HADOOP);
-      testDropAndAddSameColumn("drop_and_add_same_column_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -392,7 +387,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testSimplePushDownWithRename() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testSimplePushDownWithRename("simple_pushdown_test", TEMP_SCHEMA_HADOOP);
-      testSimplePushDownWithRename("simple_pushdown_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -442,7 +436,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testUpPromote() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testUpPromote("up_promote_test", TEMP_SCHEMA_HADOOP);
-      testUpPromote("up_promote_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -512,7 +505,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testUpPromoteAndRename() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testUpPromoteAndRename("up_promote_and_rename_test", TEMP_SCHEMA_HADOOP);
-      testUpPromoteAndRename("up_promote_and_rename_test_v2", TEMP_SCHEMA);
     }
   }
 
@@ -565,7 +557,6 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   public void testCaseSensitiveRename() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
       testCaseSensitiveRename("case_sensitive_test", TEMP_SCHEMA_HADOOP);
-      testCaseSensitiveRename("case_sensitive_test_v2", TEMP_SCHEMA);
     }
   }
 }

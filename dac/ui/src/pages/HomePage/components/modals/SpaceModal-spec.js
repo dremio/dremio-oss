@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import SpaceForm from 'pages/HomePage/components/forms/SpaceForm';
-import {SpaceModal} from './SpaceModal';
-describe('SpaceModal', () => {
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import SpaceForm from "pages/HomePage/components/forms/SpaceForm";
+import { SpaceModal } from "./SpaceModal";
+describe("SpaceModal", () => {
   let commonProps;
   const space = Immutable.Map({
-    permissions: ['MANAGE_GRANTS', 'MODIFY']
+    permissions: ["MANAGE_GRANTS", "MODIFY"],
   });
   beforeEach(() => {
     commonProps = {
@@ -30,38 +30,41 @@ describe('SpaceModal', () => {
       createNewSpace: sinon.stub().returns(Promise.resolve()),
       updateSpace: sinon.stub().returns(Promise.resolve()),
       updateSpacePermissions: sinon.stub().returns(Promise.resolve()),
-      showConfirmationDialog: sinon.stub()
+      showConfirmationDialog: sinon.stub(),
     };
   });
 
-  it('renders <SpaceForm> with no initialValues when no entity', () => {
-    const wrapper = shallow(<SpaceModal {...commonProps}/>);
+  it("renders <SpaceForm> with no initialValues when no entity", () => {
+    const wrapper = shallow(<SpaceModal {...commonProps} />);
     const formProps = wrapper.find(SpaceForm).props();
     expect(formProps.editing).to.be.false;
   });
 
-  it('renders <SpaceForm> with initialValues when entity exists', () => {
-    const wrapper = shallow(<SpaceModal {...commonProps} entityId='test' spaceName='a test space'/>);
+  it("renders <SpaceForm> with initialValues when entity exists", () => {
+    const wrapper = shallow(
+      <SpaceModal {...commonProps} entityId="test" spaceName="a test space" />
+    );
     const formProps = wrapper.find(SpaceForm).props();
-    expect(formProps.initialValues.name).to.equal('a test space');
+    expect(formProps.initialValues.name).to.equal("a test space");
     expect(formProps.initialValues.description).to.be.undefined;
     expect(formProps.editing).to.be.true;
   });
 
-  describe('#submit', () => {
-    it('should call mutateFormValues and updateSpace if entityId is not empty', () => {
-      const instance = shallow(<SpaceModal {...commonProps} entityId='test' />).instance();
-      instance.submit({name: 'foo'});
+  describe("#submit", () => {
+    it("should call mutateFormValues and updateSpace if entityId is not empty", () => {
+      const instance = shallow(
+        <SpaceModal {...commonProps} entityId="test" />
+      ).instance();
+      instance.submit({ name: "foo" });
       expect(commonProps.updateSpace).to.be.calledOnce;
       expect(commonProps.createNewSpace).to.not.be.called;
     });
 
-    it('should call createNewSpace if no entity', () => {
-      const instance = shallow(<SpaceModal {...commonProps}/>).instance();
-      instance.submit({name: 'foo'});
+    it("should call createNewSpace if no entity", () => {
+      const instance = shallow(<SpaceModal {...commonProps} />).instance();
+      instance.submit({ name: "foo" });
       expect(commonProps.updateSpace).to.not.be.called;
       expect(commonProps.createNewSpace).to.be.calledOnce;
     });
   });
-
 });

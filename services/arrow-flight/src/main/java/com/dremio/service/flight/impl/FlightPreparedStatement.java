@@ -21,15 +21,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightEndpoint;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.flight.Ticket;
+import org.apache.arrow.flight.sql.FlightSqlColumnMetadata;
 import org.apache.arrow.flight.sql.impl.FlightSql;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.exec.proto.UserProtos;
@@ -58,11 +64,11 @@ public class FlightPreparedStatement {
    * @return The FlightInfo.
    */
   public FlightInfo getFlightInfo(Location location) {
-    final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
-    final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
+    final UserProtos.PreparedStatementArrow preparedStatement = responseHandler.get().getPreparedStatement();
+    final Schema schema = buildSchema(preparedStatement.getArrowSchema());
 
     final FlightSql.CommandPreparedStatementQuery command = FlightSql.CommandPreparedStatementQuery.newBuilder()
-      .setPreparedStatementHandle(createPreparedStatementResp.getPreparedStatement().toByteString())
+      .setPreparedStatementHandle(preparedStatement.toByteString())
       .build();
     final FlightDescriptor flightDescriptor = FlightDescriptor.command(Any.pack(command).toByteArray());
     final Ticket ticket = new Ticket(Any.pack(command).toByteArray());
@@ -100,19 +106,19 @@ public class FlightPreparedStatement {
    * @return a ActionCreatePreparedStatementResult;
    */
   public ActionCreatePreparedStatementResult createAction() {
-    final UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
-    final Schema schema = buildSchema(createPreparedStatementResp.getPreparedStatement().getArrowSchema());
+    final UserProtos.PreparedStatementArrow preparedStatement = responseHandler.get().getPreparedStatement();
+    final Schema schema = buildSchema(preparedStatement.getArrowSchema());
     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     try {
       MessageSerializer.serialize(new WriteChannel(Channels.newChannel(outputStream)), schema);
     } catch (IOException e) {
-      throw new RuntimeException("Failed to serialize schema", e);
+      throw new RuntimeException("IO Error when serializing schema '" + schema + "'.", e);
     }
 
     return ActionCreatePreparedStatementResult.newBuilder()
       .setDatasetSchema(ByteString.copyFrom(ByteBuffer.wrap(outputStream.toByteArray())))
       .setParameterSchema(ByteString.EMPTY)
-      .setPreparedStatementHandle(createPreparedStatementResp.getPreparedStatement().toByteString())
+      .setPreparedStatementHandle(preparedStatement.toByteString())
       .build();
   }
 
@@ -123,16 +129,79 @@ public class FlightPreparedStatement {
    * @return The Schema.
    */
   public Schema getSchema() {
-    final UserProtos.CreatePreparedStatementArrowResp resp = responseHandler.get();
-    return buildSchema(resp.getPreparedStatement().getArrowSchema());
+    final UserProtos.PreparedStatementArrow preparedStatement = responseHandler.get().getPreparedStatement();
+    return buildSchema(preparedStatement.getArrowSchema());
   }
 
   public UserProtos.PreparedStatementHandle getServerHandle() {
-    UserProtos.CreatePreparedStatementArrowResp createPreparedStatementResp = responseHandler.get();
-    return createPreparedStatementResp.getPreparedStatement().getServerHandle();
+    return responseHandler.get().getPreparedStatement().getServerHandle();
   }
 
-  public static Schema buildSchema(ByteString arrowSchema) {
-    return Schema.deserialize(arrowSchema.asReadOnlyByteBuffer());
+  public static Schema buildSchema(final ByteString arrowSchema) {
+    final Schema tempSchema = Schema.deserialize(arrowSchema.asReadOnlyByteBuffer());
+    final List<Field> newFieldList = new ArrayList<>();
+
+    for (final Field field : tempSchema.getFields()) {
+      final Map<String, String> flightSqlColumnMetadata = createFlightSqlColumnMetadata(field.getMetadata());
+
+      newFieldList.add(new Field(
+        field.getName(),
+        new FieldType(field.isNullable(), field.getType(), field.getDictionary(), flightSqlColumnMetadata),
+        field.getChildren()));
+    }
+
+    return new Schema(newFieldList);
+  }
+
+  private static Map<String, String> createFlightSqlColumnMetadata(final Map<String, String> column) {
+    // Directly influenced by PreparedStatementProvider#createTempFieldMetadata
+    final FlightSqlColumnMetadata.Builder flightSqlColumnMetadata = new FlightSqlColumnMetadata.Builder();
+
+    final String typeName = column.get("TYPE_NAME");
+    if (typeName != null) {
+      flightSqlColumnMetadata.typeName(typeName);
+    }
+
+    final String dbSchemaName = column.get("SCHEMA_NAME");
+    if (dbSchemaName != null) {
+      flightSqlColumnMetadata.schemaName(dbSchemaName);
+    }
+
+    final String tableName = column.get("TABLE_NAME");
+    if (tableName != null) {
+      flightSqlColumnMetadata.tableName(tableName);
+    }
+
+    final String isAutoIncrement = column.get("IS_AUTO_INCREMENT");
+    if (isAutoIncrement != null) {
+      flightSqlColumnMetadata.isAutoIncrement(Boolean.parseBoolean(isAutoIncrement));
+    }
+
+    final String isCaseSensitive = column.get("IS_CASE_SENSITIVE");
+    if (isCaseSensitive != null) {
+      flightSqlColumnMetadata.isCaseSensitive(Boolean.parseBoolean(isCaseSensitive));
+    }
+
+    final String isReadOnly = column.get("IS_READ_ONLY");
+    if (isReadOnly != null) {
+      flightSqlColumnMetadata.isReadOnly(Boolean.parseBoolean(isReadOnly));
+    }
+
+    final String isSearchable = column.get("IS_SEARCHABLE");
+    if (isSearchable != null) {
+      flightSqlColumnMetadata.isSearchable(Boolean.parseBoolean(isSearchable));
+    }
+
+    final String precision = column.get("PRECISION");
+    if (precision != null) {
+      flightSqlColumnMetadata.precision(Integer.parseInt(precision));
+    }
+
+    final String scale = column.get("SCALE");
+    if (scale != null) {
+      flightSqlColumnMetadata.scale(Integer.parseInt(scale));
+    }
+
+    return flightSqlColumnMetadata.build().getMetadataMap();
   }
 }

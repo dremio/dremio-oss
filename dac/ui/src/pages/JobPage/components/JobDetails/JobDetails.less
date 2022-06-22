@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .sql-wrap {
     overflow: hidden;
   }
 
-  .job-details{
+  .job-details {
     h4 {
       margin: 15px 0;
     }
@@ -38,9 +39,9 @@
       }
     }
 
-    .quote-block{
-      &::before{
-        content: '';
+    .quote-block {
+      &::before {
+        content: "";
         position: absolute;
         border-right: 8px solid rgba(0, 0, 0, 0.1);
         border-top: 8px solid rgba(0, 0, 0, 0);
@@ -48,10 +49,10 @@
         left: -8px;
         top: 20px;
       }
-      &::after{
-        content: '';
+      &::after {
+        content: "";
         position: absolute;
-        border-right: 8px solid #F5FCFF;
+        border-right: 8px solid #f5fcff;
         border-top: 8px solid rgba(245, 252, 255, 0);
         border-bottom: 8px solid rgba(245, 252, 255, 0);
         left: -7px;
@@ -64,13 +65,12 @@
     .react-monaco-editor-container {
       height: auto;
       border: @slq-editor-border;
-
     }
 
-    .detail-row{
+    .detail-row {
       clear: both;
       margin: 8px 0;
-      .sql-wrap{
+      .sql-wrap {
         margin: 10px 0 0;
       }
       &.quote-holder {
@@ -85,8 +85,8 @@
         .quote-wrap {
           list-style: none;
           margin: 0 0 5px;
-          .quote-data{
-            .input{
+          .quote-data {
+            .input {
               float: left;
               width: 50%;
             }

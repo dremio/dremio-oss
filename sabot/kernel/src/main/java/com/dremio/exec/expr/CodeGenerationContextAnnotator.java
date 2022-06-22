@@ -50,14 +50,13 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
       CodeGenContext newArg = arg.accept(this, value);
       newArgs.add(newArg);
     }
-    LogicalExpression result = expr.copy(newArgs);
+    FunctionHolderExpression result = expr.copy(newArgs);
     CodeGenContext contextExpr = new CodeGenContext(result);
-    for (LogicalExpression arg : ((FunctionHolderExpression) result).args) {
+    for (LogicalExpression arg : result.args) {
       CodeGenContext context = (CodeGenContext) arg;
       // if expression and arg are not the same execution engine type then
       // we have mixed mode engine, remove sub expression support to indicate that.
-      if (!context.getExecutionEngineForSubExpression().supportedEngines.equals(contextExpr
-        .getExecutionEngineForSubExpression().supportedEngines)) {
+      if (!context.getExecutionEngineForSubExpression().equals(contextExpr.getExecutionEngineForSubExpression())) {
         contextExpr.markSubExprIsMixed();
         return contextExpr;
       }
@@ -71,14 +70,13 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
     for (LogicalExpression arg : operator.args) {
       newArgs.add(arg.accept(this, value));
     }
-    LogicalExpression result = new BooleanOperator(operator.getName(), newArgs);
+    BooleanOperator result = new BooleanOperator(operator.getName(), newArgs);
     CodeGenContext boolExpr = new CodeGenContext(result);
-    for (LogicalExpression arg : ((BooleanOperator) result).args) {
+    for (LogicalExpression arg : result.args) {
       CodeGenContext context = (CodeGenContext) arg;
       // if expression and arg are not the same execution engine type then
       // we have mixed mode engine, remove sub expression support to indicate that.
-      if (!context.getExecutionEngineForSubExpression().supportedEngines.equals(boolExpr
-        .getExecutionEngineForSubExpression().supportedEngines)) {
+      if (!context.getExecutionEngineForSubExpression().equals(boolExpr.getExecutionEngineForSubExpression())) {
         boolExpr.markSubExprIsMixed();
         return boolExpr;
       }
@@ -89,16 +87,16 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
   @Override
   public CodeGenContext visitIfExpression(IfExpression ifExpression, Void value) {
     IfExpression.IfCondition condition = ifExpression.ifCondition;
-    LogicalExpression conditionExpression = condition.condition.accept(this, value);
-    LogicalExpression thenExpression = condition.expression.accept(this, value);
-    LogicalExpression elseExpression = ifExpression.elseExpression.accept(this, value);
+    CodeGenContext conditionExpression = condition.condition.accept(this, value);
+    CodeGenContext thenExpression = condition.expression.accept(this, value);
+    CodeGenContext elseExpression = ifExpression.elseExpression.accept(this, value);
     IfExpression.IfCondition newCondition = new IfExpression.IfCondition(conditionExpression,
       thenExpression);
     IfExpression result = IfExpression.newBuilder().setIfCondition(newCondition).setElse
       (elseExpression).build();
     CodeGenContext ifExpr = new CodeGenContext(result);
-    if (((CodeGenContext) conditionExpression).isMixedModeExecution() || ((CodeGenContext)
-      thenExpression).isMixedModeExecution() || ((CodeGenContext) elseExpression).isMixedModeExecution()) {
+    if (conditionExpression.isMixedModeExecution() || thenExpression.isMixedModeExecution() ||
+      elseExpression.isMixedModeExecution()) {
       ifExpr.markSubExprIsMixed();
     }
     return ifExpr;

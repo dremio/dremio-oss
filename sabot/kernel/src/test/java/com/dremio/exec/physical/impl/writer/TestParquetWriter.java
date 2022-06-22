@@ -777,9 +777,9 @@ public class TestParquetWriter extends BaseTestQuery {
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
     FileSystemPlugin fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    when(fsPlugin.createFS((String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
-    when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
-    when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
+    when(fsPlugin.createFS((String) notNull(), (String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
+    when(fsPlugin.getFsConfCopy()).thenReturn(hadoopConf);
+    when(writerConf.getPlugin()).thenReturn(fsPlugin);
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
 
@@ -811,7 +811,7 @@ public class TestParquetWriter extends BaseTestQuery {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
 
     for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?
@@ -857,8 +857,9 @@ public class TestParquetWriter extends BaseTestQuery {
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
     FileSystemPlugin fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
-    when(fsPlugin.createFS((String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
+    when(writerConf.getPlugin()).thenReturn(fsPlugin);
+    when(fsPlugin.createFS((String)notNull(), (String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
+    when(fsPlugin.getFsConfCopy()).thenReturn(hadoopConf);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
@@ -1035,4 +1036,3 @@ public class TestParquetWriter extends BaseTestQuery {
             .go();
   }
 }
-

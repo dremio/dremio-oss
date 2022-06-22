@@ -28,6 +28,15 @@ public class SessionPermissions {
   private final boolean canEmailForSupport;
   private final boolean canChatForSupport;
   private final boolean canViewAllJobs;
+  private final boolean canCreateUser;
+  private final boolean canCreateRole;
+  private final boolean canCreateSource;
+  private final boolean canUploadFile;
+  private final boolean canManageNodeActivity;
+  private final boolean canManageEngines;
+  private final boolean canManageQueues;
+  private final boolean canManageEngineRouting;
+  private final boolean canManageSupportSettings;
 
   @JsonCreator
   public SessionPermissions(
@@ -35,13 +44,31 @@ public class SessionPermissions {
       @JsonProperty("canDownloadProfiles") boolean canDownloadProfiles,
       @JsonProperty("canEmailForSupport") boolean canEmailForSupport,
       @JsonProperty("canChatForSupport") boolean canChatForSupport,
-      @JsonProperty("canViewAllJobs") boolean canViewAllJobs) {
+      @JsonProperty("canViewAllJobs") boolean canViewAllJobs,
+      @JsonProperty("canCreateUser") boolean canCreateUser,
+      @JsonProperty("canCreateRole") boolean canCreateRole,
+      @JsonProperty("canCreateSource") boolean canCreateSource,
+      @JsonProperty("canUploadFile") boolean canUploadFile,
+      @JsonProperty("canManageNodeActivity") boolean canManageNodeActivity,
+      @JsonProperty("canManageEngines") boolean canManageEngines,
+      @JsonProperty("canManageQueues") boolean canManageQueues,
+      @JsonProperty("canManageEngineRouting") boolean canManageEngineRouting,
+      @JsonProperty("canManageSupportSettings") boolean canManageSupportSettings) {
     super();
     this.canUploadProfiles = canUploadProfiles;
     this.canDownloadProfiles = canDownloadProfiles;
     this.canEmailForSupport = canEmailForSupport;
     this.canChatForSupport = canChatForSupport;
     this.canViewAllJobs = canViewAllJobs;
+    this.canCreateUser = canCreateUser;
+    this.canCreateRole = canCreateRole;
+    this.canCreateSource = canCreateSource;
+    this.canUploadFile = canUploadFile;
+    this.canManageNodeActivity = canManageNodeActivity;
+    this.canManageEngines = canManageEngines;
+    this.canManageQueues = canManageQueues;
+    this.canManageEngineRouting = canManageEngineRouting;
+    this.canManageSupportSettings = canManageSupportSettings;
   }
 
   public boolean isCanUploadProfiles() {
@@ -59,4 +86,32 @@ public class SessionPermissions {
   public boolean isCanViewAllJobs() {
     return canViewAllJobs;
   }
+  public boolean isCanCreateUser() {
+    return canCreateUser;
+  }
+  public boolean isCanCreateRole() {
+    return canCreateRole;
+  }
+  public boolean isCanCreateSource() {
+    return canCreateSource;
+  }
+  public boolean isCanUploadFile() {
+    return canUploadFile;
+  }
+  public boolean isCanManageNodeActivity() {
+    return canManageNodeActivity;
+  }
+  public boolean isCanManageEngines() {
+    return canManageEngines;
+  }
+  public boolean isCanManageQueues() {
+    return canManageQueues;
+  }
+  public boolean isCanManageEngineRouting() {
+    return canManageEngineRouting;
+  }
+  public boolean isCanManageSupportSettings() {
+    return canManageSupportSettings;
+  }
+
 }

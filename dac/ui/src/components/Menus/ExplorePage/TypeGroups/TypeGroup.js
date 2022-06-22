@@ -13,22 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { createRef, PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { BINARY, TEXT, INTEGER, FLOAT, DATE, TIME, DATETIME } from '@app/constants/DataTypes';
-import { TO_BINARY_TYPES, TO_INTEGER_TYPES,
-  TO_DATE_TYPES, TO_FLOAT_TYPES, ALL_TYPES, TO_TIME_TYPES } from '@app/constants/columnTypeGroups';
+import {
+  BINARY,
+  TEXT,
+  INTEGER,
+  FLOAT,
+  DATE,
+  TIME,
+  DATETIME,
+} from "@app/constants/DataTypes";
+import {
+  TO_BINARY_TYPES,
+  TO_INTEGER_TYPES,
+  TO_DATE_TYPES,
+  TO_FLOAT_TYPES,
+  ALL_TYPES,
+  TO_TIME_TYPES,
+} from "@app/constants/columnTypeGroups";
 
-import MenuItem from './../MenuItem';
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
+import MenuItem from "./../MenuItem";
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 
 // todo: loc
 
-@Radium
-export default class TypeGroup extends PureComponent {
+class TypeGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
     columnType: PropTypes.string,
@@ -36,19 +49,23 @@ export default class TypeGroup extends PureComponent {
     NoParamToBinary: PropTypes.array,
     NoParamToInt: PropTypes.array,
     NoParamToFloat: PropTypes.array,
-    NoParamToDateTimeTimestamp: PropTypes.array
-  }
+    NoParamToDateTimeTimestamp: PropTypes.array,
+  };
 
   constructor(props) {
     super(props);
     this.setVisibility = this.setVisibility.bind(this);
+    this.rootRef = createRef();
   }
 
   componentDidMount() {
-    if (!this.refs.root || !this.refs.root.children) {
+    const { current: { children } = {} } = this.rootRef;
+    if (!children) {
       return null;
     }
-    const divs = [...this.refs.root.children].filter(child => child.nodeName === 'DIV');
+    const divs = Array.from(children).filter(
+      (child) => child.nodeName === "DIV"
+    );
     if (divs.length === 1) {
       this.setVisibility(false);
     } else {
@@ -58,65 +75,87 @@ export default class TypeGroup extends PureComponent {
 
   setVisibility(visibility) {
     this.setState({
-      visibility
+      visibility,
     });
   }
 
   render() {
     const {
-      columnType, NoParamToText, NoParamToBinary, NoParamToInt, NoParamToFloat, NoParamToDateTimeTimestamp
+      columnType,
+      NoParamToText,
+      NoParamToBinary,
+      NoParamToInt,
+      NoParamToFloat,
+      NoParamToDateTimeTimestamp,
     } = this.props;
 
     const commonProps = {
       columnType,
-      onClick: this.props.makeTransform
+      onClick: this.props.makeTransform,
     };
     return (
-      <div ref='root'>
+      <div ref={this.rootRef}>
         <MenuItem disabled>TYPE</MenuItem>
         <ColumnMenuItem
           {...commonProps}
           actionType={TEXT}
-          title={NoParamToText.indexOf(columnType) !== -1 ? 'Text' : 'Text…'}
-          availableTypes={ALL_TYPES.filter(a => a !== TEXT && a !== BINARY)} // BINARY to TEXT is disabled due to BE bug DX-4110
+          title={NoParamToText.indexOf(columnType) !== -1 ? "Text" : "Text…"}
+          availableTypes={ALL_TYPES.filter((a) => a !== TEXT && a !== BINARY)} // BINARY to TEXT is disabled due to BE bug DX-4110
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={BINARY}
-          title={NoParamToBinary.indexOf(columnType) !== -1 ? 'Binary' : 'Binary…'}
+          title={
+            NoParamToBinary.indexOf(columnType) !== -1 ? "Binary" : "Binary…"
+          }
           availableTypes={TO_BINARY_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={INTEGER}
-          title={NoParamToInt.indexOf(columnType) !== -1 ? 'Integer' : 'Integer…'}
+          title={
+            NoParamToInt.indexOf(columnType) !== -1 ? "Integer" : "Integer…"
+          }
           availableTypes={TO_INTEGER_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={FLOAT}
-          title={NoParamToFloat.indexOf(columnType) !== -1 ? 'Float' : 'Float…'}
+          title={NoParamToFloat.indexOf(columnType) !== -1 ? "Float" : "Float…"}
           availableTypes={TO_FLOAT_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={DATE}
-          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Date' : 'Date…'}
-          availableTypes={TO_DATE_TYPES.filter(a => a !== DATE)}
+          title={
+            NoParamToDateTimeTimestamp.indexOf(columnType) !== -1
+              ? "Date"
+              : "Date…"
+          }
+          availableTypes={TO_DATE_TYPES.filter((a) => a !== DATE)}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={TIME}
-          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Time' : 'Time…'}
+          title={
+            NoParamToDateTimeTimestamp.indexOf(columnType) !== -1
+              ? "Time"
+              : "Time…"
+          }
           availableTypes={TO_TIME_TYPES}
         />
         <ColumnMenuItem
           {...commonProps}
           actionType={DATETIME}
-          title={NoParamToDateTimeTimestamp.indexOf(columnType) !== -1 ? 'Date & Time' : 'Date & Time…'}
-          availableTypes={TO_DATE_TYPES.filter(a => a !== DATETIME)}
+          title={
+            NoParamToDateTimeTimestamp.indexOf(columnType) !== -1
+              ? "Date & Time"
+              : "Date & Time…"
+          }
+          availableTypes={TO_DATE_TYPES.filter((a) => a !== DATETIME)}
         />
       </div>
     );
   }
 }
+export default Radium(TypeGroup);

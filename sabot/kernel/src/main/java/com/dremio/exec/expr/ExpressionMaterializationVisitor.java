@@ -205,10 +205,8 @@ class ExpressionMaterializationVisitor
       if (currentArg.equals(NullExpression.INSTANCE) && parmType != CompleteType.LATE) {
         argsWithCast.add(new TypedNullConstant(parmType));
       } else if (
-          false // false condition to make formatting clear.
-
           // types are identical
-          || parmType.equals(argType)
+          parmType.equals(argType)
 
           // a field reader accepts anything.
           || matchedFuncHolder.isFieldReader(i)

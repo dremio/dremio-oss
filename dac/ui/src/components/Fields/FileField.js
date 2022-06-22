@@ -13,41 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { FormattedMessage, injectIntl } from 'react-intl';
+import { createRef, PureComponent } from "react";
+import PropTypes from "prop-types";
+import { FormattedMessage, injectIntl } from "react-intl";
 
-import { formDescription } from 'uiTheme/radium/typography';
-import { PALE_GREY, PALE_BLUE } from 'uiTheme/radium/colors';
-import { FLEX_NOWRAP_ROW_SPACE_BETWEEN_START, FLEX_NOWRAP_CENTER_START } from 'uiTheme/radium/flexStyle';
-import fileUtils, { BYTES_IN_MB } from 'utils/fileUtils/fileUtils';
+import { formDescription } from "uiTheme/radium/typography";
+import { PALE_GREY, PALE_BLUE } from "uiTheme/radium/colors";
+import {
+  FLEX_NOWRAP_ROW_SPACE_BETWEEN_START,
+  FLEX_NOWRAP_CENTER_START,
+} from "uiTheme/radium/flexStyle";
+import fileUtils, { BYTES_IN_MB } from "utils/fileUtils/fileUtils";
 
-import Dropzone from 'react-dropzone';
-import FontIcon from 'components/Icon/FontIcon';
+import Dropzone from "react-dropzone";
+import FontIcon from "components/Icon/FontIcon";
 
 const PROGRESS_BAR_WIDTH = 180;
 
-@injectIntl
-@Radium
-export default class FileField extends PureComponent {
+class FileField extends PureComponent {
   static propTypes = {
     style: PropTypes.object,
     value: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     onChange: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
-  state = {
-    loadProgressTime: 0,
-    total: 0,
-    loaded: 0,
-    loadSpeed: 0
-  };
+  constructor(props) {
+    super(props);
+    this.dropzoneRef = createRef();
+    this.state = {
+      loadProgressTime: 0,
+      total: 0,
+      loaded: 0,
+      loadSpeed: 0,
+    };
+  }
 
   onOpenClick = () => {
-    this.refs.dropzone.open();
-  }
+    this.dropzoneRef.current.open();
+  };
 
   onDrop = (f) => {
     const file = f[0];
@@ -62,48 +66,48 @@ export default class FileField extends PureComponent {
       this.startProgress();
     };
     reader.readAsText(file);
-  }
+  };
 
   getFileName(value) {
     if (value && value.name) {
       return value.name;
     }
-    return '';
+    return "";
   }
 
   getFileSize(value) {
     if (value && value.size) {
       return fileUtils.convertFileSize(value.size);
     }
-    return '';
+    return "";
   }
 
   startProgress = () => {
     this.setState({
-      loadProgressTime: (new Date()).getTime()
+      loadProgressTime: new Date().getTime(),
     });
-  }
+  };
 
   endProgress = () => {
     this.setState({
       loadProgressTime: 0,
       total: 0,
       loaded: 0,
-      loadSpeed: 0
+      loadSpeed: 0,
     });
-  }
+  };
 
   updateProgress = (event) => {
-    const currentTime = (new Date()).getTime();
+    const currentTime = new Date().getTime();
     const loaded = Number(event.loaded);
 
     this.setState({
       total: Number(event.total),
       loaded,
       loadSpeed: this.calculateLoadSpeed(loaded, currentTime),
-      loadProgressTime: currentTime
+      loadProgressTime: currentTime,
     });
-  }
+  };
 
   calculateLoadSpeed(loaded, currentTime) {
     const loadDiff = (loaded - this.state.loaded) / BYTES_IN_MB;
@@ -117,7 +121,7 @@ export default class FileField extends PureComponent {
     }
     return (
       <div style={styles.fileInfo}>
-        <span>{this.getFileName(value)}{' '}</span>
+        <span>{this.getFileName(value)} </span>
         <b>{this.getFileSize(value)}</b>
       </div>
     );
@@ -129,11 +133,11 @@ export default class FileField extends PureComponent {
     if (total === 0) {
       return null;
     }
-    const progress = Math.round((loaded / total) * 100) + '%';
+    const progress = Math.round((loaded / total) * 100) + "%";
     return (
       <div>
-        <progress value={loaded} max={total} style={styles.progressBar}/>
-        <div style={{display: 'flex', justifyContent: 'space-between'}}>
+        <progress value={loaded} max={total} style={styles.progressBar} />
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span>{progress}</span>
           <span>{`${loadSpeed}MB/s`}</span>
         </div>
@@ -144,16 +148,33 @@ export default class FileField extends PureComponent {
   render() {
     const { style, value } = this.props; // todo: loc with sub patterns
     const inProgressStyle = this.state.total
-      ? { background: PALE_BLUE, borderStyle: 'solid' }
-      : { borderStyle: 'dashed' };
+      ? { background: PALE_BLUE, borderStyle: "solid" }
+      : { borderStyle: "dashed" };
     return (
-      <div className='field' style={[styles.base, style]}>
-        <Dropzone ref='dropzone' onDrop={this.onDrop} disableClick multiple={false}
-          style={{...styles.dropTarget, ...inProgressStyle}}>
-          <FontIcon type='Upload' theme={styles.dropIcon}/>
-          <div style={[FLEX_NOWRAP_CENTER_START, formDescription, {whiteSpace: 'pre'}]}>
-            <span><FormattedMessage id='File.DropLocalFile'/>{' '}</span> {/* todo: loc better (sentence should be one string) */}
-            <a onClick={this.onOpenClick}><FormattedMessage id='File.Browse'/></a>.
+      <div className="field" style={{ ...styles.base, ...(style || {}) }}>
+        <Dropzone
+          ref={this.dropzoneRef}
+          onDrop={this.onDrop}
+          disableClick
+          multiple={false}
+          style={{ ...styles.dropTarget, ...inProgressStyle }}
+        >
+          <FontIcon type="Upload" theme={styles.dropIcon} />
+          <div
+            style={{
+              ...FLEX_NOWRAP_CENTER_START,
+              ...formDescription,
+              whiteSpace: "pre",
+            }}
+          >
+            <span>
+              <FormattedMessage id="File.DropLocalFile" />{" "}
+            </span>{" "}
+            {/* todo: loc better (sentence should be one string) */}
+            <a onClick={this.onOpenClick}>
+              <FormattedMessage id="File.Browse" />
+            </a>
+            .
           </div>
           {this.renderFileInfo(value)}
           {/* should be upload progress, not read this.renderProgressBar() */}
@@ -166,43 +187,44 @@ const styles = {
   progressBar: {
     width: PROGRESS_BAR_WIDTH,
     height: 5,
-    marginBottom: 5
+    marginBottom: 5,
   },
   fileInfo: {
     marginTop: 10,
     minWidth: PROGRESS_BAR_WIDTH,
-    padding: '5px 10px',
+    padding: "5px 10px",
     borderRadius: 3,
     border: `2px solid ${PALE_GREY}`,
-    display: 'flex',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    whiteSpace: 'pre',
-    color: '#000'
+    display: "flex",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    whiteSpace: "pre",
+    color: "#000",
   },
-  base: {...FLEX_NOWRAP_ROW_SPACE_BETWEEN_START},
+  base: { ...FLEX_NOWRAP_ROW_SPACE_BETWEEN_START },
   dropTarget: {
     height: 270,
-    display: 'flex',
-    alignItems: 'center',
-    flexDirection: 'column',
-    width: '100%',
+    display: "flex",
+    alignItems: "center",
+    flexDirection: "column",
+    width: "100%",
     paddingTop: 85,
-    border: '1px dashed #A1DBE4',
+    border: "1px dashed #A1DBE4",
     marginBottom: 16,
-    cursor: 'pointer',
-    ...formDescription
+    cursor: "pointer",
+    ...formDescription,
   },
   dropIcon: {
     Icon: {
       height: 75,
-      width: 90
+      width: 90,
     },
     Container: {
-      position: 'relative',
+      position: "relative",
       bottom: 6,
       height: 75,
-      width: 90
-    }
-  }
+      width: 90,
+    },
+  },
 };
+export default injectIntl(FileField);

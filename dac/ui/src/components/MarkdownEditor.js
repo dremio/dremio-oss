@@ -13,42 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import uuid from 'uuid';
-import classNames from 'classnames';
-import { debounce } from 'lodash';
-import SimpleMDE from 'simplemde';
-import 'simplemde/dist/simplemde.min.css';
-import '@app/components/markedjsOverrides.js';
-import { withErrorBoundary } from '@app/components/ErrorBoundary';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import uuid from "uuid";
+import classNames from "classnames";
+import { debounce } from "lodash";
+import SimpleMDE from "simplemde";
+import "simplemde/dist/simplemde.min.css";
+import "@app/components/markedjsOverrides.js";
+import { withErrorBoundary } from "@app/components/OldErrorBoundary";
 import {
   editor as editorCls,
   readMode as readModeCls,
   saveButton,
   cancelButton,
   fitToParent as fitToParentCls,
-  wikiModalHeight
-} from './MarkdownEditor.less';
+  wikiModalHeight,
+} from "./MarkdownEditor.less";
 
 // simple mde overrides ---------------------------
 
-const refreshEditorPreview = mdeEditor => {
+const refreshEditorPreview = (mdeEditor) => {
   const cm = mdeEditor.codemirror;
   const wrapper = cm.getWrapperElement();
   const preview = wrapper.lastChild;
   if (preview) {
-    preview.innerHTML = mdeEditor.options.previewRender(mdeEditor.value(), preview);
+    preview.innerHTML = mdeEditor.options.previewRender(
+      mdeEditor.value(),
+      preview
+    );
   }
 };
 
 (() => {
   const originalValue = SimpleMDE.prototype.value;
 
-  const newValue = function(value) {
+  const newValue = function (value) {
     const result = originalValue.call(this, value);
 
-    if (value !== undefined && this.isPreviewActive()) { // make sure that preview is updated on value change
+    if (value !== undefined && this.isPreviewActive()) {
+      // make sure that preview is updated on value change
       refreshEditorPreview(this);
     }
 
@@ -61,9 +65,9 @@ const refreshEditorPreview = mdeEditor => {
 // End of "simple mde overrides" ------------------
 
 const customMenus = {
-  save: 'Save',
-  cancel: 'Cancel',
-  fullScreenMode: 'dremio-full-screen'
+  save: "Save",
+  cancel: "Cancel",
+  fullScreenMode: "dremio-full-screen",
 };
 
 export class MarkdownEditorView extends PureComponent {
@@ -78,19 +82,19 @@ export class MarkdownEditorView extends PureComponent {
     onReadModeHasScrollChanged: PropTypes.func, // (hasScroll: bool) => {} would be fired in readMode, when internal hasScroll will change it value
     fullScreenAvailable: PropTypes.bool,
     onFullScreenChanged: PropTypes.func, // (fullScreenMode: bool) => {}
-    isModal: PropTypes.any
-  }
+    isModal: PropTypes.any,
+  };
 
   static defaultProps = {
-    readMode: true
-  }
+    readMode: true,
+  };
 
   _id = uuid.v4();
   _hasScroll = false;
 
   state = {
-    fullScreenMode: false //only works if readMode = false. Defined whether editor in a full screen side by side mode
-  }
+    fullScreenMode: false, //only works if readMode = false. Defined whether editor in a full screen side by side mode
+  };
 
   componentDidMount() {
     this.createEditor();
@@ -104,9 +108,7 @@ export class MarkdownEditorView extends PureComponent {
   }
 
   createEditor = () => {
-    const {
-      value
-    } = this.props;
+    const { value } = this.props;
 
     this.editor = new SimpleMDE({
       toolbar: this.getToolbar(), // should be rendered in any mode. Toolbar would be hidden via styles in read mode
@@ -117,24 +119,27 @@ export class MarkdownEditorView extends PureComponent {
         // reset key bindings. As these operation would be controlled by internal logic
         toggleSideBySide: null,
         toggleFullScreen: null,
-        togglePreview: null
+        togglePreview: null,
       },
-      element: document.getElementById(this._id)
+      element: document.getElementById(this._id),
     });
 
-    this.editor.codemirror.on('change', () => {
-      const {
-        onChange
-      } = this.props;
+    this.editor.codemirror.on("change", () => {
+      const { onChange } = this.props;
 
       if (onChange) {
         onChange(this.editor.value());
       }
     });
-  }
+  };
 
   static getDerivedStateFromProps(nextProps, prevState) {
-    return { fullScreenMode: getFullScreenFlag(nextProps.readMode, prevState.fullScreenMode) };
+    return {
+      fullScreenMode: getFullScreenFlag(
+        nextProps.readMode,
+        prevState.fullScreenMode
+      ),
+    };
   }
 
   componentDidUpdate(prevProps = {}, prevState = {}) {
@@ -142,27 +147,20 @@ export class MarkdownEditorView extends PureComponent {
   }
 
   handlePropsChange = (prevProps = {}, prevState = {}, newProps, newState) => {
-    const editor  = this.editor;
+    const editor = this.editor;
     if (!editor) return;
 
-    const {
-      readMode,
-      value,
-      onFullScreenChanged
-    } = newProps;
+    const { readMode, value, onFullScreenChanged } = newProps;
 
-    const {
-      fullScreenMode
-    } = newState;
+    const { fullScreenMode } = newState;
 
     const valueChanged = value !== prevProps.value;
     //check if we need to update a value. This check must be first.
-    if ((
-      valueChanged || // value property is changed
-      readMode // we should make sure, that in readMode UI displays a value from properties
-    ) && (
+    if (
+      (valueChanged || // value property is changed
+        readMode) && // we should make sure, that in readMode UI displays a value from properties
       value !== this.editor.value() // displayed value is differs from value property
-    )) {
+    ) {
       editor.value(value);
     }
 
@@ -172,44 +170,51 @@ export class MarkdownEditorView extends PureComponent {
     }
 
     const fullScreenModeChanged = fullScreenMode !== prevState.fullScreenMode;
-    if (fullScreenModeChanged) { // check fullScreenMode in that case
+    if (fullScreenModeChanged) {
+      // check fullScreenMode in that case
       this.setFullScreenMode(fullScreenMode);
       if (onFullScreenChanged) {
         onFullScreenChanged(fullScreenMode);
       }
     }
 
-    if (readMode) { // we should make sure, that in readMode UI displays a value from properties
+    if (readMode) {
+      // we should make sure, that in readMode UI displays a value from properties
       refreshEditorPreview(this.editor);
     }
 
-    if (readMode && (readModeChanged || fullScreenModeChanged || valueChanged)) {
+    if (
+      readMode &&
+      (readModeChanged || fullScreenModeChanged || valueChanged)
+    ) {
       this.updateHasScroll();
     }
-  }
+  };
 
-  setReadMode = readMode => {
+  setReadMode = (readMode) => {
     const editor = this.editor;
     const isPreview = editor.isPreviewActive();
 
     if (readMode) {
-      if (!isPreview) { // activate preview
+      if (!isPreview) {
+        // activate preview
         editor.togglePreview();
       }
-    } else if (isPreview) { // disable preview, if it is a preview mode
+    } else if (isPreview) {
+      // disable preview, if it is a preview mode
       editor.togglePreview();
       editor.codemirror.refresh(); // refresh a code mirror as it has just become visible (see https://github.com/codemirror/CodeMirror/issues/2469#issuecomment-40575940)
     }
-  }
+  };
 
-  setFullScreenMode = fullScreenMode => {
+  setFullScreenMode = (fullScreenMode) => {
     const editor = this.editor;
     const isViewInFullScreen = editor.isFullscreenActive();
     const isViewInSideBySide = editor.isSideBySideActive();
 
     const menu = editor.toolbarElements[customMenus.fullScreenMode];
     if (menu) {
-      this.toggleClass(menu, 'active', fullScreenMode);
+      this.toggleClass(menu, "active", fullScreenMode);
     }
 
     if (fullScreenMode) {
@@ -219,7 +224,8 @@ export class MarkdownEditorView extends PureComponent {
       if (!isViewInSideBySide) {
         editor.toggleSideBySide();
       }
-    } else  { // we should disable side by side mode and exit from full screen mode
+    } else {
+      // we should disable side by side mode and exit from full screen mode
       if (isViewInSideBySide) {
         editor.toggleSideBySide();
       }
@@ -227,7 +233,7 @@ export class MarkdownEditorView extends PureComponent {
         editor.toggleFullScreen();
       }
     }
-  }
+  };
 
   toggleClass(el, className, addClass /*: true|false */) {
     if (!el) return;
@@ -242,16 +248,18 @@ export class MarkdownEditorView extends PureComponent {
   }
 
   toggleFullScreen = () => {
-    this.setState((/* prevState */ { fullScreenMode }, /* props */ { readMode }) => {
-      return {
-        fullScreenMode: getFullScreenFlag(readMode, !fullScreenMode)
-      };
-    });
-  }
+    this.setState(
+      (/* prevState */ { fullScreenMode }, /* props */ { readMode }) => {
+        return {
+          fullScreenMode: getFullScreenFlag(readMode, !fullScreenMode),
+        };
+      }
+    );
+  };
 
   getMdeInstance = (editor) => {
     this.editor = editor;
-  }
+  };
 
   focus() {
     this.editor.codemirror.focus();
@@ -259,10 +267,7 @@ export class MarkdownEditorView extends PureComponent {
 
   //needed as instance method for tests
   _updateHasScrollImpl = () => {
-    const {
-      onReadModeHasScrollChanged,
-      readMode
-    } = this.props;
+    const { onReadModeHasScrollChanged, readMode } = this.props;
 
     // we will track a scroll only in a readMode. It is needed for rare use case. It does not make sense to run the calculation in other case to not overkill widget preformance
     if (!readMode || !onReadModeHasScrollChanged || !this.editor) {
@@ -275,101 +280,103 @@ export class MarkdownEditorView extends PureComponent {
       this._hasScroll = newHasScroll;
       onReadModeHasScrollChanged(newHasScroll);
     }
-  }
+  };
 
   // we have to delay a bit this calculation to let scroll bar time to appear.
   updateHasScroll = debounce(this._updateHasScrollImpl, 100, {
     trailing: true,
-    maxWait: 500 // the event could not be delayed more than for half of a second
-  })
+    maxWait: 500, // the event could not be delayed more than for half of a second
+  });
 
   hasScrollInReadMode = () => {
-    const {
-      readMode
-    } = this.props;
+    const { readMode } = this.props;
 
     if (!readMode) {
-      throw new Error('This call is allowed only a in read mode');
+      throw new Error("This call is allowed only a in read mode");
     }
 
     const wrapper = this.editor.codemirror.getWrapperElement(); // get a wrapper of code mirror. This line base on knowledge of internal stuctire of simple mde.
-    const previewEl = wrapper.getElementsByClassName('editor-preview')[0];
+    const previewEl = wrapper.getElementsByClassName("editor-preview")[0];
 
     return previewEl && previewEl.clientHeight < previewEl.scrollHeight;
-  }
+  };
 
   getValue() {
     return this.editor ? this.editor.value() : this.props.value;
   }
 
   onSaveClick = () => {
-    const {
-      onSaveClick,
-      value
-    } = this.props;
+    const { onSaveClick, value } = this.props;
 
     if (onSaveClick) {
       onSaveClick(this.editor ? this.editor.value() : value);
     }
-  }
+  };
 
   getToolbar = () => {
-    const {
-      onCancelClick,
-      onSaveClick,
-      fullScreenAvailable
-    } = this.props;
+    const { onCancelClick, onSaveClick, fullScreenAvailable } = this.props;
 
     // simple mde has a bug, that menu items should be presented to use some functionality.
     // That is why 'fullscreen', 'side-by-side', 'preview' are added here, but these menu options would be hidden using css.
-    const buttons = ['bold', 'italic', 'strikethrough', 'heading',
-      '|', 'quote', 'unordered-list', 'ordered-list',
-      '|', 'link', 'image'];
+    const buttons = [
+      "bold",
+      "italic",
+      "strikethrough",
+      "heading",
+      "|",
+      "quote",
+      "unordered-list",
+      "ordered-list",
+      "|",
+      "link",
+      "image",
+    ];
 
     if (fullScreenAvailable) {
-      buttons.push('|', {
+      buttons.push("|", {
         name: customMenus.fullScreenMode,
-        title: 'full screen',
+        title: "full screen",
         action: this.toggleFullScreen,
-        className: 'fa dremio-menu fa-arrows-alt no-disable' // no-disable is needed to not disable this menu item in preview mode
+        className: "fa dremio-menu fa-arrows-alt no-disable", // no-disable is needed to not disable this menu item in preview mode
       });
     }
 
     // not displayed on the ui, but have to add
-    buttons.push('preview', 'fullscreen', 'side-by-side');
+    buttons.push("preview", "fullscreen", "side-by-side");
 
     //custom buttons, that are added to the right of the toolbar. Put buttons in reverse order, as floating is applied
     if (onCancelClick) {
       buttons.push({
         name: customMenus.cancel,
-        title: 'Cancel',
+        title: "Cancel",
         action: onCancelClick,
-        className: classNames(cancelButton, 'no-disable')
+        className: classNames(cancelButton, "no-disable"),
       });
     }
     if (onSaveClick) {
       buttons.push({
         name: customMenus.save,
-        title: 'Save',
+        title: "Save",
         action: this.onSaveClick,
-        className: classNames(saveButton, 'no-disable')
+        className: classNames(saveButton, "no-disable"),
       });
     }
 
     return buttons;
-  }
+  };
 
   render() {
-    const {
-      readMode,
-      className,
-      fitToContainer,
-      isModal
-    } = this.props;
+    const { readMode, className, fitToContainer, isModal } = this.props;
 
     return (
       <div
-        className={classNames(editorCls, isModal && wikiModalHeight, readMode && readModeCls, fitToContainer && fitToParentCls, className)}
+        className={classNames(
+          editorCls,
+          isModal && wikiModalHeight,
+          readMode && readModeCls,
+          fitToContainer && fitToParentCls,
+          className
+        )}
       >
         <textarea id={this._id} />
       </div>

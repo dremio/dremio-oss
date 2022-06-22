@@ -17,8 +17,13 @@ package com.dremio.exec.service.executor;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.exec.proto.CatalogRPC;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.rpc.RpcException;
@@ -28,8 +33,12 @@ import com.dremio.exec.store.sys.ThreadsIterator;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+
+import io.protostuff.ProtobufIOUtil;
 
 public class ExecutorServiceImpl extends ExecutorService {
+  private static final Logger logger = LoggerFactory.getLogger(ExecutorServiceImpl.class);
 
   private final FragmentExecutors fragmentExecutors;
   private final SabotContext context;
@@ -67,6 +76,20 @@ public class ExecutorServiceImpl extends ExecutorService {
     fragmentExecutors.reconcileActiveQueries(request, builder.getClerk());
     responseObserver.onCompleted();
   }
+
+  @Override
+  public void propagatePluginChange(com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
+                                     io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+    SourceConfig config = new SourceConfig();
+    ProtobufIOUtil.mergeFrom(request.getBytes().toByteArray(), config, SourceConfig.getSchema());
+    List<CoordinationProtos.NodeEndpoint> nodeEndpointList = request.getPluginChangeNodeEndpoints().getEndpointsIndexList();
+    CatalogRPC.RpcType rpcType = CatalogRPC.RpcType.valueOf(request.getPluginChangeNodeEndpoints().getRpcType().name());
+
+    logger.info("Propagate plugin change with rpc type {} to node endpoint list: {}", rpcType, nodeEndpointList);
+    context.getCatalogService().communicateChangeToExecutors(nodeEndpointList, config, rpcType);
+    responseObserver.onCompleted();
+  }
+
 
   @Override
   public void getNodeStats(com.google.protobuf.Empty request,
@@ -166,6 +189,13 @@ public class ExecutorServiceImpl extends ExecutorService {
               "operations."));
     }
 
+    @Override
+    public void propagatePluginChange(com.dremio.exec.proto.CoordExecRPC.SourceWrapper request,
+                                       io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+      responseObserver.onError(new RpcException("This daemon doesn't support execution " +
+        "operations."));
+    }
+
     public void getNodeStats(com.google.protobuf.Empty request,
                              io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {
       responseObserver.onError(new RpcException("This daemon doesn't support execution " +
@@ -173,4 +203,3 @@ public class ExecutorServiceImpl extends ExecutorService {
     }
   }
 }
-

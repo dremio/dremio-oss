@@ -245,7 +245,7 @@ public class BinderImpl implements Binder {
   /**
    * Description of a specific singleton binding.
    */
-  public static abstract class Binding<T> {
+  public abstract static class Binding<T> {
     private final Class<T> iface;
 
     private Binding(Class<T> iface) {

@@ -16,23 +16,29 @@
 
 //TODO: move fields and init_values to provisioningConstants
 export const MAPPED_FIELDS = {
-  resourceManagerHost: 'resourceManagerHost',
-  namenodeHost: 'namenodeHost',
-  nodeTag: 'nodeTag',
-  spillDirectories: 'spillDirectories'
+  resourceManagerHost: "resourceManagerHost",
+  namenodeHost: "namenodeHost",
+  nodeTag: "nodeTag",
+  spillDirectories: "spillDirectories",
 };
 
 export const FIELDS = [
-  'id', 'clusterType', 'queue',
-  'memoryMB', 'virtualCoreCount', 'dynamicConfig.containerCount',
-  'tag', 'distroType', 'isSecure',
-  'propertyList[].name', // we map from entity.key -> field.name in mapToFormFields to match what Property input expects.
-  'propertyList[].value',
-  'propertyList[].type',
+  "id",
+  "clusterType",
+  "queue",
+  "memoryMB",
+  "virtualCoreCount",
+  "dynamicConfig.containerCount",
+  "tag",
+  "distroType",
+  "isSecure",
+  "propertyList[].name", // we map from entity.key -> field.name in mapToFormFields to match what Property input expects.
+  "propertyList[].value",
+  "propertyList[].type",
   MAPPED_FIELDS.resourceManagerHost,
   MAPPED_FIELDS.namenodeHost,
   MAPPED_FIELDS.nodeTag,
-  MAPPED_FIELDS.spillDirectories + '[]'
+  MAPPED_FIELDS.spillDirectories + "[]",
 ];
 
 export const INIT_VALUES = {};
@@ -50,32 +56,33 @@ export const INIT_VALUES = {};
  *
  * @type {Array}
  */
-const provisionManagersList = [ // todo: loc
+const provisionManagersList = [
+  // todo: loc
   {
-    clusterType: 'YARN',
-    label: 'YARN',
-    iconType: 'Hadoop',
+    clusterType: "YARN",
+    label: "YARN",
+    iconType: "Hadoop",
     connected: true,
     propsAsFields: [
       {
-        key: 'yarn.resourcemanager.hostname',
-        field: MAPPED_FIELDS.resourceManagerHost
+        key: "yarn.resourcemanager.hostname",
+        field: MAPPED_FIELDS.resourceManagerHost,
       },
       {
-        key: 'fs.defaultFS',
-        field: MAPPED_FIELDS.namenodeHost
+        key: "fs.defaultFS",
+        field: MAPPED_FIELDS.namenodeHost,
       },
       {
-        key: 'services.node-tag',
-        field: MAPPED_FIELDS.nodeTag
+        key: "services.node-tag",
+        field: MAPPED_FIELDS.nodeTag,
       },
       {
-        key: 'paths.spilling',
+        key: "paths.spilling",
         field: MAPPED_FIELDS.spillDirectories,
-        isArray: true
-      }
-    ]
-  }
+        isArray: true,
+      },
+    ],
+  },
   // , Temporary removed from the UI per DX-12716
   // {
   //   clusterType: 'MESOS',
@@ -110,4 +117,3 @@ const provisionManagersList = [ // todo: loc
 ];
 
 export const PROVISION_MANAGERS = provisionManagersList;
-

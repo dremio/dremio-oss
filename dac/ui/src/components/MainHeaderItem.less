@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .main-header-item {
     display: flex;
@@ -25,22 +26,22 @@
       color: #fff;
       cursor: pointer;
       padding: 0 10px 0;
-      &:hover{
-        .item-wrap::before{
+      &:hover {
+        .item-wrap::before {
           visibility: visible;
         }
       }
-      .item-wrap{
+      .item-wrap {
         display: inline-block;
         position: relative;
-        &::before{
-          content: '';
+        &::before {
+          content: "";
           left: 0;
           right: 0;
           bottom: -3px;
           position: absolute;
           height: 2px;
-          background: rgba(255, 255, 255, .5);
+          background: rgba(255, 255, 255, 0.5);
           visibility: hidden;
         }
       }

@@ -19,7 +19,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.ZeroVector;
 
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
@@ -36,6 +38,7 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.dremio.sabot.op.spi.Operator;
@@ -54,7 +57,9 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SmartOp.class);
 
+  // Flags to control where to log the records. Disabled by default.
   private static final boolean DEBUG_PRINT = false;
+  private static final boolean DEBUG_LOG = false;
   private static final boolean PRINT_STATS_ON_CLOSE = false;
 
   protected final T inner;
@@ -187,6 +192,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       try {
         return verify(initialSchema, outgoing, inner.outputData());
       } catch (Exception | AssertionError | AbstractMethodError e) {
+        logger.error("Unexpected exception occurred", e);
         throw contextualize(e);
       } finally {
         stats.stopProcessing();
@@ -592,15 +598,21 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
   }
 
   private boolean actualVerify(BatchSchema initialSchema, VectorAccessible outgoing, int records){
+    checkArgument(outgoing.getSchema() != null, "Schema not set.");
     checkArgument(outgoing.getSchema().equals(initialSchema),
       "Schema changed unexpectedly. Original: %s, New: %s.", initialSchema, outgoing.getSchema());
     if(records == 0){
-      if (DEBUG_PRINT) {
+      if (DEBUG_PRINT || DEBUG_LOG) {
         FragmentHandle h = context.getFragmentHandle();
         String op = String.format("%s:%d:%d:%d --> (%d)",
           getOperatorName(context.getStats().getOperatorType()), h.getMajorFragmentId(), h.getMinorFragmentId(),
           context.getStats().getOperatorId(), records);
-        System.out.println(op);
+        if (DEBUG_LOG) {
+          logger.debug(op);
+        }
+        if (DEBUG_PRINT) {
+          System.out.println(op);
+        }
       }
       return true;
 
@@ -609,7 +621,6 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     checkArgument(outgoing.getRecordCount() == records,
       "Reported output record count %s not equal to VectorContainer.getRecordCount() of %s",
       records, outgoing.getRecordCount());
-    checkArgument(outgoing.getSchema() != null, "Schema not set.");
 
     if (!(inner instanceof ScanOperator)) {
       checkSchema(outgoing.getSchema());
@@ -633,7 +644,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
         break;
       case NONE: {
         ValueVector vector = w.getValueVector();
-        checkArgument(vector.getValueCount() == records,
+        checkArgument(vector instanceof ZeroVector || vector.getValueCount() == records,
           "Output value count %s not equal to vector count %s for vector: %s",
           records, vector.getValueCount(), Describer.describe(vector.getField()));
         break;
@@ -648,15 +659,26 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       default:
         break;
       }
+
+      // validate variable width vector consistency
+      if (w.getValueVector() instanceof BaseVariableWidthVector) {
+        BaseVariableWidthVector v = (BaseVariableWidthVector) w.getValueVector();
+        VariableLengthValidator.validateVariable(v, records);
+      }
     }
 
-    if (DEBUG_PRINT) {
+    if (DEBUG_PRINT || DEBUG_LOG) {
       FragmentHandle h = context.getFragmentHandle();
       String op = String.format("%s:%d:%d:%d --> (%d), %s",
         getOperatorName(context.getStats().getOperatorType()), h.getMajorFragmentId(), h.getMinorFragmentId(),
         context.getStats().getOperatorId(), records, outgoing.getSchema());
-      System.out.println(op);
-      BatchPrinter.printBatch(outgoing);
+      if (DEBUG_LOG) {
+        logger.debug(op);
+      }
+      if (DEBUG_PRINT) {
+        System.out.println(op);
+      }
+      BatchPrinter.printBatch(outgoing, DEBUG_PRINT, DEBUG_LOG);
     }
     return true;
   }

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Checkbox from 'components/Fields/Checkbox';
-import HoverHelp from 'components/HoverHelp';
-import { checkboxStandalone } from '@app/components/Fields/Checkbox.less';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import Checkbox from "components/Fields/Checkbox";
+import HoverHelp from "components/HoverHelp";
+import { checkboxStandalone } from "@app/components/Fields/Checkbox.less";
+import PropTypes from "prop-types";
 
-import { flexContainer, tooltipIcon } from './FormWrappers.less';
+import { flexContainer, tooltipIcon } from "./FormWrappers.less";
 
 export default class CheckboxWrapper extends Component {
   static propTypes = {
@@ -27,27 +27,28 @@ export default class CheckboxWrapper extends Component {
     fields: PropTypes.object,
     field: PropTypes.object,
     disabled: PropTypes.bool,
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, field} = this.props;
+    const { elementConfig, field } = this.props;
     const config = elementConfig.getConfig();
-    const isDisabled = (config.disabled || this.props.disabled) ? {disabled: true} : null;
-    const isInverted = (config.inverted) ? {inverted: true} : null;
+    const isDisabled =
+      config.disabled || this.props.disabled ? { disabled: true } : null;
+    const isInverted = config.inverted ? { inverted: true } : null;
     const tooltip = config.tooltip;
     return (
       <div className={flexContainer}>
-        <Checkbox className={checkboxStandalone}
+        <Checkbox
+          className={checkboxStandalone}
           {...field}
           {...isDisabled}
           {...isInverted}
           isOnOffSwitch={config.isOnOffSwitch}
           labelBefore={config.labelBefore}
-          label={elementConfig.getConfig().label}/>
-        {tooltip &&
-        <HoverHelp content={tooltip} className={tooltipIcon}/>
-        }
+          label={elementConfig.getConfig().label}
+        />
+        {tooltip && <HoverHelp content={tooltip} className={tooltipIcon} />}
       </div>
     );
   }

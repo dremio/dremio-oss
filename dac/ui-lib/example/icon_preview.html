@@ -1,0 +1,39 @@
+<html>
+  <head>
+    <title>Dremio UI Icon Preview</title>
+    <style>
+      body {
+        padding: 1rem;
+      }
+      #icons {
+        display: flex;
+        flex-wrap: wrap;
+        list-style-type: none;
+        gap: 0.5rem;
+        padding: 0;
+      }
+      #icons img {
+        width: 40px;
+        height: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <ul id="icons"></ul>
+    <p id="count"></p>
+    <script>
+      const iconsEl = document.getElementById("icons");
+
+      fetch("./manifest.json")
+        .then((res) => res.json())
+        .then((icons) => {
+          document.getElementById("count").innerText = `Total: ${icons.length}`;
+          icons.forEach((icon) => {
+            const iconEl = document.createElement("li");
+            iconEl.innerHTML = `<img src="../${icon.path}" title="${icon.name}" />`;
+            iconsEl.appendChild(iconEl);
+          });
+        });
+    </script>
+  </body>
+</html>

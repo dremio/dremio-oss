@@ -22,10 +22,14 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
   <artifactId>dremio-services-datastore</artifactId>
   <name>Services - Datastore</name>
+
+  <properties>
+    <commons.io.version>2.6</commons.io.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -36,6 +40,7 @@
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -158,6 +163,11 @@
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${commons.io.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -171,6 +181,7 @@
             <artifactId>dremio-common</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
+            <type>test-jar</type>
           </dependency>
         </dependencies>
         <executions>

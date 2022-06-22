@@ -13,11 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Select from 'components/Fields/Select';
-import FieldWithError from 'components/Fields/FieldWithError';
-import PropTypes from 'prop-types';
-import { flexContainer, selectWrapper, selectBody, selectFieldWithError } from './FormWrappers.less';
+import { Component } from "react";
+import Select from "components/Fields/Select";
+import FieldWithError from "components/Fields/FieldWithError";
+import PropTypes from "prop-types";
+import {
+  flexContainer,
+  selectWrapper,
+  selectBody,
+  selectFieldWithError,
+} from "./FormWrappers.less";
 
 export default class SelectWrapper extends Component {
   static propTypes = {
@@ -25,33 +30,39 @@ export default class SelectWrapper extends Component {
     fields: PropTypes.object,
     field: PropTypes.object,
     disabled: PropTypes.bool,
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, field} = this.props;
+    const { elementConfig, field } = this.props;
     const elementConfigJson = elementConfig.getConfig();
-    const isDisabled = (elementConfigJson.disabled || this.props.disabled) ? {disabled: true} : null;
+    const isDisabled =
+      elementConfigJson.disabled || this.props.disabled
+        ? { disabled: true }
+        : null;
     const tooltip = elementConfigJson.tooltip;
-    const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
+    const hoverHelpText = tooltip ? { hoverHelpText: tooltip } : null;
     const size = elementConfigJson.size;
-    const isFixedSize = typeof size === 'number' && size > 0;
-    const style = (isFixedSize) ? {width: size} : {};
+    const isFixedSize = typeof size === "number" && size > 0;
+    const style = isFixedSize ? { width: size } : {};
 
     return (
       <div className={flexContainer}>
-        <FieldWithError errorPlacement='top'
+        <FieldWithError
+          errorPlacement="top"
           {...hoverHelpText}
           label={elementConfig.getConfig().label}
-          labelClass={selectFieldWithError} >
+          labelClass={selectFieldWithError}
+        >
           <div className={selectWrapper}>
             <Select
               {...isDisabled}
               items={elementConfig.getConfig().options}
               className={selectBody}
               style={style}
-              valueField='value'
-              {...field} />
+              valueField="value"
+              {...field}
+            />
           </div>
         </FieldWithError>
       </div>

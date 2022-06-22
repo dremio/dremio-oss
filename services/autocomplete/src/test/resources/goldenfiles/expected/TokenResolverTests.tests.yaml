@@ -19,114 +19,106 @@
   description: "EMPTY STRING"
   input: ""
   output:
+    hasIdentifier: true
+    hasMoreResults: true
     tokens:
      - "SELECT"
      - "UPDATE"
      - "WITH"
      - "DELETE"
-     - "TABLE"
-    numRemainingResults: 131
- -
-  description: "MID SELECT"
-  input: "S"
-  output:
-    tokens:
-     - "SELECT"
-     - "SECOND"
-     - "SESSION_USER"
-     - "SET"
-     - "SPECIFIC"
-    numRemainingResults: 6
+     - "DROP"
  -
   description: "SELECT"
   input: "SELECT "
   output:
+    hasIdentifier: true
+    hasMoreResults: true
     tokens:
-     - "<IDENTIFIER>"
-     - "<UNSIGNED_INTEGER_LITERAL>"
-     - "SUM"
-     - "MIN"
-     - "AVG"
-    numRemainingResults: 128
+     - "DISTINCT"
+     - "CASE"
+     - "("
+     - "*"
+     - "+"
  -
   description: "SELECT STAR"
   input: "SELECT * "
   output:
+    hasIdentifier: false
+    hasMoreResults: true
     tokens:
      - "FROM"
      - ","
-     - "<EOF>"
      - "EXCEPT"
      - "FETCH"
-    numRemainingResults: 6
+     - "INTERSECT"
  -
   description: "SELECT STAR FROM"
   input: "SELECT * FROM "
   output:
+    hasIdentifier: true
+    hasMoreResults: false
     tokens:
-     - "<IDENTIFIER>"
      - "("
-     - ","
-     - "<BACK_QUOTED_IDENTIFIER>"
-     - "<BRACKET_QUOTED_IDENTIFIER>"
-    numRemainingResults: 15
+     - "LATERAL"
+     - "TABLE"
+     - "UNNEST"
  -
   description: "SELECT STAR FROM IDENTIFIER"
   input: "SELECT * FROM emp "
   output:
+    hasIdentifier: false
+    hasMoreResults: true
     tokens:
-     - ","
      - "WHERE"
-     - "GROUP"
-     - "ORDER"
      - "JOIN"
-    numRemainingResults: 19
+     - ","
+     - "NATURAL"
+     - "ORDER"
  -
   description: "SELECT STAR FROM IDENTIFIER WHERE"
   input: "SELECT * FROM emp WHERE "
   output:
+    hasIdentifier: true
+    hasMoreResults: true
     tokens:
-     - "<IDENTIFIER>"
      - "EXISTS"
      - "NOT"
-     - "CAST"
      - "("
-    numRemainingResults: 140
+     - "+"
+     - "-"
  -
   description: "SELECT STAR FROM IDENTIFIER WHERE IDENTIFIER"
   input: "SELECT * FROM emp WHERE age "
   output:
+    hasIdentifier: false
+    hasMoreResults: true
     tokens:
      - "."
      - "="
-     - "GROUP"
-     - "ORDER"
+     - ">"
+     - "IN"
      - "<"
-    numRemainingResults: 40
- -
-  description: "MID TOKEN + VALID QUERY"
-  input: "SELECT MI"
-  output:
-    tokens:
-     - "MIN"
-     - "MINUS"
-     - "MINUTE"
-    numRemainingResults: 0
- -
-  description: "MID TOKEN + INVALID QUERY"
-  input: "SELECT * FROM emp WHER"
-  output:
-    tokens:
-     - "WHERE"
-    numRemainingResults: 0
  -
   description: "FUNCTION"
   input: "SELECT ABS("
   output:
+    hasIdentifier: true
+    hasMoreResults: true
     tokens:
-     - "<IDENTIFIER>"
-     - "SELECT"
-     - "<UNSIGNED_INTEGER_LITERAL>"
-     - "VALUES"
-     - "CASE"
-    numRemainingResults: 151
+     - "("
+     - ")"
+     - "*"
+     - "+"
+     - "-"
+ -
+  description: "JOIN ON "
+  input: "SELECT * FROM EMP JOIN DEPT ON "
+  output:
+    hasIdentifier: true
+    hasMoreResults: true
+    tokens:
+     - "("
+     - "+"
+     - "-"
+     - "?"
+     - "ARRAY"

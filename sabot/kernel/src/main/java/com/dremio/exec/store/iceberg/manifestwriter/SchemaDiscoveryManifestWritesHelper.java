@@ -29,7 +29,10 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -42,7 +45,7 @@ import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
  * Uses the last non-null schema from the incoming vectors. In case schema gets changed, complete manifest gets
  * re-loaded at the time of flush.
  */
-public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
+public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper implements SupportsTypeCoercionsAndUpPromotions{
     private BatchSchema currentSchema = BatchSchema.EMPTY;
     private List<String> partitionColumns = new ArrayList<>();
     private boolean hasSchemaChanged = false;
@@ -78,18 +81,22 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
                     return;
                 }
 
-                hasSchemaChanged = true;
-                currentSchema = currentSchema.mergeWithUpPromotion(newSchema);
-                if (currentSchema.getTotalFieldCount() > columnLimit) {
-                  throw new ColumnCountTooLargeException(columnLimit);
-                }
-            }
-        } catch (IOException ioe) {
-            throw ioe;
-        } catch (Exception e) {
-            throw new IOException(e);
+        hasSchemaChanged = true;
+        try {
+          currentSchema = currentSchema.mergeWithUpPromotion(newSchema, this);
+        } catch (NoSupportedUpPromotionOrCoercionException e) {
+          throw UserException.unsupportedError().message(e.getMessage()).build();
         }
+        if (currentSchema.getTotalFieldCount() > columnLimit) {
+          throw new ColumnCountTooLargeException(columnLimit);
+        }
+      }
+    } catch (IOException ioe) {
+      throw ioe;
+    } catch (Exception e) {
+      throw new IOException(e);
     }
+  }
 
     @Override
     protected void addDataFile(DataFile dataFile) {

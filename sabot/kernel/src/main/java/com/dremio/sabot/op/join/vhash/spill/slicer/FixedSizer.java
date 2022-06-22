@@ -69,6 +69,12 @@ class FixedSizer implements Sizer {
 
       try (final ArrowBuf validityBuf = page.slice(validityLen);
            final ArrowBuf dataBuf = page.slice(dataLen)) {
+        // The bit copiers do ORs to set the bits, and expect that the buffer is zero-filled to begin with.
+        validityBuf.setZero(0, validityLen);
+        if (dataSizeInBits == 1) {
+          dataBuf.setZero(0, dataLen);
+        }
+
         outgoing.loadFieldBuffers(new ArrowFieldNode(count, -1),
           ImmutableList.of(validityBuf, dataBuf));
 

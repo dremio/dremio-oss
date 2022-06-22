@@ -83,6 +83,8 @@ public class StatisticsServiceImpl implements StatisticsService {
   private static final String TABLE_COLUMN_NAME = "TABLE_PATH";
   private static final long HEAVY_HITTERS_THRESHOLD = 3;
   public static final String ROW_COUNT_IDENTIFIER = "null";
+  public static final String SAMPLE_COL_NAME = "SAMPLE";
+  public static final String NON_SAMPLE_COL_PREFIX = "ORIGINAL";
   private final Provider<JobsService> jobsService;
   private final Provider<SchedulerService> schedulerService;
   private final Provider<BufferAllocator> allocator;
@@ -216,7 +218,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
     final StatisticId statisticId = createStatisticId(column, key);
     if (statisticStore.get(statisticId) == null) {
-      logger.debug(String.format("Statistic Not Found for column %s and dataset %s",column,key.toString()));
+      logger.trace(String.format("Statistic Not Found for column %s and dataset %s", column, key));
       return false;
     } else {
       statisticStore.delete(createStatisticId(column, key));
@@ -229,7 +231,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.debug(String.format("NDV Statistic Not Found for column %s and dataset %s",column,key.toString()));
+      logger.trace(String.format("NDV Statistic Not Found for column %s and dataset %s", column, key));
       return null;
     }
     return statistic.getNdv();
@@ -244,7 +246,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createRowCountStatisticId(key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.debug(String.format("RowCount Statistic Not Found for dataset %s",key.toString()));
+      logger.trace(String.format("RowCount Statistic Not Found for dataset %s", key));
       return null;
     }
     return statistic.getRowCount();
@@ -256,10 +258,10 @@ public class StatisticsServiceImpl implements StatisticsService {
     Statistic statistic = statisticStore.get(statisticId);
     Statistic rowCountStatistic = statisticStore.get(createRowCountStatisticId(key));
     if (statistic == null) {
-      logger.debug(String.format("NullCount Statistic Not Found for column %s and dataset %s",column, key.toString()));
+      logger.trace(String.format("NullCount Statistic Not Found for column %s and dataset %s",column, key));
       return null;
     }else if(rowCountStatistic == null){
-      logger.debug(String.format("RowCount Statistic Not Found for dataset %s", key.toString()));
+      logger.trace(String.format("RowCount Statistic Not Found for dataset %s", key));
       return null;
     }
 
@@ -269,11 +271,10 @@ public class StatisticsServiceImpl implements StatisticsService {
   @Override
   public Histogram getHistogram(String column, TableMetadata tableMetaData) {
     SqlTypeName sqlTypeName = getSqlTypeNameFromColumn(column, tableMetaData.getSchema());
-    String normalizedColumn = column.toLowerCase();
     StatisticId statisticId = createStatisticId(column, tableMetaData.getName().toString());
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.debug(String.format("Histogram Statistic Not Found for column %s and dataset %s",column,tableMetaData.getName().toString()));
+      logger.trace(String.format("Histogram Statistic Not Found for column %s and dataset %s", column, tableMetaData.getName().toString()));
       return null;
     }
     return statistic.getHistogram(sqlTypeName);
@@ -285,19 +286,19 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
-      logger.debug(String.format("Histogram Statistic Not Found for column %s and dataset %s",column, key));
+      logger.trace(String.format("Histogram Statistic Not Found for column %s and dataset %s", column, key));
       return null;
     }
     return statistic.getHistogram(sqlTypeName);
   }
 
   @Override
-  public String requestStatistics(List<Field> fields, NamespaceKey key) {
+  public String requestStatistics(List<Field> fields, NamespaceKey key, Double samplingRate) {
     validateDataset(key);
     final JobSubmittedListener listener = new JobSubmittedListener();
     final JobId jobId = jobsService.get().submitJob(SubmitJobRequest.newBuilder().setQueryType(QueryType.UI_INTERNAL_RUN).
-      setSqlQuery(com.dremio.service.job.SqlQuery.newBuilder().setSql(getSql(fields, key.toString())).
-        setUsername(SystemUser.SYSTEM_USERNAME)).build(), listener);
+      setSqlQuery(com.dremio.service.job.SqlQuery.newBuilder().setSql(getSql(fields, key.toString(), samplingRate)).
+        setUsername(SystemUser.SYSTEM_USERNAME)).build(), listener).getJobId();
     statisticEntriesStore.save(key.toString().toLowerCase(), jobId);
     entries.put(key.toString().toLowerCase(), jobId);
     return jobId.getId();
@@ -321,16 +322,36 @@ public class StatisticsServiceImpl implements StatisticsService {
     return type + "_" + name;
   }
 
-  public String getSql(List<Field> fields, String table) {
+  public String getSql(List<Field> fields, String table, Double samplingRate) {
     StringBuilder stringBuilder = new StringBuilder("SELECT '");
     stringBuilder.append(table).append("' as ").append(TABLE_COLUMN_NAME);
     populateNdvSql(stringBuilder, fields);
     populateCountStarSql(stringBuilder);
     populateCountColumnSql(stringBuilder, fields);
-    populateTDigestSql(stringBuilder, fields);
+    populateTDigestSql(stringBuilder, fields, samplingRate != null);
     populateItemsSketchSql(stringBuilder, fields);
-    stringBuilder.append("FROM ").append(table);
+    stringBuilder.append(getFromClause(fields, table, samplingRate));
     return stringBuilder.toString();
+  }
+
+  private String getNonSampleColName(String name) {
+    return String.format("\"%s_%s\"", NON_SAMPLE_COL_PREFIX, name);
+  }
+
+  private String getFromClause(List<Field> fields, String table, Double samplingRate) {
+    StringBuilder sb = new StringBuilder("FROM (Select ");
+    for (int i = 0 ; i < fields.size() ; i++) {
+      sb.append(fields.get(i).getName()).append(" as ").append(getNonSampleColName(fields.get(i).getName()));
+      if (i != fields.size() - 1) {
+        sb.append(", ");
+      }
+    }
+    if (samplingRate != null) {
+      sb.append(String.format(", sample(%f) %s from %s)", samplingRate, SAMPLE_COL_NAME, table));
+    } else {
+      sb.append("from ").append(table).append(")");
+    }
+    return sb.toString();
   }
 
   private OptionManager getOptionManager(){
@@ -344,7 +365,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("ndv(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.NDV, column)));
+      stringBuilder.append(String.format("ndv(%s) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.NDV, column)));
     }
   }
 
@@ -363,11 +384,11 @@ public class StatisticsServiceImpl implements StatisticsService {
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("count(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
+      stringBuilder.append(String.format("count(%s) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
     }
   }
 
-  private void populateTDigestSql(StringBuilder stringBuilder, List<Field> fields) {
+  private void populateTDigestSql(StringBuilder stringBuilder, List<Field> fields, boolean sample) {
     if(!getOptionManager().getOption(PlannerSettings.COMPUTE_TDIGEST_STAT)){
       return;
     }
@@ -378,7 +399,11 @@ public class StatisticsServiceImpl implements StatisticsService {
         continue;
       }
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("tdigest(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
+      if (sample) {
+        stringBuilder.append(String.format("tdigest(%s, %s) as \"%s\" ", getNonSampleColName(column), SAMPLE_COL_NAME, getColumnName(Statistic.StatisticType.TDIGEST, column)));
+      } else {
+        stringBuilder.append(String.format("tdigest(%s, true) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
+      }
     }
   }
 
@@ -393,7 +418,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         continue;
       }
       stringBuilder.append(", ");
-      stringBuilder.append(String.format("ITEMS_SKETCH(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.ITEMSSKETCH, column)));
+      stringBuilder.append(String.format("ITEMS_SKETCH(%s) as \"%s\" ", getNonSampleColName(column), getColumnName(Statistic.StatisticType.ITEMSSKETCH, column)));
     }
   }
 
@@ -470,9 +495,6 @@ public class StatisticsServiceImpl implements StatisticsService {
             final JobId id = entry.getValue();
             JobProtobuf.JobId.Builder builder = JobProtobuf.JobId.newBuilder();
             builder.setId(id.getId());
-            if (id.getName() != null) {
-              builder.setName(id.getName());
-            }
             JobDetails jobDetails = jobsService.get().getJobDetails(JobDetailsRequest.newBuilder().setJobId(builder.build()).setUserName(SystemUser.SYSTEM_USERNAME).build());
             List<JobProtobuf.JobAttempt> attempts = jobDetails.getAttemptsList();
             JobProtobuf.JobAttempt lastAttempt = attempts.get(attempts.size() - 1);

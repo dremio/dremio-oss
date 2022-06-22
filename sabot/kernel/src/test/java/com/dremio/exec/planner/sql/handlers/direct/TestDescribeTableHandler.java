@@ -48,18 +48,20 @@ import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.google.common.collect.Lists;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestDescribeTableHandler {
   private DescribeTableHandler describeTableHandler;
+  @Mock private QueryContext queryContext;
   @Mock private DremioCatalogReader catalog;
   @Mock private DremioPrepareTable table;
 
   @Before
   public void setup() {
-    describeTableHandler = new DescribeTableHandler(catalog);
+    describeTableHandler = new DescribeTableHandler(catalog, queryContext);
 
     final DremioTable dremioTable = mock(DremioTable.class);
     when(catalog.getTableUnchecked(anyList())).thenReturn(table);
@@ -106,19 +108,23 @@ public class TestDescribeTableHandler {
         "CHARACTER VARYING",
         null,
         null,
+        "[]",
         "[]"),
       new DescribeTableHandler.DescribeResult(
         "col2",
         "BOOLEAN",
         null,
         null,
-        "[{\"key\":\"one\",\"value\":\"foo\"}]"),
+        "[{\"key\":\"one\",\"value\":\"foo\"}]",
+        "[]"),
+
       new DescribeTableHandler.DescribeResult(
         "col3",
         "DECIMAL",
         5,
         2,
-        "[{\"key\":\"two\",\"value\":\"bar\"},{\"key\":\"three\",\"value\":\"baz\"}]")
+        "[{\"key\":\"two\",\"value\":\"bar\"},{\"key\":\"three\",\"value\":\"baz\"}]",
+        "[]")
     );
 
     assertEquals(expectedResults.size(), actualResults.size());

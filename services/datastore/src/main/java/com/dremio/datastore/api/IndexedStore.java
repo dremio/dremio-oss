@@ -15,18 +15,23 @@
  */
 package com.dremio.datastore.api;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 import com.dremio.context.TenantContext;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.options.VersionOption;
 
 /**
  * A KVStore that also maintains a index of documents for arbitrary retrieval.
  */
 public interface IndexedStore<K, V> extends KVStore<K, V> {
+  org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IndexedStore.class);
+
   /**
    * Creates a lazy iterable over items that match the provided condition, in
    * the order requested. Exposing the appropriate keys and values. Note that
@@ -62,6 +67,31 @@ public interface IndexedStore<K, V> extends KVStore<K, V> {
    * @throws com.dremio.datastore.DatastoreException when one or more runtime failures are encountered.
    */
   List<Integer> getCounts(SearchQuery ... conditions);
+
+
+  /**
+   * Reindex does a blind update on documents matching
+   * the provided condition. Update will ensure indexed fields
+   * are mapped according to latest version.
+   *
+   * @param findByCondition the find condition
+   * @param options extra configurations for find operation.
+   * @return a count of number of documents on which reindex is done.
+   */
+  default long reindex(FindByCondition findByCondition, FindOption... options) {
+    Iterable<Document<K, V>> documents = find(findByCondition, options);
+    AtomicLong count = new AtomicLong();
+    documents.forEach( document -> {
+        try {
+          put(document.getKey(), document.getValue(), VersionOption.from(document));
+          count.incrementAndGet();
+        } catch (ConcurrentModificationException e){
+          LOGGER.warn(String.format("ConcurrentModificationException while updating %s collection, key %s ", getName(), document.getKey()));
+        }
+      }
+    );
+    return count.get();
+  }
 
   /**
    *

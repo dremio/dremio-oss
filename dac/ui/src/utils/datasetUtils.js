@@ -13,23 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
+import invariant from "invariant";
+import { isEqual } from "lodash";
 
-const FORMATTED_ENTITY_TYPES = new Set(['file', 'folder']);
+const FORMATTED_ENTITY_TYPES = new Set(["file", "folder"]);
 
 // Certain kinds of DS can't have certain operations performed on them.
 // This replicates the server's constraints so that we know what one
 // can or cannot do with a given DS.
 export function abilities(
   entity,
-  entityType = entity.get('entityType'),
-  isHomeFile = entity.get('isHomeFile') || false
+  entityType = entity.get("entityType"),
+  isHomeFile = entity.get("isHomeFile") || false
 ) {
-  invariant(entityType, 'entityType is required');
+  invariant(entityType, "entityType is required");
 
   const canEditFormat = FORMATTED_ENTITY_TYPES.has(entityType);
   const canRemoveFormat = canEditFormat && !isHomeFile;
-  const isPhysical = FORMATTED_ENTITY_TYPES.has(entityType) || entityType === 'physicalDataset';
+  const isPhysical =
+    FORMATTED_ENTITY_TYPES.has(entityType) || entityType === "physicalDataset";
   const canEdit = !isPhysical;
   const canMove = !isPhysical; // future: allow move file in home
   const canDelete = !isPhysical || isHomeFile;
@@ -46,13 +48,23 @@ export function abilities(
     canEdit,
     canMove,
     canDelete,
-    canSetAccelerationUpdates
+    canSetAccelerationUpdates,
   };
 }
 
 export function hasDatasetChanged(nextDataset, prevDataset) {
-  const haveNewDatasetVersion = !prevDataset ||
-    nextDataset.get('datasetVersion') !== prevDataset.get('datasetVersion');
+  const haveNewDatasetVersion =
+    !prevDataset ||
+    nextDataset.get("datasetVersion") !== prevDataset.get("datasetVersion");
 
-  return haveNewDatasetVersion || nextDataset.get('isNewQuery') !== prevDataset.get('isNewQuery');
+  return (
+    haveNewDatasetVersion ||
+    nextDataset.get("isNewQuery") !== prevDataset.get("isNewQuery")
+  );
+}
+
+export function hasReferencesChanged(cur, next) {
+  const references = cur || {};
+  const nextReferences = next || {};
+  return !isEqual(references, nextReferences);
 }

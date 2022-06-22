@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '~@app/uiTheme/less/color-schema.less';
+@import "~@app/uiTheme/less/color-schema.less";
 
 .base {
-  composes: row-of-inputs from '~@app/uiTheme/less/forms.less';
+  composes: row-of-inputs from "~@app/uiTheme/less/forms.less";
   width: 100%;
   opacity: 1;
-  overflow: hidden
+  overflow: hidden;
 }
 
 .content {
-  composes: row-of-inputs from '~@app/uiTheme/less/forms.less';
+  composes: row-of-inputs from "~@app/uiTheme/less/forms.less";
   width: 100%;
   border: 1px solid transparent;
   cursor: move;
@@ -31,8 +31,8 @@
 }
 
 .column {
-  composes: table-row from '~@app/uiTheme/less/forms.less';
-  composes: dragged-item from '~@app/uiTheme/less/dnd.less';
+  composes: table-row from "~@app/uiTheme/less/forms.less";
+  composes: dragged-item from "~@app/uiTheme/less/dnd.less";
   width: 100%;
   min-height: 25px;
   border-radius: 1px;
@@ -40,7 +40,7 @@
 }
 
 .disabledContent {
-  composes: row-of-inputs from '~@app/uiTheme/less/forms.less';
+  composes: row-of-inputs from "~@app/uiTheme/less/forms.less";
   width: 100%;
   border: 1px solid transparent;
   cursor: default;
@@ -48,19 +48,17 @@
 }
 
 .preventDrag {
-  composes: table-row from '~@app/uiTheme/less/forms.less';
-  composes: disabled-dragged-item from '~@app/uiTheme/less/dnd.less';
+  composes: table-row from "~@app/uiTheme/less/forms.less";
+  composes: disabled-dragged-item from "~@app/uiTheme/less/dnd.less";
   width: 100%;
   min-height: 25px;
-  border-radius: 1px;  
+  border-radius: 1px;
   overflow: hidden;
 }
 
 .column-item {
-  composes: flex-container flex-align-center from '~@app/uiTheme/less/layout.less';
+  composes: flex-container flex-align-center from "~@app/uiTheme/less/layout.less";
   height: 26px;
   padding: 5px;
   cursor: pointer;
-
-  
 }

@@ -55,6 +55,7 @@ message ExtSortSpillNotificationMessage {
 enum RuntimeFilterType {
   BLOOM_FILTER = 1;
   VALUE_LIST = 2;
+  VALUE_LIST_WITH_BLOOM_FILTER = 3;
 }
 
 /**

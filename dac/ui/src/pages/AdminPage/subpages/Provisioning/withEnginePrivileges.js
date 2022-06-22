@@ -15,9 +15,6 @@
  */
 
 const withEnginePrivileges = (WrappedComponent) => (props) =>
-  <WrappedComponent
-    {...props}
-    canCreate
-  />;
+  <WrappedComponent {...props} canCreate />;
 
 export default withEnginePrivileges;

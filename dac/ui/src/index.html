@@ -16,39 +16,28 @@
 
 -->
 <!DOCTYPE html>
-<%
-/*
-    Template file for index.html
-
-    This file is rendered by webpack when added to the bundle,
-    and rendered again by the FreeMarker template engine when served by the
-    Dremio Web server.
-
-    Check webpack.config.js for more information.
-*/
-%>
+<% /* Template file for index.html This file is rendered by webpack when added
+to the bundle, and rendered again by the FreeMarker template engine when served
+by the Dremio Web server. Check webpack.config.js for more information. */ %>
 <html>
   <head>
     <title>Dremio</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta charset="utf-8">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="-1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta charset="utf-8" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="-1" />
     <script type="text/javascript">
-      window.dremioConfig = <%= htmlWebpackPlugin.options.config %>;
+      window.dremioConfig = <%= htmlWebpackPlugin.options.dremioConfig %>;
     </script>
 
-
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
-    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#55bfce">
-    <meta name="theme-color" content="#2b3a4b">
-
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#55bfce" />
+    <meta name="theme-color" content="#2b3a4b" />
   </head>
   <body>
-    <div id="root">
-    </div>
+    <div id="root"></div>
   </body>
 </html>

@@ -14,25 +14,25 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
-import { connect } from 'react-redux';
-import { FormattedMessage } from 'react-intl';
+import { useState } from "react";
+import { connect } from "react-redux";
+import { FormattedMessage } from "react-intl";
 
-import { setReference as setReferenceAction } from '@app/actions/nessie/nessie';
+import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
 import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
-  TextField
-} from '@material-ui/core';
+  TextField,
+} from "@material-ui/core";
 
-import { Reference } from '@app/services/nessie/client';
-import { useNessieContext } from '../../utils/context';
-import { CustomDialogTitle } from './utils';
+import { Reference } from "@app/services/nessie/client";
+import { useNessieContext } from "../../utils/context";
+import { CustomDialogTitle } from "./utils";
 
-import './NewBranchDialog.less';
+import "./NewBranchDialog.less";
 
 type NewBranchDialogProps = {
   open: boolean;
@@ -54,10 +54,10 @@ function NewBranchDialog({
   allRefs,
   setAllRefs,
   setSuccessMessage,
-  setReference
+  setReference,
 }: NewBranchDialogProps & ConnectedProps): JSX.Element {
   const { api, stateKey } = useNessieContext();
-  const [newBranchName, setNewBranchName] = useState('');
+  const [newBranchName, setNewBranchName] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
 
@@ -71,7 +71,7 @@ function NewBranchDialog({
 
   const onCancel = () => {
     closeDialog();
-    setNewBranchName('');
+    setNewBranchName("");
   };
 
   const onAdd = async () => {
@@ -81,22 +81,22 @@ function NewBranchDialog({
       const reference = await api.createReference({
         sourceRefName: forkFrom ? forkFrom.name : undefined,
         reference: {
-          type: 'BRANCH',
+          type: "BRANCH",
           hash: forkFrom ? forkFrom.hash : null,
-          name: newBranchName
-        } as Reference
+          name: newBranchName,
+        } as Reference,
       });
 
       if (allRefs && setAllRefs) {
         setAllRefs([
           { ...reference, metadata: forkFrom && forkFrom.metadata },
-          ...allRefs
+          ...allRefs,
         ]);
       }
 
       if (setSuccessMessage) {
         setSuccessMessage(
-          <FormattedMessage id='RepoView.Dialog.CreateBranch.Success' />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Success" />
         );
       }
 
@@ -104,20 +104,20 @@ function NewBranchDialog({
 
       setErrorText(null);
       closeDialog();
-      setNewBranchName('');
+      setNewBranchName("");
       setIsSending(false);
     } catch (error: any) {
-      if (error.statusText === 'Bad Request') {
+      if (error.status === 400) {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.CreateBranch.Error.InvalidName' />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.InvalidName" />
         );
-      } else if (error.statusText === 'Conflict') {
+      } else if (error.status === 409) {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.CreateBranch.Error.Conflict' />
+          <FormattedMessage id="RepoView.Dialog.CreateBranch.Error.Conflict" />
         );
       } else {
         setErrorText(
-          <FormattedMessage id='RepoView.Dialog.DeleteBranch.Error' />
+          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
         );
       }
 
@@ -127,46 +127,46 @@ function NewBranchDialog({
 
   return (
     <div>
-      <Dialog open={open} onClose={closeDialog} className='new-branch-dialog'>
+      <Dialog open={open} onClose={closeDialog} className="new-branch-dialog">
         <CustomDialogTitle
           onClose={onCancel}
-          className='new-branch-dialog-header'
+          className="new-branch-dialog-header"
         >
-          <span className='new-branch-dialog-header-title'>
-            <FormattedMessage id='RepoView.Dialog.CreateBranch.CreateBranch' />
+          <span className="new-branch-dialog-header-title">
+            <FormattedMessage id="RepoView.Dialog.CreateBranch.CreateBranch" />
           </span>
         </CustomDialogTitle>
-        <DialogContent className='new-branch-dialog-body'>
+        <DialogContent className="new-branch-dialog-body">
           <DialogContentText>
-            <FormattedMessage id='RepoView.Dialog.CreateBranch.BranchName' />
+            <FormattedMessage id="RepoView.Dialog.CreateBranch.BranchName" />
           </DialogContentText>
           <TextField
             onChange={updateInput}
             value={newBranchName}
             onKeyDown={(e) => {
-              e.key === 'Enter' && onAdd();
+              e.key === "Enter" && onAdd();
             }}
             autoFocus
-            margin='normal'
-            id='name'
-            type='text'
+            margin="normal"
+            id="name"
+            type="text"
             fullWidth
-            variant='outlined'
+            variant="outlined"
             error={!!errorText}
             helperText={errorText}
-            label={errorText && <FormattedMessage id='Common.Error' />}
+            label={errorText && <FormattedMessage id="Common.Error" />}
           ></TextField>
         </DialogContent>
-        <DialogActions className='new-branch-dialog-actions'>
+        <DialogActions className="new-branch-dialog-actions">
           <Button
             onClick={onCancel}
             disabled={isSending}
-            className='cancel-button'
+            className="cancel-button"
           >
-            <FormattedMessage id='Common.Cancel' />
+            <FormattedMessage id="Common.Cancel" />
           </Button>
-          <Button onClick={onAdd} disabled={isSending} className='add-button'>
-            <FormattedMessage id='Common.Add' />
+          <Button onClick={onAdd} disabled={isSending} className="add-button">
+            <FormattedMessage id="Common.Add" />
           </Button>
         </DialogActions>
       </Dialog>

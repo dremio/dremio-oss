@@ -13,32 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { injectIntl } from "react-intl";
 
-import { LIST, MAP, MIXED } from '@app/constants/DataTypes';
-import { getExploreJobId, getExploreState } from '@app/selectors/explore';
-import { isSqlChanged } from '@app/sagas/utils';
-import { addNotification } from 'actions/notification';
-import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
-import { APIV2Call } from '@app/core/APICall';
-import tokenUtils from '@inject/utils/tokenUtils';
-import config from 'dyn-load/utils/config';
-import { Cancel } from '@app/utils/CancelablePromise';
-import MenuItem from './MenuItem';
-import Menu from './Menu';
-
+import { LIST, MAP, MIXED } from "@app/constants/DataTypes";
+import { getExploreJobId, getExploreState } from "@app/selectors/explore";
+import { isSqlChanged } from "@app/sagas/utils";
+import { addNotification } from "actions/notification";
+import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { APIV2Call } from "@app/core/APICall";
+import tokenUtils from "@inject/utils/tokenUtils";
+import config from "dyn-load/utils/config";
+import { Cancel } from "@app/utils/CancelablePromise";
+import MenuItem from "./MenuItem";
+import Menu from "./Menu";
 
 const UNSUPPORTED_TYPE_COLUMNS = {
-  'CSV': new Set([MAP, LIST, MIXED])
+  CSV: new Set([MAP, LIST, MIXED]),
 };
 
 const TYPES = [
-  { label: 'JSON', name: 'JSON' },
-  { label: 'CSV', name: 'CSV' },
-  { label: 'Parquet', name: 'PARQUET' }
+  { label: "JSON", name: "JSON" },
+  { label: "CSV", name: "CSV" },
+  { label: "Parquet", name: "PARQUET" },
 ];
 
 @injectIntl
@@ -52,44 +51,53 @@ export class ExportMenu extends PureComponent {
     //connected
     jobId: PropTypes.string,
     currentSql: PropTypes.string,
-    addNotification: PropTypes.func
+    addNotification: PropTypes.func,
+    queryTabNumber: PropTypes.any,
+    queryStatuses: PropTypes.array,
+    isMultiSqlEdited: PropTypes.bool,
   };
 
   handleDatasetDownload = (type) => {
     this.props.updateDownloading();
 
-    tokenUtils.getTempToken({
-      params: {
-        'durationSeconds': 30,
-        'request': 'job/' + this.props.jobId + '/download/?downloadFormat=' + type.name
-      },
-      requestApiVersion: 2
-    })
-      .then(data => {
+    return tokenUtils
+      .getTempToken({
+        params: {
+          durationSeconds: 30,
+          request:
+            "job/" +
+            this.props.jobId +
+            "/download/?downloadFormat=" +
+            type.name,
+        },
+        requestApiVersion: 2,
+      })
+      .then((data) => {
         const apiCall = new APIV2Call()
-          .path('job')
+          .path("job")
           .path(this.props.jobId)
-          .path('download')
+          .path("download")
           .params({
-            'downloadFormat': type.name,
-            '.token': data.token ? data.token : ''
+            downloadFormat: type.name,
+            ".token": data.token ? data.token : "",
           });
         // window.location.assign(apiCall.toString());
         fetch(apiCall.toString())
-          .then(response => {
-            response.blob()
-              .then(resObj => {
-
+          .then((response) => {
+            response
+              .blob()
+              .then((resObj) => {
                 // MS Edge and IE don't allow using a blob object directly as link href, instead it is necessary to use msSaveOrOpenBlob
                 if (window.navigator && window.navigator.msSaveOrOpenBlob) {
                   window.navigator.msSaveOrOpenBlob(resObj);
                 } else {
-                // For other browsers: create a link pointing to the ObjectURL containing the blob.
+                  // For other browsers: create a link pointing to the ObjectURL containing the blob.
                   const objUrl = window.URL.createObjectURL(resObj);
 
-                  const link = document.createElement('a');
+                  const link = document.createElement("a");
                   link.href = objUrl;
-                  link.download = `${this.props.jobId}.${type.name}`.toLocaleLowerCase();
+                  link.download =
+                    `${this.props.jobId}.${type.name}`.toLocaleLowerCase();
                   link.click();
 
                   // For Firefox it is necessary to delay revoking the ObjectURL.
@@ -99,36 +107,75 @@ export class ExportMenu extends PureComponent {
                 }
                 this.props.updateDownloading();
                 this.showNotification();
+                return null;
               })
               .catch((error) => {
                 this.props.updateDownloading();
                 if (error instanceof Cancel) return;
                 throw error;
               });
+            return null;
+          })
+          .catch((error) => {
+            if (error instanceof Cancel) return;
+            throw error;
           });
+        return null;
       });
   };
 
   renderMenuItems() {
-    const { jobId, datasetSql, currentSql, intl } = this.props;
+    const {
+      jobId,
+      datasetSql,
+      intl,
+      currentSql,
+      queryTabNumber,
+      queryStatuses,
+      isMultiSqlEdited,
+    } = this.props;
     const datasetColumns = new Set(this.props.datasetColumns);
-    const isSqlDirty = isSqlChanged(datasetSql, currentSql);
-    const isTypesIntersected = (types) => !![...types].filter(type => datasetColumns.has(type)).length;
+    const originalSql = queryStatuses.length
+      ? queryStatuses[queryTabNumber - 1].sqlStatement
+      : currentSql;
+    const isSqlDirty =
+      (queryStatuses.length && isMultiSqlEdited) ||
+      isSqlChanged(datasetSql, originalSql);
+    const isTypesIntersected = (types) =>
+      !![...types].filter((type) => datasetColumns.has(type)).length;
 
-    return TYPES.map(type => {
+    return TYPES.map((type) => {
       const types = UNSUPPORTED_TYPE_COLUMNS[type.name];
-      const disabled = (config.downloadRecordsLimit === 0) || isSqlDirty || !jobId || (types && isTypesIntersected(types));
-      const itemTitle = intl.formatMessage({ id: 'Download.DownloadLimitValue' });
+      const disabled =
+        config.downloadRecordsLimit === 0 ||
+        isSqlDirty ||
+        !jobId ||
+        (types && isTypesIntersected(types));
+      const itemTitle = intl.formatMessage({
+        id: "Download.DownloadLimitValue",
+      });
 
-      return <MenuItem key={type.name} disabled={disabled} title={itemTitle} onClick={this.handleDatasetDownload.bind(this, type)}>{type.label}</MenuItem>;
+      return (
+        <MenuItem
+          key={type.name}
+          disabled={disabled}
+          title={itemTitle}
+          onClick={this.handleDatasetDownload.bind(this, type)}
+        >
+          {type.label}
+        </MenuItem>
+      );
     });
   }
 
   showNotification(type) {
     const { intl } = this.props;
-    const notificationMessage = intl.formatMessage({ id: 'Download.Completed' }, {type});
+    const notificationMessage = intl.formatMessage(
+      { id: "Download.Completed" },
+      { type }
+    );
     const message = `${this.props.jobId} ${notificationMessage}`;
-    this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
+    this.props.addNotification(message, "success", MSG_CLEAR_DELAY_SEC);
   }
 
   render() {
@@ -139,11 +186,18 @@ export class ExportMenu extends PureComponent {
 function mapStateToProps(state) {
   const explorePageState = getExploreState(state);
   const currentSql = explorePageState.view.currentSql;
+  const queryStatuses = explorePageState.view.queryStatuses;
+  const queryTabNumber = explorePageState.view.queryTabNumber;
+  const isMultiSqlEdited =
+    currentSql !== explorePageState.view.previousMultiSql;
 
   const jobId = getExploreJobId(state);
   return {
     jobId,
-    currentSql
+    currentSql,
+    queryStatuses,
+    queryTabNumber,
+    isMultiSqlEdited,
   };
 }
 

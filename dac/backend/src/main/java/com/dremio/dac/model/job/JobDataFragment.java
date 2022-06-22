@@ -23,6 +23,7 @@ import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
@@ -41,6 +42,13 @@ public interface JobDataFragment extends AutoCloseable {
    */
   @JsonIgnore
   JobId getJobId();
+
+  /**
+   * Get the {@link SessionId}
+   * @return
+   */
+  @JsonIgnore
+  SessionId getSessionId();
 
   /**
    * Get the list of columns in job results.

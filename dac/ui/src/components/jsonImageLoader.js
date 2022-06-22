@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import allJsons from '@app/art/jsonImages.pattern';
+import allJsons from "@app/art/jsonImages.pattern";
 
-export {
-  allJsons
-};
+export { allJsons };

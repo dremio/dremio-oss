@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { cards } from './Cards.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { cards } from "./Cards.less";
 
 export default class Cards extends Component {
-
   static propTypes = {
     className: PropTypes.string,
-    children: PropTypes.any
-  }
+    children: PropTypes.any,
+  };
 
   render() {
     const { children, className } = this.props;
     return (
-      <div className={classNames('transform-selection', cards, className)}>
+      <div className={classNames("transform-selection", cards, className)}>
         {children}
       </div>
     );

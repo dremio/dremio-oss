@@ -13,39 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { mount } from 'enzyme';
+import { mount } from "enzyme";
 
-import TextHighlight from 'components/TextHighlight';
+import TextHighlight from "components/TextHighlight";
 
-describe('TextHighlight-spec', () => {
-
+describe("TextHighlight-spec", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      text: 'Some text here',
-      inputValue: 'text'
+      text: "Some text here",
+      inputValue: "text",
     };
   });
 
-  it('minimal props', () => {
+  it("minimal props", () => {
     const wrapper = mount(<TextHighlight {...minimalProps} />);
-    expect(wrapper.find('.TextHighlight')).have.length(1);
+    expect(wrapper.find(".TextHighlight")).have.length(1);
   });
 
-  it('render elements', () => {
+  it("render elements", () => {
     const wrapper = mount(<TextHighlight {...commonProps} inputValue={null} />);
-    expect(wrapper.find('.TextHighlight')).have.length(1);
-    expect(wrapper.find('.TextHighlight').html().replace(/<!--.*?-->/g, ''))
-      .equal('<span class="TextHighlight">Some text here</span>');
+    expect(wrapper.find(".TextHighlight")).have.length(1);
+    expect(
+      wrapper
+        .find(".TextHighlight")
+        .html()
+        .replace(/<!--.*?-->/g, "")
+    ).equal('<div class="TextHighlight">Some text here</div>');
   });
 
-  it('check selected', () => {
+  it("check selected", () => {
     const wrapper = mount(<TextHighlight {...commonProps} />);
-    expect(wrapper.find('.TextHighlight').html().replace(/<!--.*?-->/g, ''))
-      .equal('<span class="TextHighlight">Some <b>text</b> here</span>');
+    expect(
+      wrapper
+        .find(".TextHighlight")
+        .html()
+        .replace(/<!--.*?-->/g, "")
+    ).equal('<div class="TextHighlight">Some <b>text</b> here</div>');
   });
-
 });

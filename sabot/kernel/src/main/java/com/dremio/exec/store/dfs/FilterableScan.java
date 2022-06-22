@@ -32,8 +32,10 @@ public interface FilterableScan extends RelNode {
   ScanFilter getFilter();
   PruneFilterCondition getPartitionFilter();
   FilterableScan applyFilter(ScanFilter scanFilter);
-  FilterableScan applyPartitionFilter(PruneFilterCondition partitionFilter);
+  FilterableScan applyPartitionFilter(PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount);
   FilterableScan cloneWithProject(List<SchemaPath> projection, boolean preserveFilterColumns);
   TableMetadata getTableMetadata();
   BatchSchema getBatchSchema();
+  Long getSurvivingRowCount();
+  Long getSurvivingFileCount();
 }

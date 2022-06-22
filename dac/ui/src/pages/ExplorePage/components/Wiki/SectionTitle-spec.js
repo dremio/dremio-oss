@@ -13,56 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { SectionTitle } from './SectionTitle';
-import {
-  title as titleInnerCls
-} from './SectionTitle.less';
+import { shallow } from "enzyme";
+import { SectionTitle } from "./SectionTitle";
+import { title as titleInnerCls } from "./SectionTitle.less";
 
-describe('SectionTitle', () => {
-  it('Title is rendered', () => {
-    const title = 'this is a title';
+describe("SectionTitle", () => {
+  it("Title is rendered", () => {
+    const title = "this is a title";
     const wrapper = shallow(<SectionTitle title={title} />);
-    const titleCnt = wrapper.find('.' + titleInnerCls);
+    const titleCnt = wrapper.find("." + titleInnerCls);
 
     expect(titleCnt).to.have.length(1); //title element should be presented
     expect(titleCnt.text()).to.eql(title); // title should be displayed
   });
 
-  it('No buttons should be rendered if buttons array is empty', () => {
+  it("No buttons should be rendered if buttons array is empty", () => {
     const wrapper = shallow(<SectionTitle />);
 
-    expect(wrapper.find('button')).to.have.length(0); //no buttons should be rendered
+    expect(wrapper.find("button")).to.have.length(0); //no buttons should be rendered
   });
 
-  it('Right number of buttons is rendered', () => {
+  it("Right number of buttons is rendered", () => {
     const clickHandler = sinon.stub();
-    const buttons = [{
-      text: 'button1',
-      onClick: clickHandler,
-      key: 'button1'
-    },
-    {
-      text: 'button2',
-      onClick: clickHandler,
-      key: 'button2'
-    }];
+    const buttons = [
+      {
+        text: "button1",
+        onClick: clickHandler,
+        key: "button1",
+      },
+      {
+        text: "button2",
+        onClick: clickHandler,
+        key: "button2",
+      },
+    ];
     const wrapper = shallow(<SectionTitle buttons={buttons} />);
 
-    expect(wrapper.find('button')).to.have.length(buttons.length); //right number of buttons should be rendered
+    expect(wrapper.find("button")).to.have.length(buttons.length); //right number of buttons should be rendered
   });
 
-  it('Button click handler is called', () => {
+  it("Button click handler is called", () => {
     const clickHandler = sinon.stub();
-    const buttons = [{
-      text: 'button1',
-      onClick: clickHandler,
-      key: 'button'
-    }];
+    const buttons = [
+      {
+        text: "button1",
+        onClick: clickHandler,
+        key: "button",
+      },
+    ];
     const wrapper = shallow(<SectionTitle buttons={buttons} />);
-    const button = wrapper.find('button').at(0);
+    const button = wrapper.find("button").at(0);
 
-    button.simulate('click');
+    button.simulate("click");
     expect(clickHandler).to.be.called;
   });
 });

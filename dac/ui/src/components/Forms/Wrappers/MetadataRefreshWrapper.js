@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import MetadataRefresh from 'components/Forms/MetadataRefresh';
+import { Component } from "react";
+import MetadataRefresh from "components/Forms/MetadataRefresh";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class MetadataRefreshWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   render() {
-    const {elementConfig, fields} = this.props;
-    const {datasetDiscovery, authorization} = elementConfig.getConfig();
+    const { elementConfig, fields } = this.props;
+    const { datasetDiscovery, authorization } = elementConfig.getConfig();
     return (
       <MetadataRefresh
         fields={fields}

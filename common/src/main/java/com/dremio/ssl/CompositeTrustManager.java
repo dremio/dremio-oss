@@ -27,7 +27,6 @@ import javax.net.ssl.X509TrustManager;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.handler.ssl.util.SimpleTrustManagerFactory;
 
 /**
  * A TrustManager that checks if certificates validate against multiple sources.

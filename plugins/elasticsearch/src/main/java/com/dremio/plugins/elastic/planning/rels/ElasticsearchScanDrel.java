@@ -48,4 +48,3 @@ public class ElasticsearchScanDrel extends ScanRelBase implements Rel {
   }
 
 }
-

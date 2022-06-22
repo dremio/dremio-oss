@@ -297,6 +297,16 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
       }
     }
 
+    // Disable EXTEND on SELECT
+    if (sqlCall instanceof SqlSelect && !context.getOptions().getOption(ExecConstants.ENABLE_EXTEND_ON_SELECT)) {
+      SqlSelect sqlSelect = (SqlSelect) sqlCall;
+      if (sqlSelect.getFrom() != null && sqlSelect.getFrom().getKind() == SqlKind.EXTEND) {
+        unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
+          "Dremio doesn't currently support EXTEND.");
+        throw new UnsupportedOperationException();
+      }
+    }
+
     return sqlCall.getOperator().acceptCall(this, sqlCall);
   }
 

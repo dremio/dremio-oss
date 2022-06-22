@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isAuthorized } from './authUtils';
+import { isAuthorized } from "./authUtils";
 
-describe('authUtils (EE)', () => {
+describe("authUtils (EE)", () => {
   //  it('getAuthInfoSelector and authInfoPropType are consistent', () => {
   //     const defaultStoreState = reducer(undefined, {}); // get default state // here is an error
   //     const propName = 'authInfo';
@@ -26,33 +26,33 @@ describe('authUtils (EE)', () => {
   //     return PropTypes.checkPropTypes(authInfoPropType, props, propName, 'authUtils-spec'); // reuse stnadard prop types check
   //  });
 
-  describe('isAuthorized', () => {
-    it('An admin passes a check for admin pages', () => {
+  describe("isAuthorized", () => {
+    it("An admin passes a check for admin pages", () => {
       const userAuthInfo = {
-        isAdmin: true
+        isAdmin: true,
       };
       const rule = {
-        isAdmin: true
+        isAdmin: true,
       };
       expect(isAuthorized(rule, userAuthInfo)).to.be.true;
     });
 
-    it('An admin does not pass a check for non admin pages', () => {
+    it("An admin does not pass a check for non admin pages", () => {
       const userAuthInfo = {
-        isAdmin: true
+        isAdmin: true,
       };
       const rule = {
-        isAdmin: false
+        isAdmin: false,
       };
       expect(isAuthorized(rule, userAuthInfo)).to.be.false;
     });
 
-    it('An non admin does not pass a check for admin pages', () => {
+    it("An non admin does not pass a check for admin pages", () => {
       const userAuthInfo = {
-        isAdmin: false
+        isAdmin: false,
       };
       const rule = {
-        isAdmin: true
+        isAdmin: true,
       };
       expect(isAuthorized(rule, userAuthInfo)).to.be.false;
     });

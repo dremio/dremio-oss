@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
 // todo: this has an #id, but we don't use it? (can't just switch, since there might be assumptions elsewhere)
-const dataset = new Schema('dataset', {
-  idAttribute: 'versionedResourcePath'
+const dataset = new Schema("dataset", {
+  idAttribute: "versionedResourcePath",
 });
 
 export default dataset;

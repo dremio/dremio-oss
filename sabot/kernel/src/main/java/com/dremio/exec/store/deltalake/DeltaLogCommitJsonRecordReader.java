@@ -46,7 +46,6 @@ import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.SimpleProjector;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator;
 
 /**
  * Wrapper to coerce partition values in partitionValues field
@@ -57,7 +56,7 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
   private SimpleProjector projector;
   protected final RecordReader delegate;
   protected final OperatorContext context;
-  private ScanOperator.ScanMutator outputMutator;
+
   private final List<Field> partitionCols;
 
   public DeltaLogCommitJsonRecordReader(OperatorContext context, RecordReader delegate, List<Field> partitionCols) {
@@ -68,10 +67,9 @@ public class DeltaLogCommitJsonRecordReader implements RecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    this.outputMutator = (ScanOperator.ScanMutator) output;
     delegate.setup(output);
     // setup projector for partition fields
-    this.createAndSetupProjector(outputMutator.getContainer(), outputMutator.getContainer());
+    this.createAndSetupProjector(output.getContainer(), output.getContainer());
   }
 
   @Override

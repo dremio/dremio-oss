@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import AccelerationContent from './AccelerationContent';
+import AccelerationContent from "./AccelerationContent";
 
-describe('AccelerationContent', () => {
-
+describe("AccelerationContent", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -27,51 +26,53 @@ describe('AccelerationContent', () => {
     minimalProps = {
       jobDetails: Immutable.fromJS({
         jobId: {
-          id: 'jobid'
+          id: "jobid",
         },
-        requestType: 'CREATE_PREPARE',
-        state: 'COMPLETED',
+        requestType: "CREATE_PREPARE",
+        state: "COMPLETED",
         endTime: 123546,
         startTime: 0,
-        user: 'dremio',
-        queryType: 'UI_RUN',
+        user: "dremio",
+        queryType: "UI_RUN",
         stats: {},
-        sql: 'SELECT * FROM',
+        sql: "SELECT * FROM",
         attemptDetails: [
           {
-            reason: 'schema Learning',
-            profileUrl: '/profiles/2808817f-f02f-adaf-4911-ae91b1423500'
+            reason: "schema Learning",
+            profileUrl: "/profiles/2808817f-f02f-adaf-4911-ae91b1423500",
           },
           {
-            reason: 'Insufficient memory',
-            profileUrl: '/profiles/2808817f-f02f-adaf-4911-ae91b1423500'
-          }
+            reason: "Insufficient memory",
+            profileUrl: "/profiles/2808817f-f02f-adaf-4911-ae91b1423500",
+          },
         ],
         parentsList: [
           {
-            datasetPathList: ['Prod-Sample', 'ds1'],
-            type: 'VIRTUAL_DATASET'
-          }
-        ]
-      })
+            datasetPathList: ["Prod-Sample", "ds1"],
+            type: "VIRTUAL_DATASET",
+          },
+        ],
+      }),
     };
     commonProps = {
       ...minimalProps,
       jobDetails: minimalProps.jobDetails.set({
         acceleration: Immutable.fromJS({
-          reflectionRelationships: []
-        })
-      })
+          reflectionRelationships: [],
+        }),
+      }),
     };
 
-    wrapper = shallow(<AccelerationContent {...commonProps}/>);
+    wrapper = shallow(<AccelerationContent {...commonProps} />);
   });
 
-  it('should render with minimal props without exploding', () => {
-    expect(shallow(<AccelerationContent {...minimalProps}/>)).to.have.length(1);
+  it("should render with minimal props without exploding", () => {
+    expect(shallow(<AccelerationContent {...minimalProps} />)).to.have.length(
+      1
+    );
   });
 
-  it('should render with common props without exploding', () => {
+  it("should render with common props without exploding", () => {
     expect(wrapper).to.have.length(1);
   });
 });

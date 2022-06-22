@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import menuUtils from 'utils/menuUtils';
+import menuUtils from "utils/menuUtils";
 
-import MenuItem from './../MenuItem';
+import MenuItem from "./../MenuItem";
 
 export default class ColumnMenuItem extends PureComponent {
   static propTypes = {
@@ -28,18 +28,24 @@ export default class ColumnMenuItem extends PureComponent {
     availableTypes: PropTypes.array,
     title: PropTypes.string,
     onClick: PropTypes.func,
-    actionType: PropTypes.string
+    actionType: PropTypes.string,
   };
 
   render() {
-    const { disabled, columnType, availableTypes, title, onClick, actionType } = this.props;
-    const showState = menuUtils.getShowState({disabled, columnType, availableTypes, actionType});
-    if (showState === 'none') {
+    const { disabled, columnType, availableTypes, title, onClick, actionType } =
+      this.props;
+    const showState = menuUtils.getShowState({
+      disabled,
+      columnType,
+      availableTypes,
+      actionType,
+    });
+    if (showState === "none") {
       return null;
     }
     const action = disabled ? () => {} : onClick.bind(this, actionType);
     return (
-      <MenuItem disabled={showState === 'disabled'} onClick={action}>
+      <MenuItem disabled={showState === "disabled"} onClick={action}>
         {title}
       </MenuItem>
     );

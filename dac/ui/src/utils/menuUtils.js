@@ -1,4 +1,4 @@
-import { ENTITY_TYPES } from '@app/constants/Constants';
+import { ENTITY_TYPES } from "@app/constants/Constants";
 
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
@@ -16,21 +16,40 @@ import { ENTITY_TYPES } from '@app/constants/Constants';
  * limitations under the License.
  */
 class MenuUtils {
-  getShowState({disabled, columnType, availableTypes}) {
+  getShowState({ disabled, columnType, availableTypes }) {
     if (availableTypes.indexOf(columnType) === -1) {
-      return 'none';
+      return "none";
     } else if (!disabled) {
-      return 'block';
+      return "block";
     }
-    return 'disabled';
+    return "disabled";
   }
 
-  showConfirmRemove({item, closeMenu, showConfirmationDialog, removeItem}) {
+  showConfirmRemove({
+    item,
+    closeMenu,
+    showConfirmationDialog,
+    removeItem,
+    location,
+    router,
+  }) {
+    const itemName = item.get("name");
     showConfirmationDialog({
-      title: (item.get('entityType') === ENTITY_TYPES.space) ? la('Remove Space') : la('Remove Source'),
-      text: la(`Are you sure you want to remove "${item.get('name')}"?`),
-      confirmText: la('Remove'),
-      confirm: () => removeItem(item)
+      title:
+        item.get("entityType") === ENTITY_TYPES.space
+          ? la("Remove Space")
+          : la("Remove Source"),
+      text: la(`Are you sure you want to remove "${itemName}"?`),
+      confirmText: la("Remove"),
+      confirm: () => {
+        removeItem(item);
+        if (
+          location &&
+          decodeURIComponent(location.pathname).split("/")[2] === itemName
+        ) {
+          router.push("/");
+        }
+      },
     });
     closeMenu();
   }

@@ -13,40 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import { FormattedMessage, injectIntl } from 'react-intl';
-import { withRouter } from 'react-router';
-import { compose } from 'redux';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import { FormattedMessage, injectIntl } from "react-intl";
+import { withRouter } from "react-router";
+import { compose } from "redux";
 
-import LinkButton from '@app/components/Buttons/LinkButton';
-import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
-import FinderNav from '@app/components/FinderNav';
-import SpacesLoader from '@app/pages/HomePage/components/SpacesLoader';
-import ViewStateWrapper, { viewStatePropType } from '@app/components/ViewStateWrapper';
-import { ALL_SPACES_VIEW_ID } from '@app/actions/resources/spaces';
-import { getViewState} from '@app/selectors/resources';
-import { getSortedSpaces } from '@app/selectors/home';
-import { FLEX_COL_START } from '@app/uiTheme/radium/flexStyle';
-import { SpacesSectionMixin, mapStateToProps as mixinMapStateToProps } from 'dyn-load/pages/HomePage/components/SpacesSectionMixin';
+import LinkButton from "@app/components/Buttons/LinkButton";
+import { EmptyStateContainer } from "@app/pages/HomePage/components/EmptyStateContainer";
+import FinderNav from "@app/components/FinderNav";
+import SpacesLoader from "@app/pages/HomePage/components/SpacesLoader";
+import ViewStateWrapper, {
+  viewStatePropType,
+} from "@app/components/ViewStateWrapper";
+import { ALL_SPACES_VIEW_ID } from "@app/actions/resources/spaces";
+import { getViewState } from "@app/selectors/resources";
+import { getSortedSpaces } from "@app/selectors/home";
+import { FLEX_COL_START } from "@app/uiTheme/radium/flexStyle";
+import { spacesSourcesListSpinnerStyle } from "@app/pages/HomePage/HomePageConstants";
 
-import { emptyContainer } from './LeftTree.less';
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import * as VersionUtils from "@app/utils/versionUtils";
+import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
+import { emptyContainer } from "./LeftTree.less";
 
-const mapStateToProps = state => ({
+const mapStateToProps = (state) => ({
   spaces: getSortedSpaces(state),
   spacesViewState: getViewState(state, ALL_SPACES_VIEW_ID),
-  ...(mixinMapStateToProps ? mixinMapStateToProps(state) : null)
+  isAdmin: getAdminStatus(state),
 });
 
-@SpacesSectionMixin
 export class SpacesSection extends PureComponent {
   static propTypes = {
     //#region react-redux
 
     spaces: PropTypes.instanceOf(Immutable.List).isRequired,
     spacesViewState: viewStatePropType,
+    isAdmin: PropTypes.bool,
 
     //#endregion
 
@@ -54,58 +59,80 @@ export class SpacesSection extends PureComponent {
     intl: PropTypes.object.isRequired,
 
     // withRouter
-    location: PropTypes.object.isRequired
-  }
+    location: PropTypes.object.isRequired,
+
+    // collapsible
+    isCollapsible: PropTypes.bool,
+    isCollapsed: PropTypes.bool,
+    onToggle: PropTypes.func,
+  };
 
   getAddSpaceHref() {
-    return { ...this.props.location, state: { modal: 'SpaceModal' } };
+    const { isAdmin } = this.props;
+    let canAddSpace = localStorageUtils.getUserData()?.admin;
+
+    if (VersionUtils.getEditionFromConfig() === "DCS") {
+      canAddSpace = isAdmin;
+    }
+
+    return canAddSpace
+      ? { ...this.props.location, state: { modal: "SpaceModal" } }
+      : "";
   }
 
   getInitialSpacesContent() {
     const addHref = this.getAddSpaceHref();
-    return this.props.spaces.size === 0 ? <EmptyStateContainer
-      className={emptyContainer}
-      title={<FormattedMessage id='Space.NoSpaces'/>}>
-      {addHref && <LinkButton
-        buttonStyle='primary'
-        data-qa={'add-spaces'}
-        to={addHref}>
-        <FormattedMessage id='Space.AddSpace'/>
-      </LinkButton>}
-    </EmptyStateContainer> : null;
+    return this.props.spaces.size === 0 ? (
+      <EmptyStateContainer
+        className={emptyContainer}
+        title={<FormattedMessage id="Space.NoSpaces" />}
+      >
+        {addHref && (
+          <LinkButton buttonStyle="primary" data-qa={"add-spaces"} to={addHref}>
+            <FormattedMessage id="Space.AddSpace" />
+          </LinkButton>
+        )}
+      </EmptyStateContainer>
+    ) : null;
   }
 
   render() {
     const {
       spacesViewState,
       spaces,
-      intl
+      intl,
+      isCollapsed,
+      isCollapsible,
+      onToggle,
     } = this.props;
 
     return (
-      <div className='left-tree-wrap' style={{
-        minHeight: '165px',
-        overflow: 'hidden',
-        flex: 1
-      }}>
+      <div className="left-tree-wrap">
         <SpacesLoader />
-        <ViewStateWrapper viewState={spacesViewState} style={FLEX_COL_START}>
+        <ViewStateWrapper
+          viewState={spacesViewState}
+          style={FLEX_COL_START}
+          spinnerStyle={spacesSourcesListSpinnerStyle}
+        >
           <FinderNav
+            isCollapsed={isCollapsed}
+            isCollapsible={isCollapsible}
+            onToggle={onToggle}
+            noMarginTop
             navItems={spaces}
-            title={intl.formatMessage({ id: 'Space.Spaces' })}
-            addTooltip={intl.formatMessage({ id: 'Space.AddSpace'})}
-            isInProgress={spacesViewState.get('isInProgress')}
+            title={intl.formatMessage({ id: "Space.Spaces" })}
+            addTooltip={intl.formatMessage({ id: "Space.AddSpace" })}
+            isInProgress={spacesViewState.get("isInProgress")}
             addHref={this.getAddSpaceHref()}
-            listHref='/spaces/list'
-            children={this.getInitialSpacesContent()}
-          />
+            listHref="/spaces/list"
+          >
+            {this.getInitialSpacesContent()}
+          </FinderNav>
         </ViewStateWrapper>
       </div>
     );
   }
 }
-
-
 
 export default compose(
   connect(mapStateToProps),

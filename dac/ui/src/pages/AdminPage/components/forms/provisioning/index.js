@@ -13,10 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import YARN from './YarnForm';
-import EC2 from './EC2Form';
+import YARN from "./YarnForm";
+import EC2 from "./EC2Form";
 
-export {
-  YARN,
-  EC2
-};
+export { YARN, EC2 };

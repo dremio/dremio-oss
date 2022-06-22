@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import uuid from 'uuid';
-import { connect } from 'react-redux';
-import { getExploreState } from '@app/selectors/explore';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import uuid from "uuid";
+import { connect } from "react-redux";
+import { getExploreState } from "@app/selectors/explore";
 
-import { ExploreInfoHeader } from '../ExploreInfoHeader';
-import InnerJoin from './InnerJoin';
+import { ExploreInfoHeader } from "../ExploreInfoHeader";
+import InnerJoin from "./InnerJoin";
 
 export class InnerJoinController extends Component {
   static propTypes = {
@@ -30,20 +30,30 @@ export class InnerJoinController extends Component {
     rightColumns: PropTypes.instanceOf(Immutable.List),
     fields: PropTypes.object.isRequired,
     recommendation: PropTypes.object,
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
+    location: PropTypes.object,
   };
 
   static getDefaultDragAreaColumns(props) {
     const { recommendation } = props;
     if (recommendation) {
       const immutableRecommended = Immutable.fromJS(recommendation);
-      const cols = immutableRecommended.get('matchingKeys');
-      return cols.map((value, key) => {
-        const leftColumn = props.leftColumns.find(col => col.get('name') === key) || Immutable.Map({ empty: true });
-        const rightColumn = props.rightColumns.find(col => col.get('name') === value) || Immutable.Map({ empty: true });
-        const colForDrag = InnerJoinController.getDragAreaColumnModel(leftColumn, rightColumn);
-        return colForDrag;
-      }).toList();
+      const cols = immutableRecommended.get("matchingKeys");
+      return cols
+        .map((value, key) => {
+          const leftColumn =
+            props.leftColumns.find((col) => col.get("name") === key) ||
+            Immutable.Map({ empty: true });
+          const rightColumn =
+            props.rightColumns.find((col) => col.get("name") === value) ||
+            Immutable.Map({ empty: true });
+          const colForDrag = InnerJoinController.getDragAreaColumnModel(
+            leftColumn,
+            rightColumn
+          );
+          return colForDrag;
+        })
+        .toList();
     }
     return Immutable.List();
   }
@@ -52,7 +62,7 @@ export class InnerJoinController extends Component {
     return Immutable.Map({
       default: leftColumn,
       custom: rightColumn,
-      id: uuid.v4()
+      id: uuid.v4(),
     });
   }
 
@@ -69,21 +79,24 @@ export class InnerJoinController extends Component {
     this.stopDrag = this.stopDrag.bind(this);
     this.state = {
       isDragInProgress: false,
-      columnDragName: '',
+      columnDragName: "",
       leftColumns: props.leftColumns,
       rightColumns: props.rightColumns,
-      columnsInDragArea: InnerJoinController.getDefaultDragAreaColumns(props)
+      columnsInDragArea: InnerJoinController.getDefaultDragAreaColumns(props),
     };
   }
 
   componentWillReceiveProps(nextProps) {
-    const isLeftColumnsChanged = nextProps.leftColumns.size && !this.props.leftColumns.size;
-    const isRightColumnsChanged = nextProps.rightColumns.size && !this.props.rightColumns.size;
+    const isLeftColumnsChanged =
+      nextProps.leftColumns.size && !this.props.leftColumns.size;
+    const isRightColumnsChanged =
+      nextProps.rightColumns.size && !this.props.rightColumns.size;
     if (isLeftColumnsChanged || isRightColumnsChanged) {
       this.setState({
         leftColumns: nextProps.leftColumns,
         rightColumns: nextProps.rightColumns,
-        columnsInDragArea: InnerJoinController.getDefaultDragAreaColumns(nextProps)
+        columnsInDragArea:
+          InnerJoinController.getDefaultDragAreaColumns(nextProps),
       });
     }
   }
@@ -93,44 +106,66 @@ export class InnerJoinController extends Component {
       isDragInProgress: true,
       columnDragName: dragData.id,
       type,
-      dragColumntableType: type
+      dragColumntableType: type,
     });
   }
 
   onDrop(dropData) {
-    const name = this.state.type === 'custom' ? 'rightColumns' : 'leftColumns';
-    const columnNameInArea = this.state.type === 'custom' ? 'custom' : 'default';
+    const name = this.state.type === "custom" ? "rightColumns" : "leftColumns";
+    const columnNameInArea =
+      this.state.type === "custom" ? "custom" : "default";
     const columnName = dropData.id;
-    const columnIndexThatWillBeAdded = !this.state.columnsInDragArea
-      .find(col => col.getIn([columnNameInArea, 'name']) === columnName)
-      && this.state[name].findIndex(column => column.get('name') === columnName);
+    const columnIndexThatWillBeAdded =
+      !this.state.columnsInDragArea.find(
+        (col) => col.getIn([columnNameInArea, "name"]) === columnName
+      ) &&
+      this.state[name].findIndex((column) => column.get("name") === columnName);
     const column = this.state[name].get(columnIndexThatWillBeAdded);
 
-    if (dropData.id && columnIndexThatWillBeAdded || columnIndexThatWillBeAdded === 0) {
-      const mappedColumn = this.state.type === 'custom'
-        ? InnerJoinController.getDragAreaColumnModel(Immutable.Map({ empty: true }), column)
-        : InnerJoinController.getDragAreaColumnModel(column, Immutable.Map({ empty: true }));
+    if (
+      (dropData.id && columnIndexThatWillBeAdded) ||
+      columnIndexThatWillBeAdded === 0
+    ) {
+      const mappedColumn =
+        this.state.type === "custom"
+          ? InnerJoinController.getDragAreaColumnModel(
+              Immutable.Map({ empty: true }),
+              column
+            )
+          : InnerJoinController.getDragAreaColumnModel(
+              column,
+              Immutable.Map({ empty: true })
+            );
       this.setState({
         isDragInProgress: false,
-        type: '',
-        columnDragName: ''
+        type: "",
+        columnDragName: "",
       });
-      const newColumnsInDragArea = this.state.columnsInDragArea.push(mappedColumn);
-      this.setState({ columnsInDragArea : newColumnsInDragArea }, this.updateColumns);
+      const newColumnsInDragArea =
+        this.state.columnsInDragArea.push(mappedColumn);
+      this.setState(
+        { columnsInDragArea: newColumnsInDragArea },
+        this.updateColumns
+      );
     }
   }
 
   stopDrag() {
     this.setState({
       isDragInProgress: false,
-      type: '',
-      columnDragName: ''
+      type: "",
+      columnDragName: "",
     });
   }
 
   removeColumn(id) {
-    const newColumnsInDragArea = this.state.columnsInDragArea.filter(item => item.get('id') !== id);
-    this.setState({ columnsInDragArea: newColumnsInDragArea }, this.updateColumns);
+    const newColumnsInDragArea = this.state.columnsInDragArea.filter(
+      (item) => item.get("id") !== id
+    );
+    this.setState(
+      { columnsInDragArea: newColumnsInDragArea },
+      this.updateColumns
+    );
   }
 
   addEmptyColumnToInnerJoin() {
@@ -139,31 +174,47 @@ export class InnerJoinController extends Component {
       Immutable.Map({ empty: true })
     );
     const newColumnsInDragArea = this.state.columnsInDragArea.push(empty);
-    this.setState({ columnsInDragArea : newColumnsInDragArea }, this.updateColumns);
+    this.setState(
+      { columnsInDragArea: newColumnsInDragArea },
+      this.updateColumns
+    );
   }
 
-  addColumnToInnerJoin({columnName, dragColumnId, dragColumnType}) {
+  addColumnToInnerJoin({ columnName, dragColumnId, dragColumnType }) {
     const { columnsInDragArea } = this.state;
-    const index = columnsInDragArea.findIndex(item => dragColumnId === item.get('id'));
+    const index = columnsInDragArea.findIndex(
+      (item) => dragColumnId === item.get("id")
+    );
     const column = columnsInDragArea.get(index);
-    const newId = dragColumnType === 'custom'
-      ? column.get('default').get('name') + columnName
-      : columnName + column.get('custom').get('name');
-    const newColumn = dragColumnType === 'custom'
-      ? this.state.rightColumns.find(item => item.get('name') === columnName)
-      : this.state.leftColumns.find(item => item.get('name') === columnName);
-    const columns = columnsInDragArea.setIn([index, dragColumnId], newId).setIn([index, dragColumnType], newColumn);
-    this.setState({
-      columnsInDragArea: columns
-    }, this.updateColumns);
+    const newId =
+      dragColumnType === "custom"
+        ? column.get("default").get("name") + columnName
+        : columnName + column.get("custom").get("name");
+    const newColumn =
+      dragColumnType === "custom"
+        ? this.state.rightColumns.find(
+            (item) => item.get("name") === columnName
+          )
+        : this.state.leftColumns.find(
+            (item) => item.get("name") === columnName
+          );
+    const columns = columnsInDragArea
+      .setIn([index, dragColumnId], newId)
+      .setIn([index, dragColumnType], newColumn);
+    this.setState(
+      {
+        columnsInDragArea: columns,
+      },
+      this.updateColumns
+    );
   }
 
   updateColumns() {
     const { columnsInDragArea } = this.state;
-    const columns = columnsInDragArea.toJS().map(column => {
+    const columns = columnsInDragArea.toJS().map((column) => {
       return {
         joinedColumn: column.default.name,
-        joinedTableKeyColumnName: column.custom.name
+        joinedTableKeyColumnName: column.custom.name,
       };
     });
     this.props.fields.columns.onChange(columns);
@@ -171,9 +222,14 @@ export class InnerJoinController extends Component {
 
   render() {
     const activeDataset = this.props.fields.activeDataset;
-    const dpathArray = (activeDataset.value || activeDataset.initialValue || []);
-    const customNameForDisplay = dpathArray && dpathArray[dpathArray.length - 1];
-    const defaultNameForDisplay = ExploreInfoHeader.getNameForDisplay(this.props.dataset);
+    const dpathArray = activeDataset.value || activeDataset.initialValue || [];
+    const customNameForDisplay =
+      dpathArray && dpathArray[dpathArray.length - 1];
+    const defaultNameForDisplay = ExploreInfoHeader.getNameForDisplay(
+      this.props.dataset,
+      {},
+      this.props.location
+    );
     const { canSelect } = this.props;
 
     return (
@@ -194,7 +250,7 @@ export class InnerJoinController extends Component {
         addColumnToInnerJoin={this.addColumnToInnerJoin}
         addEmptyColumnToInnerJoin={this.addEmptyColumnToInnerJoin}
         columnsInDragArea={this.state.columnsInDragArea}
-        dragType='groupBy'
+        dragType="groupBy"
         canSelect={canSelect}
       />
     );
@@ -203,7 +259,10 @@ export class InnerJoinController extends Component {
 
 function mapStateToProps(state) {
   return {
-    recommendation: getExploreState(state).join.getIn(['custom', 'recommendation'])
+    recommendation: getExploreState(state).join.getIn([
+      "custom",
+      "recommendation",
+    ]),
   };
 }
 

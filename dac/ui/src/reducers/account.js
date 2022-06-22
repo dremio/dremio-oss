@@ -13,56 +13,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable  from 'immutable';
+import Immutable from "immutable";
 
-import * as ActionTypes from 'actions/account';
-import * as AccountTypes from 'actions/admin';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import * as ActionTypes from "actions/account";
+import * as AccountTypes from "actions/admin";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
 export function getInitialState() {
   return Immutable.fromJS({
-    user: { // TODO: no fake objects: this should be of User type and null by default
+    user: {
+      // TODO: no fake objects: this should be of User type and null by default
       ...(localStorageUtils ? localStorageUtils.getUserData() : {}),
       isInProgress: false,
       isFailed: false,
-      name: ''
+      name: "",
     },
     allUsers: {
       users: [],
       isInProgress: false,
-      isFailed: false
-    }
+      isFailed: false,
+    },
   });
 }
 
+const setUserState = (state, action) => {
+  return Immutable.fromJS({ ...state.toJS(), user: action.payload });
+};
+
 const loginUserStart = (state, action) => {
-  return state.setIn(['user', 'isInProgress'], !action.error)
-    .setIn(['user', 'isFailed'], action.error)
-    .setIn(['user', 'name'], action.meta.userName);
+  return state
+    .setIn(["user", "isInProgress"], !action.error)
+    .setIn(["user", "isFailed"], action.error)
+    .setIn(["user", "name"], action.meta.userName);
 };
 
 const loginUserSuccess = (state, action) => {
-  return state.set('user', Immutable.fromJS({...action.payload, inProgress: false, isFailed: false}));
+  return state.set(
+    "user",
+    Immutable.fromJS({ ...action.payload, inProgress: false, isFailed: false })
+  );
 };
 
 const loginUserFailure = (state, action) => {
-  return state.setIn(['user', 'isInProgress'], false)
-    .setIn(['user', 'isFailed'], true)
-    .setIn(['user', 'name'], action.meta.userName);
+  return state
+    .setIn(["user", "isInProgress"], false)
+    .setIn(["user", "isFailed"], true)
+    .setIn(["user", "name"], action.meta.userName);
 };
 
 const editAccountSuccess = (state, action) => {
-  return state.set('user', Immutable.fromJS({
-    ...state.get('user').toJS(),
-    ...action.payload.userConfig
-  }));
+  return state.set(
+    "user",
+    Immutable.fromJS({
+      ...state.get("user").toJS(),
+      ...action.payload.userConfig,
+    })
+  );
 };
 
 export const handlers = {
   [ActionTypes.LOGIN_USER_START]: loginUserStart,
   [ActionTypes.LOGIN_USER_SUCCESS]: loginUserSuccess,
   [ActionTypes.LOGIN_USER_FAILURE]: loginUserFailure,
-  [AccountTypes.EDIT_ACCOUNT_SUCCESS]: editAccountSuccess
+  [AccountTypes.EDIT_ACCOUNT_SUCCESS]: editAccountSuccess,
+  [ActionTypes.SET_USER_STATE]: setUserState,
 };
 
 export default function accounts(state = getInitialState(), action) {

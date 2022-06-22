@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 // Colors
-export const PRIMARY = 'primary';
-export const SECONDARY = 'secondary';
-export const WARNING = 'warn';
-export const DEFAULT = 'default';
+export const PRIMARY = "primary";
+export const SECONDARY = "secondary";
+export const WARNING = "warn";
+export const DEFAULT = "default";
 
 // Variants
-export const CONTAINED = 'contained';
-export const OUTLINED = 'outlined';
-export const TEXT = 'text';
-
+export const CONTAINED = "contained";
+export const OUTLINED = "outlined";
+export const TEXT = "text";
 
 export const COLORS_ARRAY = [PRIMARY, SECONDARY, DEFAULT, WARNING];
 

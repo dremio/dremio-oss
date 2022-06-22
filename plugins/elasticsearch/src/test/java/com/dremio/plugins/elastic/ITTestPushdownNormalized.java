@@ -37,7 +37,7 @@ public class ITTestPushdownNormalized extends ElasticBaseTestQuery {
   private static final Logger logger = LoggerFactory.getLogger(ITTestPushdownNormalized.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Test
   public void testLikeOnAnalyzedText() throws Exception {

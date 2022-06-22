@@ -32,9 +32,9 @@ import com.google.common.base.Preconditions;
 @JsonTypeName("json-field-change")
 public class JsonFieldChangeExceptionContext extends JsonAdditionalExceptionContext {
 
-  final private List<String> originTablePath;
-  final private String fieldName;
-  final private CompleteType fieldSchema;
+  private final List<String> originTablePath;
+  private final String fieldName;
+  private final CompleteType fieldSchema;
 
   public JsonFieldChangeExceptionContext(@JsonProperty("originTablePath") List<String> originTablePath,
                                          @JsonProperty("fieldName") String fieldName,

@@ -47,7 +47,6 @@ import org.junit.Test;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionOperator;
 import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.DremioRexBuilder;
@@ -180,8 +179,7 @@ public class TestVersionedTableExpressionResolver {
 
   private SqlVersionedTableMacroCall createVersionedTableMacroCall(SqlNode expr) {
     return new SqlVersionedTableMacroCall(mock(SqlOperator.class), new SqlNode[] {},
-      TableVersionType.TIMESTAMP, TableVersionOperator.AT, expr, new SqlIdentifier("alias", SqlParserPos.ZERO),
-      SqlParserPos.ZERO);
+      TableVersionType.TIMESTAMP, expr, new SqlIdentifier("alias", SqlParserPos.ZERO), SqlParserPos.ZERO);
   }
 
   private SqlTimestampLiteral createTimestampLiteral(int year, int month, int day, int hour, int minute, int second) {
@@ -208,7 +206,7 @@ public class TestVersionedTableExpressionResolver {
   }
 
   private TableVersionContext getExpected(int year, int month, int day, int hour, int minute, int second) {
-    return new TableVersionContext(TableVersionType.TIMESTAMP, TableVersionOperator.AT,
+    return new TableVersionContext(TableVersionType.TIMESTAMP,
       getTimestampMillis(year, month, day, hour, minute, second));
   }
 }

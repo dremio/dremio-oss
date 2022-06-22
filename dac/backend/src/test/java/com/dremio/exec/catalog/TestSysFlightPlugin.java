@@ -123,8 +123,9 @@ public class TestSysFlightPlugin extends BaseTestQuery {
       .sqlQuery("select * from sys.materializations")
       .unOrdered()
       .baselineColumns("reflection_id", "materialization_id", "created", "expires", "size_bytes", "series_id",
-        "init_refresh_job_id", "series_ordinal", "join_analysis", "state", "failure_msg", "data_partitions", "last_refresh_from_pds")
-      .baselineValues("", "", defaultTime, defaultTime, 0L, 0L, "", 0, "", "", "", "", defaultTime)
+        "init_refresh_job_id", "series_ordinal", "join_analysis", "state", "failure_msg", "data_partitions", "last_refresh_from_pds",
+        "last_refresh_finished", "last_refresh_duration_millis")
+      .baselineValues("", "", defaultTime, defaultTime, 0L, 0L, "", 0, "", "", "", "", defaultTime, defaultTime, 0L)
       .build()
       .run();
   }

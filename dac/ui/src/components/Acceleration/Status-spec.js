@@ -13,52 +13,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import Status from './Status';
+import Status from "./Status";
 
-describe('Status-spec', () => {
+describe("Status-spec", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       reflection: Immutable.fromJS({}),
-      style: {}
+      style: {},
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Status {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should have alt text as message', () => {
-    const props = {...minimalProps, reflection: Immutable.fromJS({
-      enabled: false
-    })};
+  it("should have alt text as message", () => {
+    const props = {
+      ...minimalProps,
+      reflection: Immutable.fromJS({
+        enabled: false,
+      }),
+    };
     const wrapper = shallow(<Status {...props} />);
-    const result = wrapper.find('Art');
-    expect(result.props().alt).to.equal('Reflection is disabled.');
+    const result = wrapper.find("Art");
+    expect(result.props().alt).to.equal("Reflection is disabled.");
   });
 
-  it('should have message for manual reflections with failures', () => {
-    const props = {...minimalProps, reflection: Immutable.fromJS({
-      enabled: true,
-      status: {availability: 'AVAILABLE', refresh: 'MANUAL', failureCount: 2}
-    })};
+  it("should have message for manual reflections with failures", () => {
+    const props = {
+      ...minimalProps,
+      reflection: Immutable.fromJS({
+        enabled: true,
+        status: {
+          availability: "AVAILABLE",
+          refresh: "MANUAL",
+          failureCount: 2,
+        },
+      }),
+    };
     const wrapper = shallow(<Status {...props} />);
-    const result = wrapper.find('Art');
-    expect(result.props().alt).to.equal('Reflection can accelerate.\n\n2 refresh job attempts failed, will not reattempt.');
+    const result = wrapper.find("Art");
+    expect(result.props().alt).to.equal(
+      "Reflection can accelerate.\n\n2 refresh job attempts failed, will not reattempt."
+    );
   });
 
-  it('should have message for non-manual reflections with failures', () => {
-    const props = {...minimalProps, reflection: Immutable.fromJS({
-      enabled: true,
-      status: {availability: 'AVAILABLE', refresh: 'SCHEDULED', failureCount: 2}
-    })};
+  it("should have message for non-manual reflections with failures", () => {
+    const props = {
+      ...minimalProps,
+      reflection: Immutable.fromJS({
+        enabled: true,
+        status: {
+          availability: "AVAILABLE",
+          refresh: "SCHEDULED",
+          failureCount: 2,
+        },
+      }),
+    };
     const wrapper = shallow(<Status {...props} />);
-    const result = wrapper.find('Art');
-    expect(result.props().alt).to.equal('Reflection can accelerate.\n\n2 refresh job attempts failed, will reattempt.');
+    const result = wrapper.find("Art");
+    expect(result.props().alt).to.equal(
+      "Reflection can accelerate.\n\n2 refresh job attempts failed, will reattempt."
+    );
   });
-
 });

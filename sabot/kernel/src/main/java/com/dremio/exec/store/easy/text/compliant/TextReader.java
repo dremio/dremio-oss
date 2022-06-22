@@ -102,8 +102,7 @@ final class TextReader implements AutoCloseable {
     this.output = output;
 
     final byte[] newLineDelimiter = settings.getNewLineDelimiter();
-    isNormalLineDelimiter = ((newLineDelimiter.length == 1) && (newLineDelimiter[0] == settings.getNormalizedNewLine())) ?
-      true : false;
+    isNormalLineDelimiter = newLineDelimiter.length == 1 && newLineDelimiter[0] == settings.getNormalizedNewLine();
   }
 
   public TextOutput getOutput(){

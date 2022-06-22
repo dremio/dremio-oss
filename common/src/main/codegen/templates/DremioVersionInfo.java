@@ -29,8 +29,8 @@ import com.dremio.common.Version;
 /**
  * Give access to Dremio version as captured during the build
  *
- * <strong>Caution</strong> don't rely on major, minor and patch versions only to compare two 
- * Dremio versions. Instead you should use the whole string, and apply the same semver algorithm 
+ * <strong>Caution</strong> don't rely on major, minor and patch versions only to compare two
+ * Dremio versions. Instead you should use the whole string, and apply the same semver algorithm
  * as Maven (see {@code org.apache.maven.artifact.versioning.ComparableVersion}).
  *
  */
@@ -81,10 +81,10 @@ public class DremioVersionInfo {
 
   /**
    *  Get the Dremio build number from pom
-   *  @return z if assuming the version number is x.y.z(.b)(-suffix)
+   *  @return b if assuming the version number is x.y.z(.b)(-suffix)
    */
   public static int getBuildNumber() {
-    return VERSION.getPatchVersion();
+    return VERSION.getBuildNumber();
   }
 
   /**

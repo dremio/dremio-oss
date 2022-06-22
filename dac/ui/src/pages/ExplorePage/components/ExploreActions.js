@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-import ExploreTableDcsPickEngine from '@inject/pages/ExplorePage/components/ExploreTable/ExploreTableDcsPickEngine';
-import './ExploreActions.less';
+import ExploreTableDcsPickEngine from "@inject/pages/ExplorePage/components/ExploreTable/ExploreTableDcsPickEngine";
+import PropTypes from "prop-types";
+import "./ExploreActions.less";
 
-export const ExploreActions = () => {
+export const ExploreActions = (props) => {
   return (
-    <div className='exploreActions'>
-      <ExploreTableDcsPickEngine hideSeparator />
+    <div className="exploreActions">
+      <ExploreTableDcsPickEngine
+        hideSeparator
+        disableEnginePickMenu={props.disableEnginePickMenu}
+      />
     </div>
   );
+};
+
+ExploreActions.propTypes = {
+  disableEnginePickMenu: PropTypes.bool,
 };

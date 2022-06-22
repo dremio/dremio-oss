@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable  from 'immutable';
-import * as ActionTypes from 'actions/explore/join';
-import { EDIT_RECOMMENDED_JOIN } from 'actions/explore/join';
-import { CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
+import Immutable from "immutable";
+import * as ActionTypes from "actions/explore/join";
+import { EDIT_RECOMMENDED_JOIN } from "actions/explore/join";
+import { CUSTOM_JOIN } from "@app/constants/explorePage/joinTabs";
 
 const initialState = Immutable.fromJS({
   joinTab: null,
@@ -26,92 +26,104 @@ const initialState = Immutable.fromJS({
   custom: {
     joinDatasetPathList: null,
     joinVersion: null,
-    recommendation: null
+    recommendation: null,
   },
 
   recommended: {
     recommendedJoins: [],
-    activeRecommendedJoin: {}
-  }
+    activeRecommendedJoin: {},
+  },
 });
 
 export default function join(oldState, action) {
   const state = oldState || initialState;
 
   switch (action.type) {
-  case ActionTypes.UPDATE_JOIN_DATASET_VERSION: {
-    return state.merge({
-      custom: {
-        joinDatasetPathList: action.joinDatasetPathList,
-        joinVersion: action.joinVersion
-      }
-    });
-  }
+    case ActionTypes.UPDATE_JOIN_DATASET_VERSION: {
+      return state.merge({
+        custom: {
+          joinDatasetPathList: action.joinDatasetPathList,
+          joinVersion: action.joinVersion,
+        },
+      });
+    }
 
-  case ActionTypes.CLEAR_JOIN_DATASET: {
-    return state.merge({
-      custom: {
-        joinDatasetPathList: null,
-        joinVersion: null
-      }
-    });
-  }
+    case ActionTypes.CLEAR_JOIN_DATASET: {
+      return state.merge({
+        custom: {
+          joinDatasetPathList: null,
+          joinVersion: null,
+        },
+      });
+    }
 
-  case ActionTypes.SET_JOIN_TAB: {
-    return state.merge({
-      joinTab: action.tabId,
-      noData: true,
-      step: null,
+    case ActionTypes.SET_JOIN_TAB: {
+      return state.merge({
+        joinTab: action.tabId,
+        noData: true,
+        step: null,
 
-      custom: {
-        joinDatasetPathList: null,
-        joinVersion: null
-      }
-    });
-  }
+        custom: {
+          joinDatasetPathList: null,
+          joinVersion: null,
+        },
+      });
+    }
 
-  case ActionTypes.RESET_JOINS: {
-    return initialState;
-  }
+    case ActionTypes.RESET_JOINS: {
+      return initialState;
+    }
 
-  case ActionTypes.SET_JOIN_STEP: {
-    return state.set('step', action.step);
-  }
+    case ActionTypes.SET_JOIN_STEP: {
+      return state.set("step", action.step);
+    }
 
-  case EDIT_RECOMMENDED_JOIN: {
-    const dataset = action.recommendation.get('rightTableFullPathList').toJS();
+    case EDIT_RECOMMENDED_JOIN: {
+      const dataset = action.recommendation
+        .get("rightTableFullPathList")
+        .toJS();
 
-    return state.merge({
-      joinTab: CUSTOM_JOIN,
-      noData: true,
-      step: 2,
+      return state.merge({
+        joinTab: CUSTOM_JOIN,
+        noData: true,
+        step: 2,
 
-      custom: {
-        joinDatasetPathList: dataset,
-        joinVersion: action.version,
-        recommendation: action.recommendation
-      }
-    });
-  }
+        custom: {
+          joinDatasetPathList: dataset,
+          joinVersion: action.version,
+          recommendation: action.recommendation,
+        },
+      });
+    }
 
-  case ActionTypes.LOAD_RECOMMENDED_JOIN_START: {
-    return state.setIn(['recommended', 'recommendedJoins'], Immutable.List([]))
-      .setIn(['recommended', 'activeRecommendedJoin'], Immutable.Map());
-  }
+    case ActionTypes.LOAD_RECOMMENDED_JOIN_START: {
+      return state
+        .setIn(["recommended", "recommendedJoins"], Immutable.List([]))
+        .setIn(["recommended", "activeRecommendedJoin"], Immutable.Map());
+    }
 
-  case ActionTypes.LOAD_RECOMMENDED_JOIN_SUCCESS: {
-    return state.setIn(['recommended', 'recommendedJoins'], Immutable.fromJS(action.payload.recommendations || []));
-  }
+    case ActionTypes.LOAD_RECOMMENDED_JOIN_SUCCESS: {
+      return state.setIn(
+        ["recommended", "recommendedJoins"],
+        Immutable.fromJS(action.payload.recommendations || [])
+      );
+    }
 
-  case ActionTypes.SET_ACTIVE_RECOMMENDED_JOIN: {
-    return state.setIn(['recommended', 'activeRecommendedJoin'], action.recommendation);
-  }
+    case ActionTypes.SET_ACTIVE_RECOMMENDED_JOIN: {
+      return state.setIn(
+        ["recommended", "activeRecommendedJoin"],
+        action.recommendation
+      );
+    }
 
-  case ActionTypes.RESET_ACTIVE_RECOMMENDED_JOIN: {
-    return state.setIn(['recommended', 'activeRecommendedJoin'], Immutable.Map());
-  }
+    case ActionTypes.RESET_ACTIVE_RECOMMENDED_JOIN: {
+      return state.setIn(
+        ["recommended", "activeRecommendedJoin"],
+        Immutable.Map()
+      );
+    }
 
-  default:
-    return state;
+    default:
+      return state;
   }
 }

@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
- @import '~@app/uiTheme/less/color-schema.less';
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global {
-   .toggle {
+:global {
+  .toggle {
     .MuiSwitch-thumb {
       box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.15) !important;
     }
-  
+
     .Mui-checked.Mui-disabled {
       color: @FIGMA_PRIMARY_200 !important;
-  
+
       & + .MuiSwitch-track {
         opacity: 1 !important;
         background-color: @FIGMA_PRIMARY_150 !important;
       }
     }
-   }
- }
+  }
+}

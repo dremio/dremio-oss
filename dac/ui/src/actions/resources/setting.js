@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { normalize } from 'normalizr';
-import Immutable from 'immutable';
-import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import crudFactory from './crudFactory';
+import { normalize } from "normalizr";
+import Immutable from "immutable";
+import ApiUtils from "@app/utils/apiUtils/apiUtils";
+import crudFactory from "./crudFactory";
 
-const resourceName = 'setting';
+const resourceName = "setting";
 
 const actions = crudFactory(resourceName);
 
@@ -30,36 +30,45 @@ const actions = crudFactory(resourceName);
  * @param {string} viewId
  * @returns setting values for all {@see requiredSettings} + settings that were altered by the users
  */
-export const getDefinedSettings = (requiredSettings, includeSetSettings, viewId) => async dispatch => {
-  if (!requiredSettings) {
-    throw new Error('requiredSettings must be provided');
-  }
-  const prefix = 'GET_DEFINED_SETTINGS';
-  const meta = { viewId };
-  dispatch({type: `${prefix}_START`, meta});
+export const getDefinedSettings =
+  (requiredSettings, includeSetSettings, viewId) => async (dispatch) => {
+    if (!requiredSettings) {
+      throw new Error("requiredSettings must be provided");
+    }
+    const prefix = "GET_DEFINED_SETTINGS";
+    const meta = { viewId };
+    dispatch({ type: `${prefix}_START`, meta });
 
-  const options = {
-    method: 'POST', body: JSON.stringify({
-      requiredSettings,
-      includeSetSettings
-    })
+    const options = {
+      method: "POST",
+      body: JSON.stringify({
+        requiredSettings,
+        includeSetSettings,
+      }),
+    };
+    return ApiUtils.fetchJson(
+      "settings/",
+      (json) => {
+        dispatch({
+          type: `${prefix}_SUCCESS`,
+          meta: { ...meta, entityClears: [resourceName] },
+          payload: Immutable.fromJS(normalize(json, actions.listSchema)),
+        });
+      },
+      () => {
+        dispatch({
+          type: `${prefix}_FAILURE`,
+          meta: {
+            ...meta,
+            notification: {
+              level: "error",
+              message: la("Failed to load settings from the server. "),
+            },
+          },
+        });
+      },
+      options,
+      2
+    );
   };
-  return ApiUtils.fetchJson('settings/', json => {
-    dispatch({
-      type: `${prefix}_SUCCESS`,
-      meta: { ...meta, entityClears: [resourceName]},
-      payload: Immutable.fromJS(normalize(json, actions.listSchema))
-    });
-  }, () => {
-    dispatch({
-      type: `${prefix}_FAILURE`,
-      meta: {
-        ...meta, notification: {
-          level: 'error',
-          message: la('Failed to load settings from the server. ')
-        }
-      }
-    });
-  }, options, 2);
-};
 export default actions;

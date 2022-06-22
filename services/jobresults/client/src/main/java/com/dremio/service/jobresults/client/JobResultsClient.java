@@ -23,4 +23,3 @@ import com.dremio.services.jobresults.common.JobResultsTunnel;
 public interface JobResultsClient {
   JobResultsTunnel getTunnel();
 }
-

@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -36,21 +37,33 @@ import com.google.common.collect.ImmutableList;
  */
 public class SqlColumnDeclaration extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
-    new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL);
+    new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL) {
+      public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+        if (operands.length == 2) {
+          return new SqlColumnDeclaration(pos, (SqlColumnPolicyPair) operands[0], (SqlDataTypeSpec) operands[1], null);
+        } else if (operands.length == 3) {
+          return new SqlColumnDeclaration(pos, (SqlColumnPolicyPair) operands[0], (SqlDataTypeSpec) operands[1], (SqlNode) operands[2]);
+        }
+        throw new IllegalArgumentException("SqlSpecialOperator.createCall() has to get 2 or 3 operands!");
+      }
+  };
+
   private final SqlIdentifier name;
   private final SqlDataTypeSpec dataType;
+  private final SqlPolicy policy;
   private final SqlNode expression;
   private final ColumnStrategy strategy;
 
   /**
    * Creates a SqlColumnDeclaration.
    */
-  public SqlColumnDeclaration(SqlParserPos pos, SqlIdentifier name,
+  public SqlColumnDeclaration(SqlParserPos pos, SqlColumnPolicyPair columnPolicyPair,
                               SqlDataTypeSpec dataType, SqlNode expression) {
     super(pos);
-    this.name = name;
+    this.name = columnPolicyPair.getName();
     this.dataType = dataType;
     this.expression = expression;
+    this.policy = columnPolicyPair.getPolicy();
     this.strategy = ColumnStrategy.NULLABLE;
   }
 
@@ -61,7 +74,11 @@ public class SqlColumnDeclaration extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(name, dataType);
+    if (expression == null) {
+      return ImmutableList.of(new SqlColumnPolicyPair(pos, name, policy), dataType);
+    } else {
+      return ImmutableList.of(new SqlColumnPolicyPair(pos, name, policy), dataType, expression);
+    }
   }
 
   @Override
@@ -87,6 +104,10 @@ public class SqlColumnDeclaration extends SqlCall {
           throw new AssertionError("unexpected: " + strategy);
       }
     }
+
+    if (policy != null) {
+      policy.unparse(writer, leftPrec, rightPrec);
+    }
   }
 
   private void exp(SqlWriter writer) {
@@ -95,6 +116,9 @@ public class SqlColumnDeclaration extends SqlCall {
     } else {
       writer.sep("(");
       expression.unparse(writer, 0, 0);
+      if (policy != null) {
+        policy.unparse(writer, 0, 0);
+      }
       writer.sep(")");
     }
   }
@@ -113,5 +137,9 @@ public class SqlColumnDeclaration extends SqlCall {
 
   public ColumnStrategy getStrategy() {
     return strategy;
+  }
+
+  public SqlPolicy getPolicy() {
+    return policy;
   }
 }

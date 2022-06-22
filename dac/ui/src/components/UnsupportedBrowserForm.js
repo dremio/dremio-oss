@@ -13,41 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import Button from 'components/Buttons/Button';
-import FontIcon from 'components/Icon/FontIcon';
-import LoginTitle from 'pages/AuthenticationPage/components/LoginTitle';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import Button from "components/Buttons/Button";
+import FontIcon from "components/Icon/FontIcon";
+import LoginTitle from "pages/AuthenticationPage/components/LoginTitle";
 
-@Radium
-export default class UnsupportedBrowserForm extends Component {
+class UnsupportedBrowserForm extends Component {
   static propTypes = {
-    style: PropTypes.object,
-    approveBrowser: PropTypes.func
-  }
+    approveBrowser: PropTypes.func,
+  };
   renderWarning() {
     return (
-      <span style={{ display: 'flex', alignItems: 'center' }}>
-        <FontIcon type='WarningSolid' theme={styles.theme} />
+      <span style={{ display: "flex", alignItems: "center" }}>
+        <FontIcon type="WarningSolid" theme={styles.theme} />
         <span>
-          {la('Dremio works best in the latest versions of Chrome, Safari, Firefox, Edge, and Internet\u00A0Explorer.')}
+          {la(
+            "Dremio works best in the latest versions of Chrome, Safari, Firefox, Edge, and Internet\u00A0Explorer."
+          )}
         </span>
       </span>
     );
   }
   render() {
     return (
-      <div className='page' style={[this.props.style, styles.base]}>
+      <div className="page" style={styles.base}>
         <div style={styles.form}>
           <LoginTitle subTitle={this.renderWarning()} />
           <Button
             onClick={this.props.approveBrowser}
             style={styles.button}
             type={ButtonTypes.NEXT}
-            key='details-wizard-next'
-            text={la('OK')}
+            key="details-wizard-next"
+            text={la("OK")}
           />
         </div>
       </div>
@@ -57,21 +56,21 @@ export default class UnsupportedBrowserForm extends Component {
 
 const styles = {
   base: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#2A394A',
-    overflow: 'hidden'
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2A394A",
+    overflow: "hidden",
   },
   form: {
-    position: 'relative',
-    backgroundColor: '#344253',
-    padding: 40
+    position: "relative",
+    backgroundColor: "#344253",
+    padding: 40,
   },
   theme: {
     Icon: {
       width: 70,
-      height: 70
-    }
-  }
+      height: 70,
+    },
+  },
 };
-
+export default UnsupportedBrowserForm;

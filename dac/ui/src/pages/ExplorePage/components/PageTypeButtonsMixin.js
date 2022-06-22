@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
+import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
 
-export default function(input) {
+export default function (input) {
   const originalFn = input.prototype.getAvailablePageTypes;
 
   if (!originalFn) {
-    throw new Error('Input must have getAvailablePageTypes method');
+    throw new Error("Input must have getAvailablePageTypes method");
   }
 
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getAvailablePageTypes() {
       const { dataset } = this.props;
-      const isNewQuery = dataset.get('isNewQuery') || !dataset.getIn(['apiLinks', 'namespaceEntity']);
+      const isNewQuery =
+        dataset.get("isNewQuery") ||
+        !dataset.getIn(["apiLinks", "namespaceEntity"]);
 
       const pageTypeList = originalFn.call(this);
 
@@ -34,6 +37,6 @@ export default function(input) {
       }
 
       return pageTypeList;
-    }
+    },
   });
 }

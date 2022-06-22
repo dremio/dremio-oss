@@ -13,31 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Menu from 'components/Menus/Menu';
+import Menu from "components/Menus/Menu";
 
-import HeaderDropdown from './HeaderDropdown';
+import HeaderDropdown from "./HeaderDropdown";
 
-describe('HeaderDropdown', () => {
-
+describe("HeaderDropdown", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
   beforeEach(() => {
     minimalProps = {
-      name: 'theName',
-      menu: <Menu></Menu>
+      name: "theName",
+      menu: <Menu></Menu>,
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<HeaderDropdown {...commonProps}/>);
+    wrapper = shallow(<HeaderDropdown {...commonProps} />);
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<HeaderDropdown {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<HeaderDropdown {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-
 });

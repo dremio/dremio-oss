@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 export function checkImmutableSchema(schema) {
-  return function(props, propName, componentName) {
+  return function (props, propName, componentName) {
     const item = props[propName];
     if (!item.toJS) {
       return new Error(

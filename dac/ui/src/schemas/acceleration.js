@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
 function getId(acceleration) {
   return acceleration.id;
 }
 
-const acceleration = new Schema('acceleration', {
-  idAttribute: getId // todo: normalize this to just `id`
+const acceleration = new Schema("acceleration", {
+  idAttribute: getId, // todo: normalize this to just `id`
 });
 
 export default acceleration;
 
-export const datasetAccelerationSchema = new Schema('datasetAcceleration', {
-  idAttribute: getId
+export const datasetAccelerationSchema = new Schema("datasetAcceleration", {
+  idAttribute: getId,
 });
 
-export const jobAccelerationSchema = new Schema('jobAcceleration', {
-  idAttribute: getId
+export const jobAccelerationSchema = new Schema("jobAcceleration", {
+  idAttribute: getId,
 });

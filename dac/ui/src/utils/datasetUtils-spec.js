@@ -13,75 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import {abilities} from './datasetUtils';
+import { abilities } from "./datasetUtils";
 
-
-describe('datasetUtils', () => {
-  describe('#abilities', () => {
+describe("datasetUtils", () => {
+  describe("#abilities", () => {
     let entity;
 
     beforeEach(() => {
       entity = Immutable.Map({
-        isHomeFile: false
+        isHomeFile: false,
       });
     });
 
-    it('with a file', () => {
-      expect(abilities(entity.set('entityType', 'file'))).to.eql({
+    it("with a file", () => {
+      expect(abilities(entity.set("entityType", "file"))).to.eql({
         canEditFormat: true,
         canRemoveFormat: true,
         canEdit: false,
         canMove: false,
         canDelete: false,
-        canSetAccelerationUpdates: true
+        canSetAccelerationUpdates: true,
       });
     });
 
-    it('with a file in home', () => {
-      expect(abilities(entity.set('isHomeFile', true).set('entityType', 'file'))).to.eql({
+    it("with a file in home", () => {
+      expect(
+        abilities(entity.set("isHomeFile", true).set("entityType", "file"))
+      ).to.eql({
         canEditFormat: true,
         canRemoveFormat: false,
         canEdit: false,
         canMove: false,
         canDelete: true,
-        canSetAccelerationUpdates: false
+        canSetAccelerationUpdates: false,
       });
     });
 
-    it('with a folder', () => {
-      expect(abilities(entity.set('entityType', 'folder'))).to.eql({
+    it("with a folder", () => {
+      expect(abilities(entity.set("entityType", "folder"))).to.eql({
         canEditFormat: true,
         canRemoveFormat: true,
         canEdit: false,
         canMove: false,
         canDelete: false,
-        canSetAccelerationUpdates: true
+        canSetAccelerationUpdates: true,
       });
     });
 
-    it('with a physicalDataset', () => {
-      expect(abilities(entity.set('entityType', 'physicalDataset'))).to.eql({
+    it("with a physicalDataset", () => {
+      expect(abilities(entity.set("entityType", "physicalDataset"))).to.eql({
         canEditFormat: false,
         canRemoveFormat: false,
         canEdit: false,
         canMove: false,
         canDelete: false,
-        canSetAccelerationUpdates: true
+        canSetAccelerationUpdates: true,
       });
     });
 
-    it('with anything else', () => {
-      expect(abilities(entity.set('entityType', '*'))).to.eql({
+    it("with anything else", () => {
+      expect(abilities(entity.set("entityType", "*"))).to.eql({
         canEditFormat: false,
         canRemoveFormat: false,
         canEdit: true,
         canMove: true,
         canDelete: true,
-        canSetAccelerationUpdates: false
+        canSetAccelerationUpdates: false,
       });
-
     });
   });
 });

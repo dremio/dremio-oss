@@ -13,41 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import deepEqual from 'deep-equal';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import moment from 'moment';
-import c3 from 'c3';
-import 'c3/c3.css';
-import $ from 'jquery';
+import { Component, createRef } from "react";
+import deepEqual from "deep-equal";
+import PropTypes from "prop-types";
+import moment from "@app/utils/dayjs";
+import c3 from "c3";
+import "c3/c3.css";
+import $ from "jquery";
 
-import { isDateType, dateTypeToFormat, TIME, FLOAT, DECIMAL, DATE, DATETIME } from '@app/constants/DataTypes';
-import ChartTooltip from './ChartTooltip';
+import {
+  isDateType,
+  dateTypeToFormat,
+  TIME,
+  FLOAT,
+  DECIMAL,
+  DATE,
+  DATETIME,
+} from "@app/constants/DataTypes";
+import ChartTooltip from "./ChartTooltip";
 
 const BAR_CHART_HEIGHT = 108;
 const MAX_TICK_COUNT = 8;
 const tickFormat = {
-  [TIME]: 'HH:mm',
-  [DATE]: 'MMM D, YYYY',
-  [DATETIME]: 'MMM D, YYYY HH:mm'
+  [TIME]: "HH:mm",
+  [DATE]: "MMM D, YYYY",
+  [DATETIME]: "MMM D, YYYY HH:mm",
 };
 
-@Radium
-export default class BarChart extends Component {
+class BarChart extends Component {
   static propTypes = {
     data: PropTypes.array,
     width: PropTypes.number,
     type: PropTypes.string,
     // This coordinate is relative to chart's left edge
-    sliderX: PropTypes.number // x coordinate of a slider if drag in a progress.
+    sliderX: PropTypes.number, // x coordinate of a slider if drag in a progress.
   };
 
   constructor(props) {
     super(props);
-
+    this.chartRef = createRef();
     this.state = {
-      hoverBarTooltipInfo: null //  see this.calculateTooltipInfo for format
+      hoverBarTooltipInfo: null, //  see this.calculateTooltipInfo for format
     };
   }
 
@@ -73,9 +79,11 @@ export default class BarChart extends Component {
 
   getBar = (mouseXRelativeToChart) => {
     if (!this.chart || !mouseXRelativeToChart) return null;
-    const bars = $('.c3-event-rect', this.refs.chart);
+    const bars = $(".c3-event-rect", this.chartRef.current);
     let bar = null;
-    const mouseX = mouseXRelativeToChart + this.refs.chart.getBoundingClientRect().left;
+    const mouseX =
+      mouseXRelativeToChart +
+      this.chartRef.current.getBoundingClientRect().left;
 
     bars.each((index, el) => {
       const rect = el.getBoundingClientRect();
@@ -86,22 +94,24 @@ export default class BarChart extends Component {
     });
 
     return bar;
-  }
+  };
 
   onMouseEnter = (e) => {
     this.setState({
-      hoverBarTooltipInfo: this.calculateTooltipInfo(e.target, false)
+      hoverBarTooltipInfo: this.calculateTooltipInfo(e.target, false),
     });
-  }
+  };
 
   calculateTooltipInfo = (bar, isSliderTop) => {
-    if (!this.refs.chart || !bar) return null;
+    if (!this.chartRef.current || !bar) return null;
 
     const index = $(bar).index();
-    const barShape = $(`path.c3-shape-${index}`, this.refs.chart)[0]; // needed to calculate actual height of the bar.
+    const barShape = $(`path.c3-shape-${index}`, this.chartRef.current)[0]; // needed to calculate actual height of the bar.
     const barRect = bar.getBoundingClientRect();
-    const chartRect = this.refs.chart.getBoundingClientRect();
-    const top = isSliderTop ?  0 : barShape.getBoundingClientRect().top - chartRect.top;
+    const chartRect = this.chartRef.current.getBoundingClientRect();
+    const top = isSliderTop
+      ? 0
+      : barShape.getBoundingClientRect().top - chartRect.top;
 
     const rectWidth = barRect.width;
     const left = barRect.left - chartRect.left + rectWidth / 2;
@@ -109,36 +119,42 @@ export default class BarChart extends Component {
       position: { top, left },
       index,
       // for case of slider we should use slide coordinates and anchor bar element is not needed here
-      anchorEl: isSliderTop ? null : barShape
+      anchorEl: isSliderTop ? null : barShape,
     };
-  }
+  };
 
   onMouseLeave = () => {
     this.setState({
-      hoverBarTooltipInfo: null
+      hoverBarTooltipInfo: null,
     });
-  }
+  };
 
   getTickValues(length) {
     const tickCount = MAX_TICK_COUNT > length ? length - 1 : MAX_TICK_COUNT;
-    return Array.from(Array(tickCount).keys()).map((i) => i * Math.round(length / tickCount));
+    return Array.from(Array(tickCount).keys()).map(
+      (i) => i * Math.round(length / tickCount)
+    );
   }
 
   attachHandlers() {
-    const rect = '.c3-event-rect';
-    $(this.refs.chart)
-      .on('mouseleave', rect, this.onMouseLeave)
-      .on('mouseenter', rect, this.onMouseEnter);
+    const rect = ".c3-event-rect";
+    $(this.chartRef.current)
+      .on("mouseleave", rect, this.onMouseLeave)
+      .on("mouseenter", rect, this.onMouseEnter);
   }
 
   formatNumber(value) {
     const { type } = this.props;
-    return type === FLOAT || type === DECIMAL ? (parseFloat(value)).toFixed(5) : value;
+    return type === FLOAT || type === DECIMAL
+      ? parseFloat(value).toFixed(5)
+      : value;
   }
 
   formatDate(value, isTooltip) {
     const { type } = this.props;
-    return moment.utc(value).format(isTooltip ? dateTypeToFormat[type] : tickFormat[type]);
+    return moment
+      .utc(value)
+      .format(isTooltip ? dateTypeToFormat[type] : tickFormat[type]);
   }
 
   formatValue = (value, isTooltip) => {
@@ -146,16 +162,18 @@ export default class BarChart extends Component {
     return isDateType(type)
       ? this.formatDate(value, isTooltip)
       : this.formatNumber(value);
-  }
+  };
 
   formatTick = (index) => {
     const { data } = this.props;
     const item = data[index];
     return item && this.formatValue(item.range.upperLimit);
-  }
+  };
 
   scaleData(data) {
-    return data.map(item => item !== 0 ? Math.log(item) / Math.LN10 + 1 : item);
+    return data.map((item) =>
+      item !== 0 ? Math.log(item) / Math.LN10 + 1 : item
+    );
   }
 
   generateChart() {
@@ -169,29 +187,26 @@ export default class BarChart extends Component {
       onresized: this.adjustTicks,
       tooltip: {
         //disable because can't use react with built-in tooltip
-        show: false
+        show: false,
       },
       size: {
         width,
-        height: BAR_CHART_HEIGHT
+        height: BAR_CHART_HEIGHT,
       },
-      bindto: this.refs.chart,
+      bindto: this.chartRef.current,
       data: {
-        x: 'x',
+        x: "x",
         colors: {
-          y: '#5ED7B9'
+          y: "#5ED7B9",
         },
-        columns: [
-          ['y'].concat(yData),
-          ['x'].concat(xData)
-        ],
-        type: 'bar'
+        columns: [["y"].concat(yData), ["x"].concat(xData)],
+        type: "bar",
       },
       bar: {
         zerobased: false,
         width: {
-          ratio: 0.8
-        }
+          ratio: 0.8,
+        },
       },
       axis: {
         y: {
@@ -200,36 +215,36 @@ export default class BarChart extends Component {
           max: maxY,
           padding: {
             top: 0,
-            bottom: 0
-          }
+            bottom: 0,
+          },
         },
         x: {
-          type: 'categories',
+          type: "categories",
           tick: {
             outer: false,
             multiline: true,
             width: 80,
             format: this.formatTick,
-            values: this.getTickValues(data.length)
-          }
-        }
+            values: this.getTickValues(data.length),
+          },
+        },
       },
       legend: {
-        show: false
-      }
+        show: false,
+      },
     });
 
     this.attachHandlers();
   }
 
   adjustTicks = () => {
-    $('.c3-axis .tick', this.refs.chart).each((i, item) => {
-      const line = $(item).find('line');
-      const text = $(item).find('text');
-      const x = Number(line.attr('x1'));
-      text.css('transform', `translateX(${x + 2}px) translateY(-2px)`);
+    $(".c3-axis .tick", this.chartRef.current).each((i, item) => {
+      const line = $(item).find("line");
+      const text = $(item).find("text");
+      const x = Number(line.attr("x1"));
+      text.css("transform", `translateX(${x + 2}px) translateY(-2px)`);
     });
-  }
+  };
 
   renderTooltipContent(index) {
     const { data } = this.props;
@@ -239,10 +254,13 @@ export default class BarChart extends Component {
     return (
       <p>
         <span>
-          {`${la('Range')}:
-            ${this.formatValue(range.lowerLimit, true)} - ${this.formatValue(range.upperLimit, true)}`}
+          {`${la("Range")}:
+            ${this.formatValue(range.lowerLimit, true)} - ${this.formatValue(
+            range.upperLimit,
+            true
+          )}`}
         </span>
-        <br/>({item.y} {la('records')})
+        <br />({item.y} {la("records")})
       </p>
     );
   }
@@ -250,14 +268,16 @@ export default class BarChart extends Component {
   render() {
     const { data, sliderX } = this.props;
     const sliderPositionBar = this.getBar(sliderX);
-    const tooltipInfo = this.calculateTooltipInfo(sliderPositionBar, true) || this.state.hoverBarTooltipInfo;
+    const tooltipInfo =
+      this.calculateTooltipInfo(sliderPositionBar, true) ||
+      this.state.hoverBarTooltipInfo;
 
     let pos = null;
     let showTooltip = false;
     if (tooltipInfo) {
       showTooltip = data[tooltipInfo.index].y > 0; // number of matched records more than 0
       pos = {
-        ...tooltipInfo.position
+        ...tooltipInfo.position,
       };
       if (sliderPositionBar) {
         pos.left = sliderX;
@@ -266,10 +286,16 @@ export default class BarChart extends Component {
 
     return (
       <div>
-        <div ref='chart' />
-        {showTooltip ? <ChartTooltip position={pos} anchorEl={tooltipInfo.anchorEl}
-          content={this.renderTooltipContent(tooltipInfo.index)} /> : null}
+        <div ref={this.chartRef} />
+        {showTooltip ? (
+          <ChartTooltip
+            position={pos}
+            anchorEl={tooltipInfo.anchorEl}
+            content={this.renderTooltipContent(tooltipInfo.index)}
+          />
+        ) : null}
       </div>
     );
   }
 }
+export default BarChart;

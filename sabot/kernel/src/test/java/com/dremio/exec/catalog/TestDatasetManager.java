@@ -152,7 +152,7 @@ public class TestDatasetManager {
     final OptionManager optionManager = mock(OptionManager.class);
 
     final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
-      new CatalogIdentityResolver());
+        new CatalogIdentityResolver(), null);
     datasetManager.getTable(namespaceKey, metadataRequestOptions, false);
   }
 
@@ -204,7 +204,7 @@ public class TestDatasetManager {
     final OptionManager optionManager = mock(OptionManager.class);
 
     final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
-      new CatalogIdentityResolver());
+        new CatalogIdentityResolver(), null);
     datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
   }
 
@@ -280,7 +280,7 @@ public class TestDatasetManager {
 
     // get table and verify type and field information is properly updated from record schema
     final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
-      new CatalogIdentityResolver());
+        new CatalogIdentityResolver(), null);
     DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
     View.FieldType updatedField = ((ViewTable) table).getView().getFields().get(0);
     Assert.assertTrue(isComplexType(updatedField.getType()));
@@ -357,7 +357,7 @@ public class TestDatasetManager {
     final OptionManager optionManager = mock(OptionManager.class);
 
     final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
-      new CatalogIdentityResolver());
+        new CatalogIdentityResolver(), null);
 
     thrown.expect(UserException.class);
     thrown.expectCause(new Matcher<InvalidImpersonationTargetException>() {

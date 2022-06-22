@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import ModalsContainer from 'components/Modals/ModalsContainer';
-import * as modals from './components/modals';
+import ModalsContainer from "components/Modals/ModalsContainer";
+import * as modals from "./components/modals";
 
-const BODY_CLASS = 'body-modal-open';
+const BODY_CLASS = "body-modal-open";
 
 export default class JobModals extends PureComponent {
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   render() {

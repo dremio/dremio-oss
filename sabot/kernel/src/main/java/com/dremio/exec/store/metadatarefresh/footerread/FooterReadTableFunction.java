@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -43,6 +44,7 @@ import com.dremio.exec.physical.config.FooterReaderTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.dfs.AbstractTableFunction;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
@@ -82,6 +84,7 @@ public class FooterReadTableFunction extends AbstractTableFunction {
   // outputs
   private BigIntVector mtimeOutputVector;
   private VarBinaryVector dataFileVector;
+  private IntVector operationTypeVector;
   private VarBinaryVector fileSchemaVector;
 
   private int currentRow;
@@ -139,6 +142,7 @@ public class FooterReadTableFunction extends AbstractTableFunction {
     // output vectors
     this.mtimeOutputVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.MODIFICATION_TIME);
     this.dataFileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
+    this.operationTypeVector = (IntVector) VectorUtil.getVectorFromSchemaPath(outgoing, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.OPERATION_TYPE);
     setFileSchemaVector();
 
     return outgoing;
@@ -243,11 +247,11 @@ public class FooterReadTableFunction extends AbstractTableFunction {
   }
 
   private void writeFileToOutput(int startOutIndex, DataFile dateFile, BatchSchema schema, long mtime, boolean isAddedFile) throws IOException {
-    IcebergMetadataInformation.IcebergMetadataFileType icebergMetadataType = isAddedFile ? IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE : IcebergMetadataInformation.IcebergMetadataFileType.DELETE_DATAFILE;
+    OperationType operationType = isAddedFile ? OperationType.ADD_DATAFILE : OperationType.DELETE_DATAFILE;
 
-    final IcebergMetadataInformation dataFileInfo = new IcebergMetadataInformation(IcebergSerDe.serializeDataFile(dateFile),
-      icebergMetadataType);
+    final IcebergMetadataInformation dataFileInfo = new IcebergMetadataInformation(IcebergSerDe.serializeDataFile(dateFile));
     dataFileVector.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(dataFileInfo));
+    operationTypeVector.setSafe(startOutIndex, operationType.value);
 
     writeFileSchemaVector(startOutIndex, schema);
 

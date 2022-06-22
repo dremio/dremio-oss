@@ -34,8 +34,9 @@ import org.projectnessie.versioned.ReferenceNotFoundException;
 import org.projectnessie.versioned.TagName;
 import org.projectnessie.versioned.persist.adapter.ContentId;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.ImmutableCommitAttempt;
+import org.projectnessie.versioned.persist.adapter.ImmutableCommitParams;
 import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
+import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
@@ -45,7 +46,6 @@ import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
-import com.dremio.service.nessie.ImmutableNessieDatabaseAdapterConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.dremio.service.nessie.upgrade.version040.MetadataReader;
 import com.dremio.service.nessie.upgrade.version040.MetadataReader040;
@@ -106,11 +106,10 @@ public class MigrateToNessieAdapter extends UpgradeTask {
 
       TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder().withConnector(store)
-        .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
-          // Suppress periodic key list generation by the DatabaseAdapter. We'll do that once at the end of the upgrade.
-          .setKeyListDistance(Integer.MAX_VALUE)
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+          .keyListDistance(Integer.MAX_VALUE)
           .build())
-        .build();
+        .build(worker);
 
       // Ensure the Embedded Nessie repo is initialized. This is an idempotent operation in the context
       // of upgrade tasks since they run on only one machine.
@@ -135,7 +134,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
         }
       }
 
-      final AtomicReference<ImmutableCommitAttempt.Builder> commit = new AtomicReference<>();
+      final AtomicReference<ImmutableCommitParams.Builder> commit = new AtomicReference<>();
       final AtomicInteger numEntries = new AtomicInteger();
       final AtomicInteger totalEntries = new AtomicInteger();
 
@@ -146,8 +145,8 @@ public class MigrateToNessieAdapter extends UpgradeTask {
         }
 
         if (commit.get() == null) {
-          commit.set(ImmutableCommitAttempt.builder()
-            .commitToBranch(upgradeBranch)
+          commit.set(ImmutableCommitParams.builder()
+            .toBranch(upgradeBranch)
             .commitMetaSerialized(
               worker.getMetadataSerializer().toBytes(
                 CommitMeta.builder()
@@ -196,8 +195,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
 
       // Reset `main` to the head of the upgraded commit chain
       ReferenceInfo<ByteString> upgradedHead = adapter.namedRef(upgradeBranch.getName(), GetNamedRefsParams.DEFAULT);
-      adapter.delete(main.getNamedRef(), Optional.of(main.getHash()));
-      adapter.create(main.getNamedRef(), upgradedHead.getHash());
+      adapter.assign(main.getNamedRef(), Optional.of(main.getHash()), upgradedHead.getHash());
 
       // Delete the transient upgrade branch
       adapter.delete(upgradeBranch, Optional.of(upgradedHead.getHash()));
@@ -217,13 +215,13 @@ public class MigrateToNessieAdapter extends UpgradeTask {
     // Use a fresh adapter instance with key list distance of 1 to force key list generation
     DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConnector(store)
-      .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
-        .setKeyListDistance(1)
+      .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+        .keyListDistance(1)
         .build())
-      .build();
+      .build(worker);
 
-    ImmutableCommitAttempt emptyCommit = ImmutableCommitAttempt.builder()
-      .commitToBranch(branch)
+    ImmutableCommitParams emptyCommit = ImmutableCommitParams.builder()
+      .toBranch(branch)
       .commitMetaSerialized(
         worker.getMetadataSerializer().toBytes(
           CommitMeta.builder()
@@ -239,7 +237,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
     AdminLogger.log("Committed post-upgrade key list ({} entries) as {}", totalEntries.get(), hash);
   }
 
-  private void commit(DatabaseAdapter adapter, ImmutableCommitAttempt.Builder commit, int numEntries, AtomicInteger total) {
+  private void commit(DatabaseAdapter adapter, ImmutableCommitParams.Builder commit, int numEntries, AtomicInteger total) {
     if (numEntries <= 0) {
       return;
     }

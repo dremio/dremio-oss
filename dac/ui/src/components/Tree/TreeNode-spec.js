@@ -13,55 +13,126 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import TreeNode from './TreeNode';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { TreeNode } from "./TreeNode";
+import { starTabNames } from "@app/components/Tree/resourceTreeUtils";
 
-describe('TreeNode', () => {
-  let minimalProps;
+describe("TreeNode", () => {
+  let commonProps;
   beforeEach(() => {
-    minimalProps = {
+    commonProps = {
       node: Immutable.fromJS({
-        fullPath: 'node',
+        id: "123",
+        type: "VDS",
+        fullPath: Immutable.fromJS(["node"]),
         resources: [
-          { fullPath: 'resource1' },
-          { fullPath: 'resource2' },
-          { fullPath: 'resource3' }
-        ]
+          { fullPath: Immutable.fromJS(["node", "resource1"]) },
+          { fullPath: Immutable.fromJS(["node", "resource2"]) },
+          { fullPath: Immutable.fromJS(["node", "resource3"]) },
+        ],
       }),
-      renderNode: sinon.spy(),
       isNodeExpanded: sinon.stub(),
-      selectedNodeId: '123'
+      selectedNodeId: "123",
+      isDatasetsDisabled: true,
+      shouldAllowAdd: true,
+      shouldShowOverlay: false,
+      addtoEditor: sinon.stub(),
+      handleSelectedNodeChange: sinon.stub(),
+      formatIdFromNode: sinon.stub(),
+      isNodeExpandable: sinon.stub(),
+      isExpandable: true,
+      starredItems: [],
+      starNode: sinon.stub().returns({
+        then: (callback) => callback({}),
+      }),
+      unstarNode: sinon.stub().returns({
+        then: (callback) => callback({}),
+      }),
+      tabRendered: starTabNames.all,
+      expandedNodes: Immutable.List(),
+      expandedStarredNodes: Immutable.List(),
+      isStarredLimitReached: false,
+      hideDatasets: false,
+      hideSpaces: false,
+      hideSources: false,
+      hideHomes: false,
+      loadingItems: Immutable.Map(
+        {
+          123: [
+            {
+              error: {
+                message: {
+                  errorMessage:
+                    "Cannot provide more information about this dataset.",
+                },
+                id: "321",
+                dismissed: false,
+              },
+              isFailed: true,
+              isInProgress: false,
+            },
+          ],
+        },
+        {
+          "resource1-1": [
+            {
+              error: null,
+              isFailed: false,
+              isInProgress: false,
+            },
+          ],
+        }
+      ),
     };
   });
 
-  it('should render with minimal props without exploding, call renderNode and isNodeExpanded', () => {
-    const wrapper = shallow(<TreeNode {...minimalProps}/>);
-    expect(wrapper).to.have.length(1);
-    expect(minimalProps.renderNode).to.be.calledWith(minimalProps.node);
-    expect(minimalProps.isNodeExpanded).to.be.calledWith(minimalProps.node);
+  describe("TreeNode rendering", () => {
+    it("should render child TreeNode for each node in props.node.resources if isNodeExpanded returns true", () => {
+      commonProps.isNodeExpanded.returns(true);
+      const wrapper = shallow(<TreeNode {...commonProps} />);
+      expect(wrapper.find("TreeNode")).to.have.length(3);
+    });
+
+    it("should pass props to child TreeNode", () => {
+      commonProps.isNodeExpanded.returns(true);
+      const wrapper = shallow(<TreeNode {...commonProps} />);
+      const childNodeProps = wrapper.find("TreeNode").first().props();
+      expect(childNodeProps.isNodeExpanded).to.equal(
+        commonProps.isNodeExpanded
+      );
+      expect(childNodeProps.selectedNodeId).to.equal(
+        commonProps.selectedNodeId
+      );
+    });
+
+    it("should not any TreeNode components if isNodeExpanded returns false", () => {
+      commonProps.isNodeExpanded.returns(false);
+
+      const wrapper = shallow(<TreeNode {...commonProps} />);
+      expect(wrapper.find("TreeNode")).to.have.length(0);
+    });
   });
 
-  it('should render child TreeNode for each node in props.node.resources if isNodeExpanded returns true', () => {
-    minimalProps.isNodeExpanded.returns(true);
+  describe("handleLoadingState", () => {
+    beforeEach(() => {
+      commonProps.isNodeExpandable.returns(true);
+    });
+    it("show exapandable node with arrow and no statuses", () => {
+      const wrapper = shallow(<TreeNode {...commonProps} />);
+      expect(
+        wrapper.find("Art").first().hasClass("TreeNode__arrowIcon")
+      ).to.equal(true);
+    });
+    // Fix test so it works with a setTimeout
+    xit("show loading spinner for node", () => {
+      const wrapper = shallow(<TreeNode {...commonProps} />);
 
-    const wrapper = shallow(<TreeNode {...minimalProps}/>);
-    expect(wrapper.find('TreeNode')).to.have.length(3);
-  });
+      wrapper.setProps({ loadingItems: { resource1: { inProgress: true } } });
 
-  it('should pass props to child TreeNode', () => {
-    minimalProps.isNodeExpanded.returns(true);
-    const wrapper = shallow(<TreeNode {...minimalProps}/>);
-    const childNodeProps = wrapper.find('TreeNode').first().props();
-    expect(childNodeProps.renderNode).to.equal(minimalProps.renderNode);
-    expect(childNodeProps.isNodeExpanded).to.equal(minimalProps.isNodeExpanded);
-    expect(childNodeProps.selectedNodeId).to.equal(minimalProps.selectedNodeId);
-  });
-
-  it('should not any TreeNode components if isNodeExpanded returns false', () => {
-    minimalProps.isNodeExpanded.returns(false);
-
-    const wrapper = shallow(<TreeNode {...minimalProps}/>);
-    expect(wrapper.find('TreeNode')).to.have.length(0);
+      setTimeout(() => {
+        expect(wrapper.find("Spinner")).to.have.length(1);
+      }, 200);
+    });
   });
 });

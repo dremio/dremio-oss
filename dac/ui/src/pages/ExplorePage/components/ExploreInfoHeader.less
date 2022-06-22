@@ -13,23 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../../components/colors.less'; // contains only variables
+@import "../../../components/colors.less"; // contains only variables
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .explore-info-header {
     display: flex;
     justify-content: space-between;
     padding-left: 7px;
-    min-height: 54px;
+    height: 100%;
     width: 100%;
 
     .cur-link {
-      color: #B3B3B3;
+      color: #b3b3b3;
     }
 
     .title-wrap {
       font-size: 11px;
+
+      .datasetItemLabel-item {
+        &:hover {
+          background-color: @white;
+        }
+
+        .font-icon {
+          margin-right: var(--dremio--spacing--1);
+        }
+      }
     }
 
     .toogler {
@@ -48,10 +59,10 @@
       width: 55px;
       height: 27px;
       margin-right: 0;
-      background-color: #EFEFEF;
+      background-color: #efefef;
 
       &:hover {
-        background-color: darken(#EFEFEF, 10%);
+        background-color: darken(#efefef, 10%);
       }
 
       .fa-cog {
@@ -75,21 +86,21 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: #EFEFEF;
+      background-color: #efefef;
       font-size: 14px;
 
       &.blue-button {
-        background-color: #0094FB;
+        background-color: #0094fb;
         color: #fff;
-        border-color: #0094FB;
+        border-color: #0094fb;
 
         &:hover {
-          background-color: darken(#0094FB, 10%);
+          background-color: darken(#0094fb, 10%);
         }
       }
 
       &:hover {
-        background-color: darken(#EFEFEF, 10%);
+        background-color: darken(#efefef, 10%);
       }
     }
 
@@ -109,7 +120,6 @@
         height: 20px;
         margin: 0 8px 0 4px;
       }
-
     }
 
     .prev-link {
@@ -146,13 +156,13 @@
       color: #202124;
 
       &.--untitledScript {
-        color: #B0B7BF;
+        color: #b0b7bf;
       }
     }
     .dataset-edited {
       font-size: 12px;
       font-weight: 400;
-      color: #202124
+      color: #202124;
     }
   }
 }

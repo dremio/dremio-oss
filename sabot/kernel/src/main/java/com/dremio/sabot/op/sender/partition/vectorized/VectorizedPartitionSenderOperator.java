@@ -40,6 +40,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
@@ -50,7 +52,6 @@ import com.dremio.sabot.op.sender.partition.vectorized.MultiDestCopier.CopyWatch
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.Lists;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -58,9 +59,15 @@ import io.netty.util.internal.PlatformDependent;
  * Implementation of hash partition sender that relies on vectorized copy of the data.<br>
  * Each incoming batch may be processed in multiple passes, each time copying up to numRecordsBeforeFlush rows.
  */
+@Options
 public class VectorizedPartitionSenderOperator extends BaseSender {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedPartitionSenderOperator.class);
   @VisibleForTesting
   public static final int PARTITION_MULTIPLE = 8;
+
+  // If set, delay allocation of buffers till the first send (instead of at operator setup). Also, free the buffers once
+  // there is no more data to send (instead of at operator close).
+  public static final TypeValidators.BooleanValidator DELAY_ALLOC_SEND_BATCHES = new TypeValidators.BooleanValidator("exec.op.partitioner.delay_alloc_send_batches", true);
 
   /** used to ensure outgoing batches creation and */
   private final Object batchCreationLock = new Object();
@@ -88,7 +95,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
    * */
   private int numRecordsBeforeFlush;
 
-  private List<MultiDestCopier> copiers = Lists.newArrayList();
+  private List<MultiDestCopier> copiers;
 
   /**
    * two outgoing batches per receiver, so we can delay flushing the batches after we copy the incoming
@@ -125,6 +132,9 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
    */
   private IntVector copyIndices;
 
+  // if true, delay allocating send batches till the first batch arrives.
+  private final boolean delayAllocSendBatches;
+
   /**
    * true if all receivers finished.
    */
@@ -148,6 +158,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     modSize = PARTITION_MULTIPLE * Numbers.nextPowerOfTwo(numReceivers);
     modLookup = new OutgoingBatch[modSize];
     batches = new OutgoingBatch[2 * numReceivers];
+    delayAllocSendBatches = context.getOptions().getOption(DELAY_ALLOC_SEND_BATCHES);
   }
 
   @Override
@@ -167,8 +178,6 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     numRecordsBeforeFlush = config.getProps().getTargetBatchSize();
     stats.setLongStat(Metric.BUCKET_SIZE, numRecordsBeforeFlush);
 
-    //
-    final BufferAllocator allocator = context.getAllocator();
     // we need to synchronize this to ensure no receiver termination message is lost
     synchronized (batchCreationLock) {
       initBatchesAndLookup(incoming);
@@ -184,6 +193,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
     copiers = MultiDestCopier.getCopiers(VectorContainer.getFieldVectors(incoming), batches, copyWatches);
 
+    final BufferAllocator allocator = context.getAllocator();
     copyIndices = new IntVector("copy-compound-indices", allocator);
     copyIndices.allocateNew(numRecordsBeforeFlush);
 
@@ -218,8 +228,10 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
       batches[p] = new OutgoingBatch(p, batchB, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats);
       batches[batchB] = new OutgoingBatch(batchB, p, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats);
 
-      // Only allocate the primary batch. Backup batch is allocated when it is needed.
-      batches[p].allocateNew();
+      if (!delayAllocSendBatches) {
+        // Only allocate the primary batch. Backup batch is allocated when it is needed.
+        batches[p].allocateNew();
+      }
     }
     for (int p = 0; p < modSize; p++) {
       modLookup[p] = batches[p % numReceivers];
@@ -231,7 +243,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     state.is(State.CAN_CONSUME);
 
     if (nobodyListening) {
-      state = State.DONE;
+      switchStateToDone();
       return;
     }
 
@@ -280,7 +292,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     state.is(State.CAN_CONSUME);
 
     if (nobodyListening) {
-      state = State.DONE;
+      switchStateToDone();
       return;
     }
 
@@ -292,8 +304,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     flushWatch.stop();
 
     sendTermination();
-
-    state = State.DONE;
+    switchStateToDone();
 
     stats.setLongStat(Metric.FLUSH_NS, flushWatch.elapsed(NANOSECONDS));
   }
@@ -354,7 +365,12 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
       final int compound = batch.preCopyRow();
       PlatformDependent.putInt(dstAddr, compound);
 
-      if (batch.isFull()) {
+      if (!batch.isFirstTimeAllocDone()) {
+        batch.allocateNew();
+        for (MultiDestCopier copier : copiers) {
+          copier.updateTargets(batch.getBatchIdx(), batch.getFieldVector(copier.getFieldId()));
+        }
+      } else if (batch.isFull()) {
         // if current batch is full, we will copy to a different batch from now on
         final int nextBatchIdx = batch.getNextBatchIdx();
         final OutgoingBatch nextBatch = batches[nextBatchIdx];
@@ -371,6 +387,14 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
           modLookup[b] = nextBatch;
         }
       }
+    }
+  }
+
+  private void switchStateToDone() throws Exception {
+    state = State.DONE;
+    if (delayAllocSendBatches) {
+      logger.debug("early release for batches");
+      AutoCloseables.close(Arrays.asList(batches));
     }
   }
 

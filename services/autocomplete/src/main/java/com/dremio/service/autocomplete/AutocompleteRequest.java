@@ -15,6 +15,8 @@
  */
 package com.dremio.service.autocomplete;
 
+import java.util.List;
+
 import org.immutables.value.Value;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -33,4 +35,6 @@ public interface AutocompleteRequest {
   String getQuery();
 
   int getCursor();
+
+  List<String> getContext();
 }

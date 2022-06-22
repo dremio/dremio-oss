@@ -13,14 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, createRef, Fragment } from 'react';
-import { Popover, MouseEvents } from '@app/components/Popover';
-import Art from '@app/components/Art';
-import classNames from 'classnames';
+import { PureComponent, createRef, Fragment } from "react";
+import { Popover, MouseEvents } from "@app/components/Popover";
+import Art from "@app/components/Art";
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { select as selectCls, disabled as disabledCls } from './SelectView.less';
+import {
+  disabled as disabledCls,
+  open as openCls,
+  select as selectCls,
+  menuHeader as menuHeaderCls,
+} from "./SelectView.less";
 /**
  * node or render props function
  * renderProps: ({ openDD: func, closeDD: func, isOpen: func }) => {@see PropTypes.node}
@@ -29,16 +34,20 @@ import { select as selectCls, disabled as disabledCls } from './SelectView.less'
 const nodeOrRenderProps = PropTypes.oneOfType([PropTypes.node, PropTypes.func]);
 const styles = {
   arrow: {
-    color: '#77818F',
-    fontSize: '10px',
-    paddingLeft: '7px'
-  }
+    color: "#77818F",
+    fontSize: "10px",
+    paddingLeft: "7px",
+  },
+  arrowDisabled: {
+    color: "#D2D6DA",
+  },
 };
 
 export class SelectView extends PureComponent {
   static propTypes = {
     content: nodeOrRenderProps,
     children: nodeOrRenderProps,
+    menuHeader: PropTypes.string,
     /** If true, an icon with an arrow is hidden */
     hideExpandIcon: PropTypes.bool,
     disabled: PropTypes.bool,
@@ -61,40 +70,42 @@ export class SelectView extends PureComponent {
     iconStyle: PropTypes.object,
     popoverFilters: PropTypes.string,
     isArtIcon: PropTypes.bool,
-    iconClass: PropTypes.string
+    iconClass: PropTypes.string,
+    hasIconFirst: PropTypes.bool,
+    closeOnSelect: PropTypes.bool,
   };
 
   static defaultProps = {
     useLayerForClickAway: true,
-    icon: 'fa fa-chevron-down',
-    iconStyle: styles.arrow
+    icon: "fa fa-chevron-down",
+    iconStyle: styles.arrow,
   };
 
   state = { anchorEl: null };
   contentRef = createRef();
 
-  renderNodeOrProps = nodeOrProps => {
-    if (typeof nodeOrProps === 'function') {
+  renderNodeOrProps = (nodeOrProps) => {
+    if (typeof nodeOrProps === "function") {
       return nodeOrProps({
         openDD: this.openDD,
         closeDD: this.closeDD,
-        isOpen: this.isOpen
+        isOpen: this.isOpen,
       });
     }
     return nodeOrProps;
   };
 
-  openDD = () => {
+  openDD = (e) => {
     const { beforeOpen, disabled } = this.props;
 
     if (disabled) {
       return;
     }
     if (beforeOpen) {
-      beforeOpen();
+      beforeOpen(e);
     }
     this.setState({
-      anchorEl: this.contentRef.current
+      anchorEl: this.contentRef.current,
     });
   };
 
@@ -103,20 +114,27 @@ export class SelectView extends PureComponent {
       this.props.beforeClose();
     }
     this.setState({
-      anchorEl: null
+      anchorEl: null,
     });
   };
 
   isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl);
 
   renderIcon = () => {
-    const { icon, iconStyle, isArtIcon, iconClass } = this.props;
-    return isArtIcon ? <Art
-      src={icon}
-      alt='icon'
-      title='icon'
-      className={iconClass}
-    /> : <i className={icon} style={iconStyle} />;
+    const { disabled, icon, iconStyle, isArtIcon, iconClass } = this.props;
+    return isArtIcon ? (
+      <Art src={icon} alt="icon" className={iconClass} />
+    ) : (
+      <i
+        className={icon}
+        style={{ ...iconStyle, ...(disabled ? styles.arrowDisabled : {}) }}
+      />
+    );
+  };
+
+  renderMenuHeader() {
+    const { menuHeader } = this.props;
+    return <div className={menuHeaderCls}>{menuHeader}</div>;
   }
 
   render() {
@@ -134,7 +152,10 @@ export class SelectView extends PureComponent {
       listWidthSameAsAnchorEl,
       listStyle,
       rootAttrs,
-      popoverFilters
+      popoverFilters,
+      menuHeader,
+      hasIconFirst,
+      closeOnSelect,
     } = this.props;
     const { anchorEl } = this.state;
     const open = this.isOpen();
@@ -146,21 +167,22 @@ export class SelectView extends PureComponent {
           className={classNames({
             [selectCls]: true,
             [disabledCls]: disabled,
-            [className]: true
+            [className]: true,
+            [openCls]: open,
           })}
           style={style}
           data-qa={dataQa}
           {...rootAttrs}
         >
+          {hasIconFirst && this.renderIcon()}
           {this.renderNodeOrProps(content)}
-          {!hideExpandIcon && this.renderIcon()}
-
+          {!hideExpandIcon && !hasIconFirst && this.renderIcon()}
         </div>
         <Popover
           anchorEl={open ? anchorEl : null}
           listRightAligned={listRightAligned}
           onClose={this.closeDD}
-          dataQa='convertTo' // todo change that
+          dataQa="convertTo" // todo change that
           listStyle={listStyle}
           listClass={listClass}
           useLayerForClickAway={useLayerForClickAway}
@@ -168,11 +190,12 @@ export class SelectView extends PureComponent {
           listWidthSameAsAnchorEl={listWidthSameAsAnchorEl}
           popoverFilters={popoverFilters}
         >
-          {this.renderNodeOrProps(children)}
+          <div onClick={closeOnSelect && this.closeDD}>
+            {menuHeader && this.renderMenuHeader()}
+            {this.renderNodeOrProps(children)}
+          </div>
         </Popover>
       </Fragment>
     );
   }
 }
-
-

@@ -13,47 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 
-import { FieldWithError, TextField } from 'components/Fields';
-import { applyValidators, isRequired } from 'utils/validation';
-import { sectionTitle, formRow, description } from 'uiTheme/radium/forms';
+import { FieldWithError, TextField } from "components/Fields";
+import { applyValidators, isRequired } from "utils/validation";
+import { sectionTitle, formRow, description } from "uiTheme/radium/forms";
 
-const FIELDS = ['name'];
+const FIELDS = ["name"];
 
 function validate(values, props) {
   const { intl } = props;
-  return applyValidators(values, [isRequired('name', intl.formatMessage({ id: 'Folder.Name' }))]);
+  return applyValidators(values, [
+    isRequired("name", intl.formatMessage({ id: "Folder.Name" })),
+  ]);
 }
 
 export class AddFolderForm extends Component {
-
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
     fields: PropTypes.object,
     handleSubmit: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
-    const {fields, handleSubmit, onFormSubmit, intl} = this.props;
-    const sectionDescription = intl.formatMessage({ id: 'Folder.AddFileModalDescription' });
-    const secTitle = intl.formatMessage({ id: 'Folder.AddFolderToSpace' });
+    const { fields, handleSubmit, onFormSubmit, intl } = this.props;
+    const sectionDescription = intl.formatMessage({
+      id: "Folder.AddFileModalDescription",
+    });
+    const secTitle = intl.formatMessage({ id: "Folder.AddFolderToSpace" });
     return (
-      <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
+      <ModalForm
+        {...modalFormProps(this.props)}
+        onSubmit={handleSubmit(onFormSubmit)}
+      >
         <FormBody>
           <h2 style={sectionTitle}>{secTitle}</h2>
           <div style={description}>{sectionDescription}</div>
           <div style={formRow}>
-            <FieldWithError label={intl.formatMessage({ id: 'Folder.Name' })} errorPlacement='right' {...fields.name}>
-              <TextField initialFocus {...fields.name}/>
+            <FieldWithError
+              label={intl.formatMessage({ id: "Folder.Name" })}
+              errorPlacement="right"
+              {...fields.name}
+            >
+              <TextField initialFocus {...fields.name} />
             </FieldWithError>
           </div>
         </FormBody>
@@ -62,8 +72,10 @@ export class AddFolderForm extends Component {
   }
 }
 
-export default injectIntl(connectComplexForm({
-  form: 'addFolder',
-  fields: FIELDS,
-  validate
-})(AddFolderForm));
+export default injectIntl(
+  connectComplexForm({
+    form: "addFolder",
+    fields: FIELDS,
+    validate,
+  })(AddFolderForm)
+);

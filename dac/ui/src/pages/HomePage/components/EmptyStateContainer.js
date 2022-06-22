@@ -13,33 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { formDescription } from 'uiTheme/radium/typography';
-import { buttonWrap } from './EmptyStateContainer.less';
-
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { formDescription } from "uiTheme/radium/typography";
+import { buttonWrap } from "./EmptyStateContainer.less";
 
 export class EmptyStateContainer extends Component {
   static propTypes = {
     title: PropTypes.node,
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   render() {
-    const {
-      title,
-      children,
-      className
-    } = this.props;
+    const { title, children, className } = this.props;
 
-    return (<div className={classNames(buttonWrap, className)}>
-      {title && <span style={formDescription}>
-        {title}
-      </span>}
-      {children}
-    </div>);
+    return (
+      <div className={classNames(buttonWrap, className)}>
+        {title && <span style={formDescription}>{title}</span>}
+        {children}
+      </div>
+    );
   }
 }
-

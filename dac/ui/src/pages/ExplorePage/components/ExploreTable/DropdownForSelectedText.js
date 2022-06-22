@@ -13,38 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import ReactDOM from 'react-dom';
-import Mousetrap from 'mousetrap';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { TEXT, LIST } from '@app/constants/DataTypes';
-import exploreUtils from 'utils/explore/exploreUtils';
-import { CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';
-import { withLocation } from 'containers/dremioLocation';
+import { createRef, PureComponent } from "react";
+import ReactDOM from "react-dom";
+import Mousetrap from "mousetrap";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { TEXT, LIST } from "@app/constants/DataTypes";
+import exploreUtils from "utils/explore/exploreUtils";
+import { CELL_EXPANSION_HEADER } from "uiTheme/radium/colors";
+import { withLocation } from "containers/dremioLocation";
 
-import { showCuration } from '@inject/pages/ExplorePage/utils';
+import { showCuration } from "@inject/pages/ExplorePage/utils";
 
-import SelectedTextPopover from './SelectedTextPopover';
+import SelectedTextPopover from "./SelectedTextPopover";
 
 const PADDING_TOP_FOR_TEXT = -2;
 const PADDING_TOP_FOR_NUMB = 4;
 const PADDING_SELECTED_NUMB = 5;
 const PADDING_SELECTED_TEXT = 5;
 
-@Radium
 export class DropdownForSelectedTextView extends PureComponent {
   static propTypes = {
     hideDrop: PropTypes.func.isRequired,
     dropPositions: PropTypes.instanceOf(Immutable.Map),
     openPopover: PropTypes.bool,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
+
+  constructor(props) {
+    super(props);
+    this.selectedTextRef = createRef();
+    this.selectedContentRef = createRef();
+    this.state = {
+      anchor: null,
+    };
+  }
 
   componentDidMount() {
     this.updateAnchor();
-    Mousetrap.bind(['command+c', 'ctrl+c'], this.copyText);
+    Mousetrap.bind(["command+c", "ctrl+c"], this.copyText);
   }
 
   componentDidUpdate() {
@@ -52,16 +59,18 @@ export class DropdownForSelectedTextView extends PureComponent {
   }
 
   componentWillUnmount() {
-    Mousetrap.unbind(['command+c', 'ctrl+c']);
+    Mousetrap.unbind(["command+c", "ctrl+c"]);
   }
 
   copyText = () => {
-    exploreUtils.copySelection(ReactDOM.findDOMNode(this.refs.selectedContent));
+    exploreUtils.copySelection(
+      ReactDOM.findDOMNode(this.selectedContentRef.current)
+    );
     this.props.hideDrop();
-  }
+  };
 
   updateAnchor() {
-    this.setState({anchor: this.refs.selectedText});
+    this.setState({ anchor: this.selectedTextRef.current });
   }
 
   stopPropagation(e) {
@@ -71,34 +80,44 @@ export class DropdownForSelectedTextView extends PureComponent {
   render() {
     const { dropPositions, location } = this.props;
     const columnType = location.state.columnType;
-    const padding = columnType !== TEXT && columnType !== LIST ? PADDING_TOP_FOR_NUMB : PADDING_TOP_FOR_TEXT;
-    const paddingSelected = columnType !== TEXT && columnType !== LIST
-      ? PADDING_SELECTED_NUMB
-      : PADDING_SELECTED_TEXT;
+    const padding =
+      columnType !== TEXT && columnType !== LIST
+        ? PADDING_TOP_FOR_NUMB
+        : PADDING_TOP_FOR_TEXT;
+    const paddingSelected =
+      columnType !== TEXT && columnType !== LIST
+        ? PADDING_SELECTED_NUMB
+        : PADDING_SELECTED_TEXT;
     const textStyle = {
-      display: dropPositions.get('display') ? 'block' : 'none',
-      left: dropPositions.get('textWrap').get('left'),
-      top: dropPositions.get('textWrap').get('top') + padding,
-      width: dropPositions.get('textWrap').get('width'),
+      display: dropPositions.get("display") ? "block" : "none",
+      left: dropPositions.get("textWrap").get("left"),
+      top: dropPositions.get("textWrap").get("top") + padding,
+      width: dropPositions.get("textWrap").get("width"),
       maxHeight: 200,
-      textAlign: 'left',
-      lineHeight: '15px',
-      overflowX: 'auto',
-      position: 'fixed',
-      zIndex: 2001
+      textAlign: "left",
+      lineHeight: "15px",
+      overflowX: "auto",
+      position: "fixed",
+      zIndex: 2001,
     };
-    const selectedText = this.props.openPopover
-      ? <span
-        className='selected-text' ref='selectedText'
-        style={[textStyle, {backgroundColor: CELL_EXPANSION_HEADER}]}>
+    const selectedText = this.props.openPopover ? (
+      <span
+        className="selected-text"
+        ref={this.selectedTextRef}
+        style={{ ...textStyle, backgroundColor: CELL_EXPANSION_HEADER }}
+      >
         <div
-          ref='selectedContent'
-          style={{ paddingTop: paddingSelected }}>
-          {dropPositions.get('textWrap').get('text')}
+          ref={this.selectedContentRef}
+          style={{ paddingTop: paddingSelected }}
+        >
+          {dropPositions.get("textWrap").get("text")}
         </div>
-        <i className='fa fa-angle-down' style={{height: textStyle.height}}></i>
+        <i
+          className="fa fa-angle-down"
+          style={{ height: textStyle.height }}
+        ></i>
       </span>
-      : null;
+    ) : null;
     return (
       <div onMouseUp={this.stopPropagation} onMouseDown={this.stopPropagation}>
         {selectedText}

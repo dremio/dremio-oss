@@ -13,48 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Link } from 'react-router';
-import { styles } from 'pages/HomePage/components/MainInfo';
-import { getSettingsLocation } from 'components/Menus/HomePage/DatasetMenu';
+import { Link } from "react-router";
+import { styles } from "pages/HomePage/components/MainInfo";
+import { getSettingsLocation } from "components/Menus/HomePage/DatasetMenu";
 
-
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
 
     renderConvertButton(entity, folderModalButton) {
       const buttonType = entity.toJS().entityType;
       return (
-        <div className='main-settings-btn convert-to-dataset'>
+        <div className="main-settings-btn convert-to-dataset">
           <Link
-            className='settings-button'
-            to={folderModalButton.to ? folderModalButton.to : '.'}
-            style={buttonType === 'folder' ? styles.folderConvertButton : styles.button}>
+            className="settings-button"
+            to={folderModalButton.to ? folderModalButton.to : "."}
+            style={
+              buttonType === "folder"
+                ? styles.folderConvertButton
+                : styles.button
+            }
+          >
             {folderModalButton.icon}
           </Link>
         </div>
       );
     },
 
-    checkToRenderWikiSection(entity) {
-      const result = entity && !entity.get('fileSystemFolder');
-      return result;
-    },
-
     getShortcutButtonsData(item, entityType, btnTypes) {
       const allBtns = [
         // Per DX-13304 we leave only Edit and Cog (Settings.svg) buttons
         {
-          label: this.getInlineIcon('Edit.svg', 'edit'),
-          link: item.getIn(['links', 'edit']),
+          label: this.getInlineIcon("Edit.svg", "edit"),
+          link: item.getIn(["links", "edit"]),
           type: btnTypes.edit,
-          isShown: entityType === 'dataset'
+          isShown: entityType === "dataset",
         },
         {
-          label: this.getInlineIcon('Settings.svg', 'settings'),
+          label: this.getInlineIcon("Settings.svg", "settings"),
           link: getSettingsLocation(this.context.location, item, entityType),
           type: btnTypes.settings,
-          isShown: true
-        }
+          isShown: true,
+        },
       ];
       return allBtns;
     },
@@ -65,6 +65,6 @@ export default function(input) {
 
     checkToRenderConvertFileButton() {
       return true;
-    }
+    },
   });
 }

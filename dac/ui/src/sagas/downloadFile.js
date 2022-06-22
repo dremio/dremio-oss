@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, put, takeEvery } from 'redux-saga/effects';
+import { call, put, takeEvery } from "redux-saga/effects";
 
-import { updateViewState } from 'actions/resources';
-import { addNotification } from 'actions/notification';
+import { updateViewState } from "actions/resources";
+import { addNotification } from "actions/notification";
 
-import FileUtils from 'utils/FileUtils';
-import { APIV2Call } from '@app/core/APICall';
+import FileUtils from "utils/FileUtils";
+import { APIV2Call } from "@app/core/APICall";
 
-const DOWNLOAD_FILE = 'DOWNLOAD_FILE';
+const DOWNLOAD_FILE = "DOWNLOAD_FILE";
 
 export default function* download() {
   yield takeEvery(DOWNLOAD_FILE, handleDownloadFile);
 }
 
 export function* handleDownloadFile(action) {
-  const {url, viewId, method = 'GET', apiType = APIV2Call} = action.meta;
+  const { url, viewId, method = "GET", apiType = APIV2Call } = action.meta;
 
   if (viewId) yield put(updateViewState(viewId, { isInProgress: true }));
 
@@ -36,18 +36,24 @@ export function* handleDownloadFile(action) {
 
   const apiCall = new apiType().paths(url);
 
-  const res = yield call(fetch, apiCall.toString(), {method, headers});
+  const res = yield call(fetch, apiCall.toString(), { method, headers });
 
   try {
-    const downloadConfig = yield call([FileUtils, FileUtils.getFileDownloadConfigFromResponse], res);
+    const downloadConfig = yield call(
+      [FileUtils, FileUtils.getFileDownloadConfigFromResponse],
+      res
+    );
     yield call(FileUtils.downloadFile, downloadConfig);
     if (viewId) yield put(updateViewState(viewId, { isInProgress: false }));
   } catch (e) {
-    yield put(addNotification(e.message, 'error'));
-    if (viewId) yield put(updateViewState(viewId, { isInProgress: false, isFailed: true }));
+    yield put(addNotification(e.message, "error"));
+    if (viewId)
+      yield put(
+        updateViewState(viewId, { isInProgress: false, isFailed: true })
+      );
   }
 }
 
 export const downloadFile = (meta) => {
-  return {type: DOWNLOAD_FILE, meta};
+  return { type: DOWNLOAD_FILE, meta };
 };

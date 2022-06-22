@@ -106,7 +106,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
       exprList.add(newExpr);
     }
 
-    if (rewrite == true) {
+    if (rewrite) {
       LogicalProject newProject = project.copy(project.getTraitSet(), project.getInput(0), exprList, project.getRowType());
       return visitChild(newProject, 0, project.getInput());
     }

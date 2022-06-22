@@ -15,46 +15,41 @@
  */
 /*eslint no-console: 0*/
 
-const fs = require('fs');
-const path = require('path');
-const webpack = require('webpack');
-const webpackDevMiddleware = require('webpack-dev-middleware');
-const proxy = require('http-proxy-middleware');
+const fs = require("fs");
+const path = require("path");
+const webpack = require("webpack");
+const webpackDevMiddleware = require("webpack-dev-middleware");
+const proxy = require("http-proxy-middleware");
 
 // -- Probably a better treatment without new
-const express = require('express');
+const express = require("express");
 const app = express();
 
 // Must be before webpack.config.js import
-process.env.SKIP_SENTRY_STEP = 'true';
+process.env.SKIP_SENTRY_STEP = "true";
 
-const config = require('./webpack.config');
+const config = require("./webpack.config");
 config.bail = false; // to not fail on compilation error in dev mode
 
 const port = 3005;
 const compiler = webpack(config);
-const devMiddleware = webpackDevMiddleware(compiler, {
-  noInfo: true,
-  output: config.output,
-  // todo: upgrade default reporter so that the error is in the repsonse (and postback to open source)
-  watchOptions: {
-    // Watching node_modules results in excessive of polling which eats cpu
-    ignored: /node_modules/
-  }
-});
+const devMiddleware = webpackDevMiddleware(compiler);
 app.use(devMiddleware);
 
 const readServerSettings = () => {
-  return JSON.parse(fs.readFileSync( // eslint-disable-line no-sync
-    path.resolve(__dirname, 'server.config.json'),
-    'utf8'
-  ));
+  return JSON.parse(
+    fs.readFileSync(
+      // eslint-disable-line no-sync
+      path.resolve(__dirname, "server.config.json"),
+      "utf8"
+    )
+  );
 };
 
 const settings = readServerSettings();
 
 const getApiOrigin = (pattern) => {
-  return settings[pattern.origin || 'apiOrigin'] + (pattern.subDomain || '');
+  return settings[pattern.origin || "apiOrigin"] + (pattern.subDomain || "");
 };
 
 //Unused for now: The following can be used for proxying directly to a nessie
@@ -70,7 +65,7 @@ const getApiOrigin = (pattern) => {
 // };
 
 // Job profiles load their css/js from /static/*, so redirect those calls as well
-settings.proxyPatterns.forEach(p => {
+settings.proxyPatterns.forEach((p) => {
   const target = p.target || getApiOrigin(p);
   app.use(
     p.patterns,
@@ -78,28 +73,32 @@ settings.proxyPatterns.forEach(p => {
       ...p,
       target,
       changeOrigin: true,
-      logLevel: 'debug',
+      logLevel: "debug",
       onProxyRes(proxyRes) {
-        proxyRes.headers['x-proxied-from'] = target; // useful for HAR reports
-      }
+        proxyRes.headers["x-proxied-from"] = target; // useful for HAR reports
+      },
     })
   );
 });
 
 // todo: this doesn't show dyn-loader tests
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   req.url = config.output.publicPath;
   devMiddleware(req, res, next);
 });
 
-console.log('Building…');
+console.log("Building…");
 
-app.listen(port, function(error) {
+app.listen(port, function (error) {
   if (error) {
     console.error(error);
   }
 });
 
-devMiddleware.waitUntilValid(function() {
-  console.info('==> 🌎  Listening on port %s. Open up http://localhost:%s/ in your browser.', port, port);
+devMiddleware.waitUntilValid(function () {
+  console.info(
+    "==> 🌎  Listening on port %s. Open up http://localhost:%s/ in your browser.",
+    port,
+    port
+  );
 });

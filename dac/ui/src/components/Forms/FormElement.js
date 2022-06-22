@@ -13,29 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import FormUtils from 'utils/FormUtils/FormUtils';
-import { inlineHelp, elementContainer } from 'uiTheme/less/forms.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import FormUtils from "utils/FormUtils/FormUtils";
+import { inlineHelp, elementContainer } from "uiTheme/less/forms.less";
 
 export default class FormElement extends Component {
-
   static propTypes = {
     style: PropTypes.object,
     elementConfig: PropTypes.object,
     fields: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
   };
 
   static contextTypes = {
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
-
 
   renderElement(elementConfig, fields) {
     if (!elementConfig.getRenderer) return;
 
-    const field = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
+    const field = FormUtils.getFieldByComplexPropName(
+      fields,
+      elementConfig.getPropName()
+    );
     const Renderer = elementConfig.getRenderer();
 
     return (
@@ -43,24 +44,26 @@ export default class FormElement extends Component {
         elementConfig={elementConfig}
         fields={fields}
         field={field}
-        editing={this.context.editing} disabled={this.props.disabled}/>
+        editing={this.context.editing}
+        disabled={this.props.disabled}
+      />
     );
   }
 
   render() {
-    const {elementConfig, fields, style} = this.props;
+    const { elementConfig, fields, style } = this.props;
     const help = elementConfig.getConfig().help;
     const propName = elementConfig.getConfig().propName;
 
     return (
       <div className={elementContainer} style={style} data-qa={propName}>
-        {help &&
-        help.position === 'top' && <div className={inlineHelp}>{help.text}</div>
-        }
-        {this.renderElement(elementConfig, fields)}
-        {help && help.position !== 'top' &&
+        {help && help.position === "top" && (
           <div className={inlineHelp}>{help.text}</div>
-        }
+        )}
+        {this.renderElement(elementConfig, fields)}
+        {help && help.position !== "top" && (
+          <div className={inlineHelp}>{help.text}</div>
+        )}
       </div>
     );
   }

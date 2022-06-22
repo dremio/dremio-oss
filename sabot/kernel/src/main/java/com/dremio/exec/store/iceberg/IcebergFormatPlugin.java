@@ -210,8 +210,10 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
 
     final TableSnapshotProvider tableSnapshotProvider =
         TimeTravelProcessors.getTableSnapshotProvider(tableSchemaPath.getPathComponents(), travelRequest);
+    final TableSchemaProvider tableSchemaProvider =
+        TimeTravelProcessors.getTableSchemaProvider(travelRequest);
     return new IcebergExecutionDatasetAccessor(MetadataObjectsUtils.toEntityPath(tableSchemaPath),
-        tableSupplier, fsPlugin.getFsConfCopy(), this, fs, tableSnapshotProvider, fsPlugin);
+        tableSupplier, fsPlugin.getFsConfCopy(), this, fs, tableSnapshotProvider, fsPlugin, tableSchemaProvider);
   }
 
   @Override

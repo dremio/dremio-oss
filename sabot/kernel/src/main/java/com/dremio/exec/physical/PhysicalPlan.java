@@ -42,6 +42,10 @@ public class PhysicalPlan {
   @JsonIgnore
   Runnable committer;
 
+  // cleaner for failure/cancellation during plan execution
+  @JsonIgnore
+  Runnable cleaner;
+
   @JsonCreator
   public PhysicalPlan(@JsonProperty("head") PlanProperties properties, @JsonProperty("graph") List<PhysicalOperator> operators) {
     this.properties = properties;
@@ -51,6 +55,13 @@ public class PhysicalPlan {
   public PhysicalPlan(PlanProperties properties, List<PhysicalOperator> operators, Runnable committer) {
     this(properties, operators);
     this.committer = committer;
+    this.cleaner = null;
+  }
+
+  public PhysicalPlan(PlanProperties properties, List<PhysicalOperator> operators, Runnable committer, Runnable cleaner) {
+    this(properties, operators);
+    this.committer = committer;
+    this.cleaner = cleaner;
   }
 
   @JsonProperty("graph")
@@ -99,5 +110,9 @@ public class PhysicalPlan {
 
   public Optional<Runnable> getCommitter() {
     return Optional.ofNullable(committer);
+  }
+
+  public Optional<Runnable> getCleaner() {
+    return Optional.ofNullable(cleaner);
   }
 }

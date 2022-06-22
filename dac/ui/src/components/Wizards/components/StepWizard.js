@@ -13,43 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Button from 'components/Buttons/Button';
-import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import WizardFooter from './WizardFooter';
+import Button from "components/Buttons/Button";
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import WizardFooter from "./WizardFooter";
 
-@Radium
-export default class StepWizard extends PureComponent {
+class StepWizard extends PureComponent {
   static propTypes = {
     changeFormType: PropTypes.func.isRequired,
     onCancelClick: PropTypes.func.isRequired,
     onNextClick: PropTypes.func,
     style: PropTypes.object,
-    hasActiveDataset: PropTypes.bool
-  }
+    hasActiveDataset: PropTypes.bool,
+  };
 
   render() {
     return (
       <WizardFooter style={this.props.style}>
         <Button
           disable={!this.props.hasActiveDataset}
-          onMouseDown={this.props.changeFormType.bind(this, 'apply')}
+          onMouseDown={this.props.changeFormType.bind(this, "apply")}
           onClick={this.props.onNextClick}
           type={ButtonTypes.NEXT}
+          style={{ marginBottom: 0 }}
           disableSubmit
-          key='details-wizard-next'
-          text='Next'/>
+          key="details-wizard-next"
+          text="Next"
+        />
         <Button
-          style={{marginLeft: 5}}
+          style={{ marginLeft: 5, marginBottom: 0, marginRight: 5 }}
           type={ButtonTypes.CANCEL}
           disableSubmit
           onClick={this.props.onCancelClick}
-          key='details-wizard-cancel'/>
+          key="details-wizard-cancel"
+        />
       </WizardFooter>
     );
   }
 }
+export default Radium(StepWizard);

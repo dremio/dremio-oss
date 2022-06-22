@@ -18,11 +18,9 @@ package com.dremio.common;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.AbstractFuture;
 
 /**
  * Handles wakeup events for the various managers.

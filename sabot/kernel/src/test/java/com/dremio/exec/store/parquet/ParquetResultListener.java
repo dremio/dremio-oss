@@ -100,7 +100,7 @@ public class ParquetResultListener implements UserResultsListener {
   }
 
   @Override
-  synchronized public void dataArrived(QueryDataBatch result, ConnectionThrottle throttle) {
+  public synchronized void dataArrived(QueryDataBatch result, ConnectionThrottle throttle) {
     logger.debug("result arrived in test batch listener.");
     int columnValCounter = 0;
     FieldInfo currentField;

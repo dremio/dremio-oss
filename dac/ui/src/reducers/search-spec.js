@@ -13,32 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import { SEARCH_SUCCESS } from 'actions/search';
+import { SEARCH_SUCCESS } from "actions/search";
 
-import searchReducer from './search';
+import searchReducer from "./search";
 
-describe('search reducer', () => {
-  const initialState =  Immutable.fromJS({
-  });
+describe("search reducer", () => {
+  const initialState = Immutable.fromJS({});
 
-  it('returns unaltered state by default', () => {
-    const result = searchReducer(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = searchReducer(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  describe('SEARCH_SUCCESS', () => {
-    it('should set search results', () => {
+  describe("SEARCH_SUCCESS", () => {
+    it("should set search results", () => {
       const result = searchReducer(initialState, {
         type: SEARCH_SUCCESS,
         payload: Immutable.fromJS({
-          result: [
-            'dataset1'
-          ]
-        })
+          result: ["dataset1"],
+        }),
       });
-      expect(result.getIn(['searchDatasets', 0])).to.eql('dataset1');
+      expect(result.getIn(["searchDatasets", 0])).to.eql("dataset1");
     });
   });
 });

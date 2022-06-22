@@ -39,4 +39,3 @@ public class TestApproximateStringMatcher {
         assertEquals("sql", bestMatch);
     }
 }
-

@@ -13,37 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { formDescription } from 'uiTheme/radium/typography';
-import NumberFormatUtils from 'utils/numberFormatUtils';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { formDescription } from "uiTheme/radium/typography";
+import NumberFormatUtils from "utils/numberFormatUtils";
 
 export default class ResourceSummary extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
     totalRam: PropTypes.number,
-    totalCores: PropTypes.number
+    totalCores: PropTypes.number,
   };
 
   render() {
     const { entity } = this.props;
-    const isYarn = entity && entity.get('clusterType') === 'YARN';
+    const isYarn = entity && entity.get("clusterType") === "YARN";
     if (!isYarn) {
       return <div style={styles.empty}> </div>;
     }
 
-    const totalRam = NumberFormatUtils.roundNumberField(entity.getIn(['workersSummary', 'totalRAM']) / 1024);
-    const totalCores = entity.getIn(['workersSummary', 'totalCores']);
+    const totalRam = NumberFormatUtils.roundNumberField(
+      entity.getIn(["workersSummary", "totalRAM"]) / 1024
+    );
+    const totalCores = entity.getIn(["workersSummary", "totalCores"]);
     return (
       <div>
         <div style={styles.infoRow}>
-          <div style={styles.infoRowKey}>{la('Total Cores')}</div>
-          <div style={{fontSize: formDescription.fontSize}}>{totalCores}</div>
+          <div style={styles.infoRowKey}>{la("Total Cores")}</div>
+          <div style={{ fontSize: formDescription.fontSize }}>{totalCores}</div>
         </div>
-        <div style={{...styles.infoRow, marginBottom: 12}}>
-          <div style={styles.infoRowKey}>{la('Total Memory')}</div>
-          <div style={{fontSize: formDescription.fontSize}}>{totalRam}{'GB'}</div>
+        <div style={{ ...styles.infoRow, marginBottom: 12 }}>
+          <div style={styles.infoRowKey}>{la("Total Memory")}</div>
+          <div style={{ fontSize: formDescription.fontSize }}>
+            {totalRam}
+            {"GB"}
+          </div>
         </div>
       </div>
     );
@@ -52,15 +57,15 @@ export default class ResourceSummary extends Component {
 
 const styles = {
   empty: {
-    height: 32
+    height: 32,
   },
   infoRow: {
-    width: '50%',
-    display: 'flex',
-    marginBottom: 6
+    width: "50%",
+    display: "flex",
+    marginBottom: 6,
   },
   infoRowKey: {
     ...formDescription,
-    width: 100
-  }
+    width: 100,
+  },
 };

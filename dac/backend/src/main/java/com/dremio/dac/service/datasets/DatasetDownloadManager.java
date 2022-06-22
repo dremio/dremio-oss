@@ -75,6 +75,7 @@ public class DatasetDownloadManager {
   private final JobsService jobsService;
   private final NamespaceService namespaceService;
   private final FileSystem fs;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   protected final Path storageLocation;
   private final boolean isJobResultsPDFSBased;
   private final OptionManager optionManager;
@@ -133,7 +134,8 @@ public class DatasetDownloadManager {
         .setQueryType(QueryType.UI_EXPORT)
         .setSqlQuery(JobRequestUtil.createSqlQuery(ctasSql, context, userName))
         .build(),
-      listener);
+      listener)
+    .getJobId();
     listener.await();
 
     logger.debug("Scheduled download job {} for {}", jobId.getId(), datasetPath);

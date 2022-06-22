@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { primary } from 'uiTheme/radium/buttons';
+import Radium from "radium";
+import PropTypes from "prop-types";
+import { primary } from "uiTheme/radium/buttons";
 
-@Radium
-export default class Submit extends PureComponent {
-
+class Submit extends PureComponent {
   static propTypes = {
     onClick: PropTypes.func,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   constructor(props) {
@@ -32,6 +30,11 @@ export default class Submit extends PureComponent {
   }
 
   render() {
-    return <button type='submit' style={primary}>{this.props.children}</button>;
+    return (
+      <button type="submit" style={primary}>
+        {this.props.children}
+      </button>
+    );
   }
 }
+export default Radium(Submit);

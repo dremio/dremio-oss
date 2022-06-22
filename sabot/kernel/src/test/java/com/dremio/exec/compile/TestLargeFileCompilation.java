@@ -29,7 +29,7 @@ import com.dremio.exec.ExecConstants;
 import com.google.common.base.Joiner;
 
 public class TestLargeFileCompilation extends BaseTestQuery {
-  @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(150, TimeUnit.SECONDS); // 150secs
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(150, TimeUnit.SECONDS); // 150secs
 
   private static final String LARGE_QUERY_GROUP_BY;
 

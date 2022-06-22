@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import {
   Breadcrumbs,
   ClickAwayListener,
   Fade,
-  Popper
-} from '@material-ui/core';
-import { bindToggle, bindPopper } from 'material-ui-popup-state';
-import { usePopupState } from 'material-ui-popup-state/hooks';
+  Popper,
+} from "@material-ui/core";
+import { bindToggle, bindPopper } from "material-ui-popup-state";
+import { usePopupState } from "material-ui-popup-state/hooks";
 
-import FontIcon from '@app/components/Icon/FontIcon';
-import { useNessieContext } from '../../utils/context';
-import NessieLink from '../NessieLink/NessieLink';
+import FontIcon from "@app/components/Icon/FontIcon";
+import { useNessieContext } from "../../utils/context";
+import NessieLink from "../NessieLink/NessieLink";
 
-import './NessieBreadcrumb.less';
+import "./NessieBreadcrumb.less";
 
 type NessieBreadcrumbProps = {
   path?: string[];
@@ -35,22 +35,23 @@ type NessieBreadcrumbProps = {
 };
 
 function getNamespaceUrl(path: string[], i: number) {
-  return `/namespace/${path.slice(0, i + 1).join('.')}`;
+  return `/namespace/${path.slice(0, i + 1).join("/")}`;
 }
 
 function Item({
-  text,
+  text: encodedText,
   to,
-  onClick
+  onClick,
 }: {
   text: string;
   to?: string | null;
   onClick?: (arg: any) => void;
 }) {
+  const text = decodeURIComponent(encodedText);
   const props = {
     title: text,
-    className: 'nessieBreadcrumb-item text-ellipsis',
-    onClick
+    className: "nessieBreadcrumb-item text-ellipsis",
+    onClick,
   };
 
   if (to) {
@@ -64,52 +65,64 @@ function Item({
   }
 }
 
-function NessieBreadcrumb({
-  path = [],
-  maxItems = 3
-}: NessieBreadcrumbProps) {
-  const { source: { name } } = useNessieContext();
+function NessieBreadcrumb({ path = [], maxItems = 3 }: NessieBreadcrumbProps) {
+  const {
+    source: { name },
+  } = useNessieContext();
   const popupState = usePopupState({
-    variant: 'popper',
-    popupId: 'nessieBreadcrumb-popper',
-    disableAutoFocus: true
+    variant: "popper",
+    popupId: "nessieBreadcrumb-popper",
+    disableAutoFocus: true,
   });
   const toggleProps = bindToggle(popupState);
 
   const pathLinks = useMemo(() => path.slice(0, -1), [path]);
-  const lastItem = path.length > 0 ? <Item text={path[path.length - 1]} /> : null;
+  const lastItem =
+    path.length > 0 ? <Item text={path[path.length - 1]} /> : null;
 
-  const iconStyle = { width: '20px', height: '20px' };
+  const iconStyle = { width: "24px", height: "24px" };
 
   return (
-    <div className='nessieBreadcrumb'>
-      <span className='nessieBreadcrumb-repoIcon'>
-        <FontIcon type='DatalakeIcon' theme={{ Icon: iconStyle }}/>
+    <div className="nessieBreadcrumb">
+      <span className="nessieBreadcrumb-repoIcon">
+        <FontIcon type="Repository" theme={{ Icon: iconStyle }} />
       </span>
-      <Breadcrumbs separator='.'>
-        <Item to='/' text={name} />
+      <Breadcrumbs separator=".">
+        <Item to="/" text={name} />
         {path.length > maxItems && (
-          <span className='nessieBreadcrumb-menuTrigger'>
-            <FontIcon type='MoreIcon' {...toggleProps} />
+          <span className="nessieBreadcrumb-menuTrigger">
+            <FontIcon type="MoreIcon" {...toggleProps} />
           </span>
         )}
-        {path.length <= maxItems && pathLinks.map((cur, i) => (
-          <Item key={i} to={getNamespaceUrl(path, i)} text={cur} />
-        ))}
+        {path.length <= maxItems &&
+          pathLinks.map((cur, i) => (
+            <Item
+              key={i}
+              to={getNamespaceUrl(path, i)}
+              text={decodeURIComponent(cur)}
+            />
+          ))}
         {lastItem}
       </Breadcrumbs>
       {path.length > maxItems && (
-        <Popper {...bindPopper(popupState)} placement='bottom-start' transition>
+        <Popper {...bindPopper(popupState)} placement="bottom-start" transition>
           {({ TransitionProps }) => (
             <ClickAwayListener onClickAway={popupState.close}>
               <Fade {...TransitionProps} timeout={250}>
-                <div className='menuContent'>
+                <div className="menuContent">
                   {pathLinks.map((cur, i) => (
-                    <div key={i} className='menuContent-item' onClick={popupState.close}>
-                      <NessieLink to={getNamespaceUrl(path, i)} className='nessieBreadcrumb-menuItem'>
-                        <FontIcon type='FolderNessie' />
-                        <span className='nessieBreadcrumb-menuItemContent'>
-                          {cur}
+                    <div
+                      key={i}
+                      className="menuContent-item"
+                      onClick={popupState.close}
+                    >
+                      <NessieLink
+                        to={getNamespaceUrl(path, i)}
+                        className="nessieBreadcrumb-menuItem"
+                      >
+                        <FontIcon type="FolderNessie" />
+                        <span className="nessieBreadcrumb-menuItemContent">
+                          {decodeURIComponent(cur)}
                         </span>
                       </NessieLink>
                     </div>

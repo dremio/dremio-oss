@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-@Radium
-export default class DividerHr extends Component {
+class DividerHr extends Component {
   static propTypes = {
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   constructor(props) {
@@ -29,9 +28,7 @@ export default class DividerHr extends Component {
   }
 
   render() {
-    return (
-      <hr style={[styles.base, this.props.style]} />
-    );
+    return <hr style={[styles.base, this.props.style]} />;
   }
 }
 
@@ -40,8 +37,9 @@ const styles = {
     padding: 0,
     height: 1,
     border: 0,
-    margin: '5px 0',
-    width: '100%',
-    background: '#e4e4e4'
-  }
+    margin: "5px 0",
+    width: "100%",
+    background: "#e4e4e4",
+  },
 };
+export default Radium(DividerHr);

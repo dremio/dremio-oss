@@ -18,6 +18,7 @@ package com.dremio.dac.model.job;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 
 /**
  * Holds job results. Could be partial or complete job results.
@@ -52,6 +53,12 @@ public interface JobData extends AutoCloseable {
    * @return
    */
   JobId getJobId();
+
+  /**
+   * Get the {@link SessionId} of job that produced the results in this object.
+   * @return
+   */
+  SessionId getSessionId();
 
   /**
    * Return the table path where the job results are stored.

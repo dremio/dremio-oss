@@ -40,8 +40,8 @@ import com.dremio.exec.util.VectorUtil;
 import com.google.common.collect.Lists;
 
 public class DumpCat {
-  private final static SabotConfig config = SabotConfig.create();
-  private final static BufferAllocator allocator = RootAllocatorFactory.newRoot(config);
+  private static final SabotConfig config = SabotConfig.create();
+  private static final BufferAllocator allocator = RootAllocatorFactory.newRoot(config);
 
   public static void main(String args[]) throws Exception {
     final DumpCat dumpCat = new DumpCat();

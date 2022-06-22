@@ -44,7 +44,7 @@ public class TestCompositeTrustManager {
    * Helper implementation of X509ExtendedTrustManager that has the same behavior in every method
    * and also can be inspected to see if each method has been called once.
    */
-  static abstract class SingleStateX509ExtendedTrustManager extends X509ExtendedTrustManager {
+  abstract static class SingleStateX509ExtendedTrustManager extends X509ExtendedTrustManager {
     boolean checkClientSocketCalled = false;
     boolean checkClientEngineCalled = false;
     boolean checkClientCalled = false;

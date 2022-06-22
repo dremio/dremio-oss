@@ -38,7 +38,7 @@ public class TestTimedRunnable extends DremioTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTimedRunnable.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(3, TimeUnit.MINUTES); // 3mins
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(3, TimeUnit.MINUTES); // 3mins
 
   private static class TestTask extends TimedRunnable<Void> {
     final long sleepTime; // sleep time in ms

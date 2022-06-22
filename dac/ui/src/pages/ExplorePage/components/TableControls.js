@@ -13,22 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import exploreUtils from 'utils/explore/exploreUtils';
-import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
-import { changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
-import { collapseExploreSql } from 'actions/explore/ui';
-import { getExploreState, getTableColumns, getApproximate } from '@app/selectors/explore';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import exploreUtils from "utils/explore/exploreUtils";
+import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
+import { collapseExploreSql } from "actions/explore/ui";
+import {
+  getExploreState,
+  getTableColumns,
+  getApproximate,
+  getExplorePageDataset,
+  getColumnFilter,
+} from "@app/selectors/explore";
+import { setQueryFilter as setQueryFilterFunc } from "@app/actions/explore/view";
 
-import { performTransform } from 'actions/explore/dataset/transform';
+import { performTransform } from "actions/explore/dataset/transform";
 
-import TableControlsView from './TableControlsView';
+import TableControlsView from "./TableControlsView";
 
-@Radium
 export class TableControls extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -46,22 +51,40 @@ export class TableControls extends PureComponent {
     rightTreeVisible: PropTypes.bool,
     approximate: PropTypes.bool,
     disableButtons: PropTypes.bool,
+    jobsCount: PropTypes.number,
+    showJobsTable: PropTypes.bool,
+    version: PropTypes.any,
+    columnCount: PropTypes.number,
+    filteredColumnCount: PropTypes.number,
+    columnFilter: PropTypes.any,
+    setQueryFilter: PropTypes.func,
+    queryTabNumber: PropTypes.any,
+    queryStatuses: PropTypes.array,
+    queryFilter: PropTypes.string,
+    curDataset: PropTypes.instanceOf(Immutable.Map),
+    curVersion: PropTypes.any,
 
     // actions
-    performTransform: PropTypes.func.isRequired
+    performTransform: PropTypes.func.isRequired,
   };
 
   static contextTypes = {
     router: PropTypes.object.isRequired,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
+
+  constructor(props) {
+    super(props);
+
+    this.filterQueries = this.filterQueries.bind(this);
+  }
 
   getLocationWithoutGraph(location) {
     let newLocation = location;
 
     newLocation = {
       ...newLocation,
-      pathname: changePageTypeInUrl(newLocation.pathname, PageTypes.default)
+      pathname: changePageTypeInUrl(newLocation.pathname, PageTypes.default),
     };
 
     return newLocation;
@@ -69,35 +92,67 @@ export class TableControls extends PureComponent {
 
   navigateToTransformWizard(wizardParams) {
     const { router } = this.context;
-    const { dataset, currentSql, queryContext, exploreViewState } = this.props;
+    const {
+      dataset,
+      currentSql,
+      queryContext,
+      exploreViewState,
+      queryStatuses,
+      queryTabNumber,
+    } = this.props;
 
     const callback = () => {
-      const locationWithoutGraph = this.getLocationWithoutGraph(this.props.location);
-      router.push(exploreUtils.getLocationToGoToTransformWizard({...wizardParams, location: locationWithoutGraph}));
+      const locationWithoutGraph = this.getLocationWithoutGraph(
+        this.props.location
+      );
+
+      router.push(
+        exploreUtils.getLocationToGoToTransformWizard({
+          ...wizardParams,
+          location: locationWithoutGraph,
+        })
+      );
     };
-    this.props.performTransform({dataset, currentSql, queryContext, viewId: exploreViewState.get('viewId'), callback});
+
+    const sqlProp = queryStatuses[queryTabNumber - 1]
+      ? queryStatuses[queryTabNumber - 1].sqlStatement
+      : currentSql;
+
+    this.props.performTransform({
+      dataset,
+      currentSql: sqlProp,
+      queryContext,
+      viewId: exploreViewState.get("viewId"),
+      callback,
+    });
   }
 
   addField = () => {
     // use first column by default for just the expression
     const defaultColumn = this.props.defaultColumnName;
     this.navigateToTransformWizard({
-      detailType: 'CALCULATED_FIELD',
-      column: '',
+      detailType: "CALCULATED_FIELD",
+      column: "",
       props: {
         initialValues: {
-          expression: defaultColumn ? exploreUtils.escapeFieldNameForSQL(defaultColumn) : ''
-        }
-      }
+          expression: defaultColumn
+            ? exploreUtils.escapeFieldNameForSQL(defaultColumn)
+            : "",
+        },
+      },
     });
   };
 
   groupBy = () => {
-    this.navigateToTransformWizard({ detailType: 'GROUP_BY', column: '' });
+    this.navigateToTransformWizard({ detailType: "GROUP_BY", column: "" });
   };
 
   join = () => {
-    this.navigateToTransformWizard({ detailType: 'JOIN', column: '', location: this.context.location });
+    this.navigateToTransformWizard({
+      detailType: "JOIN",
+      column: "",
+      location: this.context.location,
+    });
   };
 
   preventTooltipHide() {
@@ -105,6 +160,11 @@ export class TableControls extends PureComponent {
   }
 
   union() {}
+
+  filterQueries(value) {
+    const { setQueryFilter } = this.props;
+    setQueryFilter({ term: value });
+  }
 
   render() {
     const {
@@ -114,12 +174,30 @@ export class TableControls extends PureComponent {
       rightTreeVisible,
       exploreViewState,
       tableColumns,
-      disableButtons
+      disableButtons,
+      columnFilter,
+      queryFilter,
+      filteredColumnCount,
+      columnCount,
+      version,
+      showJobsTable,
+      jobsCount,
+      curVersion,
+      curDataset,
+      queryStatuses,
+      queryTabNumber,
     } = this.props;
+
+    const isQuerySuccess =
+      queryTabNumber > 0 &&
+      queryStatuses[queryTabNumber - 1] &&
+      !queryStatuses[queryTabNumber - 1].cancelled &&
+      !queryStatuses[queryTabNumber - 1].error &&
+      !!queryStatuses[queryTabNumber - 1].jobId;
 
     return (
       <TableControlsView
-        dataset={dataset}
+        dataset={curDataset || dataset}
         exploreViewState={exploreViewState}
         addField={this.addField}
         sqlState={sqlState}
@@ -129,6 +207,15 @@ export class TableControls extends PureComponent {
         rightTreeVisible={rightTreeVisible}
         tableColumns={tableColumns}
         disableButtons={disableButtons}
+        columnFilter={columnFilter}
+        queryFilter={queryFilter}
+        filteredColumnCount={filteredColumnCount}
+        columnCount={columnCount}
+        version={curVersion || version}
+        showJobsTable={showJobsTable}
+        jobsCount={jobsCount}
+        filterQueries={this.filterQueries}
+        isQuerySuccess={isQuerySuccess}
       />
     );
   }
@@ -136,20 +223,45 @@ export class TableControls extends PureComponent {
 
 function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
-  const datasetVersion = props.dataset.get('datasetVersion');
+  const datasetVersion = props.dataset.get("datasetVersion");
   const explorePageState = getExploreState(state);
-  const retrieveTableColumns = getTableColumns(state, datasetVersion, location);
+  const queryStatuses = state.modulesState.explorePage.data.view.queryStatuses;
+  const queryFilter = state.modulesState.explorePage.data.view.queryFilter;
+
+  const currentDataset = queryStatuses[props.queryTabNumber - 1];
+  const curDataset = getExplorePageDataset(
+    state,
+    currentDataset ? currentDataset : undefined
+  );
+  const version =
+    currentDataset && currentDataset.version
+      ? currentDataset.version
+      : datasetVersion;
+
+  const columns = getTableColumns(state, version, location);
+  const columnFilter = getColumnFilter(state);
 
   return {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
-    defaultColumnName: retrieveTableColumns && retrieveTableColumns.getIn([0, 'name']) || '',
-    tableColumns: getTableColumns(state, datasetVersion),
-    approximate: getApproximate(state, datasetVersion)
+    defaultColumnName: (columns && columns.getIn([0, "name"])) || "",
+    tableColumns: getTableColumns(state, version),
+    approximate: getApproximate(state, version),
+    queryStatuses,
+    queryFilter,
+    curDataset,
+    curVersion: currentDataset && currentDataset.version,
+    columnFilter,
+    columnCount: columns.size,
+    filteredColumnCount: exploreUtils.getFilteredColumnCount(
+      columns,
+      columnFilter
+    ),
   };
 }
 
 export default connect(mapStateToProps, {
   performTransform,
-  collapseExploreSql
+  collapseExploreSql,
+  setQueryFilter: setQueryFilterFunc,
 })(TableControls);

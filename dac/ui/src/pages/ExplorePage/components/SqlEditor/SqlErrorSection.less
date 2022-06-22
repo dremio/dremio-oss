@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../../../components/colors.less';
+@import "../../../../components/colors.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
-  .sql-error{
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .sql-error {
     display: none;
     font-size: 13px;
     line-height: 20px;
     position: relative;
-    &.visible{
+    &.visible {
       background: @light-pink;
       color: @black;
       padding: 10px;
@@ -31,29 +32,29 @@
       margin: 5px 16px;
     }
 
-    .details-list{
+    .details-list {
       display: none;
       margin: 0;
       padding: 5px 0 0 21px;
       font-size: 12px;
-      &.visible{
+      &.visible {
         display: block;
       }
     }
 
-    .details-link{
+    .details-link {
       color: @blue;
       cursor: pointer;
       margin: 0 0 0 10px;
     }
 
-    .font-icon{
+    .font-icon {
       font-size: 20px;
       line-height: 20px;
       color: #f96074;
       float: left;
       margin: 0 10px 0 0;
-      .fa{
+      .fa {
         vertical-align: top;
         width: auto;
         height: auto;

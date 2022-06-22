@@ -13,28 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import clsx from 'clsx';
+import clsx from "clsx";
 
-import HoverHelp from '../HoverHelp';
+import HoverHelp from "../HoverHelp";
 
-import './label.scss';
+import "./label.scss";
 
-const Label = ({ helpText, value, className, labelInnerClass,  style, ...props }) => {
-  const containerClasses = clsx('label', { [className]: className });
-  const labelClasses = clsx( { [labelInnerClass]: labelInnerClass });
+const Label = ({
+  helpText,
+  value,
+  className,
+  labelInnerClass,
+  style,
+  ...props
+}) => {
+  const containerClasses = clsx("label", { [className]: className });
+  const labelClasses = clsx({ [labelInnerClass]: labelInnerClass });
   return (
     <div className={containerClasses}>
-      <div role='label' className={labelClasses} style={style} {...props}>
+      <div role="label" className={labelClasses} style={style} {...props}>
         {value}
       </div>
       {helpText && (
-        <HoverHelp
-          arrow
-          content={helpText}
-          placement='bottom-start' />
+        <HoverHelp arrow content={helpText} placement="bottom-start" />
       )}
     </div>
   );
@@ -45,12 +49,12 @@ Label.propTypes = {
   className: PropTypes.string,
   labelInnerClass: PropTypes.string,
   style: PropTypes.object,
-  helpText: PropTypes.string
+  helpText: PropTypes.string,
 };
 
 Label.defaultProps = {
-  className: '',
-  style: {}
+  className: "",
+  style: {},
 };
 
 export default Label;

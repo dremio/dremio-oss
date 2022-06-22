@@ -13,26 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { debounce } from 'lodash/function';
-import Mousetrap from 'mousetrap';
-import invariant from 'invariant';
-import { injectIntl } from 'react-intl';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { debounce } from "lodash/function";
+import Mousetrap from "mousetrap";
+import invariant from "invariant";
+import { injectIntl } from "react-intl";
 
-import EllipsedText from 'components/EllipsedText';
+import EllipsedText from "components/EllipsedText";
 
-import { SearchField } from 'components/Fields';
-import StatefulTableViewer from 'components/StatefulTableViewer';
-import {SortDirection} from 'components/VirtualizedTableViewer';
-import { WikiButton } from '@app/pages/HomePage/components/WikiButton';
-import { BrowseTableResizer } from '@app/pages/HomePage/components/BrowseTableResizer';
-import { Row, GridColumn, SidebarColumn } from '@app/pages/HomePage/components/Columns';
+import { SearchField } from "components/Fields";
+import StatefulTableViewer from "components/StatefulTableViewer";
+import { SortDirection } from "components/VirtualizedTableViewer";
+import { WikiButton } from "@app/pages/HomePage/components/WikiButton";
+import { BrowseTableResizer } from "@app/pages/HomePage/components/BrowseTableResizer";
+import {
+  Row,
+  GridColumn,
+  SidebarColumn,
+} from "@app/pages/HomePage/components/Columns";
 
-import { constructFullPath } from 'utils/pathUtils';
-import { tableStyles } from '../tableStyles';
-import { wikiCollapsed } from './BrowseTable.less';
+import { constructFullPath } from "utils/pathUtils";
+import { tableStyles } from "../tableStyles";
+import {
+  activeWikiButton,
+  searchField,
+  searchFieldDivider,
+} from "./BrowseTable.less";
 
 @injectIntl
 export default class BrowseTable extends Component {
@@ -46,20 +54,22 @@ export default class BrowseTable extends Component {
     buttons: PropTypes.node,
     children: PropTypes.node,
     filterKey: PropTypes.string.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    renderExternalLink: PropTypes.func,
+    renderTitleExtraContent: PropTypes.func,
     // extra props passed along to underlying Table impl
   };
 
   static defaultProps = {
-    filterKey: 'name',
+    filterKey: "name",
 
     // pass thru to Table
-    defaultSortBy: 'name',
-    defaultSortDirection: SortDirection.ASC
+    defaultSortBy: "name",
+    defaultSortDirection: SortDirection.ASC,
   };
 
   state = {
-    filter: ''
+    filter: "",
   };
 
   mainContainerNode = null;
@@ -71,32 +81,39 @@ export default class BrowseTable extends Component {
   }
 
   componentDidMount() {
-    Mousetrap.bind(['command+f', 'ctrl+f'], () => {
+    Mousetrap.bind(["command+f", "ctrl+f"], () => {
       this.searchField.focus();
       return false;
     });
   }
 
   componentWillUnmount() {
-    Mousetrap.unbind(['command+f', 'ctrl+f']);
+    Mousetrap.unbind(["command+f", "ctrl+f"]);
   }
 
   handleFilterChange = (filter) => {
     this.setState({
-      filter
+      filter,
     });
   };
 
   filteredTableData = () => {
+    const { filterKey, tableData } = this.props;
     const { filter } = this.state;
-    return !filter ? this.props.tableData : this.props.tableData.filter((item) => {
-      let value = item.data[this.props.filterKey].value;
-      value = typeof value !== 'function' ? value : value.call(item.data[this.props.filterKey].value);
-      return value.toLowerCase().includes(filter.trim().toLowerCase());
-    });
+
+    return !filter
+      ? tableData
+      : tableData.filter((item) => {
+          let value = item.data[filterKey].value;
+          value =
+            typeof value !== "function"
+              ? value
+              : value.call(item.data[filterKey].value);
+          return value.toLowerCase().includes(filter.trim().toLowerCase());
+        });
   };
 
-  onMainContainerRef = mainEl => {
+  onMainContainerRef = (mainEl) => {
     this.mainContainerNode = mainEl;
   };
 
@@ -111,86 +128,130 @@ export default class BrowseTable extends Component {
       rightSidebarExpanded,
       intl,
       toggleSidebar,
+      renderExternalLink,
+      renderTitleExtraContent,
       ...passAlongProps
-    } = this.props; // eslint-disable-line no-unused-vars
+    } = this.props;
     invariant(
-      !title || typeof title === 'string' || title.props.fullPath,
-      'BrowseTable title must be string or BreadCrumbs.'
+      !title || typeof title === "string" || title.props.fullPath,
+      "BrowseTable title must be string or BreadCrumbs."
     );
 
     const resetScrollTop = Boolean(
-      window.navigator.userAgent.toLowerCase().includes('firefox') &&
-      this.state.filter
+      window.navigator.userAgent.toLowerCase().includes("firefox") &&
+        this.state.filter
     ); //it's needed for https://dremio.atlassian.net/browse/DX-7140
 
     if (tableData.size) {
-      passAlongProps.noDataText = intl.formatMessage({ id: 'Search.BrowseTable'}, { filter: this.state.filter });
+      passAlongProps.noDataText = intl.formatMessage(
+        { id: "Search.BrowseTable" },
+        { filter: this.state.filter }
+      );
     }
 
+    const showButtonDivider =
+      buttons != null || (!rightSidebarExpanded && rightSidebar);
+
     return (
-      <div className='main-info' ref={this.onMainContainerRef}>
+      <div className="main-info" ref={this.onMainContainerRef}>
         {this.props.children}
-        <div className='list-content'>
-          <div className='row'>
+        <div className="list-content">
+          <div className="row">
             <div>
-              <Row className='browse-table-viewer-header'>
-                <GridColumn style={{
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <h3 style={styles.heading}>
-                    <EllipsedText text={
-                      !title || typeof title === 'string'
-                        ? title
-                        : title && title.props && LRE + constructFullPath(title.props.fullPath.toJS(), true)
-                    }>
-                      {title}
-                    </EllipsedText>
-                  </h3>
-                  <div style={{display: 'flex', alignItems: 'center'}}>
+              <Row className="browse-table-viewer-header">
+                <GridColumn
+                  style={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={styles.heading}
+                    className="list-content__title-wrap"
+                  >
+                    <h3>
+                      <EllipsedText
+                        text={
+                          !title || typeof title === "string"
+                            ? title
+                            : title &&
+                              title.props &&
+                              LRE +
+                                constructFullPath(
+                                  title.props.fullPath.toJS(),
+                                  true
+                                )
+                        }
+                      >
+                        {title}
+                      </EllipsedText>
+                    </h3>
+                    {renderTitleExtraContent && (
+                      <span className="browse-table__titleExtra">
+                        {renderTitleExtraContent()}
+                      </span>
+                    )}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {renderExternalLink && (
+                      <span className="browse-table__externalLink">
+                        {renderExternalLink()}
+                      </span>
+                    )}
                     <SearchField
-                      ref={searchField => this.searchField = searchField}
+                      ref={(searchField) => (this.searchField = searchField)}
                       onChange={this.handleFilterChange}
                       style={tableStyles.searchField}
-                      placeholder={intl.formatMessage({ id: 'Dataset.SearchEllipsis' })}
+                      placeholder={intl.formatMessage({
+                        id: "Dataset.SearchEllipsis",
+                      })}
                       showCloseIcon
-                      inputClassName='mousetrap'
-                      dataQa='browse-table-search'
+                      showIcon
+                      inputClassName="mousetrap"
+                      dataQa="browse-table-search"
+                      className={`${searchField} ${
+                        showButtonDivider && searchFieldDivider
+                      }`}
                     />
                     {buttons}
-                    {!rightSidebarExpanded && rightSidebar && <WikiButton
-                      isSelected={rightSidebarExpanded}
-                      onClick={toggleSidebar}
-                      className={wikiCollapsed}
-                    />}
+                    {!rightSidebarExpanded && rightSidebar && (
+                      <WikiButton onClick={toggleSidebar} />
+                    )}
                   </div>
                 </GridColumn>
-                {rightSidebarExpanded && rightSidebar && <SidebarColumn style={{
-                  display: 'flex',
-                  alignItems: 'center'
-                }}>
-                  <WikiButton
-                    isSelected={rightSidebarExpanded}
-                    onClick={toggleSidebar}
-                  />
-                </SidebarColumn>}
+                {rightSidebarExpanded && rightSidebar && (
+                  <SidebarColumn
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div className={activeWikiButton}>
+                      <WikiButton onClick={toggleSidebar} />
+                    </div>
+                  </SidebarColumn>
+                )}
               </Row>
             </div>
             <Row>
-              <GridColumn className='table-wrap'>
+              <GridColumn className="table-wrap">
                 <StatefulTableViewer
                   virtualized
-                  className='table'
+                  className="table"
                   tableData={this.filteredTableData()}
                   resetScrollTop={resetScrollTop}
-                  style={{width:'100%'}}
+                  style={{ width: "100%" }}
                   {...passAlongProps}
                 />
               </GridColumn>
-              {rightSidebarExpanded && rightSidebar && <SidebarColumn style={{ position: 'relative' }}>
-                <BrowseTableResizer anchorElementGetter={this.getMainContainer} />
-                {rightSidebar}
-              </SidebarColumn>}
+              {rightSidebarExpanded && rightSidebar && (
+                <SidebarColumn style={{ position: "relative" }}>
+                  <BrowseTableResizer
+                    anchorElementGetter={this.getMainContainer}
+                  />
+                  {rightSidebar}
+                </SidebarColumn>
+              )}
             </Row>
           </div>
         </div>
@@ -199,12 +260,12 @@ export default class BrowseTable extends Component {
   }
 }
 
-const styles = { // todo: RTL support
+const styles = {
+  // todo: RTL support
   heading: {
     flexShrink: 1,
-    minWidth: 0
-  }
+    minWidth: 0,
+  },
 };
-const LRE = '\u202A'; // ... but make sure the text is treated as LTR by the text engine (e.g. render '@dremio', not 'dremio@')
+const LRE = "\u202A"; // ... but make sure the text is treated as LTR by the text engine (e.g. render '@dremio', not 'dremio@')
 // note: wrapping in <div> with direction:ltr doesn't produce "..."
-

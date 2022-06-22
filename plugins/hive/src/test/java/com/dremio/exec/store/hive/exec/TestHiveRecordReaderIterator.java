@@ -51,7 +51,6 @@ import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
-import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.SplitReaderCreatorIterator;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.options.OptionManager;
@@ -66,7 +65,7 @@ import com.dremio.test.AllocatorRule;
  * Tests for {@link HiveRecordReaderIterator}
  */
 public class TestHiveRecordReaderIterator {
-    private final static String TEST_NAME = "TestHiveRecordReaderIterator";
+    private static final String TEST_NAME = "TestHiveRecordReaderIterator";
 
     private BufferAllocator testAllocator;
 

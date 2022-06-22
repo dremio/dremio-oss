@@ -46,14 +46,14 @@ import com.google.common.collect.Sets;
  */
 @Ignore
 public class TestTpchDistributedConcurrent extends BaseTestQuery {
-  @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(140, TimeUnit.SECONDS); // Longer timeout than usual.
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(140, TimeUnit.SECONDS); // Longer timeout than usual.
 
   /*
    * Valid test names taken from TestTpchDistributed. Fuller path prefixes are
    * used so that tests may also be taken from other locations -- more variety
    * is better as far as this test goes.
    */
-  private final static String queryFile[] = {
+  private static final String queryFile[] = {
     "queries/tpch/01.sql",
     "queries/tpch/03.sql",
     "queries/tpch/04.sql",
@@ -74,11 +74,11 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
     "queries/tpch/20.sql",
   };
 
-  private final static int TOTAL_QUERIES = 115;
-  private final static int CONCURRENT_QUERIES = 15;
+  private static final int TOTAL_QUERIES = 115;
+  private static final int CONCURRENT_QUERIES = 15;
 
-  private final static Random random = new Random(0xdeadbeef);
-  private final static String alterSession = "alter session set \"planner.slice_target\" = 10";
+  private static final Random random = new Random(0xdeadbeef);
+  private static final String alterSession = "alter session set \"planner.slice_target\" = 10";
 
   private int remainingQueries = TOTAL_QUERIES - CONCURRENT_QUERIES;
   private final Semaphore completionSemaphore = new Semaphore(0);

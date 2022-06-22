@@ -13,19 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FontIcon from 'components/Icon/FontIcon';
-import { styles } from '@app/components/DragComponents/DragAreaColumn.js';
+import FontIcon from "components/Icon/FontIcon";
+import { styles } from "@app/components/DragComponents/DragAreaColumn.js";
 
 function DragAreaColumnMixin(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderCancelGreyButtons() {
       return (
         <FontIcon
-          type='CanceledGray'
+          type="CanceledGray"
           theme={styles.fontIcon}
-          onClick={this.handleRemoveColumn}/>
+          onClick={this.handleRemoveColumn}
+        />
       );
-    }
+    },
   });
   return input;
 }

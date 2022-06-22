@@ -13,21 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
-import { getExploreState } from '@app/selectors/explore';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import { injectIntl } from "react-intl";
+import { getExploreState } from "@app/selectors/explore";
+import classNames from "classnames";
 
-import Art from 'components/Art';
+import Art from "components/Art";
 
-import { RECOMMENDED_JOIN, CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
-import { setJoinTab, clearJoinDataset } from 'actions/explore/join';
+import {
+  RECOMMENDED_JOIN,
+  CUSTOM_JOIN,
+} from "@app/constants/explorePage/joinTabs";
+import { setJoinTab, clearJoinDataset } from "actions/explore/join";
 
-@injectIntl
-@Radium
+import * as classes from "./JoinHeader.module.less";
+
 export class JoinHeader extends Component {
   static propTypes = {
     viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
@@ -40,44 +43,43 @@ export class JoinHeader extends Component {
     setJoinTab: PropTypes.func,
     joinTab: PropTypes.string,
     clearJoinDataset: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
     this.tabs = [
       {
-        name: 'Recommended Join',
-        id: RECOMMENDED_JOIN
+        name: "Recommended Join",
+        id: RECOMMENDED_JOIN,
       },
       {
-        name: 'Custom Join',
-        id: CUSTOM_JOIN
-      }
+        name: "Custom Join",
+        id: CUSTOM_JOIN,
+      },
     ];
   }
 
   getCloseIcon() {
     const handler = this.props.closeIconHandler;
-    const icon = this.props.closeIcon
-      ? <Art
-        src={'XBig.svg'}
-        alt={this.props.intl.formatMessage({ id: 'Common.Close' })}
+    const icon = this.props.closeIcon ? (
+      <Art
+        src={"XBig.svg"}
+        alt={this.props.intl.formatMessage({ id: "Common.Close" })}
         onClick={handler}
-        style={styles.icon} />
-      : null;
+        style={styles.icon}
+      />
+    ) : null;
     return icon;
   }
 
   getSeparator() {
-    const {separator} = this.props;
-    return separator
-      ? separator
-      : ': ';
+    const { separator } = this.props;
+    return separator ? separator : ": ";
   }
 
   setActiveTab(id) {
@@ -90,23 +92,23 @@ export class JoinHeader extends Component {
   }
 
   renderTabs() {
-    return this.tabs.map(tab => {
+    return this.tabs.map((tab) => {
       const { hasRecommendations, viewState } = this.props;
-      const isHovered = Radium.getState(this.state, tab.id, ':hover');
-      const disabledStyle = (tab.id === RECOMMENDED_JOIN && !hasRecommendations) || viewState.get('isInProgress')
-        ? styles.disabled
-        : {};
-      const activeTabStyle = (isHovered || this.isActiveTab(tab.id)) && !viewState.get('isInProgress')
-        ? styles.activeTab
-        : {};
 
       return (
         <h5
-          className='transform-tab'
           data-qa={tab.name}
-          style={[styles.tab, {color: '#000000'}, disabledStyle, activeTabStyle]}
+          className={classNames("transform-tab", classes["join-header-tab"], {
+            [classes["join-header-tab--disabled"]]:
+              (tab.id === RECOMMENDED_JOIN && !hasRecommendations) ||
+              viewState.get("isInProgress"),
+            [classes["join-header-tab--hoverable"]]:
+              !viewState.get("isInProgress"),
+            [classes["join-header-tab--active"]]: !!this.isActiveTab(tab.id),
+          })}
           key={tab.id}
-          onClick={this.setActiveTab.bind(this, tab.id)}>
+          onClick={this.setActiveTab.bind(this, tab.id)}
+        >
           <span>{tab.name}</span>
         </h5>
       );
@@ -115,9 +117,10 @@ export class JoinHeader extends Component {
 
   render() {
     return (
-      <div className='raw-wizard-header' style={[styles.base]}>
-        <div style={[styles.content]}>
-          {this.props.text}{this.getSeparator()}
+      <div className="raw-wizard-header" style={styles.base}>
+        <div style={styles.content}>
+          {this.props.text}
+          {this.getSeparator()}
           {this.renderTabs()}
         </div>
         {this.getCloseIcon()}
@@ -125,53 +128,37 @@ export class JoinHeader extends Component {
     );
   }
 }
+JoinHeader = injectIntl(JoinHeader);
 
 const styles = {
   base: {
-    display: 'flex',
+    display: "flex",
     height: 38,
-    justifyContent: 'space-between'
+    justifyContent: "space-between",
   },
-  tab: {
-    display: 'flex',
-    height: 37,
-    marginLeft: -5,
-    position: 'relative',
-    justifyContent: 'center',
-    padding: '10px 20px',
-    cursor: 'pointer',
-    ':hover': {
-      color: '#000000'
-    }
-  },
-  activeTab: {
-    borderBottom: '3px solid #77818F'
-  },
-  'content': {
-    'display': 'flex',
-    'marginLeft': 0,
-    'alignItems': 'center',
-    'fontSize': 15,
-    'fontWeight': 600
+  content: {
+    display: "flex",
+    marginLeft: 0,
+    alignItems: "center",
+    fontSize: 15,
+    fontWeight: 600,
   },
   icon: {
-    float: 'right',
-    margin: '8px 10px 0 0',
-    position: 'relative',
+    float: "right",
+    margin: "8px 10px 0 0",
+    position: "relative",
     width: 24,
     height: 24,
     fontSize: 18,
-    cursor: 'pointer'
+    cursor: "pointer",
   },
-  disabled: {
-    color: 'gray',
-    pointerEvents: 'none'
-  }
 };
 
 function mapStateToProps(state) {
   return {
-    joinTab: getExploreState(state).join.get('joinTab')
+    joinTab: getExploreState(state).join.get("joinTab"),
   };
 }
-export default connect(mapStateToProps, {setJoinTab, clearJoinDataset})(JoinHeader);
+export default connect(mapStateToProps, { setJoinTab, clearJoinDataset })(
+  JoinHeader
+);

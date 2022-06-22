@@ -32,7 +32,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 public class SqlTruncateTable extends SqlCall {
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("TRUNCATE_TABLE", SqlKind.OTHER_DDL) {
+  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("TRUNCATE TABLE", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
       Preconditions.checkArgument(operands.length == 3, "SqlTruncateTable.createCall() " +

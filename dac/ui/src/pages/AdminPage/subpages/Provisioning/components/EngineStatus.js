@@ -13,24 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import {CLUSTER_STATE, CLUSTER_STATE_LEGEND_ICON, CLUSTER_STATE_ICON} from '@inject/constants/provisioningPage/provisioningConstants';
-import Art from '@app/components/Art';
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import {
+  CLUSTER_STATE,
+  CLUSTER_STATE_LEGEND_ICON,
+  CLUSTER_STATE_ICON,
+} from "@inject/constants/provisioningPage/provisioningConstants";
+import Art from "@app/components/Art";
 
 const unknownStateIcon = CLUSTER_STATE_ICON[CLUSTER_STATE.unknown];
-const spinnerIcon = { src: 'Loader.svg', text: 'working...', className: 'spinner' };
+const spinnerIcon = {
+  src: "Loader.svg",
+  text: "working...",
+  className: "spinner",
+};
 
 export function EngineStatusIcon(props) {
-  const {status, isInProgress, style, type} = props;
+  const { status, isInProgress, style, type } = props;
   /*eslint no-nested-ternary: "off"*/
-  let icon = (isInProgress) ? spinnerIcon : type === 'legend' ? CLUSTER_STATE_LEGEND_ICON[status] : CLUSTER_STATE_ICON[status];
+  let icon = isInProgress
+    ? spinnerIcon
+    : type === "legend"
+    ? CLUSTER_STATE_LEGEND_ICON[status]
+    : CLUSTER_STATE_ICON[status];
   if (!icon) {
-    icon = {...unknownStateIcon, text: `${unknownStateIcon.text}, currentStatus: ${status}`};
+    icon = {
+      ...unknownStateIcon,
+      text: `${unknownStateIcon.text}, currentStatus: ${status}`,
+    };
   }
   return (
-    <Art src={icon.src}
-      style={{height: 24, width: 24, ...style}}
+    <Art
+      src={icon.src}
+      style={{ height: 24, width: 24, ...style }}
       alt={icon.text}
       className={icon.className}
       title
@@ -41,21 +57,29 @@ EngineStatusIcon.propTypes = {
   status: PropTypes.string,
   isInProgress: PropTypes.bool,
   style: PropTypes.object,
-  type: PropTypes.string
+  type: PropTypes.string,
 };
 
 export default function EngineStatus(props) {
-  const {engine, style, viewState} = props;
+  const { engine, style, viewState } = props;
   if (!engine) return null;
 
-  const isInProgress = viewState && viewState.get('isInProgress')
-    && viewState.get('entityId') === engine.get('id');
-  const status = engine.get('currentState');
-  return <EngineStatusIcon status={status} isInProgress={isInProgress} style={style}/>;
+  const isInProgress =
+    viewState &&
+    viewState.get("isInProgress") &&
+    viewState.get("entityId") === engine.get("id");
+  const status = engine.get("currentState");
+  return (
+    <EngineStatusIcon
+      status={status}
+      isInProgress={isInProgress}
+      style={style}
+    />
+  );
 }
 
 EngineStatus.propTypes = {
   engine: PropTypes.instanceOf(Immutable.Map),
   style: PropTypes.object,
-  viewState: PropTypes.instanceOf(Immutable.Map)
+  viewState: PropTypes.instanceOf(Immutable.Map),
 };

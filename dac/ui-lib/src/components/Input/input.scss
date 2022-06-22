@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 
 .input-root {
   padding-top: map-get($map: $gutter-sizes, $key: half);
@@ -23,17 +23,23 @@
   .input__container {
     border-radius: 4px;
     height: 32px;
+    font-size: 14px;
+    line-height: 20px;
     border: solid 1px $border-color;
     display: flex;
     align-items: center;
     background-color: $white;
 
     &.--focused {
-      border: 1px solid $regentBlue;
+      border: 1px solid $FIGMA_PRIMARY_500;
+    }
+
+    &:focus {
+      border: 1px solid $FIGMA_PRIMARY_500;
     }
 
     &:hover {
-      border: 1px solid $regentBlue;
+      // border: 1px solid $regentBlue;
 
       .input__numberButtons {
         &.--disabled {
@@ -41,7 +47,7 @@
             display: none;
           }
         }
-        
+
         .icon {
           display: block;
         }
@@ -99,7 +105,7 @@
         display: none;
       }
     }
-    
+
     input {
       height: 100%;
       border: none;
@@ -119,19 +125,18 @@
 
       &:focus {
         outline: none;
-        background-color: $aliceBlue;
       }
     }
 
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { 
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
       -webkit-appearance: none;
       appearance: none;
-      margin: 0; 
+      margin: 0;
     }
 
-    input[type=number] {
-      -moz-appearance:textfield;
+    input[type="number"] {
+      -moz-appearance: textfield;
     }
   }
 
@@ -143,5 +148,4 @@
   &__label {
     flex-grow: 4;
   }
-
 }

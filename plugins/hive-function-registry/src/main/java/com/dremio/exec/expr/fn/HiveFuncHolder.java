@@ -17,7 +17,6 @@ package com.dremio.exec.expr.fn;
 
 import java.util.List;
 
-import com.dremio.exec.expr.annotations.FunctionTemplate;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
@@ -35,6 +34,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.HiveFuncHolderExpr;
+import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.fn.impl.hive.DeferredObject;
 import com.dremio.exec.expr.fn.impl.hive.ObjectInspectorHelper;
 import com.sun.codemodel.JBlock;

@@ -13,26 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
-import { base } from '@app/uiTheme/less/Aggregate/AggregateForm.less';
-import { getColumnByName, isAlreadySelected } from 'utils/explore/aggregateUtils';
-import ColumnDragItem from 'utils/ColumnDragItem';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
+import { base } from "@app/uiTheme/less/Aggregate/AggregateForm.less";
+import {
+  getColumnByName,
+  isAlreadySelected,
+} from "utils/explore/aggregateUtils";
+import ColumnDragItem from "utils/ColumnDragItem";
 
-import AggregateContent from './AggregateContent';
-import AggregateHeader from './AggregateHeader';
-import AggregateFooter from './AggregateFooter';
+import AggregateContent from "./AggregateContent";
+import AggregateHeader from "./AggregateHeader";
+import AggregateFooter from "./AggregateFooter";
 
-@Radium
 class AggregateForm extends Component {
-  static getFields = () => ([
-    'columnsDimensions[].column',
-    'columnsMeasures[].measure',
-    'columnsMeasures[].column'
-  ]);
+  static getFields = () => [
+    "columnsDimensions[].column",
+    "columnsMeasures[].measure",
+    "columnsMeasures[].column",
+  ];
 
   static validate = () => {
     return {};
@@ -50,69 +51,74 @@ class AggregateForm extends Component {
     style: PropTypes.object,
     contentStyle: PropTypes.object,
     canAlter: PropTypes.any,
-    className: PropTypes.any
+    className: PropTypes.any,
   };
 
   static defaultProps = {
     canSelectMeasure: true,
-    canUseFieldAsBothDimensionAndMeasure: true
+    canUseFieldAsBothDimensionAndMeasure: true,
   };
 
   constructor(props) {
     super(props);
     this.state = {
       isDragInProgress: false,
-      dragItem: new ColumnDragItem()
+      dragItem: new ColumnDragItem(),
     };
   }
 
   onDragStart = (e = {}) => {
     this.setState({
       isDragInProgress: true,
-      dragItem: new ColumnDragItem(e.id, e.type)
+      dragItem: new ColumnDragItem(e.id, e.type),
     });
   };
 
   handleDrop = (dragOrigin, dropData) => {
-    const {columns, fields} = this.props;
+    const { columns, fields } = this.props;
     const { columnsMeasures, columnsDimensions } = fields;
     const { id: columnName } = dropData;
     const columnToAdd = getColumnByName(columns, columnName);
     const newColumn = {
-      column: columnName
+      column: columnName,
     };
 
     if (dragOrigin !== dropData.type) {
-      if (dragOrigin === 'measures') {
-        if (dropData.type === 'dimensions') {
+      if (dragOrigin === "measures") {
+        if (dropData.type === "dimensions") {
           columnsDimensions.removeField(dropData.index);
         }
-        newColumn.measure = ['FLOAT', 'DECIMAL', 'INTEGER', 'BIGINT', 'DOUBLE'].includes(columnToAdd && columnToAdd.getIn(['type', 'name']))
-          ? 'Sum' : 'Count';
+        newColumn.measure = [
+          "FLOAT",
+          "DECIMAL",
+          "INTEGER",
+          "BIGINT",
+          "DOUBLE",
+        ].includes(columnToAdd && columnToAdd.getIn(["type", "name"]))
+          ? "Sum"
+          : "Count";
         columnsMeasures.addField(newColumn);
       } else if (!isAlreadySelected(fields.columnsDimensions, columnName)) {
-        if (dropData.type === 'measures') {
+        if (dropData.type === "measures") {
           columnsMeasures.removeField(dropData.index);
         }
         columnsDimensions.addField(newColumn);
       }
     }
 
-
     this.stopDrag();
   };
 
   addAnother = (type) => {
     const { fields } = this.props;
-    if (type === 'measures') {
-      fields.columnsMeasures.addField({measure: 'Sum'});
+    if (type === "measures") {
+      fields.columnsMeasures.addField({ measure: "Sum" });
     } else {
       fields.columnsDimensions.addField({});
     }
   };
 
   removeAllFields = (fields) => {
-
     const runLoop = async () => {
       for (let i = 0; i < fields.length; i++) {
         await fields.removeField(0);
@@ -123,48 +129,67 @@ class AggregateForm extends Component {
   };
 
   handleClearAllDimensions = () => {
-    const { fields: { columnsDimensions } } = this.props;
+    const {
+      fields: { columnsDimensions },
+    } = this.props;
     this.removeAllFields(columnsDimensions);
   };
 
   handleClearAllMeasures = () => {
-    const { fields: { columnsMeasures } } = this.props;
+    const {
+      fields: { columnsMeasures },
+    } = this.props;
     this.removeAllFields(columnsMeasures);
   };
 
   stopDrag = () => {
     this.setState({
       isDragInProgress: false,
-      dragItem: new ColumnDragItem()
+      dragItem: new ColumnDragItem(),
     });
   };
 
   render() {
-    const {style, dataset, fields, values, canSelectMeasure, canUseFieldAsBothDimensionAndMeasure, columns, canAlter, className } = this.props;
+    const {
+      style,
+      dataset,
+      fields,
+      values,
+      canSelectMeasure,
+      canUseFieldAsBothDimensionAndMeasure,
+      columns,
+      canAlter,
+      className,
+      location,
+    } = this.props;
     return (
-      <div className={classNames('aggregate-form', base, className)} style={style}>
+      <div
+        className={classNames("aggregate-form", base, className)}
+        style={style}
+      >
         <AggregateHeader
           dataset={dataset}
           onClearAllDimensions={this.handleClearAllDimensions}
           onClearAllMeasures={this.handleClearAllMeasures}
+          location={location}
         />
         <AggregateContent
           fields={fields}
           values={values}
           canSelectMeasure={canSelectMeasure}
-          canUseFieldAsBothDimensionAndMeasure={canUseFieldAsBothDimensionAndMeasure}
+          canUseFieldAsBothDimensionAndMeasure={
+            canUseFieldAsBothDimensionAndMeasure
+          }
           handleDragStart={this.onDragStart}
           onDragEnd={this.stopDrag}
           onDrop={this.handleDrop}
           isDragInProgress={this.state.isDragInProgress}
           dragItem={this.state.dragItem}
-          dragType='aggregate'
+          dragType="aggregate"
           allColumns={columns}
           canAlter={canAlter}
         />
-        <AggregateFooter
-          addAnother={this.addAnother}
-        />
+        <AggregateFooter addAnother={this.addAnother} />
       </div>
     );
   }

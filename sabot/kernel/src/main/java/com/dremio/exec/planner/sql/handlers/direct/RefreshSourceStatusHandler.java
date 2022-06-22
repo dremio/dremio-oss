@@ -24,6 +24,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.SourceCatalog;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
@@ -44,6 +45,7 @@ public class RefreshSourceStatusHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlRefreshSourceStatus sqlRefreshSourceStatus = SqlNodeUtil.unwrap(sqlNode, SqlRefreshSourceStatus.class);
     final NamespaceKey path = sqlRefreshSourceStatus.getPath();
+    sourceCatalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     String root = path.getRoot();
     if(root.startsWith("@") || root.equalsIgnoreCase("sys") || root.equalsIgnoreCase("INFORMATION_SCHEMA")) {

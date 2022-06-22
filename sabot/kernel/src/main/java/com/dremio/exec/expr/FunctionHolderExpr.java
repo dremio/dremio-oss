@@ -107,4 +107,3 @@ public class FunctionHolderExpr extends com.dremio.common.expression.FunctionHol
   }
 
 }
-

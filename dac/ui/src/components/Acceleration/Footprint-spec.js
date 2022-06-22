@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Footprint from './Footprint';
+import Footprint from "./Footprint";
 
-describe('Footprint', () => {
+describe("Footprint", () => {
   let minimalProps;
   let commonProps;
 
@@ -25,31 +25,33 @@ describe('Footprint', () => {
     minimalProps = {};
     commonProps = {
       currentByteSize: 10000,
-      totalByteSize: 10000
+      totalByteSize: 10000,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<Footprint {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<Footprint {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<Footprint {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<Footprint {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('short form', () => {
-    const wrapper = shallow(<Footprint {...commonProps}/>);
+  it("short form", () => {
+    const wrapper = shallow(<Footprint {...commonProps} />);
     expect(wrapper).to.have.length(1);
 
-    expect(wrapper.text()).to.equal('9.77 KB');
+    expect(wrapper.text()).to.equal("9.77 KB");
   });
 
-  it('long form', () => {
-    const wrapper = shallow(<Footprint {...commonProps} totalByteSize={9999999}/>);
+  it("long form", () => {
+    const wrapper = shallow(
+      <Footprint {...commonProps} totalByteSize={9999999} />
+    );
     expect(wrapper).to.have.length(1);
 
-    expect(wrapper.text()).to.equal('9.77 KB (9.54 MB)');
+    expect(wrapper.text()).to.equal("9.77 KB (9.54 MB)");
   });
 });

@@ -13,14 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+@import "~@app/uiTheme/less/color-schema.less";
+
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .datasets-search {
+    .search-result-row {
+      border-bottom: unset !important;
+      padding: 27px 10px !important;
+      &:hover {
+        background-color: var(--dremio--color--pale--navy);
+      }
+    }
+    .dataset-wrapper {
+      margin: 4px 0;
+    }
     .search-result-row:hover .main-settings-btn {
       visibility: visible;
     }
     .main-settings-btn {
       visibility: hidden;
     }
+    .settings-button {
+      background-color: unset;
+      padding: 0 4px !important;
+      color: var(--dremio--color--text--faded);
+      &:hover {
+        color: var(--dremio--color--link);
+        background-color: unset;
+      }
+    }
+    box-shadow: none !important;
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.work.rpc;
 
+import com.dremio.exec.proto.CatalogRPC;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
@@ -60,6 +61,12 @@ public class CoordToExecTunnel {
 
   public void reconcileActiveQueries(RpcOutcomeListener<Ack> outcomeListener, CoordExecRPC.ActiveQueryList activeQueryList) {
     final SignalFragment b = new SignalFragment(outcomeListener, RpcType.REQ_RECONCILE_ACTIVE_QUERIES, activeQueryList);
+    manager.runCommand(b);
+  }
+
+  public void propagatePluginChange(RpcOutcomeListener<Ack> outcomeListener, CoordExecRPC.SourceWrapper sourceWrapper) {
+    CatalogRPC.RpcType rpcType = CatalogRPC.RpcType.valueOf(sourceWrapper.getPluginChangeNodeEndpoints().getRpcType().name());
+    final SignalFragment b = new SignalFragment(outcomeListener, CoordExecRPC.RpcType.valueOf(rpcType.name()), sourceWrapper);
     manager.runCommand(b);
   }
 

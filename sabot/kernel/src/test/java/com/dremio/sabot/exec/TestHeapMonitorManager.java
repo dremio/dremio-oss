@@ -78,6 +78,7 @@ public class TestHeapMonitorManager {
     testHeapMonitorEnabledDisabled(heapClawBackStrategy,
                                    ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING,
                                    ExecConstants.COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE,
+                                   ExecConstants.COORDINATOR_HEAP_MONITOR_DELAY_MILLIS,
                                    Role.COORDINATOR);
   }
 
@@ -89,18 +90,21 @@ public class TestHeapMonitorManager {
     testHeapMonitorEnabledDisabled(heapClawBackStrategy,
                                    ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING,
                                    ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE,
+                                   ExecConstants.EXECUTOR_HEAP_MONITOR_DELAY_MILLIS,
                                    Role.EXECUTOR);
   }
 
   private void testHeapMonitorEnabledDisabled(HeapClawBackStrategy heapClawBackStrategy,
                                               AdminBooleanValidator enableHeapMonitoring,
                                               RangeLongValidator clawbackThreshPercentage,
+                                              RangeLongValidator delayHeapMonitorMillis,
                                               Role role) throws Exception {
     OptionManager som = setupSystemOptionManager();
 
     // First enable heap monitoring and verify heapMonitoringThread is running.
     doReturn(true).when(som).getOption(enableHeapMonitoring);
     doReturn(85L).when(som).getOption(clawbackThreshPercentage);
+    doReturn(2_000L).when(som).getOption(delayHeapMonitorMillis);
     HeapMonitorManager heapMonitorManager = new HeapMonitorManager(() -> som,
                                                                    heapClawBackStrategy,
                                                                    role);

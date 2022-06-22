@@ -15,18 +15,20 @@
  */
 package com.dremio.service.nessie;
 
+import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToCommitLogEntry;
+import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToKeyList;
+import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToRefLog;
+import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.protoToRepoDescription;
+import static org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization.toProto;
 import static org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil.hashCollisionDetected;
-import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToCommitLogEntry;
-import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToKeyList;
-import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToRefLog;
-import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToRepoDescription;
-import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.toProto;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
@@ -36,20 +38,21 @@ import java.util.stream.Stream;
 
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.ReferenceConflictException;
-import org.projectnessie.versioned.persist.adapter.CommitAttempt;
+import org.projectnessie.versioned.StoreWorker;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
+import org.projectnessie.versioned.persist.adapter.CommitParams;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.KeyListEntity;
-import org.projectnessie.versioned.persist.adapter.KeyWithType;
+import org.projectnessie.versioned.persist.adapter.KeyListEntry;
 import org.projectnessie.versioned.persist.adapter.RefLog;
 import org.projectnessie.versioned.persist.adapter.RepoDescription;
+import org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapter;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalOperationContext;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStateLogEntry;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStatePointer;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.RefLogEntry;
-import org.projectnessie.versioned.persist.serialize.ProtoSerialization;
 
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
@@ -65,8 +68,10 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   private final String keyPrefix;
   private final String globalPointerKey;
 
-  protected DatastoreDatabaseAdapter(NonTransactionalDatabaseAdapterConfig config, NessieDatastoreInstance dbInstance) {
-    super(config);
+  protected DatastoreDatabaseAdapter(NonTransactionalDatabaseAdapterConfig config,
+    NessieDatastoreInstance dbInstance,
+    StoreWorker<?, ?, ?> storeWorker) {
+    super(config, storeWorker);
     Objects.requireNonNull(dbInstance);
     this.db = dbInstance;
     this.keyPrefix = config.getRepositoryId();
@@ -92,12 +97,12 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   /**
-   * Calculate the expected size of the given {@link CommitLogEntry} in the database.
+   * Calculate the expected size of the given {@link KeyListEntry} in the database.
    *
    * @param entry
    */
   @Override
-  protected int entitySize(KeyWithType entry) {
+  protected int entitySize(KeyListEntry entry) {
     return toProto(entry).getSerializedSize();
   }
 
@@ -108,7 +113,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @return the current global points if set, or {@code null} if not set.
    */
   @Override
-  protected GlobalStatePointer fetchGlobalPointer(NonTransactionalOperationContext ctx) {
+  protected GlobalStatePointer doFetchGlobalPointer(NonTransactionalOperationContext ctx) {
     try {
       Document<String, byte[]> serialized = db.getGlobalPointer().get(globalPointerKey);
       return serialized != null ? GlobalStatePointer.parseFrom(serialized.getValue()) : null;
@@ -128,7 +133,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param entry
    */
   @Override
-  protected void writeIndividualCommit(NonTransactionalOperationContext ctx, CommitLogEntry entry)
+  protected void doWriteIndividualCommit(NonTransactionalOperationContext ctx, CommitLogEntry entry)
     throws ReferenceConflictException {
     Lock lock = db.getLock().writeLock();
     lock.lock();
@@ -159,7 +164,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param entries
    */
   @Override
-  protected void writeMultipleCommits(NonTransactionalOperationContext ctx, List<CommitLogEntry> entries)
+  protected void doWriteMultipleCommits(NonTransactionalOperationContext ctx, List<CommitLogEntry> entries)
     throws ReferenceConflictException {
     Lock lock = db.getLock().writeLock();
     lock.lock();
@@ -184,7 +189,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param entry
    */
   @Override
-  protected void writeGlobalCommit(NonTransactionalOperationContext ctx, GlobalStateLogEntry entry)
+  protected void doWriteGlobalCommit(NonTransactionalOperationContext ctx, GlobalStateLogEntry entry)
     throws ReferenceConflictException {
     Lock lock = db.getLock().writeLock();
     lock.lock();
@@ -226,9 +231,9 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param newPointer
    */
   @Override
-  protected boolean globalPointerCas(NonTransactionalOperationContext ctx,
-                                     GlobalStatePointer expected,
-                                     GlobalStatePointer newPointer) {
+  protected boolean doGlobalPointerCas(NonTransactionalOperationContext ctx,
+                                       GlobalStatePointer expected,
+                                       GlobalStatePointer newPointer) {
     Lock lock = db.getLock().writeLock();
     lock.lock();
     try {
@@ -249,7 +254,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   /**
    * If a {@link #globalPointerCas(NonTransactionalOperationContext, GlobalStatePointer,
    * GlobalStatePointer)} failed, {@link
-   * DatabaseAdapter#commit(CommitAttempt)} calls this
+   * DatabaseAdapter#commit(CommitParams)} calls this
    * function to remove the optimistically written data.
    *
    * <p>Implementation notes: non-transactional implementations <em>must</em> delete entries for the
@@ -261,17 +266,32 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param newKeyLists
    */
   @Override
-  protected void cleanUpCommitCas(NonTransactionalOperationContext ctx, Hash globalId,
+  protected void doCleanUpCommitCas(NonTransactionalOperationContext ctx, Optional<Hash> globalId,
                                   Set<Hash> branchCommits, Set<Hash> newKeyLists, Hash refLogId) {
     Lock lock = db.getLock().writeLock();
     lock.lock();
     try {
-      db.getGlobalLog().delete(dbKey(globalId));
+      globalId.ifPresent(hash -> db.getGlobalLog().delete(dbKey(hash)));
       for (Hash h : branchCommits) {
         db.getCommitLog().delete(dbKey(h));
       }
       for (Hash h : newKeyLists) {
         db.getKeyList().delete(dbKey(h));
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  protected void doCleanUpGlobalLog(NonTransactionalOperationContext ctx, Collection<Hash> globalIds) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      for (Hash h : globalIds) {
+        db.getGlobalLog().delete(dbKey(h));
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -288,7 +308,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @return the loaded entry if it is available, {@code null} if it does not exist.
    */
   @Override
-  protected GlobalStateLogEntry fetchFromGlobalLog(NonTransactionalOperationContext ctx, Hash id) {
+  protected GlobalStateLogEntry doFetchFromGlobalLog(NonTransactionalOperationContext ctx, Hash id) {
     try {
       Document<String, byte[]> entry = db.getGlobalLog().get(dbKey(id));
       return entry != null ? GlobalStateLogEntry.parseFrom(entry.getValue()) : null;
@@ -304,7 +324,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param hash
    */
   @Override
-  protected CommitLogEntry fetchFromCommitLog(NonTransactionalOperationContext ctx, Hash hash) {
+  protected CommitLogEntry doFetchFromCommitLog(NonTransactionalOperationContext ctx, Hash hash) {
     try {
       Document<String, byte[]> entry = db.getCommitLog().get(dbKey(hash));
       return protoToCommitLogEntry(entry != null ? entry.getValue() : null);
@@ -322,12 +342,12 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    * @param hashes
    */
   @Override
-  protected List<CommitLogEntry> fetchPageFromCommitLog(NonTransactionalOperationContext ctx, List<Hash> hashes) {
+  protected List<CommitLogEntry> doFetchMultipleFromCommitLog(NonTransactionalOperationContext ctx, List<Hash> hashes) {
     return fetchPage(db.getCommitLog(), hashes, ProtoSerialization::protoToCommitLogEntry);
   }
 
   @Override
-  protected List<GlobalStateLogEntry> fetchPageFromGlobalLog(NonTransactionalOperationContext ctx, List<Hash> hashes) {
+  protected List<GlobalStateLogEntry> doFetchPageFromGlobalLog(NonTransactionalOperationContext ctx, List<Hash> hashes) {
     return fetchPage(db.getGlobalLog(),
       hashes,
       v -> {
@@ -354,7 +374,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  protected void writeKeyListEntities(NonTransactionalOperationContext ctx, List<KeyListEntity> newKeyListEntities) {
+  protected void doWriteKeyListEntities(NonTransactionalOperationContext ctx, List<KeyListEntity> newKeyListEntities) {
     Lock lock = db.getLock().writeLock();
     lock.lock();
     try {
@@ -369,7 +389,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  protected RefLog fetchFromRefLog(
+  protected RefLog doFetchFromRefLog(
     NonTransactionalOperationContext ctx, Hash refLogId) {
     try {
       Document<String, byte[]> entry = db.getRefLog().get(dbKey(refLogId));
@@ -380,13 +400,13 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  protected List<RefLog> fetchPageFromRefLog(
+  protected List<RefLog> doFetchPageFromRefLog(
     NonTransactionalOperationContext ctx, List<Hash> hashes) {
     return fetchPage(db.getRefLog(), hashes, ProtoSerialization::protoToRefLog);
   }
 
   @Override
-  protected void writeRefLog(
+  protected void doWriteRefLog(
     NonTransactionalOperationContext ctx,
     RefLogEntry entry) throws ReferenceConflictException {
     Lock lock = db.getLock().writeLock();
@@ -408,7 +428,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  protected Stream<KeyListEntity> fetchKeyLists(NonTransactionalOperationContext ctx, List<Hash> keyListsIds) {
+  protected Stream<KeyListEntity> doFetchKeyLists(NonTransactionalOperationContext ctx, List<Hash> keyListsIds) {
     try {
       KVStore<String, byte[]> store = db.getKeyList();
       List<String> keys = keyListsIds.stream().map(this::dbKey).collect(Collectors.toList());
@@ -452,7 +472,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  protected RepoDescription fetchRepositoryDescription(NonTransactionalOperationContext ctx) {
+  protected RepoDescription doFetchRepositoryDescription(NonTransactionalOperationContext ctx) {
     try {
       Document<String, byte[]> entry = db.getRepoDescription().get(globalPointerKey);
       return entry != null ? protoToRepoDescription(entry.getValue()) : null;
@@ -462,7 +482,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
-  protected boolean tryUpdateRepositoryDescription(
+  protected boolean doTryUpdateRepositoryDescription(
     NonTransactionalOperationContext ctx, RepoDescription expected, RepoDescription updateTo) {
     Lock lock = db.getLock().writeLock();
     lock.lock();

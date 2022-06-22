@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import exploreUtils from 'utils/explore/exploreUtils';
+import exploreUtils from "utils/explore/exploreUtils";
 
-import { datasetWithoutData } from 'schemas/v2/fullDataset';
+import { datasetWithoutData } from "schemas/v2/fullDataset";
 
-import { loadExploreEntities } from './get';
+import { loadExploreEntities } from "./get";
 
 // this is used only in performLoadDataset saga. We do not expect data in initial response. The data should be
 // loaded in a separate call using 'loadNextRows' action. See code of performLoadDataset saga for details
-export const loadExistingDataset = (dataset, viewId, tipVersion, forceDataLoad) =>
-  (dispatch) => {
-    const jobId = dataset.get('jobId');
-    const href = (!forceDataLoad && jobId)
-      ? exploreUtils.getReviewLink(dataset, tipVersion)
-      : exploreUtils.getPreviewLink(dataset, tipVersion);
+export const loadExistingDataset =
+  (dataset, viewId, tipVersion, forceDataLoad, sessionId) => (dispatch) => {
+    const jobId = dataset.get("jobId");
+    const href =
+      !forceDataLoad && jobId
+        ? exploreUtils.getReviewLink(dataset, tipVersion)
+        : exploreUtils.getPreviewLink(dataset, tipVersion, sessionId);
     return dispatch(
       loadExploreEntities({
         href,
         viewId,
-        schema: datasetWithoutData
+        schema: datasetWithoutData,
       })
     );
   };

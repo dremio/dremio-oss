@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-export const PASS_DATA_BETWEEN_TABS = 'PASS_DATA_BETWEEN_TABS';
+export const PASS_DATA_BETWEEN_TABS = "PASS_DATA_BETWEEN_TABS";
 export function passDataBetweenTabs(value) {
   return (dispatch) => {
     return dispatch({
       type: PASS_DATA_BETWEEN_TABS,
-      payload: value
+      payload: value,
     });
   };
 }
@@ -28,7 +28,7 @@ export function clearDataBetweenTabs() {
   return (dispatch) => {
     return dispatch({
       type: PASS_DATA_BETWEEN_TABS,
-      payload: {}
+      payload: {},
     });
   };
 }

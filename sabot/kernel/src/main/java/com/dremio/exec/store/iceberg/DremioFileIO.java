@@ -31,6 +31,7 @@ import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.DremioHadoopUtils;
+import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -102,19 +103,23 @@ public class DremioFileIO implements FileIO {
   public InputFile newInputFile(String path) {
     try (Closeable swapper = ContextClassLoaderSwapper.swapClassLoader(DremioFileIO.class)) {
       Long fileSize;
+      Long mtime = 0L;
       Path filePath = Path.of(path);
       if (fs != null && !fs.supportsPathsWithScheme()) {
         path = Path.getContainerSpecificRelativePath(filePath);
         filePath = Path.of(path);
       }
+
       if (fileLength == null && fs != null) {
-        fileSize = fs.getFileAttributes(filePath).size();
+        FileAttributes fileAttributes = fs.getFileAttributes(filePath);;
+        fileSize = fileAttributes.size();
+        mtime = fileAttributes.lastModifiedTime().toMillis();
       } else {
         fileSize = fileLength;
       }
 
       initializeHadoopFs(filePath);
-      return new DremioInputFile(fs, filePath, fileSize, context, dataset, datasourcePluginUID, conf, hadoopFs);
+      return new DremioInputFile(fs, filePath, fileSize, mtime, context, dataset, datasourcePluginUID, conf, hadoopFs);
     } catch (IOException e) {
       throw UserException.ioExceptionError(e).buildSilently();
     }
@@ -140,17 +145,25 @@ public class DremioFileIO implements FileIO {
 
   @Override
   public void deleteFile(String path) {
+    deleteFile(path, false /* not recursive */, true);
+  }
+
+  public void deleteFile(String path, boolean recursive, boolean getContainerSpecificRelativePath) {
     try (Closeable swapper = ContextClassLoaderSwapper.swapClassLoader(DremioFileIO.class)) {
-      if (fs == null || !fs.supportsPathsWithScheme()) {
+      if ((fs == null || !fs.supportsPathsWithScheme()) && getContainerSpecificRelativePath) {
         path = Path.getContainerSpecificRelativePath(Path.of(path));
       }
       org.apache.hadoop.fs.Path toDelete = DremioHadoopUtils.toHadoopPath(path);
       org.apache.hadoop.fs.FileSystem fs = plugin.getHadoopFsSupplier(toDelete.toString(), conf).get();
       try {
-        fs.delete(toDelete, false /* not recursive */);
+        fs.delete(toDelete, recursive );
       } catch (IOException e) {
         throw new RuntimeIOException(e, "Failed to delete file: %s", path);
       }
     }
+  }
+
+  public MutablePlugin getPlugin(){
+    return this.plugin;
   }
 }

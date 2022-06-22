@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.model.namespace;
 
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FUNCTION;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 
 import java.util.ArrayList;
@@ -210,13 +211,13 @@ public class NamespaceTree {
                 tags.get(container.getDataset().getId().getId())
               );
               break;
-
             default:
               throw new DACRuntimeException("Possible corruption found. Invalid types in namespace tree " + children);
           }
         }
         break;
-
+        case FUNCTION:
+          break;
         default:
           throw new DACRuntimeException("Possible corruption found. Invalid types in namespace tree " + container.getType());
       }

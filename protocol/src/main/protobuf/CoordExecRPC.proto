@@ -49,6 +49,20 @@ enum RpcType {
 
   REQ_NODE_STATS = 9;
   RESP_NODE_STATS = 10;
+
+  /*  Describes communication between catalogs. */
+  REQ_SOURCE_CONFIG = 16;
+  REQ_DEL_SOURCE = 17;
+}
+
+message SourceWrapper {
+  optional bytes bytes = 1;
+  optional PluginChangeNodeEndpoints plugin_change_node_endpoints = 2;
+}
+
+message PluginChangeNodeEndpoints {
+  repeated NodeEndpoint endpoints_index = 1;
+  optional RpcType rpc_type = 2;
 }
 
 message NodeStatResp {

@@ -13,66 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import Art from 'components/Art';
+import Art from "components/Art";
 
-import { tabLabel, tabIcon } from '@app/uiTheme/less/layout.less';
-import { nav, navBtn, navBtnActive } from './NavPanel.less';
+import { tabLabel, tabIcon } from "@app/uiTheme/less/layout.less";
+import { nav, navBtn, navBtnActive } from "./NavPanel.less";
 
 export default class NavPanel extends PureComponent {
   static propTypes = {
     changeTab: PropTypes.func.isRequired,
     activeTab: PropTypes.string,
     tabs: PropTypes.instanceOf(Immutable.OrderedMap),
-    showSingleTab: PropTypes.bool
+    showSingleTab: PropTypes.bool,
   };
 
   static defaultProps = {
-    showSingleTab: false
+    showSingleTab: false,
   };
 
-  renderTabLabel = ({
-    text,
-    icon = null
-  }) => {
+  renderTabLabel = ({ text, icon = null }) => {
     return (
       <span className={tabLabel}>
         <span>{text}</span>
-        {icon &&
-        <span className={tabIcon}>
-          <Art
-            src={icon.name}
-            alt={icon.alt || ''}
-            style={icon.style || ''}/>
-        </span>
-        }
+        {icon && (
+          <span className={tabIcon}>
+            <Art
+              src={icon.name}
+              alt={icon.alt || ""}
+              style={icon.style || ""}
+            />
+          </span>
+        )}
       </span>
     );
   };
 
   render() {
-    const { showSingleTab, tabs} = this.props;
+    const { showSingleTab, tabs } = this.props;
 
-    const invalidTabCount = showSingleTab ? tabs.count() < 1 : tabs.count() <= 1;
+    const invalidTabCount = showSingleTab
+      ? tabs.count() < 1
+      : tabs.count() <= 1;
 
     if (invalidTabCount) {
       return null;
     }
 
-    const children = this.props.tabs.map((tab, key) => {
-      const labelConfig = (typeof tab === 'string') ? {text: tab} : tab;
-      return <div
-        data-qa={key}
-        key={key}
-        onClick={this.props.changeTab.bind(this, key)}
-        className={this.props.activeTab === key ? navBtnActive : navBtn}>
-        {this.renderTabLabel(labelConfig)}
-      </div>;
-    }).toArray();
+    const children = this.props.tabs
+      .map((tab, key) => {
+        const labelConfig = typeof tab === "string" ? { text: tab } : tab;
+        return (
+          <div
+            data-qa={key}
+            key={key}
+            onClick={this.props.changeTab.bind(this, key)}
+            className={this.props.activeTab === key ? navBtnActive : navBtn}
+          >
+            {this.renderTabLabel(labelConfig)}
+          </div>
+        );
+      })
+      .toArray();
 
-    return <div data-qa='nav-panel' className={nav}>{children}</div>;
+    return (
+      <div data-qa="nav-panel" className={nav}>
+        {children}
+      </div>
+    );
   }
 }

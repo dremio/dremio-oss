@@ -13,28 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-import { APIV2Call } from '@app/core/APICall';
-import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
+import { RSAA } from "redux-api-middleware";
+import { APIV2Call } from "@app/core/APICall";
+import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from "pages/HomePage/subpages/HomeContents";
 
-import sqlFunctions from 'customData/sqlFunctions.json';
-import { constructFullPath } from '@app/utils/pathUtils';
+import sqlFunctions from "customData/sqlFunctions.json";
+import { constructFullPath } from "@app/utils/pathUtils";
 
-export const CREATE_DATASET_START = 'CREATE_DATASET_START';
-export const CREATE_DATASET_SUCCESS = 'CREATE_DATASET_SUCCESS';
-export const CREATE_DATASET_FAILURE = 'CREATE_DATASET_FAILURE';
+export const CREATE_DATASET_START = "CREATE_DATASET_START";
+export const CREATE_DATASET_SUCCESS = "CREATE_DATASET_SUCCESS";
+export const CREATE_DATASET_FAILURE = "CREATE_DATASET_FAILURE";
 
 function putDataset(cpath, dataset) {
   const apiCall = new APIV2Call().paths(`dataset${cpath}`);
 
   return {
     [RSAA]: {
-      types: [CREATE_DATASET_START, CREATE_DATASET_SUCCESS, CREATE_DATASET_FAILURE],
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      types: [
+        CREATE_DATASET_START,
+        CREATE_DATASET_SUCCESS,
+        CREATE_DATASET_FAILURE,
+      ],
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dataset),
-      endpoint: apiCall
-    }
+      endpoint: apiCall,
+    },
   };
 }
 
@@ -44,30 +48,32 @@ export function createDataset(nodeId, dataset, version, asPath) {
   };
 }
 
-export const CREATE_DATASET_FROM_EXISTING_START = 'CREATE_DATASET_FROM_EXISTING_START';
-export const CREATE_DATASET_FROM_EXISTING_SUCCESS = 'CREATE_DATASET_FROM_EXISTING_SUCCESS';
-export const CREATE_DATASET_FROM_EXISTING_FAILURE = 'CREATE_DATASET_FAILURE';
+export const CREATE_DATASET_FROM_EXISTING_START =
+  "CREATE_DATASET_FROM_EXISTING_START";
+export const CREATE_DATASET_FROM_EXISTING_SUCCESS =
+  "CREATE_DATASET_FROM_EXISTING_SUCCESS";
+export const CREATE_DATASET_FROM_EXISTING_FAILURE = "CREATE_DATASET_FAILURE";
 
 function putDatasetFromExisting(fullPathFrom, fullPathTo, datasetConfig) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
 
   const apiCall = new APIV2Call()
-    .path('dataset')
+    .path("dataset")
     .path(constructFullPath(fullPathTo))
-    .path('copyFrom')
+    .path("copyFrom")
     .path(constructFullPath(fullPathFrom));
 
   return {
     [RSAA]: {
       types: [
-        {type: CREATE_DATASET_FROM_EXISTING_START, meta},
-        {type: CREATE_DATASET_FROM_EXISTING_SUCCESS, meta},
-        {type: CREATE_DATASET_FROM_EXISTING_FAILURE, meta}
+        { type: CREATE_DATASET_FROM_EXISTING_START, meta },
+        { type: CREATE_DATASET_FROM_EXISTING_SUCCESS, meta },
+        { type: CREATE_DATASET_FROM_EXISTING_FAILURE, meta },
       ],
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(datasetConfig),
-      endpoint: apiCall
-    }
+      endpoint: apiCall,
+    },
   };
 }
 
@@ -77,17 +83,17 @@ export function createDatasetFromExisting() {
   };
 }
 
-export const MOVE_DATASET_START = 'MOVE_DATASET_START';
-export const MOVE_DATASET_SUCCESS = 'MOVE_DATASET_SUCCESS';
-export const MOVE_DATASET_FAILURE = 'MOVE_DATASET_FAILURE';
+export const MOVE_DATASET_START = "MOVE_DATASET_START";
+export const MOVE_DATASET_SUCCESS = "MOVE_DATASET_SUCCESS";
+export const MOVE_DATASET_FAILURE = "MOVE_DATASET_FAILURE";
 
 function fetchDataSetMove(fullPathFrom, fullPathTo) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
 
   const apiCall = new APIV2Call()
-    .path('dataset')
+    .path("dataset")
     .path(constructFullPath(fullPathFrom))
-    .path('moveTo')
+    .path("moveTo")
     .path(constructFullPath(fullPathTo));
 
   return {
@@ -95,11 +101,11 @@ function fetchDataSetMove(fullPathFrom, fullPathTo) {
       types: [
         { type: MOVE_DATASET_START, meta },
         { type: MOVE_DATASET_SUCCESS, meta },
-        { type: MOVE_DATASET_FAILURE, meta }
+        { type: MOVE_DATASET_FAILURE, meta },
       ],
-      method: 'POST',
-      endpoint: apiCall
-    }
+      method: "POST",
+      endpoint: apiCall,
+    },
   };
 }
 
@@ -109,18 +115,23 @@ export function moveDataSet(cPathFrom, cPathTo) {
   };
 }
 
-export const SQL_HELP_FUNC_SUCCESS = 'SQL_HELP_FUNC_SUCCESS';
+export const SQL_HELP_FUNC_SUCCESS = "SQL_HELP_FUNC_SUCCESS";
 
 export function loadHelpGridData(pattern) {
   const sqlFuncs = pattern
-    ? sqlFunctions.filter(func => {
-      return func.name.toLowerCase().indexOf(pattern.toLowerCase()) !== -1 ||
-             func.tags && func.tags.find(tag => tag.toLowerCase().indexOf(pattern.toLowerCase()) !== -1);
-    })
+    ? sqlFunctions.filter((func) => {
+        return (
+          func.name.toLowerCase().indexOf(pattern.toLowerCase()) !== -1 ||
+          (func.tags &&
+            func.tags.find(
+              (tag) => tag.toLowerCase().indexOf(pattern.toLowerCase()) !== -1
+            ))
+        );
+      })
     : sqlFunctions;
 
   return {
     type: SQL_HELP_FUNC_SUCCESS,
-    meta: { sqlFuncs }
+    meta: { sqlFuncs },
   };
 }

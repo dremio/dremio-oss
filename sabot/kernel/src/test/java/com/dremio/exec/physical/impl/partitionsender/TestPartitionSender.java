@@ -31,16 +31,16 @@ public class TestPartitionSender extends PlanTestBase {
 //      1.2 /*affinityFactor*/,
 //      AbstractAttemptObserver.NOOP);
 //
-//  private final static UserSession USER_SESSION = UserSession.Builder.newBuilder()
+//  private static final UserSession USER_SESSION = UserSession.Builder.newBuilder()
 //      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
 //      .build();
 //
 //
 //  public static TemporaryFolder testTempFolder = new TemporaryFolder();
 //
-//  private final static int NUM_DEPTS = 40;
-//  private final static int NUM_EMPLOYEES = 1000;
-//  private final static int NODES_COUNT = 3;
+//  private static final int NUM_DEPTS = 40;
+//  private static final int NUM_EMPLOYEES = 1000;
+//  private static final int NODES_COUNT = 3;
 //
 //  private static String empTableLocation;
 //

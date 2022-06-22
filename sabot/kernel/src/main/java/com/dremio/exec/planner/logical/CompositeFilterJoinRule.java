@@ -15,14 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.calcite.plan.RelHintsPropagator;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
@@ -32,6 +25,8 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.util.ImmutableBeans;
+
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 
 /**
  * Combined rule of FilterJoinRule and DremioJoinPushTransitivePredicatesRule.
@@ -76,12 +71,13 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
     @Override
     protected RelNode doMatch(RelOptRuleCall call) {
       Join join = call.rel(0);
-      TransformCollectingCall c = new TransformCollectingCall(call.getPlanner(), this.getOperand(), new RelNode[]{join}, null);
+      MoreRelOptUtil.TransformCollectingCall c = new MoreRelOptUtil.TransformCollectingCall(call.getPlanner(), this.getOperand(), new RelNode[]{join}, null);
       perform(c, null, join);
-      if (c.outcome.isEmpty()) {
+      if (!c.isTransformed()) {
         return null;
+      } else {
+        return c.getTransformedRel();
       }
-      return c.outcome.get(0);
     }
   }
 
@@ -103,12 +99,13 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
     protected RelNode doMatch(RelOptRuleCall call) {
       Filter filter = call.rel(0);
       Join join = call.rel(1);
-      TransformCollectingCall c = new TransformCollectingCall(call.getPlanner(), this.getOperand(), new RelNode[]{filter, join}, null);
+      MoreRelOptUtil.TransformCollectingCall c = new MoreRelOptUtil.TransformCollectingCall(call.getPlanner(), this.getOperand(), new RelNode[]{filter, join}, null);
       perform(c, filter, join);
-      if (c.outcome.isEmpty()) {
+      if (!c.isTransformed()) {
         return null;
+      } else {
+        return c.getTransformedRel();
       }
-      return c.outcome.get(0);
     }
   }
 
@@ -124,30 +121,17 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
       @Override
       public RelNode visit(LogicalJoin join) {
         DremioJoinPushTransitivePredicatesRule instance = new DremioJoinPushTransitivePredicatesRule();
-        TransformCollectingCall c2 = new TransformCollectingCall(call.getPlanner(), instance.getOperand(), new RelNode[]{join}, null);
-        instance.onMatch(c2);
-        if (c2.outcome.isEmpty()) {
+        MoreRelOptUtil.TransformCollectingCall c = new MoreRelOptUtil.TransformCollectingCall(call.getPlanner(), instance.getOperand(), new RelNode[]{join}, null);
+        instance.onMatch(c);
+        if (!c.isTransformed()) {
           return join;
         } else {
-          return c2.outcome.get(0);
+          return c.getTransformedRel();
         }
       }
     }));
   }
 
-  static class TransformCollectingCall extends RelOptRuleCall {
-    final List<RelNode> outcome = new ArrayList<>();
-
-    public TransformCollectingCall(RelOptPlanner planner, RelOptRuleOperand operand, RelNode[] rels,
-                                   Map<RelNode, List<RelNode>> nodeInputs) {
-      super(planner, operand, rels, nodeInputs);
-    }
-
-    @Override
-    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
-      outcome.add(rel);
-    }
-  }
   /** Rule configuration. */
   public interface Config extends RelRule.Config {
     /** Whether to try to strengthen join-type, default false. */

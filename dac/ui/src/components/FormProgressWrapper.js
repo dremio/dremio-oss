@@ -13,32 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { overlay } from 'uiTheme/radium/overlay';
+import { overlay } from "uiTheme/radium/overlay";
 
-@Radium
-export default class FormProgressWrapper extends Component {
+class FormProgressWrapper extends Component {
   static propTypes = {
     submitting: PropTypes.bool,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   renderStatus() {
-    const {submitting} = this.props;
+    const { submitting } = this.props;
     if (submitting) {
-      return <div style={overlay} className='submitting-overlay'/>;
+      return <div style={overlay} className="submitting-overlay" />;
     }
   }
 
   render() {
-    const {children} = this.props;
+    const { children } = this.props;
 
     return (
-      <div className='progress-wrapper' style={styles.base}>
+      <div className="progress-wrapper" style={styles.base}>
         {children}
         {this.renderStatus()}
       </div>
@@ -48,7 +46,8 @@ export default class FormProgressWrapper extends Component {
 
 const styles = {
   base: {
-    position: 'relative',
-    height: '100%'
-  }
+    position: "relative",
+    height: "100%",
+  },
 };
+export default FormProgressWrapper;

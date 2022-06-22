@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -15,47 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/mixins.less";
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global {
-    .repoHeader {
-        font-size: 14px;
-        user-select: none;
-        &:hover, &:focus {
-            text-decoration: none !important;
-        }
-        color: @font-color1;
-        .flex-center;
-
-        .font-icon {
-            display: flex !important;
-            margin-right: 4px;
-        }
-        &-repoName {
-            max-width: 60%;
-            flex-shrink: 0;
-        }
-        &-divider {
-            margin: 0 4px;
-        }
-        &-branch {
-            .flex-center;
-            overflow: hidden;
-
-            &:hover, &:focus {
-                text-decoration: none !important;
-            }
-        }
-
-        &-branchIcon {
-            display: flex;
-            margin-right: 4px;
-        }
-
-        &-branchName {
-            flex: 1;
-            min-width: 0;
-        }
+:global {
+  .repoHeader {
+    font-size: 14px;
+    user-select: none;
+    &:hover,
+    &:focus {
+      text-decoration: none !important;
     }
+    color: @font-color1;
+    .flex-center;
+
+    .font-icon {
+      display: flex !important;
+      margin-right: 4px;
+    }
+    &-repoName {
+      max-width: 60%;
+      flex-shrink: 0;
+    }
+    &-divider {
+      margin: 0 4px;
+    }
+    &-branch {
+      .flex-center;
+      overflow: hidden;
+
+      &:hover,
+      &:focus {
+        text-decoration: none !important;
+      }
+    }
+
+    &-branchIcon {
+      display: flex;
+      margin-right: 4px;
+    }
+
+    &-branchName {
+      flex: 1;
+      min-width: 0;
+    }
+  }
 }

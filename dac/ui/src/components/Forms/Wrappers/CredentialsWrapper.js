@@ -13,19 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Credentials from 'components/Forms/Credentials';
+import { Component } from "react";
+import Credentials from "components/Forms/Credentials";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class CredentialsWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   render() {
-    const {elementConfig, fields} = this.props;
-    return (<Credentials fields={fields} elementConfig={elementConfig.getConfig()}/>);
+    const { elementConfig, fields } = this.props;
+    return (
+      <Credentials fields={fields} elementConfig={elementConfig.getConfig()} />
+    );
   }
 }

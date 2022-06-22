@@ -13,41 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import Art from '@app/components/Art';
-import './TopPanel.less';
-import { getTagClassName } from 'dyn-load/utils/jobsUtils';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import Art from "@app/components/Art";
+import "./TopPanel.less";
+import { getTagClassName } from "dyn-load/utils/jobsUtils";
 
 const renderIcon = (iconName, className, selected) => {
-  return (<Art
-    src={iconName}
-    alt='icon'
-    title='icon'
-    className={classNames(
-      'topPanel__icon',
-      className,
-      { '--selected': selected })
-    }
-  />);
+  return (
+    <Art
+      src={iconName}
+      alt="icon"
+      title="icon"
+      className={classNames("topPanel__icon", className, {
+        "--selected": selected,
+      })}
+    />
+  );
 };
 
 export const TopPanelTab = (props) => {
   const {
-    intl: {
-      formatMessage
-    },
+    intl: { formatMessage },
     tabName,
     onTabClick,
     selectedTab,
-    iconName
+    iconName,
   } = props;
 
   return (
     <div
       onClick={() => onTabClick(tabName)}
-      className={selectedTab === tabName ? 'topPanel__tab --selected' : 'topPanel__tab --unselected'}
+      className={
+        selectedTab === tabName
+          ? "topPanel__tab --selected"
+          : "topPanel__tab --unselected"
+      }
     >
       {renderIcon(iconName, getTagClassName(tabName), selectedTab === tabName)}
       {formatMessage({ id: `TopPanel.${tabName}` })}
@@ -60,7 +62,7 @@ TopPanelTab.propTypes = {
   tabName: PropTypes.string.isRequired,
   onTabClick: PropTypes.func.isRequired,
   selectedTab: PropTypes.string,
-  iconName: PropTypes.string.isRequired
+  iconName: PropTypes.string.isRequired,
 };
 
 export default injectIntl(TopPanelTab);

@@ -13,41 +13,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import { connect } from 'react-redux';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import { FormattedMessage } from "react-intl";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import exploreUtils from 'utils/explore/exploreUtils';
-import exploreTransforms from 'utils/exploreTransforms';
+import exploreUtils from "utils/explore/exploreUtils";
+import exploreTransforms from "utils/exploreTransforms";
+import jobsUtils from "@app/utils/jobsUtils.js";
 
-import { LIST, MAP } from '@app/constants/DataTypes';
-
-import { getPeekData, getImmutableTable, getPaginationUrl, getExploreState, getColumnFilter } from 'selectors/explore';
-import { getViewState } from 'selectors/resources';
-import { resetViewState } from 'actions/resources';
-import { accessEntity } from 'actions/resources/lru';
+import { LIST, MAP } from "@app/constants/DataTypes";
 
 import {
-  transformHistoryCheck, performTransform
-} from 'actions/explore/dataset/transform';
+  getPeekData,
+  getImmutableTable,
+  getPaginationUrl,
+  getExploreState,
+  getColumnFilter,
+} from "selectors/explore";
+import { getViewState } from "selectors/resources";
+import { resetViewState } from "actions/resources";
+import { accessEntity } from "actions/resources/lru";
 
-import { FULL_CELL_VIEW_ID } from 'actions/explore/dataset/data';
-import { isSqlChanged } from '@app/sagas/utils';
-import { ErrorBoundary } from '@app/components/ErrorBoundary';
+import {
+  transformHistoryCheck,
+  performTransform,
+} from "actions/explore/dataset/transform";
 
-import { LOAD_TRANSFORM_CARDS_VIEW_ID } from 'actions/explore/recommended';
-import { HIGHLIGHTED_TABLE } from 'uiTheme/radium/colors';
+import { FULL_CELL_VIEW_ID } from "actions/explore/dataset/data";
+import { isSqlChanged } from "@app/sagas/utils";
+import { ErrorBoundary } from "@app/components/OldErrorBoundary";
 
-import { constructFullPath } from 'utils/pathUtils';
-import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
+import { LOAD_TRANSFORM_CARDS_VIEW_ID } from "actions/explore/recommended";
+import { HIGHLIGHTED_TABLE } from "uiTheme/radium/colors";
 
-import ExploreTable from './ExploreTable';
-import ExploreCellLargeOverlay from './ExploreCellLargeOverlay';
-import DropdownForSelectedText from './DropdownForSelectedText';
+import { constructFullPath } from "utils/pathUtils";
+import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import {
+  sqlEditorTableColumns,
+  pendingSQLJobs,
+} from "@app/constants/Constants.js";
+import {
+  renderJobStatus,
+  getJobIdsList,
+  getSqlList,
+  getFilteredSqlList,
+} from "@app/utils/jobsUtils.js";
+import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import { Button } from "dremio-ui-lib";
 
-import './ExploreTableController.less';
+import JobListingPage from "@app/pages/JobPageNew/JobListingPage";
+import { parseQueryState } from "utils/jobsQueryState";
+import { updateQueryState } from "actions/jobs/jobs";
+import { Tooltip } from "dremio-ui-lib";
+import Art from "@app/components/Art";
+import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
+
+import "./ExploreTableController.less";
+import Message from "@app/components/Message";
+import apiUtils from "@app/utils/apiUtils/apiUtils";
+import DropdownForSelectedText from "./DropdownForSelectedText";
+import ExploreCellLargeOverlay from "./ExploreCellLargeOverlay";
+import ExploreTable from "./ExploreTable";
 
 export class ExploreTableController extends PureComponent {
   static propTypes = {
@@ -73,7 +102,6 @@ export class ExploreTableController extends PureComponent {
     isResizeInProgress: PropTypes.bool,
     children: PropTypes.node,
     getTableHeight: PropTypes.func,
-    shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
     columnFilter: PropTypes.string,
     // Actions
     resetViewState: PropTypes.func,
@@ -81,16 +109,29 @@ export class ExploreTableController extends PureComponent {
     performTransform: PropTypes.func,
     confirmTransform: PropTypes.func,
     accessEntity: PropTypes.func.isRequired,
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
+    showJobsTable: PropTypes.bool,
+    handleTabChange: PropTypes.func,
+    currentJobsMap: PropTypes.array,
+    cancelPendingSql: PropTypes.func,
+    tabStatusArr: PropTypes.array,
+    sqlList: PropTypes.array,
+    queryTabNumber: PropTypes.number,
+    jobIdList: PropTypes.array,
+    queryState: PropTypes.object,
+    cancelJob: PropTypes.func,
+    previousMultiSql: PropTypes.string,
+    queryStatuses: PropTypes.array,
+    queryFilter: PropTypes.string,
   };
 
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   static defaultProps = {
-    dataset: Immutable.Map()
-  }
+    dataset: Immutable.Map(),
+  };
 
   transformPreconfirmed = false; // eslint-disable-line react/sort-comp
 
@@ -102,11 +143,17 @@ export class ExploreTableController extends PureComponent {
     this.handleCellShowMore = this.handleCellShowMore.bind(this);
     this.selectAll = this.selectAll.bind(this);
     this.selectItemsOfList = this.selectItemsOfList.bind(this);
+    this.processPendingJobs = this.processPendingJobs.bind(this);
+    this.renderButtonsForJobsList = this.renderButtonsForJobsList.bind(this);
+    this.renderButtonsForSqlList = this.renderButtonsForSqlList.bind(this);
 
     this.state = {
       activeTextSelect: null,
       openPopover: false,
-      activeCell: null
+      activeCell: null,
+      pendingJobs: Immutable.List(),
+      jobsTableHeight: 0,
+      pendingSQLJobsTableHeight: 0,
     };
   }
 
@@ -114,28 +161,76 @@ export class ExploreTableController extends PureComponent {
     const { isGrayed } = this.state;
     const isContextChanged = this.isContextChanged(nextProps);
 
-    const newIsGreyed = nextProps.pageType === PageTypes.default &&  (this.isSqlChanged(nextProps) || isContextChanged);
+    const newIsGreyed =
+      nextProps.pageType === PageTypes.default &&
+      (this.isSqlChanged(nextProps) || isContextChanged);
     if (isGrayed !== newIsGreyed) {
       this.setState({ isGrayed: newIsGreyed });
     }
 
-    const nextVersion = nextProps.tableData && nextProps.tableData.get('version');
+    const nextVersion =
+      nextProps.tableData && nextProps.tableData.get("version");
 
-    if (nextVersion && nextVersion !== this.props.tableData.get('version')) {
+    if (nextVersion && nextVersion !== this.props.tableData.get("version")) {
       this.transformPreconfirmed = false;
-      this.props.accessEntity('tableData', nextVersion);
+      this.props.accessEntity("tableData", nextVersion);
     }
   }
 
-  getNextTableAfterTransform({data, tableData}) {
+  componentDidMount() {
+    const { currentJobsMap } = this.props;
+    currentJobsMap && this.getUpdatedTableHeights(true, true);
+  }
+
+  componentDidUpdate(prevProps) {
+    const { jobIdList, sqlList, currentJobsMap } = this.props;
+    if (
+      currentJobsMap &&
+      (prevProps.jobIdList.length !== jobIdList.length ||
+        prevProps.sqlList.length !== sqlList.length)
+    ) {
+      this.getUpdatedTableHeights(
+        prevProps.jobIdList.length !== jobIdList.length,
+        prevProps.sqlList.length !== sqlList.length
+      );
+    }
+  }
+
+  getUpdatedTableHeights(recalcJobs, recalcSqls) {
+    const { jobIdList, sqlList } = this.props;
+
+    if (recalcJobs) {
+      const newSize =
+        sqlList.length === 0 ? "100%" : `${(jobIdList.length + 1) * 40}px`;
+      this.setState({
+        jobsTableHeight: newSize,
+      });
+    }
+    if (recalcSqls) {
+      const newSize =
+        jobIdList.length === 0 ? "100%" : `${(sqlList.length + 1) * 40}px`;
+      this.setState({
+        pendingSQLJobsTableHeight: newSize,
+      });
+    }
+  }
+
+  getNextTableAfterTransform({ data, tableData }) {
     const hash = {
-      DROP: () => exploreTransforms.dropColumn({name: data.columnName, table: tableData}),
-      RENAME: () => exploreTransforms.renameColumn({
-        name: data.columnName, nextName: data.newColumnName, table: tableData
-      }),
+      DROP: () =>
+        exploreTransforms.dropColumn({
+          name: data.columnName,
+          table: tableData,
+        }),
+      RENAME: () =>
+        exploreTransforms.renameColumn({
+          name: data.columnName,
+          nextName: data.newColumnName,
+          table: tableData,
+        }),
       DESC: () => tableData,
       ASC: () => tableData,
-      MULTIPLY: () => tableData
+      MULTIPLY: () => tableData,
     };
     return exploreTransforms.isTransformOptimistic(data.type)
       ? (hash[data.type] && hash[data.type]()) || null
@@ -151,13 +246,19 @@ export class ExploreTableController extends PureComponent {
       cellText: text,
       offset: 0,
       columnName,
-      length
+      length,
     };
     const position = exploreUtils.selectAll(elem);
     this.context.router.push({
       pathname,
       query,
-      state: { ...state, columnName, columnType, hasSelection: true, selection: Immutable.fromJS(model) }
+      state: {
+        ...state,
+        columnName,
+        columnType,
+        hasSelection: true,
+        selection: Immutable.fromJS(model),
+      },
     });
     this.handleCellTextSelect({ ...position, columnType });
   }
@@ -165,7 +266,11 @@ export class ExploreTableController extends PureComponent {
   selectItemsOfList(columnText, columnName, columnType, selection) {
     const { router } = this.context;
     const { location } = this.props;
-    const content = exploreUtils.getSelectionForList(columnText, columnName, selection);
+    const content = exploreUtils.getSelectionForList(
+      columnText,
+      columnName,
+      selection
+    );
     if (!content) {
       return;
     }
@@ -178,8 +283,8 @@ export class ExploreTableController extends PureComponent {
         columnType,
         listOfItems: content.listOfItems,
         hasSelection: true,
-        selection: Immutable.fromJS(content.model)
-      }
+        selection: Immutable.fromJS(content.model),
+      },
     });
     this.handleCellTextSelect({ ...content.position, columnType });
   }
@@ -187,7 +292,7 @@ export class ExploreTableController extends PureComponent {
   handleCellTextSelect(activeTextSelect) {
     this.setState({
       activeTextSelect,
-      openPopover: !this.props.isDumbTable
+      openPopover: !this.props.isDumbTable,
     });
   }
 
@@ -201,8 +306,8 @@ export class ExploreTableController extends PureComponent {
         // for dumb table do not try to load full cell value, as server does not support this functionality
         // for that case. Lets show truncated values that was loaded.
         isTruncatedValue: Boolean(this.props.isDumbTable && valueUrl),
-        valueUrl: this.props.isDumbTable ? null : valueUrl
-      }
+        valueUrl: this.props.isDumbTable ? null : valueUrl,
+      },
     });
   }
 
@@ -217,58 +322,91 @@ export class ExploreTableController extends PureComponent {
         resolve();
       }
     });
-  }
+  };
 
   isSqlChanged(nextProps) {
     if (!nextProps.dataset || !this.props.dataset) {
       return false;
     }
-    const nextSql = nextProps.dataset.get('sql');
+    const datasetSql = nextProps.dataset.get("sql");
     const { currentSql } = nextProps;
-    return isSqlChanged(nextSql, currentSql);
+    const { previousMultiSql } = this.props;
+
+    if (!previousMultiSql) {
+      return isSqlChanged(datasetSql, currentSql);
+    } else {
+      return currentSql !== previousMultiSql;
+    }
   }
 
   isContextChanged(nextProps) {
     if (!nextProps.dataset || !this.props.dataset) {
       return false;
     }
-    const nextContext = nextProps.dataset.get('context');
+    const nextContext = nextProps.dataset.get("context");
     const { queryContext } = nextProps;
-    return nextContext && queryContext && constructFullPath(nextContext) !== constructFullPath(queryContext);
+    return (
+      nextContext &&
+      queryContext &&
+      constructFullPath(nextContext) !== constructFullPath(queryContext)
+    );
   }
 
   openDetailsWizard({ detailType, columnName, toType = null }) {
-    const { dataset, currentSql, queryContext, exploreViewState } = this.props;
+    const {
+      dataset,
+      queryContext,
+      exploreViewState,
+      queryTabNumber,
+      queryStatuses,
+    } = this.props;
 
     const callback = () => {
       const { router } = this.context;
       const { location } = this.props;
-      const column = this.props.tableData.get('columns').find(col => col.get('name') === columnName).toJS();
+      const column = this.props.tableData
+        .get("columns")
+        .find((col) => col.get("name") === columnName)
+        .toJS();
       const nextLocation = exploreUtils.getLocationToGoToTransformWizard({
-        detailType, column, toType, location
+        detailType,
+        column,
+        toType,
+        location,
       });
 
       router.push(nextLocation);
     };
     this.props.performTransform({
       dataset,
-      currentSql,
+      currentSql: queryStatuses[queryTabNumber - 1].sqlStatement,
       queryContext,
-      viewId: exploreViewState.get('viewId'),
-      callback
+      viewId: exploreViewState.get("viewId"),
+      callback,
+      indexToModify: queryTabNumber - 1,
     });
   }
 
   makeTransform = (data, checkHistory = true) => {
-    const { dataset, currentSql, queryContext, exploreViewState } = this.props;
+    const {
+      dataset,
+      queryContext,
+      exploreViewState,
+      queryTabNumber,
+      queryStatuses,
+    } = this.props;
     const doTransform = () => {
       this.props.performTransform({
         dataset,
-        currentSql,
+        currentSql: queryStatuses[queryTabNumber - 1].sqlStatement,
         queryContext,
         transformData: exploreUtils.getMappedDataForTransform(data),
-        viewId: exploreViewState.get('viewId'),
-        nextTable: this.getNextTableAfterTransform({data, tableData: this.props.tableData})
+        viewId: exploreViewState.get("viewId"),
+        nextTable: this.getNextTableAfterTransform({
+          data,
+          tableData: this.props.tableData,
+        }),
+        indexToModify: queryTabNumber - 1,
       });
     };
     if (checkHistory) {
@@ -276,111 +414,332 @@ export class ExploreTableController extends PureComponent {
     } else {
       doTransform();
     }
-  }
+  };
 
   updateColumnName = (oldColumnName, e) => {
     const newColumnName = e.target.value;
     if (newColumnName !== oldColumnName) {
-      this.makeTransform({ type: 'RENAME', columnName: oldColumnName, newColumnName }, false);
+      this.makeTransform(
+        { type: "RENAME", columnName: oldColumnName, newColumnName },
+        false
+      );
     }
-  }
+  };
 
-  hideCellMore = () => this.setState({activeCell: null})
-  hideDrop = () => this.setState({
-    activeTextSelect: null,
-    openPopover: false
-  });
+  hideCellMore = () => this.setState({ activeCell: null });
+  hideDrop = () =>
+    this.setState({
+      activeTextSelect: null,
+      openPopover: false,
+    });
 
   decorateTable = (tableData) => {
     const { location } = this.props;
-    if (location.query.type === 'transform') {
+    if (location.query.type === "transform") {
       const transform = exploreUtils.getTransformState(location);
-      const columnType = transform.get('columnType');
-      const initializeColumnTypeForExtract = columnType === LIST || columnType === MAP
-        ? columnType
-        : 'default';
-      const isDefault = initializeColumnTypeForExtract === 'default';
+      const columnType = transform.get("columnType");
+      const initializeColumnTypeForExtract =
+        columnType === LIST || columnType === MAP ? columnType : "default";
+      const isDefault = initializeColumnTypeForExtract === "default";
 
       if (!exploreUtils.transformHasSelection(transform) && isDefault) {
-        const columnName = transform.get('columnName');
-        const columns = tableData.get('columns').map(column => {
-          if (column.get('name') === columnName && !column.get('status')) {
-            return column.set('status', 'TRANSFORM_ON').set('color', HIGHLIGHTED_TABLE);
+        const columnName = transform.get("columnName");
+        const columns = tableData.get("columns").map((column) => {
+          if (column.get("name") === columnName && !column.get("status")) {
+            return column
+              .set("status", "TRANSFORM_ON")
+              .set("color", HIGHLIGHTED_TABLE);
           }
           return column;
         });
 
-        return tableData.set('columns', columns);
+        return tableData.set("columns", columns);
       }
     }
 
     return tableData;
-  }
+  };
 
   renderExploreCellLargeOverlay() {
-    return this.state.activeCell && !this.props.location.query.transformType
-      ? (
-        <ErrorBoundary>
-          <ExploreCellLargeOverlay
-            {...this.state.activeCell}
-            isDumbTable={this.props.isDumbTable}
-            fullCellViewState={this.props.fullCellViewState}
-            onSelect={this.handleCellTextSelect}
-            hide={this.hideCellMore}
-            openPopover={this.state.openPopover}
-            selectAll={this.selectAll}
+    return this.state.activeCell && !this.props.location.query.transformType ? (
+      <ErrorBoundary>
+        <ExploreCellLargeOverlay
+          {...this.state.activeCell}
+          isDumbTable={this.props.isDumbTable}
+          fullCellViewState={this.props.fullCellViewState}
+          onSelect={this.handleCellTextSelect}
+          hide={this.hideCellMore}
+          openPopover={this.state.openPopover}
+          selectAll={this.selectAll}
+        />
+      </ErrorBoundary>
+    ) : null;
+  }
+
+  renderButtonsForJobsList(status, jobId) {
+    const { cancelJob } = this.props;
+
+    return (
+      <div className="sqlEditor__jobsTable__actionButtonContainer">
+        {exploreUtils.getCancellable(status) ? (
+          <Art
+            className={"sqlEditor__jobsTable__buttons"}
+            src="CancelJobAndStop.svg"
+            alt="Cancel a job from running button"
+            onClick={() => cancelJob(jobId)}
+            title="Cancel job"
           />
-        </ErrorBoundary>
-      )
-      : null;
+        ) : (
+          <div className={"sqlEditor__jobsTable__buttons"}></div>
+        )}
+        <Art
+          className={"sqlEditor__jobsTable__buttons"}
+          src="ExternalLinkGray.svg"
+          alt="Jobs Detail Link Icon"
+          onClick={() => {
+            const jobTabPath = jobsUtils.isNewJobsPage()
+              ? `/job/${jobId}`
+              : `/jobs#${jobId}`;
+            window.open(jobTabPath, "_blank");
+          }}
+          title="Open jobs detail in another browser tab"
+        />
+      </div>
+    );
+  }
+
+  renderButtonsForSqlList(index) {
+    const { cancelPendingSql } = this.props;
+    return (
+      <div className="sqlEditor__jobsTable__actionButtonContainer">
+        <Art
+          className={"sqlEditor__jobsTable__buttons"}
+          src="TrashBold.svg"
+          alt="Remove a query before running button"
+          onClick={() => cancelPendingSql(index)}
+          title="Remove query"
+        />
+      </div>
+    );
+  }
+
+  processPendingJobs(jobs) {
+    const { queryFilter } = this.props;
+    const curJobs = queryFilter ? getFilteredSqlList(jobs, queryFilter) : jobs;
+    return curJobs.map((sql) => {
+      return {
+        data: {
+          jobStatus: { node: () => {} },
+          sql: { tabIndex: sql[1], node: () => sql[0] },
+          buttons: {
+            rowIndex: sql[1] - 1,
+            node: () => this.renderButtonsForSqlList(sql[1] - 1),
+          },
+        },
+      };
+    });
+  }
+
+  renderJobsListingTable(show) {
+    const {
+      location,
+      queryState,
+      handleTabChange,
+      jobIdList,
+      pageType,
+      queryStatuses,
+    } = this.props;
+    const { jobsTableHeight } = this.state;
+    const isShown = show && pageType === PageTypes.default;
+    const jobsTableStyles = isShown
+      ? { height: jobsTableHeight }
+      : { height: "0px", width: "0px", visibility: "hidden" };
+
+    // quick fix is show/hide = rendering the jobs table since it forces the jobList to refresh and update statusArray
+    // return and fix- figure out how to refresh with jobs table not rendered (using listeners, etc..)
+    if (!queryStatuses || !queryStatuses.length) {
+      return null;
+    }
+
+    return (
+      <div style={jobsTableStyles} className="jobListPage-wrapper">
+        <JobListingPage
+          location={location}
+          queryState={queryState}
+          updateQueryState={updateQueryState}
+          showSideNavAndTopNav={false}
+          jobsColumns={sqlEditorTableColumns}
+          renderButtons={this.renderButtonsForJobsList}
+          handleTabChange={handleTabChange}
+          isFromExplorePage
+          jobIdList={jobIdList}
+        />
+      </div>
+    );
   }
 
   render() {
     const tableData = this.decorateTable(this.props.tableData);
-    const rows = tableData.get('rows');
-    const columns =  exploreUtils.getFilteredColumns(tableData.get('columns'), this.props.columnFilter);
-    const { canSelect } = this.props;
+    const rows = tableData.get("rows");
+    const columns = exploreUtils.getFilteredColumns(
+      tableData.get("columns"),
+      this.props.columnFilter
+    );
+    const {
+      canSelect,
+      showJobsTable,
+      handleTabChange,
+      sqlList,
+      jobIdList,
+      tabStatusArr,
+      queryTabNumber,
+      currentJobsMap,
+      currentSql,
+      previousMultiSql,
+    } = this.props;
+    const { pendingSQLJobsTableHeight } = this.state;
+
+    const currentTab = tabStatusArr && tabStatusArr[queryTabNumber - 1];
+
+    const isCurrentQueryFinished =
+      currentJobsMap &&
+      queryTabNumber > 0 &&
+      currentJobsMap[queryTabNumber - 1] &&
+      !!currentJobsMap[queryTabNumber - 1].jobId;
+
+    let tableWidth = 0;
+    pendingSQLJobs.forEach((column) => {
+      tableWidth = tableWidth + column.width;
+    });
+    tableWidth = tableWidth + 160;
+
+    let jobTableContent;
+
+    if (currentTab) {
+      jobTableContent = currentTab.error ? (
+        <>
+          <Message
+            message={apiUtils.getThrownErrorException(currentTab.error)}
+            isDismissable={false}
+            messageType="error"
+            style={{ padding: "0 8px" }}
+          />
+        </>
+      ) : (
+        <div className="sqlEditor__pendingTable">
+          <div className="sqlEditor__pendingTable__statusMessage">
+            {currentTab.renderIcon && renderJobStatus(currentTab.renderIcon)}
+            {currentTab.text}
+          </div>
+          {currentTab.buttonFunc && (
+            <Button
+              className="sqlEditor__pendingTable__button"
+              onClick={currentTab.buttonFunc}
+              disabled={
+                currentTab.ranJob && // only disabled if cancelJob button is visible
+                currentJobsMap[queryTabNumber - 1].isCancelDisabled
+              }
+            >
+              <Art
+                className={"sqlEditor__jobsTable__buttons"}
+                src={currentTab.buttonIcon}
+                alt={currentTab.buttonAlt}
+                title={currentTab.buttonText}
+              />
+              {currentTab.buttonText}
+            </Button>
+          )}
+        </div>
+      );
+    } else {
+      jobTableContent = (
+        <div className="sqlEditor__exploreTable">
+          <ExploreTable
+            pageType={this.props.pageType}
+            dataset={this.props.dataset}
+            rows={rows}
+            columns={columns}
+            paginationUrl={this.props.paginationUrl}
+            exploreViewState={this.props.exploreViewState}
+            cardsViewState={this.props.cardsViewState}
+            isResizeInProgress={this.props.isResizeInProgress}
+            widthScale={this.props.widthScale}
+            openDetailsWizard={this.openDetailsWizard}
+            makeTransform={this.makeTransform}
+            preconfirmTransform={this.preconfirmTransform}
+            width={this.props.width}
+            updateColumnName={this.updateColumnName}
+            height={this.props.height}
+            dragType={this.props.dragType}
+            sqlSize={this.props.sqlSize}
+            sqlState={this.props.sqlState}
+            rightTreeVisible={this.props.rightTreeVisible}
+            onCellTextSelect={this.handleCellTextSelect}
+            onCellShowMore={this.handleCellShowMore}
+            selectAll={this.selectAll}
+            selectItemsOfList={this.selectItemsOfList}
+            isDumbTable={this.props.isDumbTable}
+            getTableHeight={this.props.getTableHeight}
+            isGrayed={this.state.isGrayed}
+            canSelect={canSelect}
+            isMultiSql={currentJobsMap && currentJobsMap.length > 1}
+            isEdited={!!previousMultiSql && currentSql !== previousMultiSql}
+            isCurrentQueryFinished={isCurrentQueryFinished}
+          />
+          {this.renderExploreCellLargeOverlay()}
+          {this.state.activeTextSelect && (
+            <DropdownForSelectedText
+              dropPositions={Immutable.fromJS(this.state.activeTextSelect)}
+              openPopover={this.state.openPopover}
+              hideDrop={this.hideDrop}
+            />
+          )}
+          {this.props.children}
+        </div>
+      );
+    }
 
     return (
-      <div className='exploreTable'>
-        <ExploreTable
-          pageType={this.props.pageType}
-          dataset={this.props.dataset}
-          rows={rows}
-          columns={columns}
-          paginationUrl={this.props.paginationUrl}
-          exploreViewState={this.props.exploreViewState}
-          cardsViewState={this.props.cardsViewState}
-          isResizeInProgress={this.props.isResizeInProgress}
-          widthScale={this.props.widthScale}
-          openDetailsWizard={this.openDetailsWizard}
-          makeTransform={this.makeTransform}
-          preconfirmTransform={this.preconfirmTransform}
-          width={this.props.width}
-          updateColumnName={this.updateColumnName}
-          height={this.props.height}
-          dragType={this.props.dragType}
-          sqlSize={this.props.sqlSize}
-          sqlState={this.props.sqlState}
-          rightTreeVisible={this.props.rightTreeVisible}
-          onCellTextSelect={this.handleCellTextSelect}
-          onCellShowMore={this.handleCellShowMore}
-          selectAll={this.selectAll}
-          selectItemsOfList={this.selectItemsOfList}
-          isDumbTable={this.props.isDumbTable}
-          getTableHeight={this.props.getTableHeight}
-          isGrayed={this.state.isGrayed}
-          shouldRenderInvisibles={this.props.shouldRenderInvisibles}
-          canSelect={canSelect}
-        />
-        {this.renderExploreCellLargeOverlay()}
-        {this.state.activeTextSelect &&
-          <DropdownForSelectedText
-            dropPositions={Immutable.fromJS(this.state.activeTextSelect)}
-            openPopover={this.state.openPopover}
-            hideDrop={this.hideDrop}/>}
-        {this.props.children}
-      </div>
+      <>
+        <div
+          className={
+            !showJobsTable
+              ? "sqlEditor__jobsTable--hidden"
+              : sqlList.length === 0
+              ? "sqlEditor__jobsTable--solo"
+              : "sqlEditor__jobsTable--withPendingTable"
+          }
+        >
+          {jobIdList.length > 0 && this.renderJobsListingTable(showJobsTable)}
+          {sqlList.length > 0 && showJobsTable && (
+            <>
+              <div className="sqlEditor__strikeThroughContainer">
+                <div className="sqlEditor__strikeThroughHeader">
+                  <Tooltip title="These queries have not yet been submitted to the engine. They will be submitted once the current job has completed.">
+                    <span className="sqlEditor__strikeThroughHeaderContent">
+                      <FormattedMessage id="NewQuery.Waiting" />
+                    </span>
+                  </Tooltip>
+                  <div className="sqlEditor__lineForStrikethrough"></div>
+                </div>
+              </div>
+              <div style={{ height: pendingSQLJobsTableHeight }}>
+                <StatefulTableViewer
+                  virtualized
+                  rowHeight={40}
+                  tableWidth={tableWidth}
+                  columns={pendingSQLJobs}
+                  tableData={this.processPendingJobs(sqlList)}
+                  enableHorizontalScroll
+                  disableZebraStripes
+                  onClick={handleTabChange}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        {showJobsTable ? null : jobTableContent}
+      </>
     );
   }
 }
@@ -388,41 +747,66 @@ export class ExploreTableController extends PureComponent {
 function mapStateToProps(state, ownProps) {
   const location = state.routing.locationBeforeTransitions || {};
   const { dataset } = ownProps;
-  const datasetVersion = dataset && dataset.get('datasetVersion');
+  const datasetVersion = dataset && dataset.get("datasetVersion");
   const paginationUrl = getPaginationUrl(state, datasetVersion);
+
   const exploreState = getExploreState(state);
   let explorePageProps = null;
+  let queryStatuses;
   if (exploreState) {
     explorePageProps = {
       currentSql: exploreState.view.currentSql,
       queryContext: exploreState.view.queryContext,
-      isResizeInProgress: exploreState.ui.get('isResizeInProgress')
+      queryState: parseQueryState(location.query),
+      isResizeInProgress: exploreState.ui.get("isResizeInProgress"),
+      previousMultiSql: exploreState.view.previousMultiSql,
+      queryStatuses: exploreState.view.queryStatuses,
+      queryFilter: exploreState.view.queryFilter,
     };
+    queryStatuses = exploreState.view.queryStatuses;
   }
+
+  const SqlList = queryStatuses && getSqlList(queryStatuses);
+  const JobIdList = queryStatuses && getJobIdsList(queryStatuses);
 
   let tableData = ownProps.tableData;
   const previewVersion = location.state && location.state.previewVersion;
+  const currentDataset =
+    queryStatuses && queryStatuses[ownProps.queryTabNumber - 1];
+  const curDatasetVersion =
+    currentDataset && queryStatuses.length === 1
+      ? location.query.version
+      : currentDataset && queryStatuses.length > 1
+      ? currentDataset.version
+      : datasetVersion;
   if (!ownProps.isDumbTable) {
-    if (ownProps.pageType === PageTypes.default
-      || !previewVersion
-      || ownProps.exploreViewState.get('isAutoPeekFailed')) {
-      tableData = getImmutableTable(state, datasetVersion);
+    if (
+      ownProps.pageType === PageTypes.default ||
+      !previewVersion ||
+      ownProps.exploreViewState.get("isAutoPeekFailed")
+    ) {
+      tableData = getImmutableTable(state, curDatasetVersion);
     } else {
       tableData = getPeekData(state, previewVersion);
     }
   }
 
   return {
-    tableData: tableData || Immutable.fromJS({rows: [], columns: []}),
+    tableData: tableData || Immutable.fromJS({ rows: [], columns: [] }),
     columnFilter: getColumnFilter(state),
     previewVersion,
     paginationUrl,
     location,
+    jobIdList: JobIdList || [],
+    sqlList: SqlList || [],
     exploreViewState: ownProps.exploreViewState,
-    fullCellViewState: ownProps.isDumbTable ? ownProps.exploreViewState : getViewState(state, FULL_CELL_VIEW_ID),
-    cardsViewState: ownProps.isDumbTable ? ownProps.exploreViewState
+    fullCellViewState: ownProps.isDumbTable
+      ? ownProps.exploreViewState
+      : getViewState(state, FULL_CELL_VIEW_ID),
+    cardsViewState: ownProps.isDumbTable
+      ? ownProps.exploreViewState
       : getViewState(state, LOAD_TRANSFORM_CARDS_VIEW_ID),
-    ...explorePageProps
+    ...explorePageProps,
   };
 }
 
@@ -430,5 +814,6 @@ export default connect(mapStateToProps, {
   resetViewState,
   transformHistoryCheck,
   performTransform,
-  accessEntity
+  cancelJob: cancelJobAndShowNotification,
+  accessEntity,
 })(ExploreTableController);

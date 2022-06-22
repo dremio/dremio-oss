@@ -23,7 +23,7 @@ import org.apache.calcite.rel.SingleRel;
 /**
  * Create this to handle all metadata queries in a single clause.  Empty, and should not be used to match rules.  Only for metadata convenience.
  */
-abstract public class SampleRelBase extends SingleRel {
+public abstract class SampleRelBase extends SingleRel {
   /**
    * Creates a <code>SampleRelBase</code>.
    *

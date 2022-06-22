@@ -13,28 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
 
 // todo: FileFormat and AccessControl do not use this. really want a `.modal > h2` stylesheet
 
-@Radium
-export default class FormTitle extends PureComponent {
+class FormTitle extends PureComponent {
   static propTypes = {
     style: PropTypes.object,
-    children: PropTypes.node
-  }
+    children: PropTypes.node,
+  };
 
   render() {
-    return <h2 style={[this.props.style, styles.title]}>{this.props.children}</h2>;
+    return (
+      <h2 style={{ ...(this.props.style || {}), ...styles.title }}>
+        {this.props.children}
+      </h2>
+    );
   }
 }
 
 const styles = {
   title: {
-    borderBottom: '1px solid rgba(0,0,0,0.10)',
-    margin: '10px 0',
-    paddingBottom: 10
-  }
+    borderBottom: "1px solid rgba(0,0,0,0.10)",
+    margin: "10px 0",
+    paddingBottom: 10,
+  },
 };
+export default FormTitle;

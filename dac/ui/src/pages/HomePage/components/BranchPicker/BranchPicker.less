@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '~@app/uiTheme/less/color-schema.less';
-@import '~@app/uiTheme/less/variables.less';
-@import '~@app/uiTheme/less/mixins.less';
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/mixins.less";
 
 @icon-w: 24px - 1rem;
 
@@ -37,7 +37,8 @@
     box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15);
     border-radius: 4px;
 
-    &, .MuiTypography-body1 {
+    &,
+    .MuiTypography-body1 {
       font-size: 14px;
     }
 
@@ -58,7 +59,8 @@
       margin-left: -6px;
       user-select: none;
 
-      &, &-hashWrapper {
+      &,
+      &-hashWrapper {
         .flex-center;
       }
 
@@ -92,7 +94,7 @@
       }
       .react-datepicker__day-name,
       .react-datepicker__day,
-      .react-datepicker__time-name  {
+      .react-datepicker__time-name {
         width: 3rem;
         line-height: 3rem;
       }

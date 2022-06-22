@@ -32,7 +32,7 @@ import org.apache.calcite.util.NlsString;
 
 public class DremioRexBuilder extends RexBuilder {
 
-  private final static SqlCollation Utf8SqlCollation = new SqlCollation("UTF-8$en_US$primary", SqlCollation.Coercibility.IMPLICIT);
+  private static final SqlCollation Utf8SqlCollation = new SqlCollation("UTF-8$en_US$primary", SqlCollation.Coercibility.IMPLICIT);
   /**
    * Creates a RexBuilder.
    *
@@ -40,6 +40,11 @@ public class DremioRexBuilder extends RexBuilder {
    */
   public DremioRexBuilder(RelDataTypeFactory typeFactory) {
     super(typeFactory);
+  }
+
+  public RexNode makeAbstractCastIgnoreType(RelDataType type,
+                                            RexNode exp) {
+    return super.makeAbstractCast(type, exp);
   }
 
   @Override

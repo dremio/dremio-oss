@@ -26,6 +26,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.ActiveQueryList;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
@@ -56,6 +57,7 @@ import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.api.PhysicalConnection;
+import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
@@ -207,6 +209,14 @@ public class CoordExecService implements Service {
         case RpcType.REQ_RECONCILE_ACTIVE_QUERIES_VALUE: {
           final ActiveQueryList activeQueryList = get(pBody, ActiveQueryList.PARSER);
           executorService.get().reconcileActiveQueries(activeQueryList, responseObserver);
+          break;
+        }
+
+        // coordinator > executor
+        case RpcType.REQ_SOURCE_CONFIG_VALUE:
+        case RpcType.REQ_DEL_SOURCE_VALUE: {
+          final CoordExecRPC.SourceWrapper sourceWrapper = get(pBody, CoordExecRPC.SourceWrapper.PARSER);
+          executorService.get().propagatePluginChange(sourceWrapper, responseObserver);
           break;
         }
 
@@ -363,6 +373,11 @@ public class CoordExecService implements Service {
 
     @Override
     public void dataArrived(QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender) throws RpcException {
+      throw new RpcException("This daemon doesn't support coordination operations.");
+    }
+
+    @Override
+    public void dataArrived(JobResultsRequestWrapper request, ResponseSender sender) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
   }

@@ -40,7 +40,7 @@ public class Bug1735ConnectionCloseTest extends JdbcTestQueryBase {
   static final Logger logger = getLogger( Bug1735ConnectionCloseTest.class );
 
   @Rule
-  public TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   // Basic sanity test (too small to detect original connection close problem
   // but would detect QueryResultBatch release and metrics problems).

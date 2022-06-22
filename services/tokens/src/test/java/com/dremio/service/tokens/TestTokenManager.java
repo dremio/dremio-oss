@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -124,6 +125,26 @@ public class TestTokenManager {
   }
 
   @Test
+  public void validThirdPartyToken() throws Exception {
+    final TokenDetails details = manager.createThirdPartyToken(
+      username,
+      "",
+      "some-client-id",
+      Arrays.asList("dremio.all", "offline_access"),
+      TimeUnit.HOURS.toMillis(1)
+    );
+    TokenDetails validationResult = manager.validateToken(details.token);
+    assertEquals(username, validationResult.username);
+    assertEquals("some-client-id", validationResult.clientId);
+    assertTrue(validationResult.expiresAt > System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(59));
+    assertEquals(Arrays.asList("dremio.all", "offline_access"), validationResult.getScopes());
+    assertNotNull(manager.getTokenStore().get(details.token));
+    assertEquals("some-client-id", details.clientId);
+    assertTrue(details.expiresAt > System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(59));
+    assertEquals(Arrays.asList("dremio.all", "offline_access"), details.getScopes());
+  }
+
+  @Test
   public void nullToken() throws Exception {
     try {
       manager.validateToken(null);
@@ -183,6 +204,32 @@ public class TestTokenManager {
 
     try {
       manager.validateTemporaryToken(details.token, request.getPath(), UriComponent.decodeQuery(request, true));
+      fail();
+    } catch (IllegalArgumentException e) {
+      assertEquals(e.getMessage(), "token expired");
+    }
+
+    assertNull(manager.getTokenStore().get(details.token));
+  }
+
+  @Test
+  public void useThirdPartyTokenAfterExpiry() throws Exception {
+    final TokenDetails details = manager.createThirdPartyToken(
+      username,
+      "",
+      "some-client-id",
+      Arrays.asList("dremio.all", "offline_access"),
+      TimeUnit.SECONDS.toMillis(1)
+    );
+
+    try {
+      Thread.sleep(2000);
+    } catch (InterruptedException e) {
+      fail("I was sleeping!");
+    }
+
+    try {
+      manager.validateToken(details.token);
       fail();
     } catch (IllegalArgumentException e) {
       assertEquals(e.getMessage(), "token expired");

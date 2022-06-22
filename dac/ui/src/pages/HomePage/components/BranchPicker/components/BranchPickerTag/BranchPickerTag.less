@@ -18,15 +18,18 @@
 @import "~@app/uiTheme/less/mixins.less";
 :global {
   .branchPickerTag {
+    height: 24px;
     max-width: 250px;
+    font-size: 14px;
     .flex-center;
-    padding: 2px 4px;
+    padding: 2px 4px 2px 6.5px;
     border-radius: 4px;
 
-    background-color: #eeeff1;
+    background-color: var(--dremio--color--neutral--150);
 
     transition: background-color 100ms linear;
-    &.isOpen, &:hover {
+    &.isOpen,
+    &:hover {
       background-color: darken(#eeeff1, 5%);
     }
 

@@ -39,7 +39,7 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJdbcDistQuery.class);
 
   // Set a timeout unless we're debugging.
-  @Rule public TestRule TIMEOUT = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
+  @Rule public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
   private static final String WORKING_PATH;
   static {

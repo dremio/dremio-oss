@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import ReactDOM from 'react-dom';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import ReactDOM from "react-dom";
 
-import { CELL_EXPANSION } from 'uiTheme/radium/colors';
-import FontIcon from 'components/Icon/FontIcon';
+import { CELL_EXPANSION } from "uiTheme/radium/colors";
+import FontIcon from "components/Icon/FontIcon";
 
 export default class EllipsisIcon extends PureComponent {
   static propTypes = {
     onClick: PropTypes.func,
     iconStyle: PropTypes.object,
-    containerStyle: PropTypes.object
+    containerStyle: PropTypes.object,
   };
 
   ellipsis = null; // eslint-disable-line react/sort-comp
@@ -43,18 +43,22 @@ export default class EllipsisIcon extends PureComponent {
     const { iconStyle, containerStyle } = this.props;
     const theme = {
       Icon: {},
-      Container: {}
+      Container: {},
     };
 
-    theme.Icon = {...theme.Icon, ...styles.ellipsis.Icon, ...iconStyle};
-    theme.Container = {...theme.Container, ...styles.ellipsis.Container, ...containerStyle};
+    theme.Icon = { ...theme.Icon, ...styles.ellipsis.Icon, ...iconStyle };
+    theme.Container = {
+      ...theme.Container,
+      ...styles.ellipsis.Container,
+      ...containerStyle,
+    };
 
     return (
-      <div className='ellipsis-icon'>
+      <div className="ellipsis-icon">
         <FontIcon
           theme={theme}
-          ref={(component) => this.ellipsis = ReactDOM.findDOMNode(component)}
-          type='Ellipsis'
+          ref={(component) => (this.ellipsis = ReactDOM.findDOMNode(component))}
+          type="Ellipsis"
           onClick={this.onClick}
         />
       </div>
@@ -65,20 +69,20 @@ export default class EllipsisIcon extends PureComponent {
 const styles = {
   ellipsis: {
     Container: {
-      position: 'absolute',
+      position: "absolute",
       right: 5,
       top: 4,
-      cursor: 'pointer',
+      cursor: "pointer",
       borderRadius: 100,
       backgroundColor: CELL_EXPANSION,
-      zIndex: 9000
+      zIndex: 9000,
     },
     Icon: {
       height: 13,
       width: 15,
-      position: 'relative',
+      position: "relative",
       borderRadius: 100,
-      top: '.5px'
-    }
-  }
+      top: ".5px",
+    },
+  },
 };

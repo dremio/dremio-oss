@@ -57,7 +57,7 @@ class ExternalCleanerRunner {
   void printLastErrors() {
     LOGGER.warn("Job Attempt failures: [{}].", jobAttemptsFailed);
     for (ExternalCleaner externalCleaner : externalCleaners) {
-      final String cleanerName = cleanerNameFormat(externalCleaner);
+      final String cleanerName = externalCleaner.getName();
       LOGGER.warn("Failed to delete {} items using the cleaner {}", cleanerName,
         externalCleaner.getFailedCounter());
       for (String error : externalCleaner.getLastErrors()) {
@@ -72,7 +72,7 @@ class ExternalCleanerRunner {
       .append(", Attempts with failure: ").append(jobAttemptsFailed);
 
     for (ExternalCleaner externalCleaner : externalCleaners) {
-      final String cleanerName = cleanerNameFormat(externalCleaner);
+      final String cleanerName = externalCleaner.getName();
       long failures = externalCleaner.getFailedCounter();
       long total = externalCleaner.getSuccessCounter() + failures;
       sb.append(System.lineSeparator()).append("\t").append(cleanerName).append(" executions: ")
@@ -81,10 +81,6 @@ class ExternalCleanerRunner {
     sb.append(System.lineSeparator());
 
     return sb.toString();
-  }
-
-  private static String cleanerNameFormat(ExternalCleaner cleaner) {
-    return cleaner.getClass().getSimpleName();
   }
 
 }

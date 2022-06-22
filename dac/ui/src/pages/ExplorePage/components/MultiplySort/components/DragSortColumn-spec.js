@@ -13,40 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import DragSortColumn from './DragSortColumn';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import DragSortColumn from "./DragSortColumn";
 
-describe('DragSortColumn', () => {
+describe("DragSortColumn", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       field: Immutable.Map(),
-      dragType: 'default',
+      dragType: "default",
       allColumns: Immutable.fromJS([
         {
-          name: 'revenue',
-          type: 'Integer',
-          index: 0
-        }
-      ])
+          name: "revenue",
+          type: "Integer",
+          index: 0,
+        },
+      ]),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DragSortColumn {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DragSortColumn {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
   //DX-28985
-  xit('should check that Select, DragAreaColumn, class=drag-sort-column was rendered', () => {
-    const wrapper = shallow(<DragSortColumn {...commonProps}/>);
-    expect(wrapper.find('Select')).to.length(1);
-    expect(wrapper.find('DragAreaColumn')).to.length(1);
-    expect(wrapper.hasClass('drag-sort-column')).to.eql(true);
+  xit("should check that Select, DragAreaColumn, class=drag-sort-column was rendered", () => {
+    const wrapper = shallow(<DragSortColumn {...commonProps} />);
+    expect(wrapper.find("Select")).to.length(1);
+    expect(wrapper.find("DragAreaColumn")).to.length(1);
+    expect(wrapper.hasClass("drag-sort-column")).to.eql(true);
   });
 });

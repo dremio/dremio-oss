@@ -35,8 +35,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
- * Implements SQL ALTER BRANCH MERGE to merge a source branch into a target branch. Represents
- * statements like: ALTER BRANCH MERGE sourceBranchName [ INTO targetBranchName ] IN source
+ * Implements SQL MERGE BRANCH to merge a source branch into a target branch.
+ *
+ * MERGE BRANCH sourceBranchName
+ * [INTO targetBranchName]
+ * [IN <sourceName>]
  */
 public final class SqlMergeBranch extends SqlVersionBase {
   public static final SqlSpecialOperator OPERATOR =
@@ -45,7 +48,7 @@ public final class SqlMergeBranch extends SqlVersionBase {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 3, "SqlMergeBranch.createCall() has to get 3 operands!");
+            operands.length == 3, "SqlMergeBranch.createCall() has to get 3 operands!");
           return new SqlMergeBranch(
               pos,
               (SqlIdentifier) operands[0],
@@ -61,8 +64,8 @@ public final class SqlMergeBranch extends SqlVersionBase {
       SqlParserPos pos,
       SqlIdentifier sourceBranchName,
       SqlIdentifier targetBranchName,
-      SqlIdentifier source) {
-    super(pos, source);
+      SqlIdentifier sourceName) {
+    super(pos, sourceName);
     this.sourceBranchName = sourceBranchName;
     this.targetBranchName = targetBranchName;
   }
@@ -84,9 +87,8 @@ public final class SqlMergeBranch extends SqlVersionBase {
 
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-    writer.keyword("ALTER");
-    writer.keyword("BRANCH");
     writer.keyword("MERGE");
+    writer.keyword("BRANCH");
     sourceBranchName.unparse(writer, leftPrec, rightPrec);
 
     if (targetBranchName != null) {
@@ -94,8 +96,7 @@ public final class SqlMergeBranch extends SqlVersionBase {
       targetBranchName.unparse(writer, leftPrec, rightPrec);
     }
 
-    writer.keyword("IN");
-    getSourceName().unparse(writer, leftPrec, rightPrec);
+    unparseSourceName(writer, leftPrec, rightPrec);
   }
 
   @Override
@@ -107,7 +108,7 @@ public final class SqlMergeBranch extends SqlVersionBase {
       return (SqlDirectHandler<?>) ctor.newInstance(context);
     } catch (ClassNotFoundException e) {
       throw UserException.unsupportedError(e)
-          .message("ALTER BRANCH MERGE action is not supported.")
+          .message("MERGE BRANCH action is not supported.")
           .buildSilently();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);

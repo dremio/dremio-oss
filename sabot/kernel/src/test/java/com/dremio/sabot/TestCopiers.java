@@ -52,7 +52,7 @@ public class TestCopiers extends BaseTestOperator {
   private final int recordCount = 100_000;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(400, TimeUnit.SECONDS);
 
   @Before
   public void prepare() {

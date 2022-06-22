@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import transformRules from './transformRules';
+import transformRules from "./transformRules";
 
 class FilterMappers {
-
   getCommonFilterValues = (item, transform) => ({
-    type: 'filter',
-    sourceColumnName: transform.get('columnName'),
+    type: "filter",
+    sourceColumnName: transform.get("columnName"),
     keepNull: item.keepNull,
-    exclude: transform.get('transformType') === 'exclude'
+    exclude: transform.get("transformType") === "exclude",
   });
 
   getBound(value) {
-    if (typeof value === 'object') {
+    if (typeof value === "object") {
       return value[0];
     }
-    if (value === '') {
+    if (value === "") {
       return null;
     }
 
@@ -36,28 +35,28 @@ class FilterMappers {
   }
 
   mapFilterExcludeRange = (item, columnType) => ({
-    type: 'Range',
+    type: "Range",
     lowerBound: this.getBound(item.lowerBound),
     upperBound: this.getBound(item.upperBound),
     lowerBoundInclusive: item.lowerBoundInclusive,
     upperBoundInclusive: item.upperBoundInclusive,
-    dataType: columnType
+    dataType: columnType,
   });
 
-  mapFilterExcludeCustom = item => ({
-    type: 'Custom',
-    expression: item.booleanExpression
+  mapFilterExcludeCustom = (item) => ({
+    type: "Custom",
+    expression: item.booleanExpression,
   });
 
   mapFilterExcludeValues = (item, columnType) => ({
-    type: 'Value',
+    type: "Value",
     valuesList: item.replaceValues,
-    dataType: columnType
+    dataType: columnType,
   });
 
-  mapFilterExcludePattern = item => ({
-    type: 'Pattern',
-    rule: transformRules.mapReplaceRule(item.cards[item.activeCard])
+  mapFilterExcludePattern = (item) => ({
+    type: "Pattern",
+    rule: transformRules.mapReplaceRule(item.cards[item.activeCard]),
   });
 }
 

@@ -25,11 +25,11 @@ import org.apache.calcite.rex.RexNode;
 
 public class StarColumnHelper {
 
-  public final static String PREFIX_DELIMITER = "\u00a6\u00a6";
+  public static final String PREFIX_DELIMITER = "\u00a6\u00a6";
 
-  public final static String STAR_COLUMN = "*";
+  public static final String STAR_COLUMN = "*";
 
-  public final static String PREFIXED_STAR_COLUMN = PREFIX_DELIMITER + STAR_COLUMN;
+  public static final String PREFIXED_STAR_COLUMN = PREFIX_DELIMITER + STAR_COLUMN;
 
   public static boolean containsStarColumn(RelDataType type) {
     if (! type.isStruct()) {

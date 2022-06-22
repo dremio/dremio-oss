@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as resourceDecorators from './resourceDecorators';
+import * as resourceDecorators from "./resourceDecorators";
 
-describe('resourceDecorators', function() {
-
-  describe('decorateProvision()', function() {
+describe("resourceDecorators", function () {
+  describe("decorateProvision()", function () {
     const defaultWorkSummary = {
       total: 0,
       active: 0,
@@ -26,10 +25,10 @@ describe('resourceDecorators', function() {
       decommissioning: 0,
       provisioning: 0,
       totalRAM: 0,
-      totalCores: 0
+      totalCores: 0,
     };
 
-    it('should return decorated provision with full provision data', function() {
+    it("should return decorated provision with full provision data", function () {
       const provision = Immutable.fromJS({
         containers: {
           decommissioningCount: 1,
@@ -39,144 +38,160 @@ describe('resourceDecorators', function() {
             {
               containerPropertyList: [
                 {
-                  key: 'memoryMB',
-                  value: '10'
+                  key: "memoryMB",
+                  value: "10",
                 },
                 {
-                  key: 'virtualCoreCount',
-                  value: '1'
-                }
-              ]
-            }
+                  key: "virtualCoreCount",
+                  value: "1",
+                },
+              ],
+            },
           ],
           runningList: [
             {
               containerPropertyList: [
                 {
-                  key: 'memoryMB',
-                  value: '10'
+                  key: "memoryMB",
+                  value: "10",
                 },
                 {
-                  key: 'virtualCoreCount',
-                  value: '1'
-                }
-              ]
+                  key: "virtualCoreCount",
+                  value: "1",
+                },
+              ],
             },
             {
               containerPropertyList: [
                 {
-                  key: 'memoryMB',
-                  value: '20'
+                  key: "memoryMB",
+                  value: "20",
                 },
                 {
-                  key: 'virtualCoreCount',
-                  value: '2'
-                }
-              ]
-            }
-          ]
+                  key: "virtualCoreCount",
+                  value: "2",
+                },
+              ],
+            },
+          ],
         },
         dynamicConfig: {
-          containerCount: 3
-        }
+          containerCount: 3,
+        },
       });
-      const result = provision.merge(Immutable.fromJS({
-        workersSummary: {
-          total: 3,
-          active: 1,
-          pending: 1,
-          disconnected: 1,
-          decommissioning: 1,
-          provisioning: 1,
-          totalRAM: 30,
-          totalCores: 3
-        }
-      }));
+      const result = provision.merge(
+        Immutable.fromJS({
+          workersSummary: {
+            total: 3,
+            active: 1,
+            pending: 1,
+            disconnected: 1,
+            decommissioning: 1,
+            provisioning: 1,
+            totalRAM: 30,
+            totalCores: 3,
+          },
+        })
+      );
 
-      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(result);
+      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
+        result
+      );
     });
 
-    it('should set decorateProvision properties like 0 if provision data is empty', () => {
+    it("should set decorateProvision properties like 0 if provision data is empty", () => {
       const provision = Immutable.fromJS({
-        containers: {}
+        containers: {},
       });
-      const result = provision.merge(Immutable.fromJS({ workersSummary: defaultWorkSummary }));
+      const result = provision.merge(
+        Immutable.fromJS({ workersSummary: defaultWorkSummary })
+      );
 
-      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(result);
+      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
+        result
+      );
     });
 
-    it('should set workersSummary.active equal to runningList.size if decommissioningCount is undefined', () => {
+    it("should set workersSummary.active equal to runningList.size if decommissioningCount is undefined", () => {
       const provision = Immutable.fromJS({
         containers: {
           runningList: [
             {
-              containerPropertyList: []
+              containerPropertyList: [],
             },
             {
-              containerPropertyList: []
+              containerPropertyList: [],
             },
             {
-              containerPropertyList: []
+              containerPropertyList: [],
             },
             {
-              containerPropertyList: []
-            }
-          ]
-        }
+              containerPropertyList: [],
+            },
+          ],
+        },
       });
-      const result = provision.merge(Immutable.fromJS({
-        workersSummary: {
-          ...defaultWorkSummary,
-          active: 4
-        }
-      }));
+      const result = provision.merge(
+        Immutable.fromJS({
+          workersSummary: {
+            ...defaultWorkSummary,
+            active: 4,
+          },
+        })
+      );
 
-      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(result);
+      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
+        result
+      );
     });
 
-    it('should return decorated provision when containerPropertyList hasn\'t some keys', function() {
+    it("should return decorated provision when containerPropertyList hasn't some keys", function () {
       const provision = Immutable.fromJS({
         containers: {
           runningList: [
             {
               containerPropertyList: [
                 {
-                  key: 'memoryMB',
-                  value: '10'
-                }
-              ]
+                  key: "memoryMB",
+                  value: "10",
+                },
+              ],
             },
             {
               containerPropertyList: [
                 {
-                  key: 'virtualCoreCount',
-                  value: '2'
-                }
-              ]
+                  key: "virtualCoreCount",
+                  value: "2",
+                },
+              ],
             },
             {
-              containerPropertyList: []
-            }
-          ]
+              containerPropertyList: [],
+            },
+          ],
         },
         dynamicConfig: {
-          containerCount: 3
-        }
+          containerCount: 3,
+        },
       });
-      const result = provision.merge(Immutable.fromJS({
-        workersSummary: {
-          total: 3,
-          active: 3,
-          pending: 0,
-          disconnected: 0,
-          decommissioning: 0,
-          provisioning: 0,
-          totalRAM: 10,
-          totalCores: 2
-        }
-      }));
+      const result = provision.merge(
+        Immutable.fromJS({
+          workersSummary: {
+            total: 3,
+            active: 3,
+            pending: 0,
+            disconnected: 0,
+            decommissioning: 0,
+            provisioning: 0,
+            totalRAM: 10,
+            totalCores: 2,
+          },
+        })
+      );
 
-      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(result);
+      expect(resourceDecorators.decorateProvision(provision)).to.be.equal(
+        result
+      );
     });
   });
 });

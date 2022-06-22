@@ -20,7 +20,6 @@ import java.util.List;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.ErrorCollector;
@@ -46,7 +45,6 @@ import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class ExpressionTreeMaterializer {
@@ -129,25 +127,13 @@ public class ExpressionTreeMaterializer {
      allowComplexWriterExpr, DISALLOW_GANDIVA_FUNCTIONS);
   }
 
-  /**
-   * ONLY for Projector and Filter to use for setting up code generation to follow.
-   * Use API without the options parameter for all other cases.
-   */
-  public static Tuple<LogicalExpression, LogicalExpression> materialize(ExpressionEvaluationOptions options,
-                                              LogicalExpression expr,
-                                              BatchSchema schema,
-                                              ErrorCollector errorCollector,
-                                              FunctionLookupContext functionLookupContext,
-                                              boolean allowComplexWriterExpr) {
-    Preconditions.checkNotNull(options);
-    LogicalExpression out = materialize(expr, schema, errorCollector, functionLookupContext,
-      allowComplexWriterExpr, ALLOW_GANDIVA_FUNCTIONS);
-
+  public static LogicalExpression annotateTheExp(ExpressionEvaluationOptions options, LogicalExpression expression,  FunctionLookupContext functionLookupContext,
+                                           ErrorCollector errorCollector, BatchSchema schema) {
     SupportedEngines.CodeGenOption codeGenOption = options.getCodeGenOption();
 
     CodeGenerationContextAnnotator contextAnnotator = new CodeGenerationContextAnnotator();
     // convert expression tree to a context tree first
-    CodeGenContext contextTree = out.accept(contextAnnotator, null);
+    CodeGenContext contextTree = expression.accept(contextAnnotator, null);
 
     boolean enableGandivaForComposite = functionLookupContext.getOptionManager().getOption(ExecConstants.ENABLE_GANDIVA_CODEGEN_FOR_COMPOSITE);
 
@@ -167,11 +153,12 @@ public class ExpressionTreeMaterializer {
     switch (codeGenOption) {
       case Gandiva:
       case GandivaOnly:
-        return Tuple.of(annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled(), options), out);
+        return annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled(), options);
       case Java:
       default:
-        return Tuple.of(contextTree, out);
+        return contextTree;
     }
+
   }
 
   private static LogicalExpression annotateGandivaExecution(SupportedEngines.CodeGenOption codeGenOption,

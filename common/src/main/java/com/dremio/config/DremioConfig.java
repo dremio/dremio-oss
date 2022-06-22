@@ -119,7 +119,6 @@ public class DremioConfig extends NestedConfig {
 
   public static final String NESSIE_SERVICE_ENABLED_BOOLEAN = "services.nessie.enabled";
   public static final String NESSIE_SERVICE_IN_MEMORY_BOOLEAN = "services.nessie.backend.in-memory";
-  public static final String NESSIE_SERVICE_KVSTORE_COMMIT_TIMEOUT_MS = "services.nessie.kvstore.commit-timeout-ms";
   public static final String NESSIE_SERVICE_REMOTE_URI = "services.nessie.remote-uri";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
@@ -217,6 +216,9 @@ public class DremioConfig extends NestedConfig {
   public static final String YARN_CERTIFICATE_VALIDATION_ENABLED = "provisioning.yarn.nodemanager.certificate-validation.enabled";
 
   public static final String REMOTE_DATASTORE_RPC_TIMEOUT_SECS = "debug.remote.datastore.rpc_timeout_seconds";
+
+  // Coordinator Security Permissions
+  public static final String PERMISSION_LOCAL_USERS_CREATE_ENABLED = "services.coordinator.security.permission.local-users.create.enabled";
 
   private final Config unresolved;
   private final Config reference;

@@ -13,26 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { render as rtlRender } from '@testing-library/react';
-import { Provider } from 'react-redux';
-import configureStore from 'store/configureStore';
+import { render as rtlRender } from "@testing-library/react";
+import { Provider } from "react-redux";
+import configureStore from "store/configureStore";
 
-export function render(ui, { initialState = {}} = {}) {
+export function render(ui, { initialState = {} } = {}) {
   const store = configureStore(initialState);
   // eslint-disable-next-line
   function wrapper(ui) {
-    return (
-      <Provider store={store}>
-        {ui}
-      </Provider>
-    );
+    return <Provider store={store}>{ui}</Provider>;
   }
   const utils = rtlRender(wrapper(ui));
 
   return {
     ...utils,
-    rerender: rerenderedUi => utils.rerender(wrapper(rerenderedUi)),
+    rerender: (rerenderedUi) => utils.rerender(wrapper(rerenderedUi)),
     store,
-    history
+    history,
   };
 }

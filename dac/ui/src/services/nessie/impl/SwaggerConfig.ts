@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import getMiddleWare from '@inject/services/nessie/impl/middleware';
-import { Configuration } from '../client';
+import getMiddleWare from "@inject/services/nessie/impl/middleware";
+import { Configuration } from "../client";
 
 const SwaggerConfig = new Configuration({
-  basePath: '/nessie',
-  middleware: getMiddleWare() || undefined
+  basePath: "/nessie",
+  middleware: getMiddleWare() || undefined,
 });
 
 export function createSwaggerConfig(endpoint?: string) {
   return new Configuration({
-    basePath: '/nessie',
+    basePath: "/nessie",
     //@ts-ignore
-    middleware: getMiddleWare(endpoint) || undefined
+    middleware: getMiddleWare(endpoint) || undefined,
   });
 }
 

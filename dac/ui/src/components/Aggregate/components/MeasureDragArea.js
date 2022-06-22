@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import { dragContentBase } from '@app/uiTheme/less/commonStyles.less';
-import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
-import ColumnDragItem from 'utils/ColumnDragItem';
+import { dragContentBase } from "@app/uiTheme/less/commonStyles.less";
+import ExploreDragArea from "pages/ExplorePage/components/ExploreDragArea";
+import ColumnDragItem from "utils/ColumnDragItem";
 
-import DragMeasureColumn from './DragMeasureColumn';
+import DragMeasureColumn from "./DragMeasureColumn";
 
 // todo: loc (needs build fix)
-export const MEASURE_DRAG_AREA_TEXT = ('Drag and drop a field here or click “Add a Measure”.');
+export const MEASURE_DRAG_AREA_TEXT =
+  "Drag and drop a field here or click “Add a Measure”.";
 
-const DRAG_AREA_TYPE = 'measures';
+const DRAG_AREA_TYPE = "measures";
 
-@Radium
-export default class MeasureDragArea extends Component {
+class MeasureDragArea extends Component {
   static propTypes = {
     dragItem: PropTypes.instanceOf(ColumnDragItem),
     columnsField: PropTypes.array,
@@ -44,28 +43,29 @@ export default class MeasureDragArea extends Component {
     handleDragStart: PropTypes.func,
     onDragEnd: PropTypes.func,
     className: PropTypes.string,
-    dragContentCls: PropTypes.string
+    dragContentCls: PropTypes.string,
   };
 
   handleRemoveColumn = (index) => {
     this.props.columnsField.removeField(index);
-  }
+  };
 
   handleDrop = (data) => {
     if (this.canDropColumn()) {
       this.props.onDrop(DRAG_AREA_TYPE, data);
     }
-  }
+  };
 
   canDropColumn() {
-    const isFromDifferentArea = this.props.dragItem.dragOrigin !== DRAG_AREA_TYPE;
+    const isFromDifferentArea =
+      this.props.dragItem.dragOrigin !== DRAG_AREA_TYPE;
     return this.props.isDragInProgress && isFromDifferentArea;
   }
 
   renderColumnsForDragArea() {
     const { columnsField } = this.props;
 
-    return columnsField.map( (columnField, i) => (
+    return columnsField.map((columnField, i) => (
       <DragMeasureColumn
         field={columnField}
         onDragStart={this.props.handleDragStart}
@@ -86,10 +86,7 @@ export default class MeasureDragArea extends Component {
   render() {
     const isEmpty = !this.props.columnsField.length;
     const isDragged = this.canDropColumn();
-    const {
-      className,
-      dragContentCls
-    } = this.props;
+    const { className, dragContentCls } = this.props;
 
     return (
       <ExploreDragArea
@@ -106,4 +103,4 @@ export default class MeasureDragArea extends Component {
     );
   }
 }
-
+export default MeasureDragArea;

@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
 
-import { getRootEntityNameV3 } from '@app/selectors/home';
-import EllipsedText from '@app/components/EllipsedText';
+import { getRootEntityNameV3 } from "@app/selectors/home";
+import EllipsedText from "@app/components/EllipsedText";
+import { Tooltip } from "dremio-ui-lib";
 
 const mapStateToProps = (state, { entityId }) => ({
-  name: getRootEntityNameV3(state, entityId)
+  name: getRootEntityNameV3(state, entityId),
 });
 
 @connect(mapStateToProps)
@@ -31,12 +32,18 @@ export class EntityName extends PureComponent {
     entityId: PropTypes.string,
     style: PropTypes.object,
     //connected
-    name: PropTypes.string.isRequired
-  }
+    name: PropTypes.string.isRequired,
+  };
 
   render() {
     const { name, style } = this.props;
 
-    return <EllipsedText text={name} style={style} />;
+    return (
+      <Tooltip title={name}>
+        <EllipsedText style={style}>
+          <span>{name}</span>
+        </EllipsedText>
+      </Tooltip>
+    );
   }
 }

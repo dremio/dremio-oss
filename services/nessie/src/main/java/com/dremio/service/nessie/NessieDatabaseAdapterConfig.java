@@ -15,24 +15,117 @@
  */
 package com.dremio.service.nessie;
 
-import org.immutables.value.Value;
-import org.projectnessie.versioned.persist.adapter.AdjustableDatabaseAdapterConfig;
-import org.projectnessie.versioned.persist.nontx.AdjustableNonTransactionalDatabaseAdapterConfig;
+import javax.inject.Provider;
+
+import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
+
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
 /**
  * Nessie datastore database adapter config
  */
-@Value.Immutable
-public interface NessieDatabaseAdapterConfig extends AdjustableNonTransactionalDatabaseAdapterConfig {
+@Options
+public class NessieDatabaseAdapterConfig implements NonTransactionalDatabaseAdapterConfig {
 
-  @Override
-  default int getCommitRetries() {
-    // Do not limit the number of retries, just use the timeout
-    return Integer.MAX_VALUE;
+  // Note: config variable definitions need to be in public static fields for
+  // Dremio runtime to be able to introspect them.
+
+  public static final PositiveLongValidator COMMIT_TIMEOUT_MS = new PositiveLongValidator(
+      "nessie.kvversionstore.commit_timeout_ms", Integer.MAX_VALUE, 600_000L);
+
+  public static final PositiveLongValidator COMMIT_RETRIES = new PositiveLongValidator(
+      "nessie.kvversionstore.commit_retries", Integer.MAX_VALUE, Integer.MAX_VALUE); // no retry limit by default
+
+  public static final PositiveLongValidator PARENTS_PER_GLOBAL_COMMIT = new PositiveLongValidator(
+      "nessie.kvversionstore.parents_per_global_commit", Integer.MAX_VALUE, DEFAULT_PARENTS_PER_GLOBAL_COMMIT);
+
+  public static final PositiveLongValidator PARENTS_PER_COMMIT = new PositiveLongValidator(
+    "nessie.kvversionstore.parents_per_commit", Integer.MAX_VALUE, DEFAULT_PARENTS_PER_COMMIT);
+
+  public static final PositiveLongValidator PARENTS_PER_REFLOG_ENTRY = new PositiveLongValidator(
+    "nessie.kvversionstore.parents_per_reflog_entry", Integer.MAX_VALUE, DEFAULT_PARENTS_PER_REFLOG_ENTRY);
+
+  public static final PositiveLongValidator GLOBAL_LOG_ENTRY_SIZE = new PositiveLongValidator(
+      "nessie.kvversionstore.global_log_entry_size", Integer.MAX_VALUE, DEFAULT_GLOBAL_LOG_ENTRY_SIZE);
+
+  public static final PositiveLongValidator KEY_LIST_DISTANCE = new PositiveLongValidator(
+      "nessie.kvversionstore.key_list_distance", Integer.MAX_VALUE, DEFAULT_KEY_LIST_DISTANCE);
+
+  public static final PositiveLongValidator MAX_KEY_LIST_SIZE = new PositiveLongValidator(
+      "nessie.kvversionstore.max_key_list_size", Integer.MAX_VALUE, DEFAULT_MAX_KEY_LIST_SIZE);
+
+  // Note: default retry timeouts are set based on DCS experience
+  public static final PositiveLongValidator RETRY_INITIAL_SLEEP_MILLIS_LOWER = new PositiveLongValidator(
+      "nessie.kvversionstore.retry_initial_sleep_millis_lower", Integer.MAX_VALUE, 2);
+
+  // Note: default retry timeouts are set based on DCS experience
+  public static final PositiveLongValidator RETRY_INITIAL_SLEEP_MILLIS_UPPER = new PositiveLongValidator(
+      "nessie.kvversionstore.retry_initial_sleep_millis_upper", Integer.MAX_VALUE, 100);
+
+  // Note: default retry timeouts are set based on DCS experience
+  public static final PositiveLongValidator RETRY_MAX_SLEEP_MILLIS = new PositiveLongValidator(
+      "nessie.kvversionstore.retry_max_sleep_millis", Integer.MAX_VALUE, 3200);
+
+  private final Provider<OptionManager> optionManager;
+
+  public NessieDatabaseAdapterConfig(Provider<OptionManager> optionManager) {
+    this.optionManager = optionManager;
   }
 
   @Override
-  default AdjustableDatabaseAdapterConfig withCommitRetries(int commitRetries) {
-    throw new UnsupportedOperationException();
+  public int getCommitRetries() {
+    return (int) optionManager.get().getOption(COMMIT_RETRIES);
+  }
+
+  @Override
+  public long getCommitTimeout() {
+    return optionManager.get().getOption(COMMIT_TIMEOUT_MS);
+  }
+
+  @Override
+  public int getParentsPerGlobalCommit() {
+    return (int) optionManager.get().getOption(PARENTS_PER_GLOBAL_COMMIT);
+  }
+
+  @Override
+  public int getGlobalLogEntrySize() {
+    return (int) optionManager.get().getOption(GLOBAL_LOG_ENTRY_SIZE);
+  }
+
+  @Override
+  public int getParentsPerCommit() {
+    return (int) optionManager.get().getOption(PARENTS_PER_COMMIT);
+  }
+
+  @Override
+  public int getParentsPerRefLogEntry() {
+    return (int) optionManager.get().getOption(PARENTS_PER_REFLOG_ENTRY);
+  }
+
+  @Override
+  public int getKeyListDistance() {
+    return (int) optionManager.get().getOption(KEY_LIST_DISTANCE);
+  }
+
+  @Override
+  public int getMaxKeyListSize() {
+    return (int) optionManager.get().getOption(MAX_KEY_LIST_SIZE);
+  }
+
+  @Override
+  public long getRetryInitialSleepMillisLower() {
+    return optionManager.get().getOption(RETRY_INITIAL_SLEEP_MILLIS_LOWER);
+  }
+
+  @Override
+  public long getRetryInitialSleepMillisUpper() {
+    return optionManager.get().getOption(RETRY_INITIAL_SLEEP_MILLIS_UPPER);
+  }
+
+  @Override
+  public long getRetryMaxSleepMillis() {
+    return optionManager.get().getOption(RETRY_MAX_SLEEP_MILLIS);
   }
 }

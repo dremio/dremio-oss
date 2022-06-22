@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put } from 'redux-saga/effects';
+import { put } from "redux-saga/effects";
 
-import { loginUser } from 'actions/account';
-import { handleSignup } from './signupUser';
+import { loginUser } from "actions/account";
+import { handleSignup } from "./signupUser";
 
-describe('signupUser saga', () => {
+describe("signupUser saga", () => {
   const form = {
-    userName: 'u',
-    password: 'p'
+    userName: "u",
+    password: "p",
   };
 
-  it('should login a first user and redirect to home page', () => {
+  it("should login a first user and redirect to home page", () => {
     const gen = handleSignup({ meta: { form } });
     expect(gen.next().value).to.eql(put(loginUser(form)));
   });

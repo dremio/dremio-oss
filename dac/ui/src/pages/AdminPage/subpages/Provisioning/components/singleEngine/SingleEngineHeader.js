@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import SettingHeader from '@app/components/SettingHeader';
-import { YARN_NODE_TAG_PROPERTY } from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
-import { isYarn, getEntityName, getIsInReadOnlyState } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
-import { StartStopButton } from '@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell';
-import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
-import SingleEngineHeaderMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeaderMixin';
+import { PureComponent } from "react";
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import SettingHeader from "@app/components/SettingHeader";
+import { YARN_NODE_TAG_PROPERTY } from "@app/pages/AdminPage/subpages/Provisioning/ClusterListView";
+import {
+  isYarn,
+  getEntityName,
+  getIsInReadOnlyState,
+} from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
+import { StartStopButton } from "@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell";
+import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
+import SingleEngineHeaderMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeaderMixin";
 
-
-export const VIEW_ID = 'EngineHeader';
+export const VIEW_ID = "EngineHeader";
 
 @SingleEngineHeaderMixin
 class SingleEngineHeader extends PureComponent {
@@ -35,10 +38,10 @@ class SingleEngineHeader extends PureComponent {
     unselectEngine: PropTypes.func,
     handleEdit: PropTypes.func,
     handleStartStop: PropTypes.func,
-    intl: PropTypes.object
+    intl: PropTypes.object,
   };
   state = {
-    engineDetails: {}
+    engineDetails: {},
   };
   componentDidMount() {
     this.loadData();
@@ -46,8 +49,10 @@ class SingleEngineHeader extends PureComponent {
 
   onStartStop = () => {
     const { engine, handleStartStop } = this.props;
-    const nextState = engine.get('currentState') === CLUSTER_STATE.running ?
-      CLUSTER_STATE.stopped : CLUSTER_STATE.running;
+    const nextState =
+      engine.get("currentState") === CLUSTER_STATE.running
+        ? CLUSTER_STATE.stopped
+        : CLUSTER_STATE.running;
     handleStartStop(nextState, engine, VIEW_ID);
   };
 
@@ -61,23 +66,34 @@ class SingleEngineHeader extends PureComponent {
     const doubleCaretIcon = <div style={styles.doubleCaret}>»</div>;
     const statusIcon = this.getEngineStatus(engine, styles);
     const engineName = engine && getEntityName(engine, YARN_NODE_TAG_PROPERTY);
-    const region = engine && !isYarn(engine) && engine.getIn(['awsProps', 'connectionProps', 'region']);
+    const region =
+      engine &&
+      !isYarn(engine) &&
+      engine.getIn(["awsProps", "connectionProps", "region"]);
     const isReadOnly = getIsInReadOnlyState(engine);
 
     //TODO enhancement: show spinner while start/stop inProgress
-    const startStopButton = <StartStopButton
-      engine={engine}
-      handleStartStop={this.onStartStop}
-      style={styles.startStop}
-      textStyle={{width: 65}}
-    />;
+    const startStopButton = (
+      <StartStopButton
+        engine={engine}
+        handleStartStop={this.onStartStop}
+        style={styles.startStop}
+        textStyle={{ width: 65 }}
+      />
+    );
 
     return (
-      <SettingHeader endChildren={
-        <div style={{display: 'flex'}}>{startStopButton} {this.renderButtons(this.onEdit, isReadOnly)}</div>
-      }>
-        <div  style={styles.lefChildren}>
-          <div className='link' onClick={this.props.unselectEngine}>{la('Engines')}</div>
+      <SettingHeader
+        endChildren={
+          <div style={{ display: "flex" }}>
+            {startStopButton} {this.renderButtons(this.onEdit, isReadOnly)}
+          </div>
+        }
+      >
+        <div style={styles.lefChildren}>
+          <div className="link" onClick={this.props.unselectEngine}>
+            {la("Engines")}
+          </div>
           {doubleCaretIcon} {statusIcon} {engineName}
           {region && <div style={styles.region}>({region})</div>}
         </div>
@@ -90,33 +106,32 @@ export default injectIntl(SingleEngineHeader);
 
 const styles = {
   lefChildren: {
-    display: 'flex',
-    color: '#333'
+    display: "flex",
+    color: "#333",
   },
   doubleCaret: {
-    padding: '0 6px'
+    padding: "0 6px",
   },
   statusIcon: {
-    marginRight: 5
+    marginRight: 5,
   },
   startStop: {
     marginRight: 10,
     marginTop: 5,
     height: 32,
     fontSize: 13,
-    boxShadow: 'none',
-    border: '1px solid #D9D9D9',
-    outline: 'none',
-    backgroundColor: '#F2F2F2',
+    boxShadow: "none",
+    border: "1px solid #D9D9D9",
+    outline: "none",
+    backgroundColor: "#F2F2F2",
     borderRadius: 4,
-    width: 100
+    width: 100,
   },
   edit: {
     width: 100,
-    marginTop: 5
+    marginTop: 5,
   },
   region: {
-    marginLeft: 10
-  }
-
+    marginLeft: 10,
+  },
 };

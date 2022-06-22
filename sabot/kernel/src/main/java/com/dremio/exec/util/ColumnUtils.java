@@ -28,6 +28,20 @@ import com.google.common.collect.Iterables;
 public final class ColumnUtils {
   public static final SchemaPath STAR_COLUMN = SchemaPath.getSimplePath("*");
 
+  /**
+   * "System" column name used to return the file path of the data file.
+   */
+  public static final String FILE_PATH_COLUMN_NAME = "D_R_E_M_I_O_D_A_T_A_F_I_L_E_F_I_L_E_P_A_T_H";
+  /**
+   * "System" column name used to return the row index of the row in the data file.
+   */
+  public static final String ROW_INDEX_COLUMN_NAME = "D_R_E_M_I_O_D_A_T_A_F_I_L_E_R_O_W_I_N_D_E_X";
+
+  /**
+   *  column name used to return the row count
+   */
+  public static final String ROW_COUNT_COLUMN_NAME = "D_R_E_M_I_O_D_A_T_A_F_I_L_E_R_O_W_C_O_U_N_T";
+
   private ColumnUtils() { }
 
   public static boolean isStarQuery(Collection<SchemaPath> projected) {

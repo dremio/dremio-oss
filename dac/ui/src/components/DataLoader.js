@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, Fragment } from 'react';
-import PropTypes from 'prop-types';
-import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
+import { PureComponent, Fragment } from "react";
+import PropTypes from "prop-types";
+import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
 
 /**
  * A utility class, that monitors {@see #keyValue} property change and triggers {#onChange} if key value
@@ -23,9 +23,13 @@ import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
  */
 export class DataLoader extends PureComponent {
   static propTypes = {
-    keyValue: PropTypes.oneOfType([PropTypes.string, PropTypes.bool, PropTypes.number]),
+    keyValue: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.bool,
+      PropTypes.number,
+    ]),
     isInvalidated: PropTypes.bool,
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
   };
 
   onIsInvalidatedChange = (isInvalidated) => {
@@ -35,16 +39,14 @@ export class DataLoader extends PureComponent {
   };
 
   render() {
-    const {
-      keyValue,
-      isInvalidated,
-      onChange
-    } = this.props;
+    const { keyValue, isInvalidated, onChange } = this.props;
 
     return (
       <Fragment>
         <KeyChangeTrigger keyValue={keyValue} onChange={onChange} />
-        <KeyChangeTrigger keyValue={isInvalidated} onChange={this.onIsInvalidatedChange}
+        <KeyChangeTrigger
+          keyValue={isInvalidated}
+          onChange={this.onIsInvalidatedChange}
           callOnMount={false} // first KeyChangeTrigger will call onChange on mount
         />
       </Fragment>

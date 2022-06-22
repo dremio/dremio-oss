@@ -124,4 +124,3 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
       datasetMetadata.getPartitionColumns();
   }
 }
-

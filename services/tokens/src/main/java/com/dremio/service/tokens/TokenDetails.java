@@ -17,6 +17,9 @@ package com.dremio.service.tokens;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Details of a token.
  */
@@ -25,14 +28,34 @@ public final class TokenDetails {
   public final String token;
   public final String username;
   public final long expiresAt;
+  public final String clientId;
+  private final List<String> scopes;
 
   private TokenDetails(String token, String username, long expiresAt) {
     this.token = checkNotNull(token);
     this.username = checkNotNull(username);
     this.expiresAt = expiresAt;
+    this.clientId = null;
+    this.scopes = null;
+  }
+
+  private TokenDetails(String token, String username, long expiresAt, String clientId, List<String> scopes) {
+    this.token = checkNotNull(token);
+    this.username = checkNotNull(username);
+    this.expiresAt = expiresAt;
+    this.clientId = clientId;
+    this.scopes = scopes;
+  }
+
+  public List<String> getScopes() {
+    return new ArrayList<>(scopes);
   }
 
   public static TokenDetails of(String token, String username, long expiresAt) {
     return new TokenDetails(token, username, expiresAt);
+  }
+
+  public static TokenDetails of(String token, String username, long expiresAt, String clientId, List<String> scopes) {
+    return new TokenDetails(token, username, expiresAt, clientId, scopes);
   }
 }

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import {cloneDeep} from 'lodash/lang';
-import FilterSelectMenu from 'components/Fields/FilterSelectMenu';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { cloneDeep } from "lodash/lang";
+import FilterSelectMenu from "components/Fields/FilterSelectMenu";
 
 export default class FilterSelectMenuWrapper extends PureComponent {
   static propTypes = {
@@ -28,15 +28,17 @@ export default class FilterSelectMenuWrapper extends PureComponent {
     defaultFilterSelections: PropTypes.object,
     onUpdateFilterState: PropTypes.func,
     filterItemHeight: PropTypes.number,
+    className: PropTypes.string,
     listClass: PropTypes.string,
     popoverContentClass: PropTypes.string,
     popoverContentHeight: PropTypes.number,
-    disableReorderOnSelect: PropTypes.bool,
-    ellipsedTextClass: PropTypes.string
+    ellipsedTextClass: PropTypes.string,
+    menuHeader: PropTypes.string,
   };
 
   getValues = () => {
-    const { filterStateFilters, defaultFilterSelections, menuType } = this.props;
+    const { filterStateFilters, defaultFilterSelections, menuType } =
+      this.props;
     return filterStateFilters[menuType] || defaultFilterSelections[menuType];
   };
 
@@ -55,7 +57,7 @@ export default class FilterSelectMenuWrapper extends PureComponent {
     const values = this.getValues();
     if (values.includes(value)) {
       const newFilterState = cloneDeep(filterStateFilters);
-      newFilterState[menuType] = values.filter(v => v !== value);
+      newFilterState[menuType] = values.filter((v) => v !== value);
       onUpdateFilterState(newFilterState);
     }
   };
@@ -66,11 +68,12 @@ export default class FilterSelectMenuWrapper extends PureComponent {
       filterLabels,
       menuType,
       filterItemHeight,
+      className,
       listClass,
       popoverContentClass,
       popoverContentHeight,
-      disableReorderOnSelect,
-      ellipsedTextClass
+      ellipsedTextClass,
+      menuHeader,
     } = this.props;
     const selectedValues = Immutable.List(this.getValues());
     const items = filterItems[menuType];
@@ -85,15 +88,14 @@ export default class FilterSelectMenuWrapper extends PureComponent {
         items={items}
         label={label}
         name={menuType}
-        alwaysShowLabel
         filterItemHeight={filterItemHeight}
+        className={className}
         listClass={listClass}
         popoverContentClass={popoverContentClass}
         popoverContentHeight={popoverContentHeight}
-        disableReorderOnSelect={disableReorderOnSelect}
         ellipsedTextClass={ellipsedTextClass}
+        menuHeader={menuHeader}
       />
     );
   }
-
 }

@@ -53,4 +53,3 @@ public class InfoSchemaScanDrel extends ScanRelBase implements Rel {
   }
 
 }
-

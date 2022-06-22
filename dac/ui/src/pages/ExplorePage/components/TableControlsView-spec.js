@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import TableControlsView from './TableControlsView';
+import TableControlsView from "./TableControlsView";
 
-describe('TableControlsView', () => {
+describe("TableControlsView", () => {
   let commonProps;
   let minimalProps;
   let context;
@@ -33,25 +33,32 @@ describe('TableControlsView', () => {
       dropdownState: false,
       exploreViewState: Immutable.Map(),
       dataset: Immutable.Map(),
-      tableColumns: Immutable.List()
+      tableColumns: Immutable.List(),
     };
     commonProps = {
       ...minimalProps,
-      approximate: true
+      approximate: true,
     };
     context = {
-      location: {}
+      location: {},
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TableControlsView {...minimalProps}/>, {context});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TableControlsView {...minimalProps} />, {
+      context,
+    });
     expect(wrapper).to.have.length(1);
+    expect(wrapper.find("div[data-qa='columnFilterStats']")).to.have.length(1);
+    expect(wrapper.find("span[data-qa='columnFilterCount']")).to.have.length(0);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<TableControlsView {...commonProps}/>, {context});
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<TableControlsView {...commonProps} />, {
+      context,
+    });
     expect(wrapper).to.have.length(1);
+    expect(wrapper.find("div[data-qa='columnFilterStats']")).to.have.length(1);
+    expect(wrapper.find("span[data-qa='columnFilterCount']")).to.have.length(0);
   });
-
 });

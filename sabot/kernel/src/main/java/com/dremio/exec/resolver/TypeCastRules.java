@@ -850,7 +850,7 @@ public class TypeCastRules {
      * If we are determining function holder for decimal data type, we need to make sure the output type of
      * the function can fit the precision that we need based on the input types.
      */
-    if (holder.checkPrecisionRange() == true) {
+    if (holder.checkPrecisionRange()) {
       List<LogicalExpression> logicalExpressions = Lists.newArrayList();
       for(CompleteType completeType : argumentTypes) {
         logicalExpressions.add(
@@ -912,7 +912,7 @@ public class TypeCastRules {
          */
         Set<MinorType> rules;
         if ((rules = (ResolverTypePrecedence.SECONDARY_IMPLICIT_CAST_RULES.get(parmType.toMinorType()))) != null &&
-            rules.contains(argType.toMinorType()) != false) {
+            rules.contains(argType.toMinorType())) {
           secondaryCast = true;
         } else {
           return -1;

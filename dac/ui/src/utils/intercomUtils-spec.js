@@ -13,33 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import IntercomUtils, { UseTestIntercomApp } from './intercomUtils';
-import config from './config';
+import IntercomUtils, { UseTestIntercomApp } from "./intercomUtils";
+import config from "./config";
 
 const testCase = ([valueToTest, expectedResult]) => {
-  it(`'${valueToTest}' should${expectedResult ? '' : ' NOT'} use test intercom app`, () => {
+  it(`'${valueToTest}' should${
+    expectedResult ? "" : " NOT"
+  } use test intercom app`, () => {
     expect(UseTestIntercomApp(valueToTest)).to.be.equal(expectedResult);
   });
 };
 
 // see DX-16408 for details
 const matchTestPattern = [
-  'a@dremio.com',
-  'b@dremio.test',
-  'sss@test.com',
-  'asd@Dremio.com',
-  'ff@dreMio.test',
-  'asdfsadf@test.COM',
-  '    asdfsadf@test.COM  '
+  "a@dremio.com",
+  "b@dremio.test",
+  "sss@test.com",
+  "asd@Dremio.com",
+  "ff@dreMio.test",
+  "asdfsadf@test.COM",
+  "    asdfsadf@test.COM  ",
 ];
 
-const doesNotMatchTestPattern = [
-  'asd',
-  'a@drem1io.com',
-  'a@dremio.ru'
-];
+const doesNotMatchTestPattern = ["asd", "a@drem1io.com", "a@dremio.ru"];
 
-const setEnvironmentMode = isReleaseBuild => {
+const setEnvironmentMode = (isReleaseBuild) => {
   let prevValue;
   beforeEach(() => {
     prevValue = config.isReleaseBuild;
@@ -52,35 +50,30 @@ const setEnvironmentMode = isReleaseBuild => {
   });
 };
 
-
-describe('useTestIntercomApp', () => {
-  describe('Dev environment', () => {
+describe("useTestIntercomApp", () => {
+  describe("Dev environment", () => {
     setEnvironmentMode(false);
 
-    [
-      ...matchTestPattern,
-      ...doesNotMatchTestPattern
-    ].map(email => [email, true]) // all emails on dev environment should use test app
+    [...matchTestPattern, ...doesNotMatchTestPattern]
+      .map((email) => [email, true]) // all emails on dev environment should use test app
       .map(testCase);
   });
 
-  describe('Release environment', () => {
+  describe("Release environment", () => {
     setEnvironmentMode(true);
 
-    describe('positive cases', () => {
-      matchTestPattern.map(email => [email, true])
-        .map(testCase);
+    describe("positive cases", () => {
+      matchTestPattern.map((email) => [email, true]).map(testCase);
     });
-    describe('negative cases', () => {
-      doesNotMatchTestPattern.map(email => [email, false])
-        .map(testCase);
+    describe("negative cases", () => {
+      doesNotMatchTestPattern.map((email) => [email, false]).map(testCase);
     });
   });
 });
 
-describe('ifChatAllowed', () => {
+describe("ifChatAllowed", () => {
   // per DX-16804: disable chat
-  it('should return false disabling chat', () => {
+  it("should return false disabling chat", () => {
     expect(IntercomUtils.ifChatAllowed()).to.equal(false);
   });
 });

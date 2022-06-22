@@ -13,13 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createSelector } from 'reselect';
+import { createSelector } from "reselect";
 
 const getResourceTreeData = (state) => {
-  return state.resources.entities.get('tree') || Immutable.List();
+  return (
+    Immutable.fromJS(state.resources.entities.get("tree")) || Immutable.List()
+  );
 };
 
-export const getResourceTree = createSelector(
-  [ getResourceTreeData ],
-  tree => tree.sortBy( t => t.get('type') !== 'HOME' && t.get('name'))
+const getStarredItemIdsData = (state) => {
+  return state.resources.stars.get("starResourceList") || Immutable.List();
+};
+
+export const getStarredItemIds = createSelector(
+  [getStarredItemIdsData],
+  (starredItemList) => {
+    const returnVal = [];
+    for (let i = 0; i < starredItemList.size; i++) {
+      const newItem = {};
+      newItem.id = starredItemList.getIn([i, "id"]);
+      returnVal.push(newItem);
+    }
+    return returnVal;
+  }
+);
+
+const getStarredResourcesData = (state) => {
+  return state.resources.stars.get("starResourceList") || Immutable.List();
+};
+
+export const getStarredResources = createSelector(
+  [getStarredResourcesData],
+  (starredResourceList) => {
+    return Immutable.List(starredResourceList);
+  }
+);
+
+export const getResourceTree = createSelector([getResourceTreeData], (tree) =>
+  tree.sortBy((t) => t.get("type") !== "HOME" && t.get("name"))
 );

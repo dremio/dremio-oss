@@ -44,4 +44,3 @@ public class ExecutorServiceProductClientFactory implements ExecutorServiceClien
     return new ExecutorServiceProductClient(tunnelCreator, endpoint);
   }
 }
-

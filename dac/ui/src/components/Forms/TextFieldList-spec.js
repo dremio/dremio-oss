@@ -13,57 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
-import { stubArrayFieldMethods } from 'testUtil';
+import { shallow, mount } from "enzyme";
+import { stubArrayFieldMethods } from "testUtil";
 
-import TextFieldList from './TextFieldList';
+import TextFieldList from "./TextFieldList";
 
-describe('TextFieldList', () => {
-
+describe("TextFieldList", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      arrayField: stubArrayFieldMethods([])
+      arrayField: stubArrayFieldMethods([]),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TextFieldList {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TextFieldList {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render all passed fields from arrayField', () => {
-    const arrayField = [{value: '1', readOnly: true}, {value: '2', readOnly: true}];
-    const wrapper = mount(<TextFieldList {...minimalProps} arrayField={arrayField} />);
-    expect(wrapper.find('TextField')).to.have.length(2);
+  it("should render all passed fields from arrayField", () => {
+    const arrayField = [
+      { value: "1", readOnly: true },
+      { value: "2", readOnly: true },
+    ];
+    const wrapper = mount(
+      <TextFieldList {...minimalProps} arrayField={arrayField} />
+    );
+    expect(wrapper.find("TextField")).to.have.length(2);
   });
 
-  it('should render text fields which values found with fieldKey when fieldKey passed to props', () => {
-    const arrayField = [{some: {nested: {value: 'fieldValue', readOnly: true}}}];
-    const wrapper = mount(<TextFieldList {...minimalProps} arrayField={arrayField} fieldKey={'some.nested'} />);
-    expect(wrapper.find('TextField').props()).to.have.property('value', 'fieldValue');
+  it("should render text fields which values found with fieldKey when fieldKey passed to props", () => {
+    const arrayField = [
+      { some: { nested: { value: "fieldValue", readOnly: true } } },
+    ];
+    const wrapper = mount(
+      <TextFieldList
+        {...minimalProps}
+        arrayField={arrayField}
+        fieldKey={"some.nested"}
+      />
+    );
+    expect(wrapper.find("TextField").props()).to.have.property(
+      "value",
+      "fieldValue"
+    );
   });
 
-  describe('#addItem', () => {
+  describe("#addItem", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<TextFieldList {...commonProps}/>);
+      wrapper = shallow(<TextFieldList {...commonProps} />);
       instance = wrapper.instance();
     });
 
-    it('should add new item with empty string when newItemDefaultValue not passed to props', () => {
+    it("should add new item with empty string when newItemDefaultValue not passed to props", () => {
       instance.addItem();
-      expect(commonProps.arrayField.addField).to.be.calledWith('');
+      expect(commonProps.arrayField.addField).to.be.calledWith("");
     });
 
-    it('should add new item according to newItemDefaultValue from props', () => {
-      wrapper.setProps({ newItemDefaultValue: {key: 'key', value: 'value'}});
+    it("should add new item according to newItemDefaultValue from props", () => {
+      wrapper.setProps({ newItemDefaultValue: { key: "key", value: "value" } });
       instance.addItem();
-      expect(commonProps.arrayField.addField).to.be.calledWith({key: 'key', value: 'value'});
+      expect(commonProps.arrayField.addField).to.be.calledWith({
+        key: "key",
+        value: "value",
+      });
     });
   });
 });

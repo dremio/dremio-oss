@@ -58,7 +58,7 @@ public class IcebergNessieModel extends IcebergBaseModel {
       nessieClient,
       new DremioFileIO(fs, context, null, null, null, configuration, plugin),
       ((IcebergNessieTableIdentifier) tableIdentifier));
-    return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations);
+    return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations, plugin);
   }
 
     @Override

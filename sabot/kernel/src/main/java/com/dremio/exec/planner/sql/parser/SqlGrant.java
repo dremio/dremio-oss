@@ -60,6 +60,15 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     CREATE_TABLE,
     DROP,
     EXTERNAL_QUERY,
+    INSERT,
+    TRUNCATE,
+    DELETE,
+    UPDATE,
+    CREATE_USER,
+    CREATE_ROLE,
+    EXECUTE,
+    CREATE_SOURCE,
+    UPLOAD_FILE,
     ALL
   }
 
@@ -74,7 +83,8 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     VDS,
     FOLDER,
     SOURCE,
-    SPACE
+    SPACE,
+    FUNCTION
   }
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {

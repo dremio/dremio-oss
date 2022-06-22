@@ -6,3 +6,4 @@ build
 vendor
 target
 test/templates
+example

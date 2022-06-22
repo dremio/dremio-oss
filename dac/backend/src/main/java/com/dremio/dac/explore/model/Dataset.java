@@ -134,11 +134,9 @@ public class Dataset implements AddressableResource {
     return JSONUtil.toString(this);
   }
 
-  // Copied from DatasetUI, which will replace this.
   public Map<String, String> getLinks() {
-    List<String> fullPathList = datasetConfig.getFullPathList();
     DatasetVersion datasetVersion = datasetConfig.getVersion();
-    DatasetPath datasetPath = new DatasetPath(fullPathList);
+    DatasetPath datasetPath = resourcePath.getDataset();
 
     Map<String, String> links = new HashMap<>();
     links.put("self", datasetPath.toUrlPath());

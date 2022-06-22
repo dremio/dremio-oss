@@ -72,7 +72,7 @@ public class AuxiliaryIndexImpl<K, V, T> implements AuxiliaryIndex<K, V, T>{
   private Document toDoc(KVStoreTuple<K> key, T value){
     final Document doc = new Document();
     final SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
-    converter.convert(documentWriter, key.getObject(), value);
+    converter.doConvert(documentWriter, key.getObject(), value);
 
     doc.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(key.getSerializedBytes()), Field.Store.YES));
 

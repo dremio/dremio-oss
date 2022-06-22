@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
-import FileSaver from 'file-saver';
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
+import FileSaver from "file-saver";
 
 class FileDownloadError {
   constructor(message) {
@@ -30,7 +30,6 @@ const BYTES_IN_MEGABYTE = STEP * BYTES_IN_KILOBYTE;
 const BYTES_IN_GIGABYTE = STEP * BYTES_IN_MEGABYTE;
 const BYTES_IN_TERABYTE = STEP * BYTES_IN_GIGABYTE;
 
-
 export default class FileUtils {
   static downloadFile({ blob, fileName }) {
     // works for FF, Chrome, IE
@@ -38,56 +37,60 @@ export default class FileUtils {
   }
 
   static getFileNameFromResponse(response) {
-    const contentDisposition = response.headers.get('Content-Disposition');
+    const contentDisposition = response.headers.get("Content-Disposition");
     if (contentDisposition) {
       const m = contentDisposition.match(/attachment; filename="([^"]+)"/);
       if (m) {
         return m[1];
       }
     }
-    return 'download';
+    return "download";
   }
 
   static getFileDownloadConfigFromResponse(response) {
-
-    const defaultError = new FileDownloadError('Download failed: ' + response.statusText);
+    const defaultError = new FileDownloadError(
+      "Download failed: " + response.statusText
+    );
     if (!response.ok) {
-      return response.json().then((body) => {
-        if (body.errorMessage) {
-          throw new FileDownloadError(Immutable.fromJS(body));
-        }
-        throw defaultError;
-      }).catch((e) => {
-        // .json() failed?
-        if (!(e instanceof FileDownloadError)) {
+      return response
+        .json()
+        .then((body) => {
+          if (body.errorMessage) {
+            throw new FileDownloadError(Immutable.fromJS(body));
+          }
           throw defaultError;
-        }
-        throw e;
-      });
+        })
+        .catch((e) => {
+          // .json() failed?
+          if (!(e instanceof FileDownloadError)) {
+            throw defaultError;
+          }
+          throw e;
+        });
     }
 
     const emptyCodes = new Set([204, 205]);
     if (emptyCodes.has(response.status)) {
-      throw new FileDownloadError('File has no contents');
+      throw new FileDownloadError("File has no contents");
     }
     const fileName = this.getFileNameFromResponse(response);
-    return response.blob().then(blob => ({blob, fileName}));
+    return response.blob().then((blob) => ({ blob, fileName }));
   }
 
   static getHeaders() {
     const headers = new Headers();
-    headers.append('Accept', '*');
-    headers.append('Content-Type', 'application/json');
+    headers.append("Accept", "*");
+    headers.append("Content-Type", "application/json");
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
     if (authToken) {
-      headers.append('Authorization', authToken);
+      headers.append("Authorization", authToken);
     }
     return headers;
   }
 
   static getFormattedBytes(bytes) {
     if ((!bytes && bytes !== 0) || isNaN(bytes) || isNaN(Number(bytes))) {
-      return '';
+      return "";
     }
     if (bytes < BYTES_IN_KILOBYTE) {
       return `${bytes} B`;
@@ -104,10 +107,9 @@ export default class FileUtils {
 
   static getDatasetIdForClientTools(dataset) {
     if (dataset) {
-      return dataset.get('entityId') || dataset.get('id');
+      return dataset.get("entityId") || dataset.get("id");
     } else {
-      return '';
+      return "";
     }
   }
-
 }

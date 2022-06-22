@@ -44,6 +44,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
@@ -54,6 +55,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.util.RuntimeFilterTestUtils;
 import com.dremio.exec.util.ValueListFilter;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -61,7 +63,6 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.test.AllocatorRule;
 import com.google.common.collect.Lists;
-
 /**
  * Tests for {@link ParquetScanTableFunction}
  */
@@ -230,9 +231,12 @@ public class TestParquetScanTableFunction {
     private OperatorContext getMockContext() {
         OperatorContext context = mock(OperatorContext.class);
         OperatorStats stats = mock(OperatorStats.class);
+        OptionManager manager = mock(OptionManager.class);
         when(context.getStats()).thenReturn(stats);
         doNothing().when(stats).startProcessing();
         doNothing().when(stats).addLongStat(eq(ScanOperator.Metric.NUM_READERS), eq(1));
+        when(context.getOptions()).thenReturn(manager);
+        when(manager.getOption(ExecConstants.ENABLE_ROW_LEVEL_RUNTIME_FILTERING)).thenReturn(false);
         return context;
     }
 

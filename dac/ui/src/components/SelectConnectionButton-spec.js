@@ -13,38 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import SelectConnectionButton from './SelectConnectionButton';
+import SelectConnectionButton from "./SelectConnectionButton";
 
-describe('SelectConnectionButton', () => {
-
+describe("SelectConnectionButton", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
   beforeEach(() => {
     minimalProps = {
-      label: 'foo label',
-      iconType: 'foo'
+      label: "foo label",
+      iconType: "foo",
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<SelectConnectionButton {...commonProps}/>);
+    wrapper = shallow(<SelectConnectionButton {...commonProps} />);
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<SelectConnectionButton {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<SelectConnectionButton {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render label and icon', () => {
+  it("should render label and icon", () => {
     expect(wrapper.text()).to.contain(commonProps.label);
-    expect(wrapper.find('SourceIcon').props().src).to.equal(`${commonProps.iconType}.svg`);
+    expect(wrapper.find("SourceIcon").props().src).to.equal(
+      `${commonProps.iconType}.svg`
+    );
   });
 
-  it('should render pillText if set', () => {
-    wrapper.setProps({pillText: 'medicine'});
-    expect(wrapper.text()).to.contain('medicine');
+  it("should render pillText if set", () => {
+    wrapper.setProps({ pillText: "medicine" });
+    expect(wrapper.text()).to.contain("medicine");
   });
 });

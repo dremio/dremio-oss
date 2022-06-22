@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import { getDatasetCountStats } from '@app/selectors/home';
+import { Component } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import { Tooltip } from "dremio-ui-lib";
+import { getDatasetCountStats } from "@app/selectors/home";
 
 const mapStateToProps = (state, { entityId }) => ({
-  ...getDatasetCountStats(state, entityId)
+  ...getDatasetCountStats(state, entityId),
 });
 
 export class ContainerDatasetCount extends Component {
   static propTypes = {
     count: PropTypes.number,
-    isBounded: PropTypes.bool
-  }
+    isBounded: PropTypes.bool,
+  };
 
   shouldComponentUpdate(nextProps) {
     const { count } = this.props;
@@ -46,27 +47,25 @@ export class ContainerDatasetCount extends Component {
     let displayedValue = null;
 
     if (count !== undefined) {
-
       if (isBounded) {
         if (count === 0) {
           // we found nothing and were count/time bound, so display '-'
-          displayedValue = la('-');
+          displayedValue = la("-");
         } else {
           // we found some datasets and were count/time bound, so add '+' to the dataset number
-          displayedValue = count + la('+');
+          displayedValue = count + la("+");
         }
       } else {
         displayedValue = count;
       }
     }
 
-    return displayedValue !== null && (
-      <span
-        className='count'
-        title={la('Physical Dataset Count')}
-      >
-        {displayedValue}
-      </span>
+    return (
+      displayedValue !== null && (
+        <Tooltip title="LeftPanel.DatasetCount">
+          <span className="count">{displayedValue}</span>
+        </Tooltip>
+      )
     );
   }
 }

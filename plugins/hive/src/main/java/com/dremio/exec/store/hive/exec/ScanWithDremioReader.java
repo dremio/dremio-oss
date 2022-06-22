@@ -33,7 +33,6 @@ import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 

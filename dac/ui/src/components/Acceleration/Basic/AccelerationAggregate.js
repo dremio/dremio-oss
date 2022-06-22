@@ -13,25 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { overlay } from 'uiTheme/radium/overlay';
-import Immutable from 'immutable';
-import FontIcon from 'components/Icon/FontIcon';
-import { Toggle } from 'components/Fields';
-import AggregateForm from 'components/Aggregate/AggregateForm';
-import Spinner from 'components/Spinner';
-import Button from 'components/Buttons/Button';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { overlay } from "uiTheme/radium/overlay";
+import Immutable from "immutable";
+import FontIcon from "components/Icon/FontIcon";
+import { Toggle } from "components/Fields";
+import AggregateForm from "components/Aggregate/AggregateForm";
+import Spinner from "components/Spinner";
+import Button from "components/Buttons/Button";
 
-import '@app/uiTheme/less/commonModifiers.less';
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import { commonThemes } from '../commonThemes';
+import "@app/uiTheme/less/commonModifiers.less";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import { commonThemes } from "../commonThemes";
 
-import LayoutInfo from '../LayoutInfo';
+import LayoutInfo from "../LayoutInfo";
 
-@Radium
-export default class AccelerationAggregate extends PureComponent {
+class AccelerationAggregate extends PureComponent {
   static getFields() {
     return AggregateForm.getFields();
   }
@@ -49,47 +47,71 @@ export default class AccelerationAggregate extends PureComponent {
     loadingRecommendations: PropTypes.bool,
     skipRecommendations: PropTypes.func,
     canAlter: PropTypes.any,
-    className: PropTypes.any
+    className: PropTypes.any,
   };
 
   static defaultProps = {
-    fields: {}
+    fields: {},
   };
 
   mapSchemaToColumns() {
-    return this.props.dataset.get('fields').map((item, index) => {
+    return this.props.dataset.get("fields").map((item, index) => {
       return Immutable.fromJS({
-        type: item.getIn(['type', 'name']),
-        name: item.get('name'),
-        index
+        type: item.getIn(["type", "name"]),
+        name: item.get("name"),
+        index,
       });
     });
   }
 
   renderForm() {
-    const { location, fields, dataset, loadingRecommendations, skipRecommendations, canAlter } = this.props;
+    const {
+      location,
+      fields,
+      dataset,
+      loadingRecommendations,
+      skipRecommendations,
+      canAlter,
+    } = this.props;
     const columns = this.mapSchemaToColumns();
 
     if (loadingRecommendations) {
-      return <div style={overlay} className='AccelerationAggregate__form view-state-wrapper-overlay'>
-        <div>
-          <Spinner message={<span style={{display: 'flex', alignItems: 'center'}}>
-            {la('Determining Automatic Aggregation Reflections…')}
-            <Button style={{marginLeft: '1em'}} disableSubmit onClick={skipRecommendations} type='CUSTOM' text={la('Skip')} />
-          </span>} />
+      return (
+        <div
+          style={overlay}
+          className="AccelerationAggregate__form view-state-wrapper-overlay"
+        >
+          <div>
+            <Spinner
+              message={
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  {la("Determining Automatic Aggregation Reflections…")}
+                  <Button
+                    style={{ marginLeft: "1em" }}
+                    disableSubmit
+                    onClick={skipRecommendations}
+                    type="CUSTOM"
+                    text={la("Skip")}
+                  />
+                </span>
+              }
+            />
+          </div>
         </div>
-      </div>;
+      );
     } else {
-      return <AggregateForm
-        canAlter={canAlter}
-        dataset={Immutable.fromJS({displayFullPath: dataset.get('path')})} // fake just enough of the legacy DS model
-        className={'AccelerationAggregate__AggregateForm'}
-        fields={fields}
-        columns={columns}
-        location={location}
-        canSelectMeasure={false}
-        canUseFieldAsBothDimensionAndMeasure
-      />;
+      return (
+        <AggregateForm
+          canAlter={canAlter}
+          dataset={Immutable.fromJS({ displayFullPath: dataset.get("path") })} // fake just enough of the legacy DS model
+          className={"AccelerationAggregate__AggregateForm"}
+          fields={fields}
+          columns={columns}
+          location={location}
+          canSelectMeasure={false}
+          canUseFieldAsBothDimensionAndMeasure
+        />
+      );
     }
   }
 
@@ -98,29 +120,36 @@ export default class AccelerationAggregate extends PureComponent {
     const { enabled } = fields.aggregationReflections[0];
 
     const toggleLabel = (
-      <h3 className={'AccelerationAggregate__toggleLabel'}>
-        <FontIcon type='Aggregate' theme={commonThemes.rawIconTheme}/>
-        {la('Aggregation Reflections')}
+      <h3 className={"AccelerationAggregate__toggleLabel"}>
+        <FontIcon type="Aggregate" theme={commonThemes.rawIconTheme} />
+        {la("Aggregation Reflections")}
       </h3>
     );
     return (
-      <div className={`AccelerationAggregate ${className}`} data-qa='aggregation-basic'>
+      <div
+        className={`AccelerationAggregate ${className}`}
+        data-qa="aggregation-basic"
+      >
         <div
           // DX-34369: do we need this.props.shouldHighlight ternary?
-          className={
-            `AccelerationAggregate__header
-            ${this.props.shouldHighlight ? '--bgColor-highlight' : ''}`}
-          data-qa='aggregation-queries-toggle'>
-          <Toggle {...enabled} label={toggleLabel} className={'AccelerationAggregate__toggle'} />
+          className={`AccelerationAggregate__header
+            ${this.props.shouldHighlight ? "--bgColor-highlight" : ""}`}
+          data-qa="aggregation-queries-toggle"
+        >
+          <Toggle
+            {...enabled}
+            label={toggleLabel}
+            className={"AccelerationAggregate__toggle"}
+          />
           <LayoutInfo
             layout={reflection}
-            className={'AccelerationAggregate__layout'} />
+            className={"AccelerationAggregate__layout"}
+          />
         </div>
-        <div className={'position-relative'}>
-          {errorMessage}
-        </div>
+        <div className={"position-relative"}>{errorMessage}</div>
         {this.renderForm()}
       </div>
     );
   }
 }
+export default AccelerationAggregate;

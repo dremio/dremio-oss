@@ -17,7 +17,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.validation.Valid;

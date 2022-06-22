@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, createContext, Fragment } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { createSelector } from 'reselect';
-import uuid from 'uuid';
-import { isUnauthorisedReason } from 'store/authMiddleware';
-import { showConfirmationDialog } from 'actions/confirmation';
-import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
-
+import { Component, createContext, Fragment } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { createSelector } from "reselect";
+import uuid from "uuid";
+import { isUnauthorisedReason } from "store/authMiddleware";
+import { showConfirmationDialog } from "actions/confirmation";
+import { resetQueryState } from "@app/actions/explore/view";
+import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
 
 /**
  * @typedef {Object} ChangesCheckResult
@@ -44,10 +44,7 @@ import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
  *    doChangesCheck: func(): {@see ChangesCheckResult}
  * }
  */
-const {
-  Provider,
-  Consumer
-} = createContext();
+const { Provider, Consumer } = createContext();
 
 /**
  * a context that provides a following api:
@@ -62,7 +59,8 @@ export class HookProviderView extends Component {
     router: PropTypes.object.isRequired,
     children: PropTypes.node,
 
-    showConfirmationDialog: PropTypes.func.isRequired
+    showConfirmationDialog: PropTypes.func.isRequired,
+    resetQueryState: PropTypes.func,
   };
 
   constructor(props) {
@@ -78,7 +76,8 @@ export class HookProviderView extends Component {
   addCallback(componentId, hasChangesCallback) {
     const map = this.hasChangeCallbacks;
     map.set(componentId, hasChangesCallback);
-    return () => { // remove handler
+    return () => {
+      // remove handler
       map.delete(componentId);
     };
   }
@@ -95,18 +94,21 @@ export class HookProviderView extends Component {
   doChangesCheckForNextLocation = (nextLocation) => {
     const result = {
       hasChanges: this.checkChanges(nextLocation),
-      userChoiceToLeaveOrStayPromise: null
+      userChoiceToLeaveOrStayPromise: null,
     };
 
     if (result.hasChanges) {
       result.userChoiceToLeaveOrStayPromise = new Promise((resolve) => {
         this.props.showConfirmationDialog({
-          title: la('Unsaved Changes'),
-          text: la('Are you sure you want to leave without saving changes?'),
-          confirmText: la('Leave'),
-          cancelText: la('Stay'),
-          confirm: () => resolve(true),
-          cancel: () => resolve(false)
+          title: la("Unsaved Changes"),
+          text: la("Are you sure you want to leave without saving changes?"),
+          confirmText: la("Leave"),
+          cancelText: la("Stay"),
+          confirm: () => {
+            this.props.resetQueryState();
+            resolve(true);
+          },
+          cancel: () => resolve(false),
         });
       });
     }
@@ -123,11 +125,10 @@ export class HookProviderView extends Component {
    */
   doChangesCheck = () => {
     return this.doChangesCheckForNextLocation({
-      pathname: '/not_existing_page',
-      query: {}
+      pathname: "/not_existing_page",
+      query: {},
     });
   };
-
 
   //requests hasChanges state from all subscribers
   checkChanges = (nextLocation) => {
@@ -143,29 +144,40 @@ export class HookProviderView extends Component {
   };
 
   render() {
-    return <Provider value={{
-      addCallback: this.addCallback,
-      doChangesCheck: this.doChangesCheck
-    }}>
-      <performChangesCheckForLocationContext.Provider value={this.doChangesCheckForNextLocation}>
-        {this.props.children}
-      </performChangesCheckForLocationContext.Provider>
-    </Provider>;
+    return (
+      <Provider
+        value={{
+          addCallback: this.addCallback,
+          doChangesCheck: this.doChangesCheck,
+        }}
+      >
+        <performChangesCheckForLocationContext.Provider
+          value={this.doChangesCheckForNextLocation}
+        >
+          {this.props.children}
+        </performChangesCheckForLocationContext.Provider>
+      </Provider>
+    );
   }
 }
 
-export const HookProvider = connect(null, { showConfirmationDialog })(HookProviderView);
+export const HookProvider = connect(null, {
+  showConfirmationDialog,
+  resetQueryState,
+})(HookProviderView);
 
-export const withHookProvider = ComponentToWrap => {
+export const withHookProvider = (ComponentToWrap) => {
   class WithHookProvider extends Component {
     static propTypes = {
       route: PropTypes.object.isRequired,
-      router: PropTypes.object.isRequired
+      router: PropTypes.object.isRequired,
     };
     render() {
-      return (<HookProvider route={this.props.route} router={this.props.router}>
-        <ComponentToWrap {...this.props} />
-      </HookProvider>);
+      return (
+        <HookProvider route={this.props.route} router={this.props.router}>
+          <ComponentToWrap {...this.props} />
+        </HookProvider>
+      );
     }
   }
 
@@ -181,40 +193,44 @@ export const withHookProvider = ComponentToWrap => {
   }
   */
 export const singleArgFnGenerator = (id, saveRemoveCallback) => {
-  return createSelector(({ fn }) => fn, (fn) => hasChangesCallback => {
-    const removeCallback = fn(id, hasChangesCallback);
+  return createSelector(
+    ({ fn }) => fn,
+    (fn) => (hasChangesCallback) => {
+      const removeCallback = fn(id, hasChangesCallback);
 
-    saveRemoveCallback(removeCallback);
-  });
+      saveRemoveCallback(removeCallback);
+    }
+  );
 };
 
 export class HookConsumer extends Component {
   static propTypes = {
     // ({ addCallback, doChangesCheck }) => {}. addCallback is a function that receives a SINGLE argument.
     // This argument is hasChangesCallback
-    children: PropTypes.func
+    children: PropTypes.func,
   };
 
   // should be a new selector for each HookConsumer instance
-  singleArgFnGetter = singleArgFnGenerator(uuid.v4(), // generate a unique id for each consumer.
+  singleArgFnGetter = singleArgFnGenerator(
+    uuid.v4(), // generate a unique id for each consumer.
     (callback) => {
       this.removeCallback = callback;
-    });
+    }
+  );
   removeCallback = null; // will store a remove callback
 
   renderFn = ({
-    addCallback: twoArgsCallback, /* (id, hasChangeCallback) => {} */
-    doChangesCheck
+    addCallback: twoArgsCallback /* (id, hasChangeCallback) => {} */,
+    doChangesCheck,
   }) => {
-
     // in other words I transform a function that accepts 2 arguments (id and a callback) to
     // a function that accept a single argument (a callback),
     // but internally call original function with fixed generated id
     return this.props.children({
       addCallback: this.singleArgFnGetter({
-        fn: twoArgsCallback
+        fn: twoArgsCallback,
       }),
-      doChangesCheck
+      doChangesCheck,
     });
   };
 
@@ -237,7 +253,7 @@ export class RouteLeaveEventView extends Component {
     route: PropTypes.object.isRequired,
     router: PropTypes.object.isRequired,
     doChangesCheck: PropTypes.func.isRequired, // func(nextLocation): {@see ChangesCheckResult}
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   static contextType = performChangesCheckForLocationContext.Consumer;
@@ -255,26 +271,36 @@ export class RouteLeaveEventView extends Component {
       return true;
     }
     // doChangesCheck may open a popup, hence should not precede the previous 'if'
-    const { hasChanges, userChoiceToLeaveOrStayPromise } = this.props.doChangesCheck(nextLocation);
+    const { hasChanges, userChoiceToLeaveOrStayPromise } =
+      this.props.doChangesCheck(nextLocation);
     if (!hasChanges) {
       return true;
     }
-    userChoiceToLeaveOrStayPromise.then((leaveTheChanges) => {
-      if (leaveTheChanges) {
-        this.ignoreUnsavedChanges = true;
-        this.props.router.push(nextLocation);
-      }
-    });
+    userChoiceToLeaveOrStayPromise
+      .then((leaveTheChanges) => {
+        if (leaveTheChanges) {
+          this.ignoreUnsavedChanges = true;
+          this.props.router.push(nextLocation);
+        }
+        return null;
+      })
+      .catch((err) => err);
     return false;
   };
 
   render() {
     const { route, children } = this.props;
 
-    return <Fragment>
-      <KeyChangeTrigger key='trigger' keyValue={route} onChange={this.onRouteChange} />
-      {children}
-    </Fragment>;
+    return (
+      <Fragment>
+        <KeyChangeTrigger
+          key="trigger"
+          keyValue={route}
+          onChange={this.onRouteChange}
+        />
+        {children}
+      </Fragment>
+    );
   }
 }
 
@@ -282,11 +308,10 @@ export class RouteLeaveEventView extends Component {
  * a HOC that should be applied to bottom level routes to trigger changes check on route change
  */
 export const withRouteLeaveEvent = (ComponentToWrap) => {
-
   return class extends Component {
     static propTypes = {
       route: PropTypes.object.isRequired,
-      router: PropTypes.object.isRequired
+      router: PropTypes.object.isRequired,
     };
 
     static contextType = performChangesCheckForLocationContext.Consumer;
@@ -300,12 +325,15 @@ export const withRouteLeaveEvent = (ComponentToWrap) => {
 
     routeWillLeave = (nextLocation) => {
       if (!this.ignoreUnsavedChanges && !isUnauthorisedReason(nextLocation)) {
-        this.context(nextLocation).then((leaveTheChanges) => {
-          if (leaveTheChanges) {
-            this.ignoreUnsavedChanges = true;
-            this.props.router.push(nextLocation);
-          }
-        });
+        this.context(nextLocation)
+          .then((leaveTheChanges) => {
+            if (leaveTheChanges) {
+              this.ignoreUnsavedChanges = true;
+              this.props.router.push(nextLocation);
+            }
+            return null;
+          })
+          .catch((err) => err);
         return false;
       }
       this.ignoreUnsavedChanges = false; // reset a flag for a next try
@@ -313,37 +341,36 @@ export const withRouteLeaveEvent = (ComponentToWrap) => {
     };
 
     render() {
-      return <performChangesCheckForLocationContext.Consumer>
-        {
-          (doChangesCheck) => (
+      return (
+        <performChangesCheckForLocationContext.Consumer>
+          {(doChangesCheck) => (
             <RouteLeaveEventView
               route={this.props.route}
               router={this.props.router}
               doChangesCheck={doChangesCheck}
             >
-              <ComponentToWrap key='component' {...this.props} />
+              <ComponentToWrap key="component" {...this.props} />
             </RouteLeaveEventView>
-          )
-        }
-      </performChangesCheckForLocationContext.Consumer>;
+          )}
+        </performChangesCheckForLocationContext.Consumer>
+      );
     }
   };
 };
 
-
 // adds a callback to the props, that force a current route to subscribe on component changes.
 // Call this callback with another function that returns bool value, that indicates,
 // if wrapped component has changes.
-export const withRouteLeaveSubscription = (ComponentToWrap, /* optional */ fieldName) => {
+export const withRouteLeaveSubscription = (
+  ComponentToWrap,
+  /* optional */ fieldName
+) => {
   return class extends Component {
-    renderFn = ({
-      addCallback,
-      doChangesCheck
-    }) => {
+    renderFn = ({ addCallback, doChangesCheck }) => {
       const newProps = {
         ...this.props,
-        [fieldName || 'addHasChangesHook']: addCallback,
-        doChangesCheck
+        [fieldName || "addHasChangesHook"]: addCallback,
+        doChangesCheck,
       };
       return <ComponentToWrap {...newProps} />;
     };

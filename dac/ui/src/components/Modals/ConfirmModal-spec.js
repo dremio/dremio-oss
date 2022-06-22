@@ -13,138 +13,140 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import { shallow } from "enzyme";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
-import ConfirmModal from './ConfirmModal';
+import ConfirmModal from "./ConfirmModal";
 
-describe('ConfirmModal', () => {
+describe("ConfirmModal", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       onConfirm: sinon.spy(),
       onCancel: sinon.spy(),
-      title: 'title1',
-      text: 'text1'
+      title: "title1",
+      text: "text1",
     };
     commonProps = {
       ...minimalProps,
       isOpen: true,
-      confirmText: 'confirmText1'
+      confirmText: "confirmText1",
     };
-    sinon.stub(localStorageUtils, 'getCustomValue');
-    sinon.stub(localStorageUtils, 'setCustomValue');
+    sinon.stub(localStorageUtils, "getCustomValue");
+    sinon.stub(localStorageUtils, "setCustomValue");
   });
   afterEach(() => {
     localStorageUtils.getCustomValue.restore();
     localStorageUtils.setCustomValue.restore();
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ConfirmModal {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ConfirmModal {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<ConfirmModal {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<ConfirmModal {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render Modal with common props', () => {
-    const wrapper = shallow(<ConfirmModal {...commonProps}/>);
-    expect(wrapper.find('Modal')).to.have.length(1);
+  it("should render Modal with common props", () => {
+    const wrapper = shallow(<ConfirmModal {...commonProps} />);
+    expect(wrapper.find("Modal")).to.have.length(1);
   });
 
   //DX-28985
-  xit('should render ConfirmCancelFooter with common props', () => {
-    const wrapper = shallow(<ConfirmModal {...commonProps}/>);
-    expect(wrapper.find('ConfirmCancelFooter')).to.have.length(1);
+  xit("should render ConfirmCancelFooter with common props", () => {
+    const wrapper = shallow(<ConfirmModal {...commonProps} />);
+    expect(wrapper.find("ConfirmCancelFooter")).to.have.length(1);
   });
 
-  it('should render Checkbox only if doNotAskAgainText and doNotAskAgainKey are defined', () => {
-    const wrapper = shallow(<ConfirmModal {...commonProps}/>);
-    expect(wrapper.find('Checkbox')).to.have.length(0);
+  it("should render Checkbox only if doNotAskAgainText and doNotAskAgainKey are defined", () => {
+    const wrapper = shallow(<ConfirmModal {...commonProps} />);
+    expect(wrapper.find("Checkbox")).to.have.length(0);
 
     wrapper.setProps({
-      doNotAskAgainText: 'Text'
+      doNotAskAgainText: "Text",
     });
-    expect(wrapper.find('Checkbox')).to.have.length(0);
+    expect(wrapper.find("Checkbox")).to.have.length(0);
 
     wrapper.setProps({
       doNotAskAgainText: undefined,
-      doNotAskAgainKey: 'warningDisabled'
+      doNotAskAgainKey: "warningDisabled",
     });
-    expect(wrapper.find('Checkbox')).to.have.length(0);
+    expect(wrapper.find("Checkbox")).to.have.length(0);
 
     wrapper.setProps({
-      doNotAskAgainText: 'Text'
+      doNotAskAgainText: "Text",
     });
-    expect(wrapper.find('Checkbox')).to.have.length(1);
+    expect(wrapper.find("Checkbox")).to.have.length(1);
   });
 
-  describe('prompt field', () => {
-    it('should render TextField only if showPrompt', () => {
-      const wrapper = shallow(<ConfirmModal {...commonProps}/>);
-      expect(wrapper.find('TextField')).to.have.length(0);
+  describe("prompt field", () => {
+    it("should render TextField only if showPrompt", () => {
+      const wrapper = shallow(<ConfirmModal {...commonProps} />);
+      expect(wrapper.find("TextField")).to.have.length(0);
 
       wrapper.setProps({
         showPrompt: true,
-        promptFieldProps: {foo: true}
+        promptFieldProps: { foo: true },
       });
-      expect(wrapper.find('TextField')).to.have.length(1);
-      expect(wrapper.find('TextField').first().props().foo).to.be.true;
+      expect(wrapper.find("TextField")).to.have.length(1);
+      expect(wrapper.find("TextField").first().props().foo).to.be.true;
     });
 
-    it('should pass state.promptValue to props.onConfirm', () => {
-      const wrapper = shallow(<ConfirmModal {...commonProps}/>);
-      wrapper.setState({promptValue: 'theValue'});
+    it("should pass state.promptValue to props.onConfirm", () => {
+      const wrapper = shallow(<ConfirmModal {...commonProps} />);
+      wrapper.setState({ promptValue: "theValue" });
       wrapper.instance().onConfirm();
-      expect(commonProps.onConfirm).to.be.calledWith('theValue');
+      expect(commonProps.onConfirm).to.be.calledWith("theValue");
     });
   });
 
-
-  describe('#componentWillMount', () => {
+  describe("#componentWillMount", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<ConfirmModal {...commonProps}/>);
+      wrapper = shallow(<ConfirmModal {...commonProps} />);
       instance = wrapper.instance();
     });
-    it('should call onConfirm if doNotAskAgainKey is defined and stored value from localStorage is true', () => {
+    it("should call onConfirm if doNotAskAgainKey is defined and stored value from localStorage is true", () => {
       wrapper.setProps({
-        doNotAskAgainKey: 'warningDisabled'
+        doNotAskAgainKey: "warningDisabled",
       });
       localStorageUtils.getCustomValue.returns(true);
       instance.componentWillMount();
       expect(commonProps.onConfirm).to.have.been.called;
     });
-    it('should not call onConfirm if doNotAskAgainKey is undefined or stored value from localStorage is false', () => {
+    it("should not call onConfirm if doNotAskAgainKey is undefined or stored value from localStorage is false", () => {
       instance.componentWillMount();
       expect(commonProps.onConfirm).to.have.not.been.called;
     });
   });
 
-  describe('#onConfirm', () => {
+  describe("#onConfirm", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<ConfirmModal {...commonProps}/>);
+      wrapper = shallow(<ConfirmModal {...commonProps} />);
       instance = wrapper.instance();
     });
-    it('should call onConfirm and not call localStorageUtils.setCustomValue if state.doNotAskAgain is false ' +
-      'or doNotAskAgainKey is undefined', () => {
-      instance.onConfirm();
-      expect(commonProps.onConfirm).to.have.been.called;
-      expect(localStorageUtils.setCustomValue).to.have.not.been.called;
-    });
-    it('should store value for doNotAskAgainKey if it is defined and state.doNotAskAgain is true', () => {
+    it(
+      "should call onConfirm and not call localStorageUtils.setCustomValue if state.doNotAskAgain is false " +
+        "or doNotAskAgainKey is undefined",
+      () => {
+        instance.onConfirm();
+        expect(commonProps.onConfirm).to.have.been.called;
+        expect(localStorageUtils.setCustomValue).to.have.not.been.called;
+      }
+    );
+    it("should store value for doNotAskAgainKey if it is defined and state.doNotAskAgain is true", () => {
       wrapper.setProps({
-        doNotAskAgainKey: 'warningDisabled'
+        doNotAskAgainKey: "warningDisabled",
       });
       wrapper.setState({
-        doNotAskAgain: true
+        doNotAskAgain: true,
       });
       instance.onConfirm();
       expect(localStorageUtils.setCustomValue).to.have.been.called;

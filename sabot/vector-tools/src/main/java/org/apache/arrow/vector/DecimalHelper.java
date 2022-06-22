@@ -25,12 +25,12 @@ import io.netty.buffer.ByteBuf;
 
 public class DecimalHelper {
 
-  public final static int MAX_DIGITS = 9;
-  public final static int DIGITS_BASE = 1_000_000_000;
-  public final static int INTEGER_SIZE = (Integer.SIZE/Byte.SIZE);
+  public static final int MAX_DIGITS = 9;
+  public static final int DIGITS_BASE = 1_000_000_000;
+  public static final int INTEGER_SIZE = (Integer.SIZE/Byte.SIZE);
   // we use base 1 billion integer digits for our internal representation
-  public final static BigDecimal BASE_BIGDECIMAL = new BigDecimal(DIGITS_BASE);
-  public final static BigInteger BASE_BIGINT = BigInteger.valueOf(DIGITS_BASE);
+  public static final BigDecimal BASE_BIGDECIMAL = new BigDecimal(DIGITS_BASE);
+  public static final BigInteger BASE_BIGINT = BigInteger.valueOf(DIGITS_BASE);
 
   /**
    * Given an array of bytes, swap the bytes to change the byte order
@@ -126,6 +126,7 @@ public class DecimalHelper {
     }
   }
 
+  @SuppressWarnings("InnerAssignment")
   public static BigDecimal getBigDecimalFromSparse(ByteBuf data, int startIndex, int nDecimalDigits, int scale) {
 
     // For sparse decimal type we have padded zeroes at the end, strip them while converting to BigDecimal.

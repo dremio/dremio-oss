@@ -30,8 +30,8 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class VectorRange extends DualRange implements Closeable {
 
-  public final static int PROBE_OUTPUT_SIZE = 2;
-  public final static int BUILD_OUTPUT_SIZE = 4;
+  public static final int PROBE_OUTPUT_SIZE = 2;
+  public static final int BUILD_OUTPUT_SIZE = 4;
 
   protected InputRangeIterator rangeIterator = InputRangeIterator.EMPTY;
   private ArrowBuf probeOffsets;

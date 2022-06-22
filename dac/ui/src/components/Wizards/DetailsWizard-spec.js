@@ -13,51 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { DetailsWizard } from 'components/Wizards/DetailsWizard';
+import { DetailsWizard } from "components/Wizards/DetailsWizard";
 
-import JoinController from 'components/Wizards/JoinWizard/JoinController';
-import JoinHeader from 'pages/ExplorePage/components/JoinTypes/JoinHeader';
-import RawHeader from 'components/Wizards/components/RawHeader';
-import GroupByController from 'components/Wizards/GroupByWizard/GroupByController';
+import JoinController from "components/Wizards/JoinWizard/JoinController";
+import JoinHeader from "pages/ExplorePage/components/JoinTypes/JoinHeader";
+import RawHeader from "components/Wizards/components/RawHeader";
+import GroupByController from "components/Wizards/GroupByWizard/GroupByController";
 
-describe('DetailsWizard', () => {
-
+describe("DetailsWizard", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      detailType: '',
-      location: { state: {}, query: {}},
-      exploreViewState: Immutable.Map()
+      detailType: "",
+      location: { state: {}, query: {} },
+      exploreViewState: Immutable.Map(),
     };
     commonProps = {
       ...minimalProps,
-      tableData: Immutable.fromJS({columns: []}),
-      dataset: Immutable.Map()
+      tableData: Immutable.fromJS({ columns: [] }),
+      dataset: Immutable.Map(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DetailsWizard {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DetailsWizard {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render <div>', () => {
-    const wrapper = shallow(<DetailsWizard {...commonProps}/>);
-    expect(wrapper.type()).to.equal('div');
+  it("should render <div>", () => {
+    const wrapper = shallow(<DetailsWizard {...commonProps} />);
+    expect(wrapper.type()).to.equal("div");
   });
 
-  it('should render correct child if detailType is changed', () => {
+  it("should render correct child if detailType is changed", () => {
     const props = {
       ...commonProps,
-      detailType: 'JOIN'
+      detailType: "JOIN",
     };
-    const wrapper = shallow(<DetailsWizard {...props}/>);
+    const wrapper = shallow(<DetailsWizard {...props} />);
     expect(wrapper.find(JoinController)).to.have.length(1);
     expect(wrapper.find(JoinHeader)).to.have.length(1);
-    wrapper.setProps({ detailType: 'GROUP_BY' });
+    wrapper.setProps({ detailType: "GROUP_BY" });
     expect(wrapper.find(RawHeader)).to.have.length(1);
     expect(wrapper.find(GroupByController)).to.have.length(1);
   });

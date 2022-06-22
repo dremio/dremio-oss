@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import DurationBreakdown from './DurationBreakdown';
+import DurationBreakdown from "./DurationBreakdown";
 
-describe('DurationBreakdown', () => {
+describe("DurationBreakdown", () => {
   let minimalProps;
   let commonProps;
   const context = { loggedInUser: {} };
@@ -27,23 +27,27 @@ describe('DurationBreakdown', () => {
       engineStart: 0.2,
       queued: 5,
       starting: 0.1,
-      running: 8
+      running: 8,
     };
     commonProps = {
       ...minimalProps,
       metadataRetrival: 1,
       planning: 0.6,
-      executionPlanning: 3
+      executionPlanning: 3,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DurationBreakdown {...minimalProps} />, { context });
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DurationBreakdown {...minimalProps} />, {
+      context,
+    });
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with commonProps props without exploding', () => {
-    const wrapper = shallow(<DurationBreakdown {...commonProps} />, { context });
+  it("should render with commonProps props without exploding", () => {
+    const wrapper = shallow(<DurationBreakdown {...commonProps} />, {
+      context,
+    });
     expect(wrapper).to.have.length(1);
   });
 });

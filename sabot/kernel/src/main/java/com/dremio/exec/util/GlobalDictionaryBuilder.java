@@ -554,7 +554,7 @@ public class GlobalDictionaryBuilder {
         for (ColumnDescriptor columnDescriptor: dictionaryEncodedColumns.keySet()) {
           final VectorContainer data = readDictionary(fs, dictionaryRootDir, columnDescriptor, bufferAllocator);
           System.out.println("Dictionary for column [" + columnDescriptor.toString() + " size " + data.getRecordCount());
-          BatchPrinter.printBatch(data);
+          BatchPrinter.printBatch(data, true, false);
           data.clear();
         }
       }
@@ -564,8 +564,8 @@ public class GlobalDictionaryBuilder {
   }
 
   public static class GlobalDictionariesInfo {
-    final private long version;
-    final private Path rootPath;
+    private final long version;
+    private final Path rootPath;
     final Map<ColumnDescriptor, Path> columnsToDictionaryFiles;
 
     public GlobalDictionariesInfo(Map<ColumnDescriptor, Path> columnsToDictionaryFiles, Path rootPath, long version) {

@@ -34,6 +34,7 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
@@ -54,6 +55,7 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -67,9 +69,9 @@ import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
-import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlArrayTypeSpec;
 import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.SqlColumnPolicyPair;
 import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
 import com.dremio.exec.planner.sql.parser.SqlRowTypeSpec;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
@@ -380,28 +382,48 @@ public class SqlHandlerUtil {
    * @return
    */
   public static Field fieldFromSqlColDeclaration(SqlHandlerConfig config, SqlColumnDeclaration column, String sql) {
+    checkInvalidType(column, sql);
+
+    return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
+      .deriveType(config.getConverter().getTypeFactory())).orElseThrow(
+      () -> SqlExceptionHelper.parseError(String.format("Invalid type [%s] specified for column [%s].",
+        column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
+  }
+
+  /**
+   * Create arrow field from sql column declaration
+   *
+   * @param relDataTypeFactory
+   * @param column
+   * @return
+   */
+  public static Field fieldFromSqlColDeclaration(RelDataTypeFactory relDataTypeFactory, SqlColumnDeclaration column, String sql) {
+    checkInvalidType(column, sql);
+
+    return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
+        .deriveType(relDataTypeFactory)).orElseThrow(
+        () -> SqlExceptionHelper.parseError(String.format("Invalid type [%s] specified for column [%s].",
+            column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
+  }
+
+  public static void checkInvalidType(SqlColumnDeclaration column, String sql) {
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == null) {
       throw SqlExceptionHelper.parseError(String.format("Invalid column type [%s] specified for column [%s].",
           column.getDataType(), column.getName().getSimple()),
-          sql, column.getParserPosition()).buildSilently();
+        sql, column.getParserPosition()).buildSilently();
     }
 
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
-        column.getDataType().getPrecision() > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
+      column.getDataType().getPrecision() > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
       throw SqlExceptionHelper.parseError(String.format("Precision larger than %s is not supported.",
-          RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION), sql, column.getParserPosition()).buildSilently();
+        RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION), sql, column.getParserPosition()).buildSilently();
     }
 
     if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
-        column.getDataType().getScale() > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
+      column.getDataType().getScale() > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
       throw SqlExceptionHelper.parseError(String.format("Scale larger than %s is not supported.",
-          RelDataTypeSystemImpl.MAX_NUMERIC_SCALE), sql, column.getParserPosition()).buildSilently();
+        RelDataTypeSystemImpl.MAX_NUMERIC_SCALE), sql, column.getParserPosition()).buildSilently();
     }
-
-    return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
-        .deriveType(config.getConverter().getTypeFactory())).orElseThrow(
-        () -> SqlExceptionHelper.parseError(String.format("Invalid type [%s] specified for column [%s].",
-            column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
   }
 
   /**
@@ -433,6 +455,22 @@ public class SqlHandlerUtil {
     return columnDeclarations;
   }
 
+  public static List<SqlColumnPolicyPair> columnPolicyPairsFromSqlNodes(SqlNodeList columnList, String sql) {
+    List<SqlColumnPolicyPair> columnPolicyPairs = new ArrayList<>();
+    for (SqlNode node : columnList.getList()) {
+      if (node instanceof SqlColumnDeclaration) {
+        SqlColumnDeclaration columnDeclaration = (SqlColumnDeclaration) node;
+        columnPolicyPairs.add(new SqlColumnPolicyPair(node.getParserPosition(), columnDeclaration.getName(), columnDeclaration.getPolicy()));
+      } else if (node instanceof SqlColumnPolicyPair) {
+        columnPolicyPairs.add((SqlColumnPolicyPair) node);
+      } else {
+        throw SqlExceptionHelper.parseError("Column type not specified", sql, node.getParserPosition()).buildSilently();
+      }
+    }
+    return columnPolicyPairs;
+  }
+
+
   public static SimpleCommandResult validateSupportForDDLOperations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, DremioTable table) {
     Optional<SimpleCommandResult> validate = Optional.empty();
 
@@ -454,7 +492,8 @@ public class SqlHandlerUtil {
         .buildSilently();
     }
 
-    if (DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig())) {
+    // Only for FS sources internal Iceberg or Json tables or Mongo source
+    if (CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig())) {
       if (!(config.getContext().getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA))) {
         throw UserException.unsupportedError()
           .message("Please contact customer support for steps to enable " +
@@ -462,7 +501,7 @@ public class SqlHandlerUtil {
           .buildSilently();
       }
       if (DatasetHelper.isInternalIcebergTable(table.getDatasetConfig())) {
-        if (!DataAdditionCmdHandler.isIcebergFeatureEnabled(config.getContext().getOptions(), null)) {
+        if (!IcebergUtils.isIcebergFeatureEnabled(config.getContext().getOptions(), null)) {
           throw UserException.unsupportedError()
             .message("Please contact customer support for steps to enable " +
               "the iceberg tables feature.")
@@ -476,6 +515,7 @@ public class SqlHandlerUtil {
         }
       }
     } else {
+      // For NativeIceberg tables in different catalogs supported
       validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
     }
     return validate.isPresent() ? validate.get() : new SimpleCommandResult(true, "");

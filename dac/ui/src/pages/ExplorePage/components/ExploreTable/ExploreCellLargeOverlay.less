@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .pointer-bottom, .pointer-top {
-    transform: translateX(-50%)
+  .pointer-bottom,
+  .pointer-top {
+    transform: translateX(-50%);
   }
 
   .large-overlay.top {
@@ -24,7 +26,7 @@
       position: absolute;
       border-left: 10px solid rgba(255, 241, 190, 0);
       border-right: 10px solid rgba(255, 241, 190, 0);
-      border-top: 10px solid #FFFFFF;
+      border-top: 10px solid #ffffff;
       bottom: -9px;
     }
     .pointer-bottom {
@@ -37,7 +39,8 @@
   }
 
   .large-overlay.bottom {
-    .pointer-bottom, .pointer-top {
+    .pointer-bottom,
+    .pointer-top {
       position: absolute;
       border-left: 10px solid rgba(113, 101, 58, 0);
       border-right: 10px solid rgba(113, 101, 58, 0);

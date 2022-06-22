@@ -863,4 +863,3 @@ public class TestFlatten extends PlanTestBase {
     }
   }
 }
-

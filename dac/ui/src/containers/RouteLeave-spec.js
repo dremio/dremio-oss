@@ -13,66 +13,78 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
-import PropTypes from 'prop-types';
-import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
-import { HookProviderView, HookConsumer, singleArgFnGenerator, RouteLeaveEventView } from './RouteLeave';
+import { shallow, mount } from "enzyme";
+import PropTypes from "prop-types";
+import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
+import {
+  HookProviderView,
+  HookConsumer,
+  singleArgFnGenerator,
+  RouteLeaveEventView,
+} from "./RouteLeave";
 
 const routeProps = {
   route: {
-    path: '/new_query'
+    path: "/new_query",
   },
   router: {
     setRouteLeaveHook: () => {},
-    push: () => {}
-  }
+    push: () => {},
+  },
 };
 
-describe('RouteLeave.js', () => {
-
+describe("RouteLeave.js", () => {
   const providerCommonProps = {
     ...routeProps,
-    showConfirmationDialog: () => {}
+    showConfirmationDialog: () => {},
   };
 
-  describe('RouteLeaveEventView', () => {
+  describe("RouteLeaveEventView", () => {
     const eventCompProps = {
       ...routeProps,
-      doChangesCheck: () => Promise.resolve(true)
+      doChangesCheck: () => Promise.resolve(true),
     };
-    it('calls onRouteChange on route change', () => {
+    it("calls onRouteChange on route change", () => {
       const wrapper = shallow(<RouteLeaveEventView {...eventCompProps} />);
       const trigger = wrapper.find(KeyChangeTrigger);
       expect(trigger).to.have.length(1);
-      expect(trigger.prop('keyValue')).to.be.equal(routeProps.route, 'route must be monitored');
-      expect(trigger.prop('onChange')).to.be.equal(wrapper.instance().onRouteChange);
+      expect(trigger.prop("keyValue")).to.be.equal(
+        routeProps.route,
+        "route must be monitored"
+      );
+      expect(trigger.prop("onChange")).to.be.equal(
+        wrapper.instance().onRouteChange
+      );
     });
 
-    it('onRouteChange sets a route leave hook', () => {
+    it("onRouteChange sets a route leave hook", () => {
       const props = {
         ...eventCompProps,
         router: {
-          setRouteLeaveHook: sinon.spy()
-        }
+          setRouteLeaveHook: sinon.spy(),
+        },
       };
       const wrapper = shallow(<RouteLeaveEventView {...props} />);
       const instance = wrapper.instance();
 
       instance.onRouteChange();
-      expect(props.router.setRouteLeaveHook).to.be.calledWith(props.route, instance.routeWillLeave);
+      expect(props.router.setRouteLeaveHook).to.be.calledWith(
+        props.route,
+        instance.routeWillLeave
+      );
     });
 
-    it('routeWillLeave returns true, if leave was confirmed', async () => {
+    it("routeWillLeave returns true, if leave was confirmed", async () => {
       const userChoiceToLeaveOrStayPromise = Promise.resolve(true);
       const doCheckFn = sinon.stub();
       doCheckFn.returns({
         hasChanges: true,
-        userChoiceToLeaveOrStayPromise
+        userChoiceToLeaveOrStayPromise,
       });
 
       const props = {
         ...eventCompProps,
-        doChangesCheck: doCheckFn
+        doChangesCheck: doCheckFn,
       };
       const instance = shallow(<RouteLeaveEventView {...props} />).instance();
 
@@ -86,45 +98,52 @@ describe('RouteLeave.js', () => {
       expect(doCheckFn).to.be.not.called;
     });
 
-    it('routeWillLeave returns true, if redirect reason is unauthorized', () => {
-      const instance = shallow(<RouteLeaveEventView {...eventCompProps} />).instance();
+    it("routeWillLeave returns true, if redirect reason is unauthorized", () => {
+      const instance = shallow(
+        <RouteLeaveEventView {...eventCompProps} />
+      ).instance();
 
-      expect(instance.routeWillLeave({search: 'abc&reason=401'})).to.eql(true);
+      expect(instance.routeWillLeave({ search: "abc&reason=401" })).to.eql(
+        true
+      );
     });
   });
 
-  describe('HookProviderView', () => {
+  describe("HookProviderView", () => {
     let commonProps;
 
     beforeEach(() => {
       commonProps = providerCommonProps;
     });
 
-    describe('showConfirmationDialog', () => {
+    describe("showConfirmationDialog", () => {
       let confirmFn;
       let instance;
 
       beforeEach(() => {
         confirmFn = sinon.spy();
-        instance = shallow(<HookProviderView
-          {...commonProps}
-          showConfirmationDialog={confirmFn} />).instance();
+        instance = shallow(
+          <HookProviderView
+            {...commonProps}
+            showConfirmationDialog={confirmFn}
+          />
+        ).instance();
       });
 
-      it('is not called, when there is no changes', () => {
+      it("is not called, when there is no changes", () => {
         const hasChangesCallback = () => false; // no changes
 
-        instance.addCallback('test id', hasChangesCallback);
+        instance.addCallback("test id", hasChangesCallback);
         instance.doChangesCheck(); // simulate route change
 
         expect(confirmFn).to.be.not.called; // confirm function should NOT be called
       });
 
-      it('reacts on hasChangesCallback result change', () => {
+      it("reacts on hasChangesCallback result change", () => {
         const hasChangesCallback = sinon.stub();
-        instance.addCallback('test id', hasChangesCallback);
+        instance.addCallback("test id", hasChangesCallback);
 
-        const changeValue = hasChanges => {
+        const changeValue = (hasChanges) => {
           hasChangesCallback.returns(true); // change the result
           instance.doChangesCheck(); // simulate route change
           if (hasChanges) {
@@ -141,10 +160,13 @@ describe('RouteLeave.js', () => {
         changeValue(true); // false -> true
       });
 
-      it('not called if hasChangesCallback was removed', () => {
+      it("not called if hasChangesCallback was removed", () => {
         const hasChangesCallback = () => true; // simulate changes
 
-        const removeHandler = instance.addCallback('test id', hasChangesCallback);
+        const removeHandler = instance.addCallback(
+          "test id",
+          hasChangesCallback
+        );
         instance.doChangesCheck(); // simulate route change
 
         expect(confirmFn).to.be.called; // confirm function should be called if there is any change
@@ -156,7 +178,7 @@ describe('RouteLeave.js', () => {
         expect(confirmFn).to.be.not.called; // should Not be called, as callback is removed and not monitored anymore
       });
 
-      it('is called, when at least one hasChangesCallback returns true', () => {
+      it("is called, when at least one hasChangesCallback returns true", () => {
         const hasChangesCalbackList = Array(5).fill(false);
         const removeHandlers = {};
         const trueIndex = 2;
@@ -164,7 +186,10 @@ describe('RouteLeave.js', () => {
 
         // add all callbacks
         hasChangesCalbackList.forEach((hasChanges, index) => {
-          removeHandlers[index] = instance.addCallback(`test id ${index}`, () => hasChanges);
+          removeHandlers[index] = instance.addCallback(
+            `test id ${index}`,
+            () => hasChanges
+          );
         });
         instance.doChangesCheck(); // simulate route change
 
@@ -177,19 +202,20 @@ describe('RouteLeave.js', () => {
         expect(confirmFn).to.be.not.called; // should not be called as the reset of handlers does not have changes
       });
     });
-
   });
 
-  describe('HookConsumer', () => {
-
-    const getRenderFn = (hasChangesCallback) => ({ addCallback }) => { // eslint-disable-line
-      addCallback(hasChangesCallback);
-      return <div></div>;
-    };
+  describe("HookConsumer", () => {
+    const getRenderFn =
+      (hasChangesCallback) =>
+      // eslint-disable-next-line
+      ({ addCallback }) => {
+        addCallback(hasChangesCallback);
+        return <div></div>;
+      };
 
     let addCallbackOriginal;
     beforeEach(() => {
-      sinon.spy(HookProviderView.prototype, 'addCallback');
+      sinon.spy(HookProviderView.prototype, "addCallback");
       addCallbackOriginal = HookProviderView.prototype.addCallback;
     });
 
@@ -198,15 +224,15 @@ describe('RouteLeave.js', () => {
       addCallbackOriginal = null;
     });
 
-    it('Original Provider.addCallback is called', () => {
+    it("Original Provider.addCallback is called", () => {
       const hasChanges = () => true;
       const renderFn = getRenderFn(hasChanges);
 
-      mount(<HookProviderView {...providerCommonProps}>
-        <HookConsumer>
-          {renderFn}
-        </HookConsumer>
-      </HookProviderView>);
+      mount(
+        <HookProviderView {...providerCommonProps}>
+          <HookConsumer>{renderFn}</HookConsumer>
+        </HookProviderView>
+      );
 
       expect(addCallbackOriginal).to.be.called;
       const [id, argFn] = addCallbackOriginal.lastCall.args;
@@ -214,17 +240,15 @@ describe('RouteLeave.js', () => {
       expect(argFn).to.eql(hasChanges); // addCallback should be called with provided hasChanges function
     });
 
-    it('Unique ids are generated for different consumers ', () => {
-      mount(<HookProviderView {...providerCommonProps}>
-        <div>
-          <HookConsumer>
-            {getRenderFn()}
-          </HookConsumer>
-          <HookConsumer>
-            {getRenderFn()}
-          </HookConsumer>
-        </div>
-      </HookProviderView>);
+    it("Unique ids are generated for different consumers ", () => {
+      mount(
+        <HookProviderView {...providerCommonProps}>
+          <div>
+            <HookConsumer>{getRenderFn()}</HookConsumer>
+            <HookConsumer>{getRenderFn()}</HookConsumer>
+          </div>
+        </HookProviderView>
+      );
 
       expect(addCallbackOriginal).to.be.calledTwice; // should be called 2 times, as there are 2 consumers
       const id1 = addCallbackOriginal.args[0][0];
@@ -232,28 +256,25 @@ describe('RouteLeave.js', () => {
       expect(id1).not.eql(id2); // uninque ids should be generated by each consumer
     });
 
-    it('hasChanges callback is removed on unmount', () => {
+    it("hasChanges callback is removed on unmount", () => {
       const hasChanges = () => true;
       let provider;
       const providerRef = (p) => {
         provider = p;
       };
       const TestComp = ({ mounted, refFn }) => {
-        return <HookProviderView {...providerCommonProps} ref={refFn}>
-          {
-            mounted &&
-            <HookConsumer>
-              {getRenderFn(hasChanges)}
-            </HookConsumer>
-          }
-        </HookProviderView>;
+        return (
+          <HookProviderView {...providerCommonProps} ref={refFn}>
+            {mounted && <HookConsumer>{getRenderFn(hasChanges)}</HookConsumer>}
+          </HookProviderView>
+        );
       };
       TestComp.propTypes = {
         mounted: PropTypes.bool,
-        refFn: PropTypes.func
+        refFn: PropTypes.func,
       };
       const wrapper = mount(<TestComp mounted refFn={providerRef} />);
-      expect(provider.hasChangeCallbacks).to.have.property('size', 1); // one callback should be added
+      expect(provider.hasChangeCallbacks).to.have.property("size", 1); // one callback should be added
 
       wrapper.setProps({ mounted: false }); // unmount consumer
       expect(provider.hasChangeCallbacks).is.empty; // callback should be removed from the list
@@ -262,17 +283,17 @@ describe('RouteLeave.js', () => {
 
   // these test are very important from performance point of view.
   // singleArgFnGenerator should return the same result if parameters are not changed, to avoid unnecessary rerenders.
-  describe('singleArgFnGenerator', () => {
+  describe("singleArgFnGenerator", () => {
     let selector;
-    const id = 'test id';
+    const id = "test id";
     beforeEach(() => {
       selector = singleArgFnGenerator(id, () => {});
     });
 
-    it('wraps a fn correctly', () => {
+    it("wraps a fn correctly", () => {
       const callback1 = sinon.spy();
       const state = {
-        fn: callback1
+        fn: callback1,
       };
       const hasChangesCallback = () => {};
 
@@ -282,28 +303,32 @@ describe('RouteLeave.js', () => {
       expect(callback1).to.be.calledWith(id, hasChangesCallback); // result function should add id as first argument to original function
     });
 
-    it('result function should return the same function, if input values are the same', () => {
+    it("result function should return the same function, if input values are the same", () => {
       const fn = () => {};
       const state = {
-        fn
+        fn,
       };
       const result1 = selector(state);
 
-      expect(selector({
-        fn
-      })).to.be.eql(result1); // the same function should be returned, when the same id and fn are passed
+      expect(
+        selector({
+          fn,
+        })
+      ).to.be.eql(result1); // the same function should be returned, when the same id and fn are passed
     });
 
-    it('result function should be changed, if different fn is provided', () => {
+    it("result function should be changed, if different fn is provided", () => {
       const fn = () => {};
       const state = {
-        fn
+        fn,
       };
       const result1 = selector(state);
 
-      expect(selector({
-        fn: () => {}
-      })).to.be.not.eql(result1);
+      expect(
+        selector({
+          fn: () => {},
+        })
+      ).to.be.not.eql(result1);
     });
   });
 });

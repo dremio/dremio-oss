@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -39,7 +40,7 @@ import com.dremio.sabot.op.scan.OutputMutator;
 /**
  * A manager to set up {@link OutputMutator}.
  */
-public class MutatorSetupManager {
+public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions {
   private static final Logger logger = LoggerFactory.getLogger(MutatorSetupManager.class);
 
   private final OperatorContext context;
@@ -135,7 +136,7 @@ public class MutatorSetupManager {
 
   private BatchSchema getFinalSchema(BatchSchema schemaFromBatchField, BatchSchema schemaFromParquetField, List<Field> droppedColumns, List<Field> updatedColumns, boolean isSchemaLearningDisabledByUser) {
     boolean isUserDefinedSchemaEnabled = context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
-    return schemaFromBatchField.applyUserDefinedSchemaAfterSchemaLearning(schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, filePath, tableSchemaPath);
+    return schemaFromBatchField.applyUserDefinedSchemaAfterSchemaLearning(schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, filePath, tableSchemaPath, this);
   }
 
 }

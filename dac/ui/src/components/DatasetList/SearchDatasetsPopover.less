@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .searchDatasetsPopover {
     align-items: center;
     display: flex;
-    margin: .8rem 1rem;
-    border: .1rem solid #D2D6DA;
+    margin: 0.8rem 1rem;
+    border: 0.1rem solid #d2d6da;
     box-sizing: border-box;
-    border-radius: .4rem;
-    padding: 0 .5rem;
+    border-radius: 0.4rem;
+    padding-left: 0.8rem;
 
     .searchInput {
       background-color: transparent;
@@ -31,10 +32,10 @@
       font-weight: 400;
       font-size: 14px;
       line-height: 20px;
-      padding: .5rem;
+      padding: 0.8rem;
       margin-top: 2px;
       outline: none;
       width: 100%;
     }
   }
- }
+}

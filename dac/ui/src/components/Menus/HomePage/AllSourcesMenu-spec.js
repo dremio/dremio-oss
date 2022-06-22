@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 // import { findMenuItemLinkByText, findMenuItemByText } from 'testUtil';
 // import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
 // import { Capabilities } from '@app/utils/authUtils';
-import { AllSourcesMenu } from './AllSourcesMenu';
+import { AllSourcesMenu } from "./AllSourcesMenu";
 
-describe('AllSourcesMenu', () => {
+describe("AllSourcesMenu", () => {
   let minimalProps;
   let commonProps;
   let contextTypes;
@@ -28,24 +28,26 @@ describe('AllSourcesMenu', () => {
     minimalProps = {
       item: Immutable.fromJS({
         links: {
-          self: ''
-        }
+          self: "",
+        },
       }),
       removeItem: sinon.spy(),
       showConfirmationDialog: sinon.spy(),
       closeMenu: sinon.spy(),
-      hasEditPermission: true
+      hasEditPermission: true,
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
     contextTypes = {
-      location: {}
+      location: {},
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AllSourcesMenu {...minimalProps}/>, {context: contextTypes});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AllSourcesMenu {...minimalProps} />, {
+      context: contextTypes,
+    });
     expect(wrapper).to.have.length(1);
   });
 
@@ -63,21 +65,25 @@ describe('AllSourcesMenu', () => {
   //     'Edit menu is rendered in a restricted area');
   // });
 
-  describe('#handleRemoveSource', () => {
-    it('should show confirmation dialog before removing', () => {
-      const wrapper = shallow(<AllSourcesMenu {...commonProps} />, {context: contextTypes});
+  describe("#handleRemoveSource", () => {
+    it("should show confirmation dialog before removing", () => {
+      const wrapper = shallow(<AllSourcesMenu {...commonProps} />, {
+        context: contextTypes,
+      });
       const instance = wrapper.instance();
       instance.handleRemoveSource();
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(commonProps.removeItem).to.not.be.called;
     });
 
-    it('should call remove source when confirmed', () => {
+    it("should call remove source when confirmed", () => {
       const props = {
         ...commonProps,
-        showConfirmationDialog: (opts) => opts.confirm()
+        showConfirmationDialog: (opts) => opts.confirm(),
       };
-      const wrapper = shallow(<AllSourcesMenu {...props}/>, {context: contextTypes});
+      const wrapper = shallow(<AllSourcesMenu {...props} />, {
+        context: contextTypes,
+      });
       const instance = wrapper.instance();
       instance.handleRemoveSource();
       expect(props.removeItem).to.be.called;

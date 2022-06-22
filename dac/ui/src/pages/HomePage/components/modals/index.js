@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import AddFileModal from './AddFileModal/AddFileModal';
-import UpdateDataset from './UpdateDataset/UpdateDataset';
-import DatasetSettingsModal from './DatasetSettings/DatasetSettingsModal';
-import AddFolderModal from './AddFolderModal';
-import SpaceModal from './SpaceModal';
-import AddSourceModal from './AddSourceModal/AddSourceModal';
-import EditSourceModal from './EditSourceModal';
-
+import AddFileModal from "./AddFileModal/AddFileModal";
+import UpdateDataset from "./UpdateDataset/UpdateDataset";
+import DatasetSettingsModal from "./DatasetSettings/DatasetSettingsModal";
+import AddFolderModal from "./AddFolderModal";
+import SpaceModal from "./SpaceModal";
+import AddSourceModal from "./AddSourceModal/AddSourceModal";
+import EditSourceModal from "./EditSourceModal";
 
 export {
   AddFileModal,
@@ -29,5 +28,5 @@ export {
   AddFolderModal,
   SpaceModal,
   AddSourceModal,
-  EditSourceModal
+  EditSourceModal,
 };

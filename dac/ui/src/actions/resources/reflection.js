@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-import crudFactory from 'actions/resources/crudFactory2';
+import crudFactory from "actions/resources/crudFactory2";
 
-const actions = crudFactory('reflection', {
+const actions = crudFactory("reflection", {
   getSummaryList: {
-    method: 'GET_LIST',
-    path: 'reflection/summary',
-    entityName: 'reflection-summary'
+    method: "GET_LIST",
+    path: "reflection/summary",
+    entityName: "reflection-summary",
   },
 
   deleteReflectionSummary: {
-    method: 'DELETE',
-    path: 'reflection',
-    entityName: 'reflection-summary'
-  }
+    method: "DELETE",
+    path: "reflection",
+    entityName: "reflection-summary",
+  },
 });
 
 export default actions;

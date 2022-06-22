@@ -508,4 +508,3 @@ public class Pivots {
     }
   }
 }
-

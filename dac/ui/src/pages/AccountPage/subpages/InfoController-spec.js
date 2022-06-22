@@ -13,53 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import ApiUtils from 'utils/apiUtils/apiUtils';
+import { shallow } from "enzyme";
+import ApiUtils from "utils/apiUtils/apiUtils";
 
-import { InfoController } from './InfoController';
+import { InfoController } from "./InfoController";
 
 const commonFormValues = {
-  userName: {value: 'user'},
-  firstName: {value: 'firstName'},
-  lastName: {value: 'lastName'},
-  email: {value: 'some@example.com'},
-  version: {value: 0},
-  password: {value: 'password'}
+  userName: { value: "user" },
+  firstName: { value: "firstName" },
+  lastName: { value: "lastName" },
+  email: { value: "some@example.com" },
+  version: { value: 0 },
+  password: { value: "password" },
 };
 
-describe('InfoController', () => {
+describe("InfoController", () => {
   let minimalProps;
   let commonProps;
   let context;
   beforeEach(() => {
     minimalProps = {
-      loadUser: sinon.spy()
+      loadUser: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
       updateFormDirtyState: sinon.spy(),
-      editAccount: sinon.spy()
+      editAccount: sinon.spy(),
     };
     context = {
       router: { goBack: sinon.spy() },
-      username: 'admin'
+      username: "admin",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<InfoController {...minimalProps}/>, {context});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<InfoController {...minimalProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#submit', () => {
+  describe("#submit", () => {
     let wrapper;
     let instance;
     let clock;
     let fakeNow;
     beforeEach(() => {
-      wrapper = shallow(<InfoController {...commonProps}/>, {context});
+      wrapper = shallow(<InfoController {...commonProps} />, { context });
       instance = wrapper.instance();
-      sinon.stub(ApiUtils, 'attachFormSubmitHandlers').returns({ then: f => f()});
+      sinon
+        .stub(ApiUtils, "attachFormSubmitHandlers")
+        .returns({ then: (f) => f() });
       fakeNow = new Date().getTime();
       clock = sinon.useFakeTimers(fakeNow);
     });
@@ -68,15 +70,17 @@ describe('InfoController', () => {
       clock.restore();
     });
 
-    it('should reset form dirty state after submit', () => {
+    it("should reset form dirty state after submit", () => {
       instance.submit(commonFormValues);
       expect(commonProps.updateFormDirtyState).to.be.called;
     });
   });
 
-  describe('#cancel', () => {
-    it('should navigate user to previous route after click on canel button', () => {
-      const instance = shallow(<InfoController {...minimalProps}/>, {context}).instance();
+  describe("#cancel", () => {
+    it("should navigate user to previous route after click on canel button", () => {
+      const instance = shallow(<InfoController {...minimalProps} />, {
+        context,
+      }).instance();
       instance.cancel();
       expect(context.router.goBack).to.be.called;
     });

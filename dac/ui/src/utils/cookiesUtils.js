@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeSpecialCharacters } from '@app/utils/regExpUtils';
+import { escapeSpecialCharacters } from "@app/utils/regExpUtils";
 
 export const getCookieValue = (keyName) => {
-  const regExp = new RegExp(`(?:(?:^|.*;\\s*)${escapeSpecialCharacters(keyName)}\\s*\\=\\s*([^;]*).*$)|^.*$`);
-  return document.cookie.replace(regExp, '$1');
+  const regExp = new RegExp(
+    `(?:(?:^|.*;\\s*)${escapeSpecialCharacters(
+      keyName
+    )}\\s*\\=\\s*([^;]*).*$)|^.*$`
+  );
+  return document.cookie.replace(regExp, "$1");
 };

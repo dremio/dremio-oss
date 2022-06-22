@@ -228,9 +228,10 @@ public class RefreshHandler implements SqlToPlanHandler {
       ReflectionRoutingManager reflectionRoutingManager = config.getContext().getReflectionRoutingManager();
       if (reflectionRoutingManager != null) {
         DatasetConfig datasetConfig = catalog.getTable(datasetId).getDatasetConfig();
+        boolean inheritanceEnabled = config.getContext().getOptions().getOption("planner.reflection_routing_inheritance_enabled").getBoolVal();
         if (reflectionRoutingManager.getIsQueue()) {
           String queueId = datasetConfig.getQueueId();
-          if (queueId == null) {
+          if (queueId == null && inheritanceEnabled) {
             queueId = getInheritedReflectionRouting(true, datasetConfig, config);
           }
           final String queueName = reflectionRoutingManager.getQueueNameById(queueId);
@@ -241,7 +242,7 @@ public class RefreshHandler implements SqlToPlanHandler {
           }
         } else {
           String engineName = datasetConfig.getEngineName();
-          if (engineName == null) {
+          if (engineName == null && inheritanceEnabled) {
             engineName = getInheritedReflectionRouting(false, datasetConfig, config);
           }
           if (engineName != null && reflectionRoutingManager.checkEngineExists(engineName)) {
@@ -293,7 +294,7 @@ public class RefreshHandler implements SqlToPlanHandler {
               return inheritedQueueId;
             }
           } else {
-            String inheritedEngineName = folderConfig.getQueueId();
+            String inheritedEngineName = folderConfig.getEngineName();
             if (inheritedEngineName != null) {
               return inheritedEngineName;
             }
@@ -313,12 +314,11 @@ public class RefreshHandler implements SqlToPlanHandler {
     if (isIcebergInsertRefresh(materialization, refreshDecisions[0])) {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, partitionColumns,
-        IcebergCommandType.INSERT, materialization.getBasePath(), null, null);
-
+        IcebergCommandType.INSERT, null, materialization.getBasePath(), null, null, null, null);
     } else {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, partitionColumns,
-        IcebergCommandType.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum(), null, null);
+        IcebergCommandType.CREATE, null, materialization.getId().getId() + "_" + attemptId.getAttemptNum(), null, null, null, null);
     }
     return icebergTableProps;
   }

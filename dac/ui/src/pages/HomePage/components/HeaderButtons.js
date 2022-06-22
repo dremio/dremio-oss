@@ -13,32 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { Link } from 'react-router';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
+import { Component } from "react";
+import { Link } from "react-router";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
+import { IconButton } from "dremio-ui-lib";
 
-import config from 'dyn-load/utils/config';
-import Art from 'components/Art';
-import { ENTITY_TYPES } from '@app/constants/Constants';
+import DropdownMenu from "@app/components/Menus/DropdownMenu";
+import { ENTITY_TYPES } from "@app/constants/Constants";
 
-import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
-import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import HeaderButtonsMixin from "dyn-load/pages/HomePage/components/HeaderButtonsMixin";
+import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
+import HeaderButtonAddActions from "./HeaderButtonAddActions.tsx";
+import { NESSIE } from "@app/constants/sourceTypes";
 
-import {
-  SHOW_ADD_FOLDER,
-  SHOW_ADD_FILE
-} from '@inject/pages/HomePage/components/HeaderButtonConstants';
+import * as classes from "./HeaderButtonAddActions.module.less";
 
-@injectIntl
-@Radium
 @HeaderButtonsMixin
 export class HeaderButtons extends Component {
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   static propTypes = {
@@ -47,23 +43,22 @@ export class HeaderButtons extends Component {
     rootEntityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     user: PropTypes.string,
     rightTreeVisible: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    isSonarSource: PropTypes.bool,
   };
 
   static defaultProps = {
-    entity: Immutable.Map()
+    entity: Immutable.Map(),
   };
 
   getButtonsForEntityType(entityType) {
     switch (entityType) {
-    case ENTITY_TYPES.space:
-      return this.getSpaceSettingsButtons();
-    case ENTITY_TYPES.source:
-      return this.getSourceSettingsButtons().concat(this.getSourceButtons());
-    case ENTITY_TYPES.home:
-      return this.getHomeButtons();
-    default:
-      return [];
+      case ENTITY_TYPES.space:
+        return this.getSpaceSettingsButtons();
+      case ENTITY_TYPES.source:
+        return this.getSourceSettingsButtons().concat(this.getSourceButtons());
+      default:
+        return [];
     }
   }
 
@@ -71,103 +66,69 @@ export class HeaderButtons extends Component {
     const { entity } = this.props;
     const buttons = [];
 
-    if (entity.get('isPhysicalDataset')) {
+    if (entity.get("isPhysicalDataset")) {
       buttons.push({
-        qa: 'query-folder',
-        iconType: 'Query',
-        to: entity.getIn(['links', 'query']),
-        isAdd: false
+        qa: "query-folder",
+        iconType: "navigation-bar/sql-runner",
+        to: entity.getIn(["links", "query"]),
       });
-    } else if (entity.get('fileSystemFolder') && (entity.getIn('permissions', 'canEditFormatSettings') === true || localStorageUtils.isUserAnAdmin())) {
+    } else if (
+      entity.get("fileSystemFolder") &&
+      (entity.getIn("permissions", "canEditFormatSettings") === true ||
+        localStorageUtils.isUserAnAdmin())
+    ) {
       buttons.push({
-        qa: 'convert-folder',
-        iconType: 'FolderConvert',
-        style: styles.largeButton,
-        to: {...this.context.location, state: {
-          modal: 'DatasetSettingsModal',
-          tab: 'format',
-          entityType: entity.get('entityType'),
-          entityId: entity.get('id'),
-          query: {then: 'query'},
-          isHomePage: true
-        }},
-        isAdd: false
-      });
-    }
-    return buttons;
-  }
-
-  getHomeButtons() {
-    const { location } = this.context;
-    const buttons = [];
-    SHOW_ADD_FOLDER && buttons.push(
-      {
-        qa: 'add-folder',
-        iconType: 'Folder',
-        to: {...location, state: {modal: 'AddFolderModal'}},
-        isAdd: true
-      }
-    );
-    if (SHOW_ADD_FILE && config.allowFileUploads) {
-      buttons.push(
-        {
-          qa: 'add-file',
-          iconType: 'UploadBlue',
-          to: {...location, state: {modal: 'AddFileModal'}},
-          style: {
-            alignItems: 'center'
+        qa: "convert-folder",
+        iconType: "interface/format-folder",
+        to: {
+          ...this.context.location,
+          state: {
+            modal: "DatasetSettingsModal",
+            tab: "format",
+            entityType: entity.get("entityType"),
+            entityId: entity.get("id"),
+            query: { then: "query" },
+            isHomePage: true,
           },
-          iconStyle: {
-            height: 16
-          }
-        }
-      );
+        },
+      });
     }
     return buttons;
   }
 
   getIconAltText(iconType) {
     const messages = {
-      File: 'File.File',
-      VirtualDataset: 'Dataset.VirtualDataset',
-      Folder: 'Folder.Folder',
-      FolderConvert: 'Folder.FolderConvert',
-      Query: 'Job.Query',
-      Settings: 'Common.Settings',
-      UploadBlue: 'File.Upload'
+      "interface/format-folder": "Folder.FolderConvert",
+      "navigation-bar/sql-runner": "Job.Query",
+      "interface/settings": "Common.Settings",
     };
     const iconMessageId = messages[iconType];
-    return (iconMessageId) ? this.props.intl.formatMessage({id: iconMessageId}) : '';
+    return iconMessageId
+      ? this.props.intl.formatMessage({ id: iconMessageId })
+      : "Type";
   }
 
   renderButton = (item, index) => {
-    const {
-      qa,
-      to,
-      iconType,
-      style,
-      isAdd,
-      iconStyle,
-      authRule
-    } = item;
+    const { qa, to, iconType, style, iconStyle, authRule } = item;
     const iconAlt = this.getIconAltText(iconType);
 
-    let link = <Link
-      className='button-white'
-      data-qa={`${qa}-button`}
-      to={to ? to : '.'}
-      key={`${iconType}-${index}`}
-      style={{...styles.button, ...style}}>
-      {isAdd && <Art
-        src='SimpleAdd.svg'
-        alt={this.props.intl.formatMessage({ id: 'Common.Add' })}
-        style={styles.addIcon}/>}
-      <Art src={`${iconType}.svg`} alt={iconAlt} title={iconAlt} style={{...styles.typeIcon, ...iconStyle}} />
-    </Link>;
+    let link = (
+      <IconButton
+        as={Link}
+        className="button-white"
+        data-qa={`${qa}-button`}
+        to={to ? to : "."}
+        key={`${iconType}-${index}`}
+        style={style}
+        tooltip={iconAlt}
+      >
+        <dremio-icon name={iconType} alt={iconAlt} style={iconStyle} />
+      </IconButton>
+    );
 
     if (authRule) {
       link = (
-        <RestrictedArea rule={authRule}>
+        <RestrictedArea key={`${iconType}-${index}-${index}`} rule={authRule}>
           {link}
         </RestrictedArea>
       );
@@ -176,60 +137,79 @@ export class HeaderButtons extends Component {
     return link;
   };
 
+  canAddInHomeSpace(rootEntityType) {
+    const isHome = rootEntityType === ENTITY_TYPES.home;
+    const canUploadFile = localStorageUtils.getUserPermissions()?.canUploadFile;
+
+    return isHome && canUploadFile;
+  }
+
+  shouldShowAddButton(rootEntityType, entity) {
+    const { isSonarSource } = this.props;
+    const entityType = entity?.get("entityType");
+    const showAddButton =
+      [ENTITY_TYPES.home, ENTITY_TYPES.space].includes(rootEntityType) ||
+      (isSonarSource && entityType === ENTITY_TYPES.folder) ||
+      (entityType === ENTITY_TYPES.source && entity.get("type") === NESSIE);
+
+    const hasPermissionToAdd =
+      localStorageUtils.isUserAnAdmin() ||
+      entity.getIn(["permissions", "canEdit"]) ||
+      entity.getIn(["permissions", "canCreateChildren"]) ||
+      entity.getIn(["permissions", "canAlter"]);
+
+    return hasPermissionToAdd && showAddButton;
+  }
+
   render() {
-    const { rootEntityType } = this.props;
+    const { rootEntityType, entity } = this.props;
+
     const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
 
+    const entityType = entity?.get("entityType");
+
+    const shouldShowAddButton = this.shouldShowAddButton(
+      rootEntityType,
+      entity
+    );
+
+    const canAddInHomeSpace = this.canAddInHomeSpace(rootEntityType);
+
+    const hasAddMenu = shouldShowAddButton || canAddInHomeSpace;
+
     return (
-      <span className='main-settings-holder' style={styles.mainSettingsHolder}>
+      <>
+        {hasAddMenu && (
+          <DropdownMenu
+            customItemRenderer={
+              <IconButton
+                aria-label="Add"
+                className={classes["headerButtons__plusIcon"]}
+              >
+                <dremio-icon name="interface/circle-plus"></dremio-icon>
+              </IconButton>
+            }
+            hideArrow
+            closeOnSelect
+            menu={
+              <HeaderButtonAddActions
+                context={this.context}
+                allowFileUpload={
+                  entityType !== ENTITY_TYPES.folder &&
+                  rootEntityType === ENTITY_TYPES.home
+                }
+                allowTable={
+                  entityType === ENTITY_TYPES.source &&
+                  entity.get("type") === NESSIE
+                }
+                canUploadFile={canAddInHomeSpace}
+              />
+            }
+          />
+        )}
         {buttonsForCurrentPage.map(this.renderButton)}
-      </span>
+      </>
     );
   }
 }
-
-//TODO: refactor styles
-
-const styles = {
-  addIcon: {
-    width: 8,
-    marginLeft: 3
-  },
-  typeIcon: {
-    height: 24
-  },
-  mainSettingsHolder: {
-    display: 'flex',
-    marginRight: 10
-  },
-  button: {
-    background: '#F2F2F2',
-    borderRadius: '4px',
-    marginRight: '6px',
-    height: 32,
-    width: 40,
-    border: '1px solid #D9D9D9',
-    cursor: 'pointer',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  largeButton: {
-    width: 54
-  },
-  innerTextStyle: {
-    top: '-7px',
-    textAlign: 'left'
-  },
-  iconBox: {
-    width: 24,
-    height: 24
-  },
-  iconContainer: {
-    marginRight: 1,
-    lineHeight: '24px',
-    width: 24,
-    position: 'relative'
-  }
-};
-
+HeaderButtons = injectIntl(HeaderButtons);

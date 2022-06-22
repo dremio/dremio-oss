@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import { connectComplexForm } from "components/Forms/connectComplexForm";
 
-import TransformForm, { formWrapperProps } from '../../forms/TransformForm';
-import { transformProps } from './../../forms/TransformationPropTypes';
+import TransformForm, { formWrapperProps } from "../../forms/TransformForm";
+import { transformProps } from "./../../forms/TransformationPropTypes";
 
-@Radium
 export class NoParamForm extends Component {
   static propTypes = transformProps;
 
@@ -35,19 +34,25 @@ export class NoParamForm extends Component {
     );
   }
 }
+NoParamForm = Radium(NoParamForm);
 
 function mapStateToProps(state, props) {
   const { dropSourceField } = props.initialValues;
   return {
     initialValues: {
-      dataType: (props.toType || '').toUpperCase(),
+      dataType: (props.toType || "").toUpperCase(),
       newFieldName: props.columnName,
-      dropSourceField: dropSourceField !== undefined ? dropSourceField : true
-    }
+      dropSourceField: dropSourceField !== undefined ? dropSourceField : true,
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'noParamForm',
-  fields: ['newFieldName', 'dropSourceField', 'dataType']
-}, [], mapStateToProps, null)(NoParamForm);
+export default connectComplexForm(
+  {
+    form: "noParamForm",
+    fields: ["newFieldName", "dropSourceField", "dataType"],
+  },
+  [],
+  mapStateToProps,
+  null
+)(NoParamForm);

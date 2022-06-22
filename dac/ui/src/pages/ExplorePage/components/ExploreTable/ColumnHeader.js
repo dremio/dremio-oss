@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { Cell } from 'fixed-data-table-2';
-import { SelectView } from '@app/components/Fields/SelectView';
+import { PureComponent } from "react";
+import { Cell } from "fixed-data-table-2";
+import { SelectView } from "@app/components/Fields/SelectView";
 
-import Radium from 'radium';
-import PropTypes from 'prop-types';
+import Radium from "radium";
+import PropTypes from "prop-types";
 
-import DragSource from 'components/DragComponents/DragSource';
-import ColumnActionMenu from 'components/Menus/ExplorePage/ColumnActionMenu';
-import ColumnTypeMenu from 'components/Menus/ExplorePage/ColumnTypeMenu';
-import FontIcon from 'components/Icon/FontIcon';
-import { overlay } from '@app/uiTheme/radium/overlay';
+import DragSource from "components/DragComponents/DragSource";
+import ColumnActionMenu from "components/Menus/ExplorePage/ColumnActionMenu";
+import ColumnTypeMenu from "components/Menus/ExplorePage/ColumnTypeMenu";
+import FontIcon from "components/Icon/FontIcon";
+import { overlay } from "@app/uiTheme/radium/overlay";
 
-import { EXPLORE_HOVER_COLOR } from 'uiTheme/radium/colors';
+import { EXPLORE_HOVER_COLOR } from "uiTheme/radium/colors";
 
-import { typeToIconType, BINARY, MIXED } from '@app/constants/DataTypes';
-import Keys from '@app/constants/Keys.json';
+import { typeToIconType, BINARY, MIXED } from "@app/constants/DataTypes";
+import Keys from "@app/constants/Keys.json";
 
 const MAX_COLUMN_NAME_LENTH = 62;
 const ACTION_MENU_WIDTH = 24;
 const COLUMN_HEIGHT = 24;
 const MARGIN_RIGHT = 5;
 
-@Radium
-export default class ColumnHeader extends PureComponent {
+export class ColumnHeader extends PureComponent {
   static propTypes = {
     pageType: PropTypes.string,
     defaultColumnWidth: PropTypes.number,
@@ -49,28 +48,35 @@ export default class ColumnHeader extends PureComponent {
     query: PropTypes.object,
     isDumbTable: PropTypes.bool,
     columnsCount: PropTypes.number,
+    isEdited: PropTypes.bool,
 
     updateColumnName: PropTypes.func.isRequired,
     makeTransform: PropTypes.func.isRequired,
     openDetailsWizard: PropTypes.func,
-    preconfirmTransform: PropTypes.func.isRequired
+    preconfirmTransform: PropTypes.func.isRequired,
   };
 
   forceFocus = false; // eslint-disable-line react/sort-comp
 
-  static emulateAutoPosition(anchor, target, targetOrigin, anchorOrigin, targetPosition) {
+  static emulateAutoPosition(
+    anchor,
+    target,
+    targetOrigin,
+    anchorOrigin,
+    targetPosition
+  ) {
     const move = targetPosition.top + target.bottom - window.innerHeight;
     return {
       top: move > 0 ? targetPosition.top - move - 10 : targetPosition.top,
       bottom: 0,
-      left: targetPosition.left
+      left: targetPosition.left,
     };
   }
 
   static getDragData(name) {
     return {
-      type: 'columnName',
-      data: {name}
+      type: "columnName",
+      data: { name },
     };
   }
 
@@ -79,28 +85,25 @@ export default class ColumnHeader extends PureComponent {
       return false;
     }
     const { column } = this.props;
-    if (type === 'MIXED') {
-      this.props.openDetailsWizard({detailType: 'SINGLE_DATA_TYPE', columnName: column.name});
+    if (type === "MIXED") {
+      this.props.openDetailsWizard({
+        detailType: "SINGLE_DATA_TYPE",
+        columnName: column.name,
+      });
     } else {
       this.setState({
         openType: true,
-        anchorElType: event.currentTarget
+        anchorElType: event.currentTarget,
       });
     }
   }
 
   isActionsPrevented() {
-    return this.props.pageType !== 'default' || this.props.isDumbTable;
-  }
-
-  replaceLibraryPositionMethodsWithOwn() {
-    // TODO: move this logic to separate place with popover
-    if (this.refs.menu) {
-      this.refs.menu.applyAutoPositionIfNeeded = ColumnHeader.emulateAutoPosition;
-    }
-    if (this.refs.menuType) {
-      this.refs.menuType.applyAutoPositionIfNeeded = ColumnHeader.emulateAutoPosition;
-    }
+    return (
+      this.props.pageType !== "default" ||
+      this.props.isDumbTable ||
+      this.props.isEdited
+    );
   }
 
   handleFocus = () => {
@@ -115,7 +118,7 @@ export default class ColumnHeader extends PureComponent {
         if (this.input) {
           this.input.blur();
         }
-        this.props.preconfirmTransform().then(() => {
+        return this.props.preconfirmTransform().then(() => {
           this.forceFocus = true;
           if (this.input) {
             this.input.focus();
@@ -124,6 +127,7 @@ export default class ColumnHeader extends PureComponent {
           setTimeout(() => {
             this.forceFocus = false;
           }, 0);
+          return null;
         });
       }, 0);
     }
@@ -135,9 +139,10 @@ export default class ColumnHeader extends PureComponent {
     }
   }
 
-  handleKeyPress(name, e) { // todo: switch to KeyboardEvent.code (w/ polyfill)
+  handleKeyPress(name, e) {
+    // todo: switch to KeyboardEvent.code (w/ polyfill)
     if (e.keyCode === Keys.ENTER) {
-      this.handleUpdateColumnName(name, e);
+      // removed call to handleUpdateColumnName to prevent double-firing transformAndPreview
       this.input.blur();
     } else if (e.keyCode === Keys.ESCAPE) {
       this.input.value = name;
@@ -157,56 +162,67 @@ export default class ColumnHeader extends PureComponent {
       width: !this.isActionsPrevented()
         ? cellWidth - MAX_COLUMN_NAME_LENTH + MARGIN_RIGHT
         : cellWidth - MAX_COLUMN_NAME_LENTH + ACTION_MENU_WIDTH + MARGIN_RIGHT,
-      userSelect: this.props.isResizeInProgress ? 'none' : 'initial',
+      userSelect: this.props.isResizeInProgress ? "none" : "initial",
       ...styles.inputStyle,
-      textDecoration: column.status === 'DELETED' ? 'line-through' : 'none'
+      textDecoration: column.status === "DELETED" ? "line-through" : "none",
     };
     return (
       <input
-        className='cell'
-        ref={(input) => this.input = input}
-        type='text'
+        className="cell"
+        ref={(input) => (this.input = input)}
+        type="text"
         disabled={this.isActionsPrevented() || this.props.isResizeInProgress}
-        autoComplete='off'
-        data-lpignore='true' // for lastpass: DX-9664 Password auto-complete icons show up in our column headers
+        autoComplete="off"
+        data-lpignore="true" // for lastpass: DX-9664 Password auto-complete icons show up in our column headers
         style={style}
         id={`cell${column.name}`}
         contentEditable
         onFocus={this.handleFocus}
         onKeyDown={this.handleKeyPress.bind(this, column.name)}
         onBlur={this.handleUpdateColumnName.bind(this, column.name)}
-        defaultValue={label}/>
+        defaultValue={label}
+      />
     );
   }
 
   renderColumnIcon(type, label) {
-    if (type === '?') {
-      return <span
-        className='type'
-        id={`${label} + type`}
-        style={styles.other}>?</span>;
+    if (type === "?") {
+      return (
+        <span className="type" id={`${label} + type`} style={styles.other}>
+          ?
+        </span>
+      );
     }
 
     const { isDumbTable, openDetailsWizard, column } = this.props;
-    const canClick = !this.isActionsPrevented() && !isDumbTable && type !== BINARY; // disable binary type conversions pending DX-5159
+    const canClick =
+      !this.isActionsPrevented() && !isDumbTable && type !== BINARY; // disable binary type conversions pending DX-5159
 
     const iconProps = {
       type: typeToIconType[type],
-      tooltip: (canClick) ? la('Change type') : la('Data type'),
+      tooltip: canClick ? la("Change type") : la("Data type"),
       theme: styles.typeColumn,
       id: `${label} + type`,
-      'class': 'type'
+      class: "type",
     };
 
     if (!canClick) {
-      return <FontIcon {...iconProps} style={{ cursor: 'default' }} />;
+      return <FontIcon {...iconProps} style={{ cursor: "default" }} />;
     }
 
     if (type === MIXED) {
-      return <FontIcon {...iconProps}
-        onClick={() => openDetailsWizard({detailType: 'SINGLE_DATA_TYPE', columnName: column.name})} />;
+      return (
+        <FontIcon
+          {...iconProps}
+          onClick={() =>
+            openDetailsWizard({
+              detailType: "SINGLE_DATA_TYPE",
+              columnName: column.name,
+            })
+          }
+        />
+      );
     }
-
 
     return (
       <SelectView
@@ -215,18 +231,17 @@ export default class ColumnHeader extends PureComponent {
         useLayerForClickAway={false}
         listStyle={styles.popoverAnimation}
       >
-        {
-          ({ closeDD }) => (
-            <div style={styles.popover}>
-              <ColumnTypeMenu
-                columnType={column.type}
-                columnName={column.name}
-                hideDropdown={closeDD}
-                openDetailsWizard={openDetailsWizard}
-                makeTransform={this.props.makeTransform}/>
-            </div>
-          )
-        }
+        {({ closeDD }) => (
+          <div style={styles.popover}>
+            <ColumnTypeMenu
+              columnType={column.type}
+              columnName={column.name}
+              hideDropdown={closeDD}
+              openDetailsWizard={openDetailsWizard}
+              makeTransform={this.props.makeTransform}
+            />
+          </div>
+        )}
       </SelectView>
     );
   }
@@ -236,43 +251,26 @@ export default class ColumnHeader extends PureComponent {
 
     return (
       <SelectView
-        content={
-          ({ isOpen }) => {
-            const preventHoverStyle = this.isActionsPrevented()
-              ? {...styles.arrowDown.Container, ':hover': {}}
-              : {};
-            const activeStyle = isOpen()
-              ? { Container: {...styles.arrowDown.Container, backgroundColor: EXPLORE_HOVER_COLOR} }
-              : { Container: {...styles.arrowDown.Container, ...preventHoverStyle} };
-            return (
-              <FontIcon
-                theme={activeStyle}
-                type='Arrow-Down-Small'
-                key={column.name}/>
-            );
-          }
-        }
+        content={<dremio-icon name="interface/more" class="action-menu-icon" />}
         hideExpandIcon
         listRightAligned
         useLayerForClickAway={false}
         listStyle={styles.popoverAnimation}
       >
-        {
-          ({ closeDD }) => (
-            <div style={styles.popover}>
-              <ColumnActionMenu
-                columnType={column.type}
-                columnName={column.name}
-                hideDropdown={closeDD}
-                columnsCount={this.props.columnsCount}
-                openDetailsWizard={this.props.openDetailsWizard}
-                makeTransform={this.props.makeTransform}
-                disabledButtons={[]}
-                onRename={this.handleRenameAction}
-              />
-            </div>
-          )
-        }
+        {({ closeDD }) => (
+          <div style={styles.popover}>
+            <ColumnActionMenu
+              columnType={column.type}
+              columnName={column.name}
+              hideDropdown={closeDD}
+              columnsCount={this.props.columnsCount}
+              openDetailsWizard={this.props.openDetailsWizard}
+              makeTransform={this.props.makeTransform}
+              disabledButtons={[]}
+              onRename={this.handleRenameAction}
+            />
+          </div>
+        )}
       </SelectView>
     );
   }
@@ -287,11 +285,9 @@ export default class ColumnHeader extends PureComponent {
           nativeDragData={ColumnHeader.getDragData(label)}
           preventDrag={this.props.isResizeInProgress}
           dragType={this.props.dragType}
-          id={label}>
-          <div
-            data-qa={label}
-            key={label}
-            style={styles.wrapperColumn}>
+          id={label}
+        >
+          <div data-qa={label} key={label} style={styles.wrapperColumn}>
             <div style={styles.colWrap}>
               {this.renderColumnIcon(type, label)}
               {this.renderEditableColumnName(column, label, width)}
@@ -307,73 +303,69 @@ export default class ColumnHeader extends PureComponent {
 const styles = {
   inputStyle: {
     height: COLUMN_HEIGHT,
-    border: 'none',
-    position: 'static',
-    alignText: 'center',
-    backgroundColor: 'transparent',
-    marginRight: 0
+    border: "none",
+    position: "static",
+    alignText: "center",
+    backgroundColor: "transparent",
+    marginRight: 0,
   },
   popoverAnimation: {
     // need this because of the case where group by or join button overlays column action menu
     zIndex: overlay.zIndex + 1, // to show a menu above spinner, as spinner should not block headers anymore. Previous value was 2
     transition: `transform 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms,
                  opacity 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms,
-                 top 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms`
+                 top 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms`,
   },
   colWrap: {
-    display: 'flex'
+    display: "flex",
   },
   typeMixed: {
-    'Icon': {
-      height: 18,
-      width: 24,
-      position: 'relative',
-      marginLeft: -1,
-      top: 3,
-      cursor: 'pointer',
-      color: '#FFBB57'
-    }
+    Icon: {
+      height: 16,
+      width: 16,
+      position: "relative",
+      color: "#FFBB57",
+    },
   },
   typeLabel: {
-    cursor: 'pointer',
-    textTransform: 'capitalize',
-    paddingTop: 5
+    cursor: "pointer",
+    textTransform: "capitalize",
+    paddingTop: 5,
   },
   popover: {
     padding: 0,
-    width: 168
+    width: 168,
   },
   typeColumn: {
-    'Icon': {
-      height: 18,
-      width: 24,
-      marginLeft: -2,
-      position: 'relative',
-      top: 3
-    }
+    Icon: {
+      height: 16,
+      width: 16,
+      backgroundPosition: "center",
+    },
   },
   wrapperColumn: {
-    position: 'static',
-    display: 'flex',
-    justifyContent: 'space-between'
+    position: "static",
+    display: "flex",
+    justifyContent: "space-between",
   },
   other: {
-    position: 'relative',
+    position: "relative",
     top: 3,
     marginLeft: 5,
     marginRight: 3,
-    cursor: 'pointer',
-    opacity: 0.7
+    cursor: "pointer",
+    opacity: 0.7,
   },
   arrowDown: {
     Container: {
-      position: 'static',
-      float: 'right',
+      position: "static",
+      float: "right",
       height: 25,
-      cursor: 'pointer',
-      ':hover': {
-        backgroundColor: EXPLORE_HOVER_COLOR
-      }
-    }
-  }
+      cursor: "pointer",
+      ":hover": {
+        backgroundColor: EXPLORE_HOVER_COLOR,
+      },
+    },
+  },
 };
+export default Radium(ColumnHeader);

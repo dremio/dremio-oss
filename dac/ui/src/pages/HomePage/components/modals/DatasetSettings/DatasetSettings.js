@@ -13,42 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { createSelector } from 'reselect';
-import { injectIntl } from 'react-intl';
-import { LINE_NOROW_START_STRETCH } from 'uiTheme/radium/flexStyle';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { createSelector } from "reselect";
+import { injectIntl } from "react-intl";
+import { LINE_NOROW_START_STRETCH } from "uiTheme/radium/flexStyle";
 
-import { loadDatasetForDatasetType } from 'actions/resources';
+import { loadDatasetForDatasetType } from "actions/resources";
 
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import { getViewState, getEntity } from 'selectors/resources';
-import { getHomeEntityOrChild } from '@app/selectors/home';
+import ViewStateWrapper from "components/ViewStateWrapper";
+import { getViewState, getEntity } from "selectors/resources";
+import { getHomeEntityOrChild } from "@app/selectors/home";
 
+import AccelerationController from "components/Acceleration/AccelerationController";
 
-import AccelerationController from 'components/Acceleration/AccelerationController';
+import DatasetSettingsMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin";
 
-import DatasetSettingsMixin from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin';
+import { showUnsavedChangesConfirmDialog } from "actions/confirmation";
 
-import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
+import NavPanel from "components/Nav/NavPanel";
+import FileFormatController from "./FileFormatController";
+import AccelerationUpdatesController from "./AccelerationUpdates/AccelerationUpdatesController";
+import DatasetOverviewForm from "./DatasetOverviewForm";
 
-import NavPanel from 'components/Nav/NavPanel';
-import FileFormatController from './FileFormatController';
-import AccelerationUpdatesController from './AccelerationUpdates/AccelerationUpdatesController';
-import DatasetOverviewForm from './DatasetOverviewForm';
+const DATASET_SETTINGS_VIEW_ID = "DATASET_SETTINGS_VIEW_ID";
 
-const DATASET_SETTINGS_VIEW_ID = 'DATASET_SETTINGS_VIEW_ID';
-
-@injectIntl
-@Radium
 @DatasetSettingsMixin
 export class DatasetSettings extends PureComponent {
   static contextTypes = {
     router: PropTypes.object,
-    location: PropTypes.object
+    location: PropTypes.object,
   };
 
   static propTypes = {
@@ -63,35 +59,39 @@ export class DatasetSettings extends PureComponent {
     hide: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
-    loadDatasetForDatasetType: PropTypes.func.isRequired
+    loadDatasetForDatasetType: PropTypes.func.isRequired,
   };
 
   state = {
-    isFormDirty: false
+    isFormDirty: false,
   };
 
   componentWillMount() {
-    const {datasetUrl, datasetType} = this.props;
+    const { datasetUrl, datasetType } = this.props;
     if (datasetUrl) {
-      this.props.loadDatasetForDatasetType(
-        datasetType,
-        datasetUrl,
-        DATASET_SETTINGS_VIEW_ID
-      ).then((response) => {
-        if (!response.error) {
-          const entity = response.payload.get('entities');
-          const entityType = entity.keySeq().first();
-          const entityId = response.payload.get('result');
-          const { location } = this.props;
-          this.context.router.replace({
-            ...location, state: {
-              ...location.state,
-              entityType,
-              entityId
-            }
-          });
-        }
-      });
+      return this.props
+        .loadDatasetForDatasetType(
+          datasetType,
+          datasetUrl,
+          DATASET_SETTINGS_VIEW_ID
+        )
+        .then((response) => {
+          if (!response.error) {
+            const entity = response.payload.get("entities");
+            const entityType = entity.keySeq().first();
+            const entityId = response.payload.get("result");
+            const { location } = this.props;
+            this.context.router.replace({
+              ...location,
+              state: {
+                ...location.state,
+                entityType,
+                entityId,
+              },
+            });
+          }
+          return null;
+        });
     }
   }
 
@@ -99,17 +99,19 @@ export class DatasetSettings extends PureComponent {
     const { location, tab } = this.props;
     if (!tab) {
       this.context.router.replace({
-        ...location, state: {
+        ...location,
+        state: {
           ...location.state,
-          tab: this.getTabs().keySeq().first()
-        }
+          tab: this.getTabs().keySeq().first(),
+        },
       });
     }
   }
 
   getActiveTab() {
     let { tab } = this.props;
-    if (!tab) { // go to a default
+    if (!tab) {
+      // go to a default
       const first = this.getTabs().keySeq().first();
       if (first) {
         tab = first;
@@ -119,23 +121,31 @@ export class DatasetSettings extends PureComponent {
   }
 
   updateFormDirtyState = (isFormDirty) => {
-    this.setState({isFormDirty}, () => this.props.updateFormDirtyState(isFormDirty));
+    this.setState({ isFormDirty }, () =>
+      this.props.updateFormDirtyState(isFormDirty)
+    );
   };
 
   handleChangeTab = (tab) => {
     const { location } = this.props;
     const confirm = () => {
-      this.context.router.push({...location, state: {...location.state, tab}});
+      this.context.router.push({
+        ...location,
+        state: { ...location.state, tab },
+      });
       this.updateFormDirtyState(false);
     };
     if (this.state.isFormDirty) {
-      this.props.showUnsavedChangesConfirmDialog({confirm});
+      this.props.showUnsavedChangesConfirmDialog({ confirm });
     } else {
       confirm();
     }
   };
 
-  getFullPath = createSelector(fullPathImmutable => fullPathImmutable, path => path ? path.toJS() : null);
+  getFullPath = createSelector(
+    (fullPathImmutable) => fullPathImmutable,
+    (path) => (path ? path.toJS() : null)
+  );
 
   renderContent() {
     const { hide, location, entity } = this.props;
@@ -147,41 +157,53 @@ export class DatasetSettings extends PureComponent {
     const commonProps = {
       onCancel: hide, // slowing getting off of needing this one
       onDone: hide,
-      location
+      location,
     };
 
     let contentRenderers = {
       format: () => {
-        return <FileFormatController
-          onDone={hide}
-          updateFormDirtyState={this.updateFormDirtyState}
-          entityType={entity.get('entityType')}
-          fullPath={entity ? this.getFullPath(entity.get('fullPathList')) : null}
-          query={location.state.query}
-        />;
+        return (
+          <FileFormatController
+            onDone={hide}
+            updateFormDirtyState={this.updateFormDirtyState}
+            entityType={entity.get("entityType")}
+            fullPath={
+              entity ? this.getFullPath(entity.get("fullPathList")) : null
+            }
+            query={location.state.query}
+          />
+        );
       },
       acceleration: () => {
-        return <AccelerationController
-          {...commonProps}
-          updateFormDirtyState={this.updateFormDirtyState}
-          onDone={hide}
-          datasetId={entity.get('id')}
-        />;
+        return (
+          <AccelerationController
+            {...commonProps}
+            updateFormDirtyState={this.updateFormDirtyState}
+            onDone={hide}
+            datasetId={entity.get("id")}
+          />
+        );
       },
       accelerationUpdates: () => {
         // TODO refactor - uses only: id, fullPathList, entityType
-        return <AccelerationUpdatesController
-          updateFormDirtyState={this.updateFormDirtyState}
-          entity={entity}
-          {...commonProps} />;
+        return (
+          <AccelerationUpdatesController
+            updateFormDirtyState={this.updateFormDirtyState}
+            entity={entity}
+            {...commonProps}
+          />
+        );
       },
       overview: () => {
         // TODO refactor - uses only: name, fullPathList, fileType, queryable
-        return <DatasetOverviewForm {...commonProps} entity={entity}/>;
-      }
+        return <DatasetOverviewForm {...commonProps} entity={entity} />;
+      },
     };
 
-    contentRenderers = this.extendContentRenderers(contentRenderers, commonProps);
+    contentRenderers = this.extendContentRenderers(
+      contentRenderers,
+      commonProps
+    );
     const activeTab = this.getActiveTab();
     return contentRenderers[activeTab] && contentRenderers[activeTab]();
   }
@@ -190,11 +212,15 @@ export class DatasetSettings extends PureComponent {
     const { viewState } = this.props;
 
     return (
-      <div style={[LINE_NOROW_START_STRETCH, {height: '100%'}]} data-qa='dataset-settings'>
+      <div
+        style={{ ...LINE_NOROW_START_STRETCH, height: "100%" }}
+        data-qa="dataset-settings"
+      >
         <NavPanel
           changeTab={this.handleChangeTab}
           activeTab={this.getActiveTab()}
-          tabs={this.getTabs()}/>
+          tabs={this.getTabs()}
+        />
         <ViewStateWrapper viewState={viewState} style={styles.wrap}>
           {this.renderContent()}
         </ViewStateWrapper>
@@ -202,6 +228,7 @@ export class DatasetSettings extends PureComponent {
     );
   }
 }
+DatasetSettings = injectIntl(DatasetSettings);
 
 const mapStateToProps = (state, { isHomePage }) => {
   const location = state.routing.locationBeforeTransitions;
@@ -216,20 +243,20 @@ const mapStateToProps = (state, { isHomePage }) => {
   return {
     location,
     entity: entityId && finalEntitySelector(state, entityId, entityType),
-    viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID)
+    viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID),
   };
 };
 
 export default connect(mapStateToProps, {
   loadDatasetForDatasetType,
-  showUnsavedChangesConfirmDialog
+  showUnsavedChangesConfirmDialog,
 })(DatasetSettings);
 
 const styles = {
   wrap: {
-    width: '100%',
-    height: '100%',
-    overflow: 'auto', // just in case
-    position: 'relative' // todo: somehow makes acceleration form render buttons correctly
-  }
+    width: "100%",
+    height: "100%",
+    overflow: "auto", // just in case
+    position: "relative", // todo: somehow makes acceleration form render buttons correctly
+  },
 };

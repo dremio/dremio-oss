@@ -13,38 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { injectIntl } from "react-intl";
 
+import { getViewState } from "selectors/resources";
+import { getSpaceVersion, getSpaceName, getSpace } from "@app/selectors/home";
+import Modal from "components/Modals/Modal";
+import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
 
-import { getViewState } from 'selectors/resources';
-import { getSpaceVersion, getSpaceName, getSpace } from '@app/selectors/home';
-import Modal from 'components/Modals/Modal';
-import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
+import ApiUtils from "utils/apiUtils/apiUtils";
+import {
+  createNewSpace,
+  updateSpace,
+  updateSpacePrivileges,
+} from "actions/resources/spaces";
 
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import { createNewSpace, updateSpace, updateSpacePrivileges } from 'actions/resources/spaces';
+import {
+  getSpaceUpdated,
+  getAdminStatus,
+} from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
+import SpaceForm from "../forms/SpaceForm";
+import "./Modal.less";
 
-import { getSpaceUpdated } from 'dyn-load/pages/HomePage/components/modals/SpaceModalMixin';
-import SpaceForm from '../forms/SpaceForm';
-import './Modal.less';
-
-export const VIEW_ID = 'SpaceModal';
+export const VIEW_ID = "SpaceModal";
 
 const mapStateToProps = (state, { entityId }) => {
   return {
     spaceName: getSpaceName(state, entityId),
     spaceVersion: getSpaceVersion(state, entityId),
     viewState: getViewState(state, VIEW_ID),
-    space: getSpace(state, entityId)
+    space: getSpace(state, entityId),
+    isAdmin: getAdminStatus(state),
   };
 };
 
 @injectIntl
 export class SpaceModal extends Component {
-
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
@@ -59,48 +65,65 @@ export class SpaceModal extends Component {
     updateSpacePrivileges: PropTypes.func,
     initialFormValues: PropTypes.object,
     updateFormDirtyState: PropTypes.func,
-    intl: PropTypes.object.isRequired
-  }
+    intl: PropTypes.object.isRequired,
+  };
 
   static contextTypes = {
-    username: PropTypes.string
-  }
+    username: PropTypes.string,
+  };
 
   hide = () => {
     this.props.hide();
-  }
+  };
 
   submit = (values) => {
     return ApiUtils.attachFormSubmitHandlers(
       getSpaceUpdated(values, this.props)
     ).then(() => this.props.hide(null, true));
-  }
+  };
 
   renderForm() {
-    const { entityId, spaceName, spaceVersion, initialFormValues, updateFormDirtyState } = this.props;
+    const {
+      entityId,
+      spaceName,
+      spaceVersion,
+      initialFormValues,
+      updateFormDirtyState,
+    } = this.props;
 
-    return <SpaceForm
-      initialValues={entityId ? {
-        name: spaceName,
-        version: spaceVersion,
-        id: entityId,
-        ...initialFormValues
-      } : null}
-      updateFormDirtyState={updateFormDirtyState}
-      editing={entityId !== undefined}
-      onFormSubmit={this.submit}
-      onCancel={this.hide}
-    />;
+    return (
+      <SpaceForm
+        initialValues={
+          entityId
+            ? {
+                name: spaceName,
+                version: spaceVersion,
+                id: entityId,
+                ...initialFormValues,
+              }
+            : null
+        }
+        updateFormDirtyState={updateFormDirtyState}
+        editing={entityId !== undefined}
+        onFormSubmit={this.submit}
+        onCancel={this.hide}
+      />
+    );
   }
 
   render() {
     const { isOpen, entityId, intl } = this.props;
     return (
       <Modal
-        size='large'
-        title={entityId ? intl.formatMessage({ id: 'Space.EditSpace' }) : intl.formatMessage({ id: 'Space.AddSpace' })}
+        size="large"
+        title={
+          entityId
+            ? intl.formatMessage({ id: "Space.EditSpace" })
+            : intl.formatMessage({ id: "Space.AddSpace" })
+        }
         isOpen={isOpen}
-        hide={this.hide}>
+        hide={this.hide}
+      >
         {this.renderForm()}
       </Modal>
     );
@@ -110,5 +133,5 @@ export class SpaceModal extends Component {
 export default connect(mapStateToProps, {
   createNewSpace,
   updateSpace,
-  updateSpacePrivileges
+  updateSpacePrivileges,
 })(FormUnsavedWarningHOC(SpaceModal));

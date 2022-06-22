@@ -13,46 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import {
-  SET_JOB_LIST_CLUSTER_TYPE
-} from 'actions/joblist/jobList';
+import { SET_JOB_LIST_CLUSTER_TYPE } from "actions/joblist/jobList";
 
-import jobsListReducer from './jobList';
+import jobsListReducer from "./jobList";
 
-describe('jobs reducer', () => {
+describe("jobs reducer", () => {
   const initialState = Immutable.fromJS({
     jobDetails: {
-      outputRecords: 10
+      outputRecords: 10,
     },
     jobs: [
       {
-        id: 'a-b-c-d',
-        datasetVersion: '123',
-        state: 'RUNNING',
-        datasetPathList: ['myspace', 'foo'],
-        datasetType: 'VIRTUAL_DATASET'
-      }
-    ]
+        id: "a-b-c-d",
+        datasetVersion: "123",
+        state: "RUNNING",
+        datasetPathList: ["myspace", "foo"],
+        datasetType: "VIRTUAL_DATASET",
+      },
+    ],
   });
 
-  it('returns unaltered state by default', () => {
-    const result = jobsListReducer(initialState, { type: 'bla' });
+  it("returns unaltered state by default", () => {
+    const result = jobsListReducer(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  describe('SET_JOB_LIST_CLUSTER_TYPE', () => {
-    it('should update cluster type', () => {
+  describe("SET_JOB_LIST_CLUSTER_TYPE", () => {
+    it("should update cluster type", () => {
       const result = jobsListReducer(initialState, {
         type: SET_JOB_LIST_CLUSTER_TYPE,
         payload: {
-          clusterType: 'yarn',
-          isSupport: true
-        }
+          clusterType: "yarn",
+          isSupport: true,
+        },
       });
-      expect(result.get('clusterType')).to.eql('yarn');
-      expect(result.get('isSupport')).to.eql(true);
+      expect(result.get("clusterType")).to.eql("yarn");
+      expect(result.get("isSupport")).to.eql(true);
     });
   });
 });

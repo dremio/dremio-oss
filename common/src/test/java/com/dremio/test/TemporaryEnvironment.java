@@ -29,8 +29,8 @@ import com.dremio.common.SuppressForbidden;
  * Automatically restores original environment state on cleanup.
  */
 public class TemporaryEnvironment extends ExternalResource {
-  private final static Map<String, String> WRITABLE_ENVIRONMENT = getWritableEnvironment();
-  private final static Map<String, String> ORIGINAL_ENVIRONMENT = new HashMap<>(WRITABLE_ENVIRONMENT);
+  private static final Map<String, String> WRITABLE_ENVIRONMENT = getWritableEnvironment();
+  private static final Map<String, String> ORIGINAL_ENVIRONMENT = new HashMap<>(WRITABLE_ENVIRONMENT);
 
   @SuppressForbidden
   private static Map<String, String> getWritableEnvironment() {

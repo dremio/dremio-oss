@@ -13,29 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-import { replace } from 'react-router-redux';
-import uuid from 'uuid';
+import { RSAA } from "redux-api-middleware";
+import { replace } from "react-router-redux";
+import uuid from "uuid";
 
-import schemaUtils from 'utils/apiUtils/schemaUtils';
-import exploreUtils from 'utils/explore/exploreUtils';
+import schemaUtils from "utils/apiUtils/schemaUtils";
+import exploreUtils from "utils/explore/exploreUtils";
 
-import previewTableSchema from 'schemas/previewTable';
-import apiUtils from '@app/utils/apiUtils/apiUtils';
-import { APIV2Call } from '@app/core/APICall';
+import previewTableSchema from "schemas/previewTable";
+import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { APIV2Call } from "@app/core/APICall";
 
-export const TRANSFORM_PEEK_START   = 'TRANSFORM_PEEK_START';
-export const TRANSFORM_PEEK_SUCCESS = 'TRANSFORM_PEEK_SUCCESS';
-export const TRANSFORM_PEEK_FAILURE = 'TRANSFORM_PEEK_FAILURE';
+export const TRANSFORM_PEEK_START = "TRANSFORM_PEEK_START";
+export const TRANSFORM_PEEK_SUCCESS = "TRANSFORM_PEEK_SUCCESS";
+export const TRANSFORM_PEEK_FAILURE = "TRANSFORM_PEEK_FAILURE";
 
-export const transformPeek = (dataset, values, detailType, viewId, submitType) =>
-  (dispatch) => dispatch(transformPeekFetch(dataset, values, detailType, viewId, submitType));
+export const transformPeek =
+  (dataset, values, detailType, viewId, submitType) => (dispatch) =>
+    dispatch(
+      transformPeekFetch(dataset, values, detailType, viewId, submitType)
+    );
 
 function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
   const href = exploreUtils.getTransformPeekHref(dataset);
   const body = exploreUtils.getMappedDataForTransform(values, detailType);
   const peekId = uuid.v4();
-  const uiPropsForEntity = [{ key: 'id', value: peekId }];
+  const uiPropsForEntity = [{ key: "id", value: peekId }];
   const meta = { viewId, peekId, submitType };
 
   const apiCall = new APIV2Call().fullpath(href);
@@ -45,23 +48,29 @@ function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
       types: [
         { type: TRANSFORM_PEEK_START, meta },
         schemaUtils.getSuccessActionTypeWithSchema(
-          TRANSFORM_PEEK_SUCCESS, previewTableSchema, meta, uiPropsForEntity),
-        { type: TRANSFORM_PEEK_FAILURE, meta }
+          TRANSFORM_PEEK_SUCCESS,
+          previewTableSchema,
+          meta,
+          uiPropsForEntity
+        ),
+        { type: TRANSFORM_PEEK_FAILURE, meta },
       ],
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        ...apiUtils.getJobDataNumbersAsStringsHeader()
+        "Content-Type": "application/json",
+        ...apiUtils.getJobDataNumbersAsStringsHeader(),
       },
       body: JSON.stringify(body),
-      endpoint: apiCall
-    }
+      endpoint: apiCall,
+    },
   };
 }
-export const navigateToTransformPeek = (peekId) =>
-  (dispatch, getState) => {
-    const location = getState().routing.locationBeforeTransitions;
-    return dispatch(
-      replace({...location, state: {...location.state, previewVersion: peekId}})
-    );
-  };
+export const navigateToTransformPeek = (peekId) => (dispatch, getState) => {
+  const location = getState().routing.locationBeforeTransitions;
+  return dispatch(
+    replace({
+      ...location,
+      state: { ...location.state, previewVersion: peekId },
+    })
+  );
+};

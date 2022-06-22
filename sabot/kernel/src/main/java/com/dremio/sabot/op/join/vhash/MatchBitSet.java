@@ -27,11 +27,11 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class MatchBitSet implements AutoCloseable {
 
-  private final static int LONG_TO_BITS_SHIFT = 6;
-  private final static int LONG_TO_BYTE_SHIFT = 3;
-  private final static int BIT_OFFSET_MASK = (1 << LONG_TO_BITS_SHIFT) - 1;
-  private final static int WORD_MASK = (Integer.MAX_VALUE >>> LONG_TO_BITS_SHIFT) << LONG_TO_BITS_SHIFT;
-  private final static int BYTES_PER_WORD = 8;
+  private static final int LONG_TO_BITS_SHIFT = 6;
+  private static final int LONG_TO_BYTE_SHIFT = 3;
+  private static final int BIT_OFFSET_MASK = (1 << LONG_TO_BITS_SHIFT) - 1;
+  private static final int WORD_MASK = (Integer.MAX_VALUE >>> LONG_TO_BITS_SHIFT) << LONG_TO_BITS_SHIFT;
+  private static final int BYTES_PER_WORD = 8;
 
   // A buffer allocated by allocator to store the bits
   private final ArrowBuf buffer;

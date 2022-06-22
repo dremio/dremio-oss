@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- @import "~@app/uiTheme/less/variables.less";
- @import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/mixins.less";
 
- :global {
+:global {
   .column-draggable-icon {
     display: none;
     top: -12px;
@@ -52,18 +52,23 @@
 }
 
 .content {
-  composes: table-row from '~@app/uiTheme/less/forms.less';
+  composes: table-row from "~@app/uiTheme/less/forms.less";
   position: relative;
   border: 1px solid transparent;
+  min-height: 32px;
+  height: inherit;
   margin-left: 24px;
   margin-right: 5px;
-  cursor: move;
-  width: calc(100% - 29px); 
+  width: calc(100% - 29px);
   overflow: hidden;
 
+  &.--panel {
+    width: 100%;
+  }
+
   &:hover {
-    .dragged-item-mixin();
-    box-shadow: 0 0 4px 0 @TABLE_BORDER;
+    background: @FIGMA_PRIMARY_100;
+    border-radius: 4px;
 
     .dataset-add {
       cursor: pointer;
@@ -72,16 +77,16 @@
   }
 }
 
-
 .dataset-add {
-  filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg) brightness(91%) contrast(85%);
-  height: 1.6rem;
+  filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg)
+    brightness(91%) contrast(85%);
+  height: 2.4rem;
   opacity: 0;
   transition: 300ms ease all;
-  width: 1.6rem;
+  width: 2.4rem;
 
   &:hover {
-    filter: invert(23%) sepia(91%) saturate(2296%) hue-rotate(165deg) brightness(99%) contrast(101%);
+    .gray-icon-hover();
   }
 }
 
@@ -99,5 +104,5 @@
   @size: 16px;
   width: @size;
   height: @size;
-  margin-left: 5px
+  margin-left: 5px;
 }

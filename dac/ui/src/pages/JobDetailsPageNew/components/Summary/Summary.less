@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-@font-size:16px;
-@line-height:20px;
-@font-weight:600;
+@font-size: 16px;
+@line-height: 20px;
+@font-weight: 600;
 :global {
   .summary {
     &__title {
       padding-top: 10px;
       padding-bottom: 15px;
-      color:@font-color1;
+      color: @font-color1;
       font-size: @font-size;
       font-weight: @font-weight;
       line-height: @line-height;
     }
     &__content {
       display: flex;
-      font-family: 'Inter var';
+      font-family: "Inter var";
       font-weight: 400;
     }
     &__contentHeader {
@@ -37,13 +37,18 @@
       padding-right: 10px;
       font-size: 14px;
       line-height: 24px;
-      color:@greyish-blue;
+      color: @greyish-blue;
     }
     &__contentValue {
       flex-basis: 50%;
       font-size: 14px;
       line-height: 20px;
       color: @liteSlate-grey;
+
+      &.outputLimited {
+        color: var(--dremio--color--neutral--300);
+        font-size: 12px;
+      }
     }
   }
 }

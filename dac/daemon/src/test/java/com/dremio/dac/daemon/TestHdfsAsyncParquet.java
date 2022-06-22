@@ -77,7 +77,7 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
  */
 public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   private static DACDaemon dremioDaemon;
   private static Binder dremioBinder;

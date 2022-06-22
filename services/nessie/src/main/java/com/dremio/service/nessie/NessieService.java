@@ -34,9 +34,8 @@ import org.projectnessie.versioned.persist.store.PersistVersionStore;
 
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.options.OptionManager;
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators;
 import com.dremio.service.Service;
+import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.nessie.grpc.server.ConfigService;
 import com.dremio.services.nessie.grpc.server.ContentService;
 import com.dremio.services.nessie.grpc.server.TreeService;
@@ -48,40 +47,35 @@ import io.grpc.BindableService;
 /**
  * Class that embeds Nessie into Dremio coordinator.
  */
-@Options
 public class NessieService implements Service {
-  private static final long COMMIT_TIMEOUT_MS_DEFAULT = 600000L; // 10 min
-
-  // A support option to override the maximum time when using NessieKVVersionStore.
-  // If this is not set, use the timeout supplied in the constructor.
-  public static final TypeValidators.PositiveLongValidator COMMIT_TIMEOUT_MS =
-    new TypeValidators.PositiveLongValidator("nessie.kvversionstore.commit_timeout_ms", Integer.MAX_VALUE, COMMIT_TIMEOUT_MS_DEFAULT);
-
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NessieService.class);
 
   private final Provider<KVStoreProvider> kvStoreProvider;
+  private final Provider<SchedulerService> schedulerServiceProvider;
   private final NessieConfig serverConfig;
+  private final Supplier<DatabaseAdapter> adapter;
   private final Supplier<VersionStore<Content, CommitMeta, Content.Type>> versionStoreSupplier;
   private final Supplier<org.projectnessie.api.TreeApi> treeApi;
   private final TreeService treeService;
   private final ContentService contentService;
   private final ConfigService configService;
-  private final Supplier<Long> kvStoreCommitTimeoutMsSupplier;
+  private final Provider<OptionManager> optionManagerProvider;
   private final Supplier<Boolean> isMaster;
 
   public NessieService(Provider<KVStoreProvider> kvStoreProvider,
                        Provider<OptionManager> optionManagerProvider,
+                       Provider<SchedulerService> schedulerServiceProvider,
                        boolean inMemoryBackend,
-                       long defaultKvStoreCommitTimeoutMs,
                        Supplier<Boolean> isMaster) {
     this.kvStoreProvider = kvStoreProvider;
+    this.schedulerServiceProvider = schedulerServiceProvider;
     this.serverConfig = new NessieConfig();
-    this.kvStoreCommitTimeoutMsSupplier = () ->  {
-      final long overriddenTimeout = optionManagerProvider.get().getOption(COMMIT_TIMEOUT_MS);
-      return overriddenTimeout != 0 ? overriddenTimeout : defaultKvStoreCommitTimeoutMs;
-    };
+    this.optionManagerProvider = optionManagerProvider;
 
-    this.versionStoreSupplier = Suppliers.memoize(() -> getVersionStore(inMemoryBackend));
+    final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
+    this.adapter = Suppliers.memoize(() -> createAdapter(inMemoryBackend, worker));
+    this.versionStoreSupplier = Suppliers.memoize(() -> new PersistVersionStore<>(adapter.get(), worker));
+
     this.treeApi = Suppliers.memoize(() -> new TreeApiImpl(serverConfig, versionStoreSupplier.get(), null, null));
     this.treeService = new TreeService(treeApi);
     this.contentService = new ContentService(Suppliers.memoize(() -> new ContentApiImpl(serverConfig, versionStoreSupplier.get(), null, null)));
@@ -99,8 +93,18 @@ public class NessieService implements Service {
   public void start() throws Exception {
     logger.info("Starting Nessie gRPC Services.");
 
-    // Get the version store here, so it is ready before the first request is received
-    versionStoreSupplier.get();
+    // Note: Nessie Service is also started on "scale-out" coordinators, but those nodes do not have direct
+    // access to the KVStore, so we skip repo init and maintenance work on those nodes.
+    // TODO: it probably makes sense to start Nessie Service only on master.
+    if (isMaster.get()) {
+      // Initialize the repository, so it is ready before the first request is received
+      adapter.get().initializeRepo(serverConfig.getDefaultBranch());
+
+      NessieRepoMaintenanceTask repoMaintenanceTask = new NessieRepoMaintenanceTask(
+        adapter.get(), optionManagerProvider.get());
+      repoMaintenanceTask.schedule(schedulerServiceProvider.get());
+    }
+
     logger.info("Started Nessie gRPC Services.");
   }
 
@@ -109,22 +113,28 @@ public class NessieService implements Service {
     logger.info("Stopping Nessie gRPC Service: Nothing to do");
   }
 
-  private VersionStore<Content, CommitMeta, Content.Type> getVersionStore(boolean inMemoryBackend) {
-    final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-    final NessieDatabaseAdapterConfig adapterCfg = new ImmutableNessieDatabaseAdapterConfig.Builder().setCommitTimeout(kvStoreCommitTimeoutMsSupplier.get()).build();
+  private DatabaseAdapter createAdapter(boolean inMemoryBackend, TableCommitMetaStoreWorker worker) {
+    final NessieDatabaseAdapterConfig adapterCfg = new NessieDatabaseAdapterConfig(optionManagerProvider);
     DatabaseAdapter adapter;
     if (inMemoryBackend) {
       logger.debug("Using in-memory backing store for nessie...");
-      adapter = new InmemoryDatabaseAdapterFactory().newBuilder().withConfig(adapterCfg)
-        .withConnector(new InmemoryStore()).build();
+      adapter = new InmemoryDatabaseAdapterFactory().newBuilder()
+        .withConfig(adapterCfg)
+        .withConnector(new InmemoryStore())
+        .build(worker);
     } else {
       logger.debug("Using persistent backing store for nessie...");
+
       NessieDatastoreInstance store = new NessieDatastoreInstance();
       store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(kvStoreProvider).build());
       store.initialize();
-      adapter = new DatastoreDatabaseAdapter(adapterCfg, store);
+
+      adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+        .withConnector(store)
+        .withConfig(adapterCfg)
+        .build(worker);
     }
-    adapter.initializeRepo(serverConfig.getDefaultBranch());
-    return new PersistVersionStore<>(adapter, worker);
+
+    return adapter;
   }
 }

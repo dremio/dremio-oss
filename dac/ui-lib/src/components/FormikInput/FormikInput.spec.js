@@ -13,41 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { shallow } from 'enzyme';
+import React from "react";
+import { shallow } from "enzyme";
 
-import Input from '../Input';
+import Input from "../Input";
 
-import FormikInput from './FormikInput';
+import FormikInput from "./FormikInput";
 
 const mockOnChange = jest.fn();
 const mockOnBlur = jest.fn();
 
 const defaultProps = {
-  label: 'Sample Label',
+  label: "Sample Label",
   classes: {
-    root: 'sample-root-class',
-    input: 'sample-input-class',
-    label: 'sample-label-class'
+    root: "sample-root-class",
+    input: "sample-input-class",
+    label: "sample-label-class",
   },
   field: {
-    name: 'sample-input-name',
+    name: "sample-input-name",
     onChange: mockOnChange,
-    onBlur: mockOnBlur
+    onBlur: mockOnBlur,
   },
   form: {
     errors: {},
-    touched: {}
-  }
+    touched: {},
+  },
 };
 
 const getShallowWrapper = (props = defaultProps) => {
-  return shallow(<FormikInput {...props}/>);
+  return shallow(<FormikInput {...props} />);
 };
 
-describe('Formik Input', () => {
+describe("Formik Input", () => {
   const wrapper = getShallowWrapper();
-  it('has the required components', () => {
+  it("has the required components", () => {
     expect(wrapper.find(Input).exists()).toBe(true);
     expect(wrapper.find(Input).props().name).toEqual(defaultProps.field.name);
     expect(wrapper.find(Input).props().onChange).toEqual(mockOnChange);

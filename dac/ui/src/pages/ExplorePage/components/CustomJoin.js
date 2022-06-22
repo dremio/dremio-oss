@@ -13,20 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { Component } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { CONTAINER_ENTITY_TYPES } from '@app/constants/Constants';
-import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
-import ExistingForm from 'components/formsForAddData/ExistingForm';
-import { constructFullPath, splitFullPath } from 'utils/pathUtils';
-import InnerJoinController from './JoinTypes/InnerJoinController';
+import { CONTAINER_ENTITY_TYPES } from "@app/constants/Constants";
+import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import ExistingForm from "components/formsForAddData/ExistingForm";
+import { constructFullPath, splitFullPath } from "utils/pathUtils";
+import InnerJoinController from "./JoinTypes/InnerJoinController";
 
-@Radium
-export default class CustomJoin extends Component {
+class CustomJoin extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     joinStep: PropTypes.number,
@@ -36,12 +35,12 @@ export default class CustomJoin extends Component {
     rightColumns: PropTypes.object,
     style: PropTypes.object,
     clearJoinDataset: PropTypes.func,
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
   };
 
   static contextTypes = {
-    router: PropTypes.object
-  }
+    router: PropTypes.object,
+  };
 
   constructor(props) {
     super(props);
@@ -52,18 +51,21 @@ export default class CustomJoin extends Component {
     if (!name || !data) {
       return null;
     }
-    if (CONTAINER_ENTITY_TYPES.has(data.get('type'))) {
+    if (CONTAINER_ENTITY_TYPES.has(data.get("type"))) {
       return null;
     }
 
-    const isPhysicalDataset = PHYSICAL_DATASET_TYPES.has(data.get('type'));
-    const fullPath = data.get('fullPath') && constructFullPath(data.get('fullPath'));
+    const isPhysicalDataset = PHYSICAL_DATASET_TYPES.has(data.get("type"));
+    const fullPath =
+      data.get("fullPath") && constructFullPath(data.get("fullPath"));
 
     if (!fullPath && !isPhysicalDataset) {
       return null;
     }
 
-    this.props.fields.activeDataset.onChange(fullPath && splitFullPath(fullPath));
+    this.props.fields.activeDataset.onChange(
+      fullPath && splitFullPath(fullPath)
+    );
   }
 
   renderDatasetsTree() {
@@ -84,7 +86,7 @@ export default class CustomJoin extends Component {
       rightColumns,
       leftColumns,
       style,
-      canSelect
+      canSelect,
     } = this.props;
 
     return (
@@ -108,3 +110,4 @@ export default class CustomJoin extends Component {
       : this.renderDatasetsTree();
   }
 }
+export default Radium(CustomJoin);

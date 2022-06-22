@@ -13,85 +13,80 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import moment from 'moment';
-import { CELL_EXPANSION_HEADER, WHITE } from 'uiTheme/radium/colors';
-import { dateTypeToFormat } from '@app/constants/DataTypes';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import moment from "@app/utils/dayjs";
+import { FormattedMessage } from "react-intl";
+import classNames from "classnames";
 
-const TIME_FORMAT = 'HH:mm:ss';
+import { dateTypeToFormat } from "@app/constants/DataTypes";
+
+import * as classes from "./TimePicker.module.less";
+
+const TIME_FORMAT = "HH:mm:ss";
 
 export default class TimePicker extends Component {
   static propTypes = {
-    value: PropTypes.oneOfType([
-      PropTypes.number,
-      PropTypes.string
-    ]),
+    value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     columnType: PropTypes.string,
-    onBlur: PropTypes.func
-  }
+    onBlur: PropTypes.func,
+  };
   static defaultProps = {
-    value: '00:00:00'
-  }
+    value: "00:00:00",
+  };
   constructor(props) {
     super(props);
 
-    this.state = { value: moment(props.value, dateTypeToFormat[props.columnType]).format(TIME_FORMAT) };
+    this.state = {
+      value: moment(props.value, dateTypeToFormat[props.columnType]).format(
+        TIME_FORMAT
+      ),
+    };
   }
 
   componentWillReceiveProps(nextProps) {
     this.setState({
-      value: moment(nextProps.value, dateTypeToFormat[nextProps.columnType]).format(TIME_FORMAT)
+      value: moment(
+        nextProps.value,
+        dateTypeToFormat[nextProps.columnType]
+      ).format(TIME_FORMAT),
     });
   }
 
   onChange = (e) => {
     const { value } = e.target;
     this.setState({
-      value
+      value,
     });
-  }
+  };
   onBlur = () => {
     const { value } = this.state;
     const valMoment = moment(value, TIME_FORMAT);
     if (valMoment.isValid()) {
       this.props.onBlur(valMoment);
     }
-  }
+  };
   render() {
     const { value } = this.state;
     return (
-      <div className='field' style={styles.picker}>
+      <div className={classNames("field", classes["dremio-time-field"])}>
+        <label
+          htmlFor="dremio-time-input"
+          className={classes["dremio-time-field__label"]}
+        >
+          <FormattedMessage id="Type.Time" />:
+        </label>
         <input
-          type='text'
-          style={styles.input}
+          id="dremio-time-input"
+          type="text"
           value={value}
           onChange={this.onChange}
           onBlur={this.onBlur}
         />
-        <div style={{ margin: 3 }}>
-          hours : minutes : seconds
+        <div className={classes["dremio-time-field__formatLabel"]}>
+          hh:mm:ss
         </div>
       </div>
     );
   }
 }
-
-const styles = {
-  picker: {
-    display: 'flex',
-    alignItems: 'center',
-    background: CELL_EXPANSION_HEADER,
-    borderRadius: '1px 1px 0px 0px',
-    fontFamily: 'Inter var',
-    fontSize: 11,
-    color: '#999999',
-    height: 30,
-    margin: 3
-  },
-  input: {
-    background: WHITE,
-    border: '1px solid rgba(0,0,0,0.10)',
-    borderRadius: 2
-  }
-};

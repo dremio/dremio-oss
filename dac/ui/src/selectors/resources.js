@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createSelector } from 'reselect';
-import Immutable from 'immutable';
+import { createSelector } from "reselect";
+import Immutable from "immutable";
 
-import { constructFullPathAndEncode } from 'utils/pathUtils';
+import { constructFullPathAndEncode } from "utils/pathUtils";
 
-import { CREATED_SOURCE_NAME } from 'reducers/resources/sourceList';
-import { EXPLORE_VIEW_ID } from 'reducers/explore/view';
+import { CREATED_SOURCE_NAME } from "reducers/resources/sourceList";
+import { EXPLORE_VIEW_ID } from "reducers/explore/view";
 
 // todo: reevaluate viewId system:
 // what happens if the same call is made twice before the previous has returned (e.g. type-ahead search)
@@ -28,9 +28,11 @@ import { EXPLORE_VIEW_ID } from 'reducers/explore/view';
 // feels an aweful lot like reinventing Promises
 const BLANK_VIEW_STATES = {};
 export function getViewState(state, viewId) {
-  return (state.resources && state.resources.view.get(viewId))
-    || BLANK_VIEW_STATES[viewId]
-    || (BLANK_VIEW_STATES[viewId] = Immutable.Map({viewId})); // cache so that purerender will not see a change
+  return (
+    (state.resources && state.resources.view.get(viewId)) ||
+    BLANK_VIEW_STATES[viewId] ||
+    (BLANK_VIEW_STATES[viewId] = Immutable.Map({ viewId }))
+  ); // cache so that purerender will not see a change
 }
 
 export function getExploreViewState(state) {
@@ -39,7 +41,7 @@ export function getExploreViewState(state) {
 }
 
 function getSearchData(state) {
-  return state.search.get('searchDatasets');
+  return state.search.get("searchDatasets");
 }
 
 function _getCreatedSource(state) {
@@ -47,39 +49,46 @@ function _getCreatedSource(state) {
 }
 
 export const getCreatedSource = createSelector(
-  [ _getCreatedSource ],
-  source => {
+  [_getCreatedSource],
+  (source) => {
     return source;
   }
 );
 
-export const getSearchResult = createSelector([ getSearchData ], datasets => datasets);
+export const getSearchResult = createSelector(
+  [getSearchData],
+  (datasets) => datasets
+);
 
 export function getEntity(state, entityId, entityType) {
   return state.resources.entities.getIn([entityType, entityId]);
 }
 
 export function getFolder(state, folderId) {
-  return state.resources.entities.getIn(['folder', folderId]);
+  return state.resources.entities.getIn(["folder", folderId]);
 }
 
 export const getDescendantsList = (state) => {
-  return state.resources.entities.getIn(['datasetUI', 'descendantsList']);
+  return state.resources.entities.getIn(["datasetUI", "descendantsList"]);
 };
 
-export const getParentList = (state) => state.resources.entities.getIn(['datasetUI', 'parentList']);
+export const getParentList = (state) =>
+  state.resources.entities.getIn(["datasetUI", "parentList"]);
 
 export const getDatasetAcceleration = (state, fullPath) => {
   const constructedFullPath = constructFullPathAndEncode(fullPath);
-  const allAccelerations = state.resources.entities.get('datasetAcceleration', Immutable.Map());
+  const allAccelerations = state.resources.entities.get(
+    "datasetAcceleration",
+    Immutable.Map()
+  );
   return allAccelerations.find((item) => {
-    return item.get('fullPath') === constructedFullPath;
+    return item.get("fullPath") === constructedFullPath;
   });
 };
 
 export const searchEntity = (state, entityType, findBy, value) => {
   let entity;
-  state.resources.entities.get(entityType).forEach(element => {
+  state.resources.entities.get(entityType).forEach((element) => {
     if (element.get(findBy) === value) {
       entity = element;
     }

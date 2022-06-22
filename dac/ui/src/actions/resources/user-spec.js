@@ -13,31 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect } from 'chai';
+import { expect } from "chai";
 
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import { APIV2Call } from '@app/core/APICall';
-import * as Actions from './user.js';
+import { APIV2Call } from "@app/core/APICall";
+import * as Actions from "./user.js";
 
-describe('user actions', () => {
-  describe('test load user', () => {
-    it('with username', () => {
-      const apiCall = new APIV2Call()
-        .path('user')
-        .path('test')
-        .uncachable();
+describe("user actions", () => {
+  describe("test load user", () => {
+    it("with username", () => {
+      const apiCall = new APIV2Call().path("user").path("test").uncachable();
 
-      expect(Actions.loadUser({userName: 'test'})((obj) => obj)[RSAA].endpoint.toString().split('=')[0]).to.equal(apiCall.toString().split('=')[0]);
+      expect(
+        Actions.loadUser({ userName: "test" })((obj) => obj)
+          [RSAA].endpoint.toString()
+          .split("=")[0]
+      ).to.equal(apiCall.toString().split("=")[0]);
     });
 
-    it('with url unsafe username', () => {
-      const apiCall = new APIV2Call()
-        .path('user')
-        .path('test?./')
-        .uncachable();
+    it("with url unsafe username", () => {
+      const apiCall = new APIV2Call().path("user").path("test?./").uncachable();
 
-      expect(Actions.loadUser({userName: 'test?./'})((obj) => obj)[RSAA].endpoint.toString().split('=')[0]).to.equal(apiCall.toString().split('=')[0]);
+      expect(
+        Actions.loadUser({ userName: "test?./" })((obj) => obj)
+          [RSAA].endpoint.toString()
+          .split("=")[0]
+      ).to.equal(apiCall.toString().split("=")[0]);
     });
   });
 });

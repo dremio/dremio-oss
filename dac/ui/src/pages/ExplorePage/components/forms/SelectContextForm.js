@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import ResourceTreeController from 'components/Tree/ResourceTreeController';
-import { TextField, FieldWithError } from 'components/Fields';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { ModalForm, FormBody, modalFormProps } from "components/Forms";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
+import { TextField, FieldWithError } from "components/Fields";
 
-export const FIELDS = ['context'];
+export const FIELDS = ["context"];
 
 export class SelectContextForm extends Component {
   static propTypes = {
     handleSubmit: PropTypes.func.isRequired,
     onFormSubmit: PropTypes.func,
     onCancel: PropTypes.func,
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   constructor(props) {
@@ -42,24 +42,30 @@ export class SelectContextForm extends Component {
 
   render() {
     const { fields, handleSubmit } = this.props;
-    const nodeId = (fields.context.value || fields.context.initialValue || '');
+    const nodeId = fields.context.value || fields.context.initialValue || "";
 
     return (
-      <div className='select-context' style={{height: '100%'}}>
+      <div className="select-context" style={{ height: "100%" }}>
         <ModalForm
           {...modalFormProps(this.props)}
           onSubmit={handleSubmit(this.props.onFormSubmit)}
-          confirmText={la('Select')}>
+          confirmText={la("Select")}
+        >
           <FormBody>
-            <label>{la('Select New Context')}</label>
+            <label>{la("Select New Context")}</label>
             <div style={style.resourceTree}>
-              <ResourceTreeController
+              <ResourceTreeContainer
                 hideDatasets
                 onChange={this.handleChangeSelectedNode}
-                preselectedNodeId={nodeId}/>
+                preselectedNodeId={nodeId}
+              />
             </div>
-            <FieldWithError errorPlacement='right' {...fields.context} style={style.resourceInput}>
-              <TextField {...fields.context} initialFocus/>
+            <FieldWithError
+              errorPlacement="right"
+              {...fields.context}
+              style={style.resourceInput}
+            >
+              <TextField {...fields.context} initialFocus />
             </FieldWithError>
           </FormBody>
         </ModalForm>
@@ -68,18 +74,25 @@ export class SelectContextForm extends Component {
   }
 }
 
-const mapStateToProps = (state, props) => ({initialValues: props.initialValues});
+const mapStateToProps = (state, props) => ({
+  initialValues: props.initialValues,
+});
 
-export default connectComplexForm({
-  form: 'selectContextForm',
-  fields: FIELDS
-}, [], mapStateToProps, null)(SelectContextForm);
+export default connectComplexForm(
+  {
+    form: "selectContextForm",
+    fields: FIELDS,
+  },
+  [],
+  mapStateToProps,
+  null
+)(SelectContextForm);
 
 const style = {
   resourceTree: {
-    height: '250px'
+    height: "250px",
   },
   resourceInput: {
-    marginTop: '20px'
-  }
+    marginTop: "20px",
+  },
 };

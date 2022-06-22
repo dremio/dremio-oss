@@ -17,7 +17,6 @@
 package com.dremio.exec.store.hive.exec;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 

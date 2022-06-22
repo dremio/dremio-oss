@@ -13,18 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import rand from 'csprng';
-import { sortedIndex } from 'lodash/array';
-import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformModelMapper';
-import simpleTransformMappers from 'utils/mappers/ExplorePage/simpleTransformMappers';
-import mapConvertDataType from 'utils/mappers/ExplorePage/convertDataType';
-import dataStoreUtils from 'utils/dataStoreUtils';
-import { copyTextToClipboard } from '@app/utils/clipboard/clipboardUtils';
-import { BOOLEAN, DATE, DATETIME, DECIMAL, FLOAT, INTEGER, LIST, MAP, TEXT, TIME } from '@app/constants/DataTypes';
-import { APIV2Call } from '@app/core/APICall';
-import { UNSAVED_DATASET_PATH } from '@app/constants/explorePage/paths';
-import { JOB_STATUS } from '@app/pages/ExplorePage/components/ExploreTable/constants';
-import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
+import rand from "csprng";
+import { sortedIndex } from "lodash/array";
+import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformModelMapper";
+import simpleTransformMappers from "utils/mappers/ExplorePage/simpleTransformMappers";
+import mapConvertDataType from "utils/mappers/ExplorePage/convertDataType";
+import dataStoreUtils from "utils/dataStoreUtils";
+import { copyTextToClipboard } from "@app/utils/clipboard/clipboardUtils";
+import {
+  BOOLEAN,
+  DATE,
+  DATETIME,
+  DECIMAL,
+  FLOAT,
+  INTEGER,
+  LIST,
+  MAP,
+  TEXT,
+  TIME,
+} from "@app/constants/DataTypes";
+import { APIV2Call } from "@app/core/APICall";
+import { UNSAVED_DATASET_PATH } from "@app/constants/explorePage/paths";
+import { JOB_STATUS } from "@app/pages/ExplorePage/components/ExploreTable/constants";
+import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import { getRefQueryParamsFromDataset } from "../nessieUtils";
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -34,23 +46,28 @@ const HEIGHT_WITH_LINEHEIGHT = 9;
 const HALF_LINEHEIGHT = HEIGHT_WITH_LINEHEIGHT / 2;
 const ROWS_LIMIT = 150;
 const TRANSFORM_TYPE_WITHOUT_DATA = [
-  'EXTRACT_ELEMENT', 'EXTRACT_ELEMENTS',
-  'EXTRACT_TEXT', 'REPLACE_TEXT', 'SPLIT',
-  'KEEP_ONLY', 'EXCLUDE', 'REPLACE'
+  "EXTRACT_ELEMENT",
+  "EXTRACT_ELEMENTS",
+  "EXTRACT_TEXT",
+  "REPLACE_TEXT",
+  "SPLIT",
+  "KEEP_ONLY",
+  "EXCLUDE",
+  "REPLACE",
 ];
 
 const detailTypeToTransformType = {
-  EXTRACT_ELEMENT: 'extract',
-  EXTRACT_ELEMENTS: 'extract',
-  EXTRACT_TEXT: 'extract',
-  REPLACE_TEXT: 'replace',
-  REPLACE: 'replace',
-  KEEP_ONLY: 'keeponly',
-  SPLIT: 'split',
-  EXCLUDE: 'exclude'
+  EXTRACT_ELEMENT: "extract",
+  EXTRACT_ELEMENTS: "extract",
+  EXTRACT_TEXT: "extract",
+  REPLACE_TEXT: "replace",
+  REPLACE: "replace",
+  KEEP_ONLY: "keeponly",
+  SPLIT: "split",
+  EXCLUDE: "exclude",
 };
 
-const notNeedSelectionMethod = ['Values', 'Range', 'Custom Condition', 'Exact'];
+const notNeedSelectionMethod = ["Values", "Range", "Custom Condition", "Exact"];
 
 const transformationMapperHash = {
   ASC: simpleTransformMappers.mapSortItem,
@@ -67,91 +84,111 @@ const transformationMapperHash = {
   SPLIT_BY_DATA_TYPE: simpleTransformMappers.mapCleanData,
   SINGLE_DATA_TYPE: simpleTransformMappers.mapCleanData,
   GROUP_BY: simpleTransformMappers.mapGroupBy,
-  JOIN: simpleTransformMappers.mapJoin
+  JOIN: simpleTransformMappers.mapJoin,
 };
 
 class ExploreUtils {
-
   getTransformState(location) {
     const state = location.state || {};
     return Immutable.fromJS({
       transformType: state.transformType,
       columnName: state.columnName,
       columnType: state.columnType,
-      method: state.method || this.getInitialTransformMethod(state.columnType, state.transformType, state.selection),
-      selection: state.selection || {}
+      method:
+        state.method ||
+        this.getInitialTransformMethod(
+          state.columnType,
+          state.transformType,
+          state.selection
+        ),
+      selection: state.selection || {},
     });
   }
 
-  getLocationToGoToTransformWizard({detailType, column, toType, location, joinTab, props}) {
+  getLocationToGoToTransformWizard({
+    detailType,
+    column,
+    toType,
+    location,
+    joinTab,
+    props,
+  }) {
     const { pathname: oldPathname, query: oldQuery } = location;
     const pathname = `${oldPathname}/details`;
     const query = {
       ...oldQuery,
-      type: detailType
+      type: detailType,
     };
     const state = {
       columnName: column.name,
       columnType: column.type,
       toType,
-      previewVersion: '',
-      props
+      previewVersion: "",
+      props,
     };
     if (joinTab) {
       query.joinTab = joinTab;
     }
     if (TRANSFORM_TYPE_WITHOUT_DATA.indexOf(detailType) !== -1) {
-      query.type = 'transform';
+      query.type = "transform";
       state.transformType = detailTypeToTransformType[detailType] || detailType;
-      state.method = this.getInitialTransformMethod(state.columnType, state.transformType, state.selection);
+      state.method = this.getInitialTransformMethod(
+        state.columnType,
+        state.transformType,
+        state.selection
+      );
     }
     return { pathname, state, query };
   }
 
   getInitialTransformMethod(columnType, transformType, selection) {
-    const hasSelection = selection && selection.cellText !== '';
+    const hasSelection = selection && selection.cellText !== "";
     switch (columnType) {
-    case TEXT:
-      switch (transformType) {
-      case 'replace':
-      case 'keeponly':
-      case 'exclude':
-        return hasSelection ? 'Pattern' : 'Values';
-      default:
-        return 'Pattern';
-      }
-    case DATETIME:
-    case DATE:
-    case TIME:
-    case INTEGER:
-    case FLOAT:
-    case DECIMAL:
-      switch (transformType) {
-      case 'replace':
-      case 'keeponly':
-      case 'exclude':
-        return hasSelection ? 'Exact' : 'Range';
+      case TEXT:
+        switch (transformType) {
+          case "replace":
+          case "keeponly":
+          case "exclude":
+            return hasSelection ? "Pattern" : "Values";
+          default:
+            return "Pattern";
+        }
+      case DATETIME:
+      case DATE:
+      case TIME:
+      case INTEGER:
+      case FLOAT:
+      case DECIMAL:
+        switch (transformType) {
+          case "replace":
+          case "keeponly":
+          case "exclude":
+            return hasSelection ? "Exact" : "Range";
+          default:
+            break;
+        }
+        break;
+      case BOOLEAN:
+        return "Values";
       default:
         break;
-      }
-      break;
-    case BOOLEAN:
-      return 'Values';
-    default:
-      break;
     }
 
-    const firstMethodForColumnType = dataStoreUtils.getSubtypeForTransformTab().find((subtitle) => {
-      return subtitle.types.find((type) => type === columnType);
-    });
+    const firstMethodForColumnType = dataStoreUtils
+      .getSubtypeForTransformTab()
+      .find((subtitle) => {
+        return subtitle.types.find((type) => type === columnType);
+      });
     if (firstMethodForColumnType) {
       return firstMethodForColumnType.name;
     }
   }
 
   transformHasSelection(transform) {
-    return Boolean(transform.getIn(['selection', 'cellText'])) ||
-      Boolean(transform.getIn(['selection', 'mapPathList']));
+    return (
+      Boolean(transform.getIn(["selection", "cellText"])) ||
+      Boolean(transform.getIn(["selection", "mapPathList"]))
+    );
   }
 
   /**
@@ -197,8 +234,9 @@ class ExploreUtils {
   }
 
   getTableCellElement(node) {
-    const result = node.nodeType === window.Node.TEXT_NODE ? node.parentNode : node;
-    return result.closest('.public_fixedDataTableCell_main');
+    const result =
+      node.nodeType === window.Node.TEXT_NODE ? node.parentNode : node;
+    return result.closest(".public_fixedDataTableCell_main");
   }
 
   replaceSelectionRange(selection, node, start, end) {
@@ -210,7 +248,7 @@ class ExploreUtils {
   }
 
   getTableCellTextNode(cell) {
-    return $('.cell-wrap', cell).contents()[0];
+    return $(".cell-wrap", cell).contents()[0];
   }
 
   getSelectionData(selection) {
@@ -227,7 +265,7 @@ class ExploreUtils {
         oRange,
         oRect: oRange.getBoundingClientRect(),
         startOffset: oRange.startOffset,
-        endOffset: oRange.endOffset
+        endOffset: oRange.endOffset,
       };
     }
 
@@ -237,7 +275,7 @@ class ExploreUtils {
       oRange,
       oRect: oRange.getBoundingClientRect(),
       startOffset: oRange.startOffset,
-      endOffset: oRange.endOffset
+      endOffset: oRange.endOffset,
     };
   }
 
@@ -253,13 +291,24 @@ class ExploreUtils {
       (prev, itemText) => {
         const start = prev[prev.length - 1][1] + 2; // + 1 for comma, +1 to advance to next item.
         return prev.concat([[start, start + itemText.length - 1]]);
-      }, [[1, 1 + itemsText[0].length  - 1]]
+      },
+      [[1, 1 + itemsText[0].length - 1]]
     );
 
-    const startItemIndex = sortedIndex(itemExtents.map(x => x[1]), startOffset);
-    const endItemIndex = sortedIndex(itemExtents.map(x => x[0]), endOffset); // This end index is exclusive
+    const startItemIndex = sortedIndex(
+      itemExtents.map((x) => x[1]),
+      startOffset
+    );
+    const endItemIndex = sortedIndex(
+      itemExtents.map((x) => x[0]),
+      endOffset
+    ); // This end index is exclusive
 
-    if (startItemIndex === items.length || endItemIndex === 0 || startItemIndex === endItemIndex) {
+    if (
+      startItemIndex === items.length ||
+      endItemIndex === 0 ||
+      startItemIndex === endItemIndex
+    ) {
       return null;
     }
 
@@ -268,12 +317,16 @@ class ExploreUtils {
       startIndex: startItemIndex,
       endIndex: endItemIndex,
       startOffset: itemExtents[startItemIndex][0],
-      endOffset: itemExtents[endItemIndex - 1][1] + 1 // +1 to change inclusive to exclusive
+      endOffset: itemExtents[endItemIndex - 1][1] + 1, // +1 to change inclusive to exclusive
     };
   }
 
   _findItemsForList(startOffset, endOffset, text, sel) {
-    const newOffsets = this.calculateListSelectionOffsets(startOffset, endOffset, text);
+    const newOffsets = this.calculateListSelectionOffsets(
+      startOffset,
+      endOffset,
+      text
+    );
     if (newOffsets === null) {
       return null;
     }
@@ -282,27 +335,37 @@ class ExploreUtils {
       startIndex,
       endIndex,
       startOffset: newStartOffset,
-      endOffset: newEndOffset
+      endOffset: newEndOffset,
     } = newOffsets;
 
-    this.replaceSelectionRange(sel, sel.anchorNode, newStartOffset, newEndOffset);
+    this.replaceSelectionRange(
+      sel,
+      sel.anchorNode,
+      newStartOffset,
+      newEndOffset
+    );
     const selectedText = text.slice(newStartOffset, newEndOffset);
     return {
       oRect: sel.getRangeAt(0).getBoundingClientRect(),
       selectedText,
       startIndex,
       endIndex,
-      listOfItems: itemsText
+      listOfItems: itemsText,
     };
   }
 
   getSelectionForList(columnText, columnName, sel) {
-    const {startOffset, endOffset, selection} = sel;
-    const itemInfo = this._findItemsForList(startOffset, endOffset, columnText, selection);
+    const { startOffset, endOffset, selection } = sel;
+    const itemInfo = this._findItemsForList(
+      startOffset,
+      endOffset,
+      columnText,
+      selection
+    );
     if (!itemInfo) {
       return null;
     }
-    const {selectedText, listOfItems, startIndex, endIndex, oRect} = itemInfo;
+    const { selectedText, listOfItems, startIndex, endIndex, oRect } = itemInfo;
     return {
       listOfItems,
       model: {
@@ -310,20 +373,20 @@ class ExploreUtils {
         cellText: columnText,
         startIndex,
         endIndex, // exclusive
-        listLength: listOfItems.length
+        listLength: listOfItems.length,
       },
       position: {
         display: true,
         left: oRect.left + oRect.width,
         top: oRect.top + oRect.height,
         textWrap: {
-          width: 'auto',
+          width: "auto",
           height: oRect.height + HEIGHT_WITH_LINEHEIGHT,
           left: oRect.left - SHADOW_WIDTH,
           top: oRect.top - HALF_LINEHEIGHT,
-          text: selectedText.toString().trim()
-        }
-      }
+          text: selectedText.toString().trim(),
+        },
+      },
     };
   }
 
@@ -336,20 +399,21 @@ class ExploreUtils {
         cellText: columnText,
         length: text.length,
         offset: startOffset > endOffset ? endOffset : startOffset,
-        fullCellSelection: columnText === text.trim()
+        fullCellSelection: columnText === text.trim(),
       },
       position: {
         display: true,
-        left: oRect.left + oRect.width - DROP_WIDTH + ARROW_WIDTH + SHADOW_WIDTH,
+        left:
+          oRect.left + oRect.width - DROP_WIDTH + ARROW_WIDTH + SHADOW_WIDTH,
         top: oRect.top + oRect.height,
         textWrap: {
           width: oRect.width + WIDTH_WITH_PADDING,
           height: oRect.height + HEIGHT_WITH_LINEHEIGHT,
           left: oRect.left - SHADOW_WIDTH,
           top: oRect.top - HALF_LINEHEIGHT,
-          text: text.trim()
-        }
-      }
+          text: text.trim(),
+        },
+      },
     };
   }
 
@@ -358,15 +422,20 @@ class ExploreUtils {
     this.selectElementContents(elem);
     return {
       display: true,
-      left: position.left + position.width - DROP_WIDTH + ARROW_WIDTH + SHADOW_WIDTH,
+      left:
+        position.left +
+        position.width -
+        DROP_WIDTH +
+        ARROW_WIDTH +
+        SHADOW_WIDTH,
       top: position.top + position.height,
       textWrap: {
-        width: position.width  + WIDTH_WITH_PADDING,
+        width: position.width + WIDTH_WITH_PADDING,
         height: position.height + HEIGHT_WITH_LINEHEIGHT,
         left: position.left - SHADOW_WIDTH,
-        top: position.top  - HALF_LINEHEIGHT,
-        text: elem.textContent.trim()
-      }
+        top: position.top - HALF_LINEHEIGHT,
+        text: elem.textContent.trim(),
+      },
     };
   }
 
@@ -378,41 +447,53 @@ class ExploreUtils {
     sel.addRange(range);
   }
 
-  getHrefForUntitledDatasetConfig = (dottedFullPath, newVersion, doNotWaitJobCompletion) => {
-    const apiCall = new APIV2Call()
-      .paths('/datasets/new_untitled')
-      .params({
-        parentDataset: dottedFullPath,
-        newVersion,
-        limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT
-      });
+  getHrefForUntitledDatasetConfig = (
+    dottedFullPath,
+    newVersion,
+    doNotWaitJobCompletion
+  ) => {
+    const apiCall = new APIV2Call().paths("/datasets/new_untitled").params({
+      parentDataset: dottedFullPath,
+      newVersion,
+      limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT,
+    });
 
     return apiCall.toPath();
   };
 
-  getAPICallForUntitledDatasetConfig = (dottedFullPath, newVersion, doNotWaitJobCompletion) => {
-    const apiCall = new APIV2Call()
-      .paths('/datasets/new_untitled')
-      .params({
-        parentDataset: dottedFullPath,
-        newVersion,
-        limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT
-      });
+  getAPICallForUntitledDatasetConfig = (
+    dottedFullPath,
+    newVersion,
+    doNotWaitJobCompletion
+  ) => {
+    const apiCall = new APIV2Call().paths("/datasets/new_untitled").params({
+      parentDataset: dottedFullPath,
+      newVersion,
+      limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT,
+    });
 
     return apiCall;
   };
 
-  getHrefForDatasetConfig = (resourcePath) => `${resourcePath}?view=explore&limit=50`;
-  getPreviewLink = (dataset, tipVersion) => {
+  getHrefForDatasetConfig = (resourcePath) =>
+    `${resourcePath}?view=explore&limit=50`;
+
+  getPreviewLink = (dataset, tipVersion, sessionId) => {
     const apiCall = new APIV2Call()
-      .paths(`${dataset.getIn(['apiLinks', 'self'])}/preview`)
+      .paths(`${dataset.getIn(["apiLinks", "self"])}/preview`)
       .params({
-        view: 'explore',
-        limit: 0
+        view: "explore",
+        limit: 0,
       });
 
     if (tipVersion) {
-      apiCall.params({tipVersion});
+      apiCall.params({ tipVersion });
+    } else {
+      apiCall.params(getRefQueryParamsFromDataset(dataset.get("fullPath")));
+    }
+
+    if (sessionId) {
+      apiCall.params({ sessionId });
     }
 
     return apiCall.toPath();
@@ -420,15 +501,15 @@ class ExploreUtils {
 
   getReviewLink = (dataset, tipVersion) => {
     const apiCall = new APIV2Call()
-      .paths(`${dataset.getIn(['apiLinks', 'self'])}/review`)
+      .paths(`${dataset.getIn(["apiLinks", "self"])}/review`)
       .params({
-        jobId: dataset.get('jobId'),
-        view: 'explore',
-        limit: 0
+        jobId: dataset.get("jobId"),
+        view: "explore",
+        limit: 0,
       });
 
     if (tipVersion) {
-      apiCall.params({tipVersion});
+      apiCall.params({ tipVersion });
     }
 
     return apiCall.toPath();
@@ -437,7 +518,12 @@ class ExploreUtils {
   getHrefForTransform({ resourceId, tableId }, location) {
     // TODO this should be moved into dataset decorator
     const { version } = location.query;
-    const fullPath = location.query.mode === 'edit' ? `${encodeURIComponent(`"${resourceId}"`)}.${encodeURIComponent(tableId)}` : 'tmp.UNTITLED';
+    const fullPath =
+      location.query.mode === "edit"
+        ? `${encodeURIComponent(`"${resourceId}"`)}.${encodeURIComponent(
+            tableId
+          )}`
+        : "tmp.UNTITLED";
     const resourcePath = `dataset/${fullPath}`;
 
     const apiCall = new APIV2Call().paths(`${resourcePath}/version/${version}`);
@@ -445,62 +531,95 @@ class ExploreUtils {
     return apiCall.toPath();
   }
 
-  getNewDatasetVersion = () => '000' + rand(40, 10);
+  getNewDatasetVersion = () => "000" + rand(40, 10);
 
-  getFullPath = ({ resourceId, tableId, mode }) => mode === 'edit'
-    ? `${resourceId}.${tableId}`
-    : 'tmp.UNTITLED';
+  getFullPath = ({ resourceId, tableId, mode }) =>
+    mode === "edit" ? `${resourceId}.${tableId}` : "tmp.UNTITLED";
 
   getVersionedResoursePath = ({ resourceId, tableId, version, mode }) => {
-    const fullPath = this.getFullPath({resourceId, tableId, mode});
+    const fullPath = this.getFullPath({ resourceId, tableId, mode });
     const resourcePath = `/dataset/${fullPath}`;
     return `${resourcePath}/version/${version}`;
   };
 
   getPreviewTransformationLink(dataset, newVersion) {
-    const end = `transformAndPreview?newVersion=${encodeURIComponent(newVersion)}&limit=0`;
-    return `${dataset.getIn(['apiLinks', 'self'])}/${end}`;
+    const end = `transformAndPreview?newVersion=${encodeURIComponent(
+      newVersion
+    )}&limit=0`;
+    return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
   }
 
   getTransformPeekHref(dataset) {
     const newVersion = this.getNewDatasetVersion();
-    const end = `transformPeek?newVersion=${encodeURIComponent(newVersion)}&limit=${ROWS_LIMIT}`;
-    return `${dataset.getIn(['apiLinks', 'self'])}/${end}`;
+    const end = `transformPeek?newVersion=${encodeURIComponent(
+      newVersion
+    )}&limit=${ROWS_LIMIT}`;
+    return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
   }
 
-  getRunTransformationLink({fullPath, version, newVersion, type}) {
-    return `/dataset/${fullPath.join('.')}/version/${version}/${type}?newVersion=${encodeURIComponent(newVersion)}&limit=${ROWS_LIMIT}`;
+  getRunTransformationLink({ fullPath, version, newVersion, type }) {
+    return `/dataset/${fullPath.join(
+      "."
+    )}/version/${version}/${type}?newVersion=${encodeURIComponent(
+      newVersion
+    )}&limit=${ROWS_LIMIT}`;
   }
 
-  getUntitledSqlHref({newVersion}) {
-    return `/datasets/new_untitled_sql?newVersion=${encodeURIComponent(newVersion)}&limit=0`;
+  getUntitledSqlHref({ newVersion, sessionId }) {
+    if (sessionId) {
+      return `/datasets/new_untitled_sql?newVersion=${encodeURIComponent(
+        newVersion
+      )}&sessionId=${sessionId}&limit=0`;
+    } else {
+      return `/datasets/new_untitled_sql?newVersion=${encodeURIComponent(
+        newVersion
+      )}&limit=0`;
+    }
   }
 
-  getUntitledSqlAndRunHref({newVersion}) {
-    return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(newVersion)}`; // does not need limit=0 as does not return data in all cases
+  getUntitledSqlAndRunHref({ newVersion, sessionId }) {
+    // does not need limit=0 as does not return data in all cases
+    if (sessionId) {
+      return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(
+        newVersion
+      )}&sessionId=${sessionId}`;
+    } else {
+      return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(
+        newVersion
+      )}`;
+    }
   }
 
   getMappedDataForTransform(item, detailsType) {
-    if (detailsType === 'transform') {
+    if (detailsType === "transform") {
       return item;
     }
-    return transformationMapperHash[detailsType || item.type] && transformationMapperHash[detailsType || item.type](
-      item, item.transformType
-    ) || item;
+    return (
+      (transformationMapperHash[detailsType || item.type] &&
+        transformationMapperHash[detailsType || item.type](
+          item,
+          item.transformType
+        )) ||
+      item
+    );
   }
 
   hasOrigin(dataset, location) {
-    if (dataset.get('isNewQuery')) {
+    if (dataset.get("isNewQuery")) {
       return true;
     }
-    const {query} = location;
-    return query.mode === 'edit' || dataset.get('canReapply') || query.hasOrigin === 'true';
+    const { query } = location;
+    return (
+      query.mode === "edit" ||
+      dataset.get("canReapply") ||
+      query.hasOrigin === "true"
+    );
   }
 
   needSelection(method, transformType) {
     // in props.transform we can get transformType = 'extract' and method = "Values"
     // it happens when we switch between "Keep only" and "Extract"
-    if (transformType === 'extract') {
+    if (transformType === "extract") {
       return true;
     }
 
@@ -511,21 +630,24 @@ class ExploreUtils {
     if (!transform) {
       return true;
     }
-    const columnType = transform.get('columnType');
-    return !(transform.get('transformType') === 'extract' && (columnType === LIST || columnType === MAP));
+    const columnType = transform.get("columnType");
+    return !(
+      transform.get("transformType") === "extract" &&
+      (columnType === LIST || columnType === MAP)
+    );
   }
 
   getDefaultSelection = (columnName) => ({
-    cellText: '',
+    cellText: "",
     length: 0,
     offset: 0,
-    columnName
+    columnName,
   });
 
   getDocumentWidth = () => $(document).width();
 
   _createFakeElement = (text) => {
-    const fakeElement = document.createElement('textarea');
+    const fakeElement = document.createElement("textarea");
     fakeElement.value = text;
     document.body.appendChild(fakeElement);
     return fakeElement;
@@ -534,7 +656,7 @@ class ExploreUtils {
   copySelection = (elementOrText) => {
     if (elementOrText === null) return;
 
-    const isText = typeof elementOrText === 'string';
+    const isText = typeof elementOrText === "string";
     const text = isText ? elementOrText : elementOrText.innerText;
     // for some strange reason it works only in async mode. See clipboardUtils for details
     window.setTimeout(copyTextToClipboard.bind(this, text), 1); // copyTextToClipboard(text);
@@ -546,7 +668,7 @@ class ExploreUtils {
 
   isFilterIncludedInColumnName(column, filter) {
     if (!column) return false;
-    const name = column.get('name');
+    const name = column.get("name");
     // empty string is treated as included, null or undefined filter - not.
     return name && name.toUpperCase().includes(filter.toUpperCase());
   }
@@ -572,25 +694,36 @@ class ExploreUtils {
   }
 
   isSqlEditorTab(location) {
-    const locationExists = location && location.pathname;
-    return locationExists && (location.pathname.includes(UNSAVED_DATASET_PATH) || location.pathname.includes('/new_query'));
+    const curLocation = location && location.pathname;
+    return (
+      curLocation &&
+      (curLocation.includes(UNSAVED_DATASET_PATH) ||
+        curLocation.includes("/new_query"))
+    );
   }
 
   isExploreDatasetPage(location) {
     const curLocation = location && location.pathname;
-    return curLocation.startsWith('/space') || curLocation.startsWith('/home') || curLocation.startsWith('/source');
+    return (
+      curLocation &&
+      (curLocation.startsWith("/space") ||
+        curLocation.startsWith("/home") ||
+        curLocation.startsWith("/source"))
+    );
   }
 
-  getCancellable = jobStatus => {
-    return jobStatus === JOB_STATUS.running
-      || jobStatus === JOB_STATUS.starting
-      || jobStatus === JOB_STATUS.enqueued
-      || jobStatus === JOB_STATUS.pending
-      || jobStatus === JOB_STATUS.metadataRetrieval
-      || jobStatus === JOB_STATUS.planning
-      || jobStatus === JOB_STATUS.engineStart
-      || jobStatus === JOB_STATUS.queued
-      || jobStatus === JOB_STATUS.executionPlanning;
+  getCancellable = (jobStatus) => {
+    return (
+      jobStatus === JOB_STATUS.running ||
+      jobStatus === JOB_STATUS.starting ||
+      jobStatus === JOB_STATUS.enqueued ||
+      jobStatus === JOB_STATUS.pending ||
+      jobStatus === JOB_STATUS.metadataRetrieval ||
+      jobStatus === JOB_STATUS.planning ||
+      jobStatus === JOB_STATUS.engineStart ||
+      jobStatus === JOB_STATUS.queued ||
+      jobStatus === JOB_STATUS.executionPlanning
+    );
   };
 
   getIfInEntityHistory(history, historyItem, datasetUI, version) {
@@ -603,15 +736,36 @@ class ExploreUtils {
 
     const versions = historyItem.toJS();
     isInVersionHistory = versions[version] && Object.keys(versions).length > 1;
-    const historyList = history.getIn([version, 'items']);
+    const historyList = history.getIn([version, "items"]);
     if (!historyList) {
       return [false, true];
     }
-    const originalDatasetHistory = datasetUI.get(historyList.get(historyList.size - 1));
-    hasPhysicalDatasetOrigin = originalDatasetHistory && PHYSICAL_DATASET_TYPES.has(originalDatasetHistory.get('datasetType'));
+    const originalDatasetHistory = datasetUI.get(
+      historyList.get(historyList.size - 1)
+    );
+    hasPhysicalDatasetOrigin =
+      originalDatasetHistory &&
+      PHYSICAL_DATASET_TYPES.has(originalDatasetHistory.get("datasetType"));
 
-    return [isInVersionHistory && !hasPhysicalDatasetOrigin, isInVersionHistory && hasPhysicalDatasetOrigin];
+    return [
+      isInVersionHistory && !hasPhysicalDatasetOrigin,
+      isInVersionHistory && hasPhysicalDatasetOrigin,
+    ];
+  }
+
+  isEditedScript(activeScript, currentSql) {
+    return (
+      activeScript && activeScript.id && activeScript.content !== currentSql
+    );
+  }
+
+  hasPermissionToModify(activeScript) {
+    return (
+      activeScript &&
+      activeScript.permissions &&
+      activeScript.permissions.includes("MODIFY")
+    );
   }
 }
 
-export default (new ExploreUtils());
+export default new ExploreUtils();

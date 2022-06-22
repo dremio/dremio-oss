@@ -38,7 +38,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -78,6 +80,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
 import com.dremio.exec.physical.base.SubScan;
+import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.exec.physical.config.MergeJoinPOP;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
@@ -151,6 +154,9 @@ public class BaseTestOperator extends ExecTest {
   protected final List<AutoCloseable> testCloseables = new ArrayList<>();
   private BufferAllocator testAllocator;
 
+  @Mock
+  protected FragmentExecutionContext fec;
+
   @BeforeClass
   public static void setup() {
     testContext = new OperatorTestContext();
@@ -164,6 +170,7 @@ public class BaseTestOperator extends ExecTest {
 
   @Before
   public void setupBeforeTest() {
+    testCloseables.add(MockitoAnnotations.openMocks(this));
     testAllocator = testContext.allocator.newChildAllocator(TEST_NAME.getMethodName(), 0, Long.MAX_VALUE);
     testCloseables.add(testAllocator);
   }
@@ -222,7 +229,7 @@ public class BaseTestOperator extends ExecTest {
   /**
    * Helper class to return a pair of results from a function.
    */
-  private class Pair<First, Second> implements AutoCloseable {
+  protected class Pair<First, Second> implements AutoCloseable {
     public final First first;
     public final Second second;
 
@@ -298,9 +305,6 @@ public class BaseTestOperator extends ExecTest {
     // we don't close child allocator as the operator context will manage this.
     final OperatorContextImpl context = testContext.getNewOperatorContext(childAllocator, pop, targetBatchSize, endpointsIndex);
     testCloseables.add(context);
-
-    // mock FEC
-    FragmentExecutionContext fec = Mockito.mock(FragmentExecutionContext.class);
 
     CreatorVisitor visitor = new CreatorVisitor(fec, provider, tunnelProvider);
     Operator o = pop.accept(visitor, context);
@@ -608,6 +612,12 @@ public class BaseTestOperator extends ExecTest {
     }
 
     @Override
+    public Operator visitTableFunction(AbstractTableFunctionPOP config, OperatorContext context)
+        throws ExecutionSetupException {
+      return testContext.getOperatorCreatorRegistry().getSingleInputOperator(fec, context, config);
+    }
+
+    @Override
     public Operator visitOp(PhysicalOperator config, OperatorContext context) throws ExecutionSetupException {
       return testContext.getOperatorCreatorRegistry().getSingleInputOperator(context, config);
     }
@@ -676,7 +686,7 @@ public class BaseTestOperator extends ExecTest {
     return validateSingle(pop, clazz, generator, result, batchSize, null);
   }
 
-  private <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {
     long recordCount = 0;
     final List<RecordBatchData> data = new ArrayList<>();
     OperatorStats stats;
@@ -688,6 +698,7 @@ public class BaseTestOperator extends ExecTest {
 
       T op = pair.first;
       stats = pair.second;
+      stats.startProcessing();
       final VectorAccessible output = op.setup(generator.getOutput());
       int count;
       while(op.getState() != State.DONE && (count = generator.next(batchSize)) != 0){
@@ -714,6 +725,11 @@ public class BaseTestOperator extends ExecTest {
         }
       }
 
+      if(op.getState() == State.CAN_CONSUME){
+        op.noMoreToConsume();
+      }
+
+      stats.stopProcessing();
       assertState(op, State.DONE);
       if(result != null){
         result.checkValid(data);

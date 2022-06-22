@@ -16,10 +16,13 @@
 package com.dremio.exec.planner.sql.parser;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.sql.PartitionTransform;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 
 /**
  * Data addition commands (CTAS, INSERT) implement this interface
@@ -30,6 +33,8 @@ public interface DataAdditionCmdCall {
    * @return list partition column names
    */
   List<String> getPartitionColumns(DremioTable dremioTable);
+
+  List<PartitionTransform> getPartitionTransforms(DremioTable dremioTable);
 
   /**
    * @return list of sort column names
@@ -46,7 +51,8 @@ public interface DataAdditionCmdCall {
    *
    * @return
    */
-  PartitionDistributionStrategy getPartitionDistributionStrategy();
+  PartitionDistributionStrategy getPartitionDistributionStrategy(
+    SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames);
 
   /**
    *

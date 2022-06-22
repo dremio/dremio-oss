@@ -18,6 +18,7 @@ package com.dremio.dac.explore;
 import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.io.IOException;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -44,6 +45,8 @@ import com.dremio.dac.explore.model.DatasetName;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
+import com.dremio.dac.explore.model.VersionContextReq;
+import com.dremio.dac.explore.model.VersionContextReq.VersionContextType;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
@@ -56,15 +59,23 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.util.JobRequestUtil;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -249,19 +260,55 @@ public class DatasetResource extends BaseResourceWithAllocator {
 
   @DELETE
   @Produces(APPLICATION_JSON)
-  public DatasetUI deleteDataset(@QueryParam("savedTag") String savedTag)
-      throws DatasetNotFoundException, UserNotFoundException, NamespaceException {
-    if (savedTag == null) {
-      throw new ClientErrorException("missing savedTag parameter");
+  public DatasetUI deleteDataset(
+      @QueryParam("savedTag") String savedTag,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue)
+      throws DatasetNotFoundException, UserNotFoundException, NamespaceException, IOException {
+    final VersionContextReq versionContextReq = VersionContextReq.tryParse(refType, refValue);
+    final boolean versioned = isDatasetVersioned();
+
+    if (versioned && versionContextReq == null) {
+      throw new ClientErrorException(
+          "Missing a refType/refValue pair for versioned virtual dataset");
+    } else if (!versioned && versionContextReq != null) {
+      throw new ClientErrorException(
+          "refType and refValue should be null for non-versioned virtual dataset");
+    } else if (!versioned && savedTag == null) {
+      throw new ClientErrorException("Missing savedTag parameter");
+    } else if (versioned && versionContextReq.getType() != VersionContextType.BRANCH) {
+      throw new ClientErrorException(
+          "To delete a versioned virtual dataset the refType must be BRANCH");
     }
-    final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
 
-    DatasetUI datasetUI = newDataset(virtualDataset);
+    DatasetUI datasetUI = null;
+    if (versioned) {
+      final Catalog catalog = datasetService.getCatalog();
+      final ResolvedVersionContext resolvedVersionContext =
+          CatalogUtil.resolveVersionContext(
+              catalog, datasetPath.getRoot().getName(), VersionContext.ofBranch(refValue));
+      final ViewOptions viewOptions =
+          new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
 
-    datasetService.deleteDataset(datasetPath, savedTag);
+      catalog.dropView(new NamespaceKey(datasetPath.toPathList()), viewOptions);
+    } else {
+      final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
+
+      datasetUI = newDataset(virtualDataset);
+      datasetService.deleteDataset(datasetPath, savedTag);
+    }
+
     final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     reflectionSettings.removeSettings(datasetPath.toNamespaceKey());
+
     return datasetUI;
+  }
+
+  private boolean isDatasetVersioned() {
+    final NamespaceKey namespaceKey = new NamespaceKey(datasetPath.toPathList());
+    final Catalog catalog = datasetService.getCatalog();
+
+    return CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog);
   }
 
   /**
@@ -333,17 +380,22 @@ public class DatasetResource extends BaseResourceWithAllocator {
     final SqlQuery query = JobRequestUtil.createSqlQuery(String.format("select * from %s", datasetPath.toPathString()),
       securityContext.getUserPrincipal().getName());
 
+    JobId jobId = null;
+    SessionId sessionId = null;
     try {
       final CompletionListener completionListener = new CompletionListener();
-      final JobId jobId = jobsService.submitJob(SubmitJobRequest.newBuilder()
+      JobSubmission jobSubmission = jobsService.submitJob(SubmitJobRequest.newBuilder()
           .setSqlQuery(query)
           .setQueryType(QueryType.UI_PREVIEW)
           .build(), completionListener);
+      jobId = jobSubmission.getJobId();
+      sessionId = jobSubmission.getSessionId();
+
       completionListener.awaitUnchecked();
-      final JobData jobData = new JobDataWrapper(jobsService, jobId, query.getUsername());
+      final JobData jobData = new JobDataWrapper(jobsService, jobId, sessionId, query.getUsername());
       return InitialDataPreviewResponse.of(jobData.truncate(getOrCreateAllocator("preview"), limit));
     } catch(UserException e) {
-      throw DatasetTool.toInvalidQueryException(e, query.getSql(), ImmutableList.of());
+      throw DatasetTool.toInvalidQueryException(e, query.getSql(), ImmutableList.of(), jobId, sessionId);
     }
   }
 

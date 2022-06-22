@@ -30,7 +30,7 @@ public class TestTpchDistributed extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchDistributed.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(15, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(15, TimeUnit.SECONDS);
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();

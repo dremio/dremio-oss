@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import ExtractListCards from 'pages/ExplorePage/components/Transform/components/forms/sections/ExtractListCards';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
+import ExtractListCards from "pages/ExplorePage/components/Transform/components/forms/sections/ExtractListCards";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 
-import { ExtractListForm, getListTransformCards } from './ExtractListForm';
+import { ExtractListForm, getListTransformCards } from "./ExtractListForm";
 
-describe('ExtractListForm', () => {
+describe("ExtractListForm", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -30,92 +30,105 @@ describe('ExtractListForm', () => {
   beforeEach(() => {
     minimalProps = {
       transform: Immutable.Map({
-        columnName: 'a'
+        columnName: "a",
       }),
-      submit: sinon.stub().returns('submitResponse'),
+      submit: sinon.stub().returns("submitResponse"),
       onCancel: sinon.spy(),
       cards: Immutable.fromJS([{}]),
-      fields: { cards: {addField: sinon.spy()}}
+      fields: { cards: { addField: sinon.spy() } },
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<ExtractListForm {...commonProps}/>);
+    wrapper = shallow(<ExtractListForm {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<ExtractListForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<ExtractListForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
     expect(wrapper.find(ExtractListCards)).to.have.length(1);
     expect(wrapper.find(NewFieldSection)).to.have.length(1);
   });
 
-  describe('submit', () => {
+  describe("submit", () => {
     let values;
     beforeEach(() => {
       values = {
-        newFieldName: 'a2',
+        newFieldName: "a2",
         dropSourceField: false,
         activeCard: 0,
-        cards: [{
-          type: 'position',
-          position: {
-            startIndex: { value: 1, direction: 'FROM_THE_START' },
-            endIndex: { value: 2, direction: 'FROM_THE_START' }
-          }
-        }]
+        cards: [
+          {
+            type: "position",
+            position: {
+              startIndex: { value: 1, direction: "FROM_THE_START" },
+              endIndex: { value: 2, direction: "FROM_THE_START" },
+            },
+          },
+        ],
       };
     });
 
-    it('should pass submitType to props.submit', () => {
-      instance.submit(values, 'apply');
-      expect(commonProps.submit.getCall(0).args[1]).to.eql('apply');
+    it("should pass submitType to props.submit", () => {
+      instance.submit(values, "apply");
+      expect(commonProps.submit.getCall(0).args[1]).to.eql("apply");
     });
 
-    it('should return correct values on submit', () => {
+    it("should return correct values on submit", () => {
       const expectedResult = {
         ...fieldsMappers.getCommonValues(values, commonProps.transform),
         fieldTransformation: {
-          type:'ExtractList',
-          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard)
-        }
+          type: "ExtractList",
+          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard),
+        },
       };
-      expect(instance.submit(values)).to.eql('submitResponse');
+      expect(instance.submit(values)).to.eql("submitResponse");
       expect(commonProps.submit.calledOnce).to.eql(true);
       expect(commonProps.submit.getCall(0).args[0]).to.eql(expectedResult);
     });
   });
 
-  describe('getListTransformCards', () => {
-    it('should return empty single card if no selection or selection is empty', () => {
-      expect(getListTransformCards()).to.eql(Immutable.fromJS([{type: 'single'}]));
-      expect(getListTransformCards(Immutable.Map())).to.eql(Immutable.fromJS([{type: 'single'}]));
-    });
-
-    it('should return single index card if only one index selected', () => {
-      expect(getListTransformCards(Immutable.fromJS({startIndex: 0, endIndex: 1}))).to.eql(
-        Immutable.fromJS([{type: 'single', single: {startIndex: { value: 0 }}}])
+  describe("getListTransformCards", () => {
+    it("should return empty single card if no selection or selection is empty", () => {
+      expect(getListTransformCards()).to.eql(
+        Immutable.fromJS([{ type: "single" }])
+      );
+      expect(getListTransformCards(Immutable.Map())).to.eql(
+        Immutable.fromJS([{ type: "single" }])
       );
     });
 
-    it('should return multiple index cards if multiple selected', () => {
-      const cards = getListTransformCards(Immutable.fromJS({startIndex: 0, endIndex: 2}));
+    it("should return single index card if only one index selected", () => {
+      expect(
+        getListTransformCards(Immutable.fromJS({ startIndex: 0, endIndex: 1 }))
+      ).to.eql(
+        Immutable.fromJS([
+          { type: "single", single: { startIndex: { value: 0 } } },
+        ])
+      );
+    });
+
+    it("should return multiple index cards if multiple selected", () => {
+      const cards = getListTransformCards(
+        Immutable.fromJS({ startIndex: 0, endIndex: 2 })
+      );
       expect(cards.size).to.equal(4);
-      expect(cards.get(0)).to.eql(Immutable.fromJS({
-        type: 'multiple',
-        multiple: {
-          startIndex: {
-            value: 0,
-            direction: 'Start'
+      expect(cards.get(0)).to.eql(
+        Immutable.fromJS({
+          type: "multiple",
+          multiple: {
+            startIndex: {
+              value: 0,
+              direction: "Start",
+            },
+            endIndex: {
+              value: 1, // form values are inclusive
+              direction: "Start",
+            },
           },
-          endIndex: {
-            value: 1, // form values are inclusive
-            direction: 'Start'
-          }
-        }
-      }));
+        })
+      );
     });
   });
 });
-

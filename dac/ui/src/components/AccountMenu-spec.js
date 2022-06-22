@@ -13,26 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import {AccountMenu} from './AccountMenu';
+import { AccountMenu } from "./AccountMenu";
 
-describe('AccountMenu', () => {
-
+describe("AccountMenu", () => {
   let minimalProps;
   let context;
   beforeEach(() => {
     minimalProps = {
       closeMenu: sinon.stub(),
-      logoutUser: sinon.stub()
+      logoutUser: sinon.stub(),
     };
     context = {
-      router: {push: sinon.spy()}
+      router: { push: sinon.spy() },
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccountMenu {...minimalProps}/>, {context});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AccountMenu {...minimalProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 });

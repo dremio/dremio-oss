@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { PureComponent } from 'react';
-import MenuList from '@material-ui/core/MenuList';
-import PropTypes from 'prop-types';
-import DividerHr from './DividerHr';
+import React, { PureComponent } from "react";
+import MenuList from "@material-ui/core/MenuList";
+import PropTypes from "prop-types";
+import DividerHr from "./DividerHr";
 
 export default class Menu extends PureComponent {
   static propTypes = {
     children: PropTypes.node,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   getItems() {
     // ensure no duplicate or start/end dividers (e.g. due to filters)
@@ -46,10 +46,7 @@ export default class Menu extends PureComponent {
     const { style } = this.props;
 
     return (
-      <MenuList
-        data-qa='popover-menu'
-        style={style ? style : styles.menuStyle}
-      >
+      <MenuList data-qa="popover-menu" style={style ? style : styles.menuStyle}>
         {this.getItems()}
       </MenuList>
     );
@@ -58,11 +55,11 @@ export default class Menu extends PureComponent {
 
 const styles = {
   menuStyle: {
-    float: 'left',
-    position: 'relative',
+    float: "left",
+    position: "relative",
     zIndex: 1,
-    padding: '5px 0',
-    overflow: 'hidden',
-    width: 'fit-content -moz-fit-content !important'
-  }
+    padding: "5px 0",
+    overflow: "hidden",
+    width: "fit-content -moz-fit-content !important",
+  },
 };

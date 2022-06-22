@@ -28,6 +28,11 @@ public class NamespaceNotFoundException extends NamespaceException {
     this.key = key;
   }
 
+  public NamespaceNotFoundException(String message) {
+    super(message);
+    this.key = null;
+  }
+
   public NamespaceKey getKey() {
     return key;
   }

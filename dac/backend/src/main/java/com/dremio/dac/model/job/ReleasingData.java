@@ -27,6 +27,7 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataFragmentImpl;
 import com.dremio.service.jobs.RecordBatches;
 
@@ -38,22 +39,22 @@ public class ReleasingData extends JobDataFragmentImpl implements ReleaseAfterSe
   private final AutoCloseables.RollbackCloseable closeable;
 
   public ReleasingData(AutoCloseables.RollbackCloseable closeable, RBDList rbdList) {
-    this(closeable, rbdList.toRecordBatches(), new JobId().setId("preview-job").setName("preview-job"));
+    this(closeable, rbdList.toRecordBatches(), new JobId("preview-job"), new SessionId().setId("preview-session"));
   }
 
-  private ReleasingData(AutoCloseables.RollbackCloseable closeable, RecordBatches recordBatches, JobId jobId) {
-    super(recordBatches, 0, jobId);
+  private ReleasingData(AutoCloseables.RollbackCloseable closeable, RecordBatches recordBatches, JobId jobId, SessionId sessionId) {
+    super(recordBatches, 0, jobId, sessionId);
     this.closeable = closeable;
   }
 
-  public static ReleasingData from(RecordBatches recordBatches, JobId jobId) {
-    return new ReleasingData(null, recordBatches, jobId);
+  public static ReleasingData from(RecordBatches recordBatches, JobId jobId, SessionId sessionId) {
+    return new ReleasingData(null, recordBatches, jobId, sessionId);
   }
 
   @Override
   public synchronized void close() {
     List<AutoCloseable> closeables = new ArrayList<>();
-    closeables.add(() -> super.close());
+    closeables.add(super::close);
     List<AutoCloseable> backList = new ArrayList<>();
     if (closeable != null) {
       backList.addAll(closeable.getCloseables());

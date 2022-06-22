@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '~@app/uiTheme/less/color-schema.less';
- @import '~@app/uiTheme/less/mixins.less';
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
- :global {
-   .infiniteScroller {
-     width: 100%;
-     height: 100%;
+:global {
+  .infiniteScroller {
+    width: 100%;
+    height: 100%;
 
-     &__loading, &__error {
-       .flex-center;
-       justify-content: center;
-     }
+    &__loading,
+    &__error {
+      .flex-center;
+      justify-content: center;
+    }
 
-     &__error a {
-        .flex-center;
-        flex-direction: row-reverse;
-     }
+    &__error a {
+      .flex-center;
+      flex-direction: row-reverse;
+    }
 
-     &__error .fa {
-        .flex-center;
-     }
-   }
- }
- 
+    &__error .fa {
+      .flex-center;
+    }
+  }
+}

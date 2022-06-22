@@ -13,26 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getCreatedSource, getViewState } from 'selectors/resources';
-import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
-import MetadataRefresh from 'components/Forms/MetadataRefresh';
-import { VIEW_ID } from 'pages/HomePage/components/modals/EditSourceView';
+import { getCreatedSource, getViewState } from "selectors/resources";
+import DataFreshnessSection from "components/Forms/DataFreshnessSection";
+import MetadataRefresh from "components/Forms/MetadataRefresh";
+import { VIEW_ID } from "pages/HomePage/components/modals/EditSourceView";
 
 export const additionalMapDispatchToProps = {};
 
 export const mapStateToProps = (state) => {
   const createdSource = getCreatedSource(state); // todo: why is this called "created" source here in "edit"?
-  const messages = createdSource && createdSource.getIn(['state', 'messages']);
+  const messages = createdSource && createdSource.getIn(["state", "messages"]);
 
   return {
     messages,
     viewState: getViewState(state, VIEW_ID),
     source: createdSource,
     initialFormValues: {
-      accelerationRefreshPeriod: createdSource && createdSource.has('accelerationRefreshPeriod') ? createdSource.get('accelerationRefreshPeriod') : DataFreshnessSection.defaultFormValueRefreshInterval(),
-      accelerationGracePeriod: createdSource && createdSource.has('accelerationGracePeriod') ? createdSource.get('accelerationGracePeriod') : DataFreshnessSection.defaultFormValueGracePeriod(),
-      metadataPolicy: MetadataRefresh.mapToFormFields(createdSource)
-    }
+      accelerationRefreshPeriod:
+        createdSource && createdSource.has("accelerationRefreshPeriod")
+          ? createdSource.get("accelerationRefreshPeriod")
+          : DataFreshnessSection.defaultFormValueRefreshInterval(),
+      accelerationGracePeriod:
+        createdSource && createdSource.has("accelerationGracePeriod")
+          ? createdSource.get("accelerationGracePeriod")
+          : DataFreshnessSection.defaultFormValueGracePeriod(),
+      metadataPolicy: MetadataRefresh.mapToFormFields(createdSource),
+    },
   };
 };
 
@@ -40,13 +46,13 @@ export const getFinalSubmit = (form, sourceType, props) => {
   return props.createSource(form, sourceType);
 };
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     mutateFormValues(values) {
       return values;
     },
-    fetchData() {
-    }
+    fetchData() {},
   });
 }
 

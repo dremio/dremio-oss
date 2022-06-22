@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import uuid from 'uuid';
+import uuid from "uuid";
 
 class AdminMapper {
   mapSourceNodesList(json) {
@@ -33,7 +33,7 @@ class AdminMapper {
         isBlacklisted: node.isBlacklisted,
         isCompatible: node.isCompatible,
         version: node.version,
-        nodeTag: node.nodeTag
+        nodeTag: node.nodeTag,
       };
     });
   }
@@ -44,7 +44,7 @@ class AdminMapper {
         id: uuid.v4(),
         name: group.name,
         users: group.users,
-        data: group.data
+        data: group.data,
       };
     });
   }

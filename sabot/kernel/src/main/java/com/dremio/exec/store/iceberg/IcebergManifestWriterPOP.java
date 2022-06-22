@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.OpProps;
@@ -22,7 +23,6 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.StoragePluginResolver;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("iceberg-manifest-writer")
 public class IcebergManifestWriterPOP extends AbstractWriter {
     private final String location;
-    private final FileSystemPlugin<?> plugin;
+    private final MutablePlugin plugin;
 
     @JsonCreator
     public IcebergManifestWriterPOP(
@@ -56,7 +56,7 @@ public class IcebergManifestWriterPOP extends AbstractWriter {
             PhysicalOperator child,
             String location,
             WriterOptions options,
-            FileSystemPlugin<?> plugin) {
+            MutablePlugin plugin) {
         super(props, child, options);
         this.plugin = plugin;
         this.location = location;
@@ -82,7 +82,7 @@ public class IcebergManifestWriterPOP extends AbstractWriter {
     }
 
     @JsonIgnore
-    public FileSystemPlugin<?> getPlugin() {
+    public MutablePlugin getPlugin() {
         return plugin;
     }
 }

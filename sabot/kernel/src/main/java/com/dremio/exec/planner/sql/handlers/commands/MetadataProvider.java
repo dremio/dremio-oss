@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +29,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
@@ -483,48 +486,88 @@ public class MetadataProvider {
    * @return NamespaceKey (can return null in case there are wildcard characters in any of the filters)
    */
   @VisibleForTesting
-  static NamespaceKey getTableKeyFromFilter(LikeFilter schemaFilter, LikeFilter tableFilter) {
-    final StringBuilder sb = new StringBuilder();
+  public static NamespaceKey getTableKeyFromFilter(LikeFilter schemaFilter, LikeFilter tableFilter) {
     final List<String> paths = Lists.newArrayList();
     final List<LikeFilter> filters = ImmutableList.of(schemaFilter, tableFilter);
 
     for (LikeFilter filter : filters) {
-      final String pattern = filter.getPattern();
-      if (pattern.isEmpty()) {
+      String path = getPath(filter);
+      if (path == null) {
         // should have both schema and table filter
         return null;
       }
-      final String escape = filter.getEscape();
-
-      final char e = escape == null ? '\\' : escape.charAt(0);
-      boolean escaped = false;
-
-      for (int i = 0; i < pattern.length(); i++) {
-        char c = pattern.charAt(i);
-
-        if (escaped) {
-          sb.append(c);
-          escaped = false;
-          continue;
-        }
-
-        if (c == e) {
-          escaped = true;
-          continue;
-        }
-
-        if (SQL_LIKE_SPECIALS.indexOf(c) >= 0) {
-          // unable to deal with likecards
-          return null;
-        }
-        sb.append(c);
-      }
-      paths.add(sb.toString());
-      sb.setLength(0);
+      paths.add(path);
     }
     if (!paths.isEmpty()) {
       return new NamespaceKey(paths);
     }
     return null;
+  }
+
+  private static String getPath(LikeFilter filter) {
+    StringBuilder sb = new StringBuilder();
+    final String pattern = filter.getPattern();
+    if (pattern.isEmpty()) {
+      return null;
+    }
+    final String escape = filter.getEscape();
+
+    final char e = StringUtils.isEmpty(escape) ? '\\' : escape.charAt(0);
+    boolean escaped = false;
+
+    for (int i = 0; i < pattern.length(); i++) {
+      char c = pattern.charAt(i);
+
+      if (escaped) {
+        sb.append(c);
+        escaped = false;
+        continue;
+      }
+
+      if (c == e) {
+        escaped = true;
+        continue;
+      }
+
+      if (SQL_LIKE_SPECIALS.indexOf(c) >= 0) {
+        // unable to deal with likecards
+        return null;
+      }
+      sb.append(c);
+    }
+    return sb.toString();
+  }
+
+  public static NamespaceKey getTableKeyFromFilter(SearchQuery schemaNameFilter, SearchQuery tableNameFilter) {
+    if (schemaNameFilter.hasLike() && tableNameFilter.hasLike()) {
+      LikeFilter schemaNameLikeFilter = LikeFilter.newBuilder().setEscape(schemaNameFilter.getLike().getEscape())
+        .setPattern(schemaNameFilter.getLike().getPattern()).build();
+      LikeFilter tableNameLikeFilter = LikeFilter.newBuilder().setEscape(tableNameFilter.getLike().getEscape())
+        .setPattern(tableNameFilter.getLike().getPattern()).build();
+      return getTableKeyFromFilter(schemaNameLikeFilter, tableNameLikeFilter);
+    }
+    List<String> paths = new ArrayList<>();
+    if (schemaNameFilter.hasLike()) {
+      LikeFilter schemaNameLikeFilter = LikeFilter.newBuilder().setEscape(schemaNameFilter.getLike().getEscape())
+        .setPattern(schemaNameFilter.getLike().getPattern()).build();
+      paths.add(getPath(schemaNameLikeFilter));
+    } else if (schemaNameFilter.hasEquals() && schemaNameFilter.getEquals().hasStringValue()) {
+      paths.add(schemaNameFilter.getEquals().getStringValue());
+    } else {
+      return null;
+    }
+    if (tableNameFilter.hasLike()) {
+      LikeFilter tableNameLikeFilter = LikeFilter.newBuilder().setEscape(tableNameFilter.getLike().getEscape())
+        .setPattern(tableNameFilter.getLike().getPattern()).build();
+      paths.add(getPath(tableNameLikeFilter));
+    } else if (tableNameFilter.hasEquals() && tableNameFilter.getEquals().hasStringValue()) {
+      paths.add(tableNameFilter.getEquals().getStringValue());
+    } else {
+      return null;
+    }
+    if (paths.contains(null)) {
+      return null;
+    }
+    return new NamespaceKey(paths);
   }
 }

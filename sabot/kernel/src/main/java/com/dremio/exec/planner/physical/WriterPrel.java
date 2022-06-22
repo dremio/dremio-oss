@@ -22,12 +22,16 @@ import java.util.List;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.WriterRelBase;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.options.Options;
@@ -96,4 +100,23 @@ public class WriterPrel extends WriterRelBase implements Prel {
     return expectedInboundRowType;
   }
 
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    double estimateInputRowCount = super.estimateRowCount(mq);  //Count estimate from input
+    BatchSchema schema = CalciteArrowHelper.fromCalciteRowType(getExpectedInboundRowType());
+
+    long parquetFileSize = PrelUtil.getPlannerSettings(getCluster().getPlanner()).getOptions()
+            .getOption(ExecConstants.PARQUET_SPLIT_SIZE_VALIDATOR);
+    int listEstimate = (int) PrelUtil.getPlannerSettings(getCluster().getPlanner()).getOptions()
+            .getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    int variableField = (int) PrelUtil.getPlannerSettings(getCluster().getPlanner()).getOptions()
+            .getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    int estimatedRowSize = schema.estimateRecordSize(listEstimate, variableField);
+
+    double numRecords = Math.ceil(parquetFileSize / estimatedRowSize) + 1;
+
+    return Math.max(10, estimateInputRowCount / numRecords) * PrelUtil.getPlannerSettings(
+            getCluster().getPlanner()).getOptions()
+            .getOption(ExecConstants.PARQUET_FILES_ESTIMATE_SCALING_FACTOR_VALIDATOR);
+  }
 }

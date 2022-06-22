@@ -13,37 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import Tree from './Tree';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import Tree from "./Tree";
 
-describe('Tree', () => {
+describe("Tree", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      selectedNodeId: 'selectedNodeId',
+      selectedNodeId: "selectedNodeId",
+      starredItems: [],
       resourceTree: Immutable.fromJS([
-        { fullPath: 'node1' },
-        { fullPath: 'node2' },
-        { fullPath: 'node3' }
+        { fullPath: "node1" },
+        { fullPath: "node2" },
+        { fullPath: "node3" },
       ]),
-      renderNode: sinon.spy()
+      renderNode: sinon.spy(),
+      sources: Immutable.fromJS([]),
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<Tree {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<Tree {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render TreeNode component for each node in resourceTree', () => {
-    const wrapper = shallow(<Tree {...commonProps}/>);
-    expect(wrapper.find('TreeNode')).to.have.length(commonProps.resourceTree.size);
-
-    const nodeProps = wrapper.find('TreeNode').first().props();
+  it("should render TreeNode component for each node in resourceTree", () => {
+    const wrapper = shallow(<Tree {...commonProps} />);
+    expect(wrapper.children()).to.have.length(commonProps.resourceTree.size);
+    const nodeProps = wrapper.children().first().props();
     expect(nodeProps.node).to.eql(commonProps.resourceTree.get(0));
-    expect(nodeProps.renderNode).to.eql(commonProps.renderNode);
     expect(nodeProps.selectedNodeId).to.eql(commonProps.selectedNodeId);
   });
 });

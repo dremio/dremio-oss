@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const version = process.env.DREMIO_VERSION || 'DREMIO_VERSION_IS_NOT_PROVIDED';
-const editionType = process.env.EDITION_TYPE || 'ce'; // community
+const version = process.env.DREMIO_VERSION || "DREMIO_VERSION_IS_NOT_PROVIDED";
+const editionType = process.env.EDITION_TYPE || "ce"; // community
 
 // this module would be used in node environment in webpack.config.js and in babel environment in
 // sentryUtils.js
@@ -24,5 +24,5 @@ module.exports = {
   },
   getEdition() {
     return editionType;
-  }
+  },
 };

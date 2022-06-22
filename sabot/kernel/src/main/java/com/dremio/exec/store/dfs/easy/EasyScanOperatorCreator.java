@@ -59,7 +59,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySubScan>{
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(com.dremio.exec.store.dfs.easy.EasyScanOperatorCreator.class);
 
-  private final static Comparator<SplitAndExtended> SPLIT_COMPARATOR = new Comparator<SplitAndExtended>() {
+  private static final Comparator<SplitAndExtended> SPLIT_COMPARATOR = new Comparator<SplitAndExtended>() {
     @Override
     public int compare(SplitAndExtended o1e, SplitAndExtended o2e) {
       EasyDatasetSplitXAttr o1 = o1e.getExtended();

@@ -16,7 +16,6 @@
 
 package com.dremio.common.util;
 
-import com.dremio.common.util.CoreDecimalUtility;
 
 public class DecimalScalePrecisionModFunction extends ScalePrecisionFunctionBase {
 

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { combineReducers } from 'redux';
+import { combineReducers } from "redux";
 
-import pinnedEntities from './pinnedEntities';
-import config from './config';
-import wiki from './wiki';
-import sidebarSize from './sidebarSize';
-import content from './content';
+import pinnedEntities from "./pinnedEntities";
+import config from "./config";
+import wiki from "./wiki";
+import sidebarSize from "./sidebarSize";
+import content from "./content";
 
 // todo move to modules
 export default combineReducers({
@@ -27,5 +27,5 @@ export default combineReducers({
   wiki,
   sidebarSize,
   pinnedEntities,
-  content
+  content,
 });

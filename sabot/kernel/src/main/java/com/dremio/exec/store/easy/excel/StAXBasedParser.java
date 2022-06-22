@@ -502,7 +502,7 @@ public class StAXBasedParser implements ExcelParser {
 
     final String finalColumnName = columnNameHandler.getColumnName(currentColumnIndex);
 
-    if ((columnsToProject == null) || columnsToProject.contains(finalColumnName)) {
+    if (!skipQuery && (columnsToProject == null || columnsToProject.contains(finalColumnName))) {
       MinorType type = indexToLastTypeCache.get(currentColumnIndex);
       if (type == null) {
         if (valueTypeFromAttribute == MinorType.FLOAT8 && valueTypeFromStyle == MinorType.TIMESTAMP) {

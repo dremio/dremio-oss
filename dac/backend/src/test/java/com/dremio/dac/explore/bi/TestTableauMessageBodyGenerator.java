@@ -19,11 +19,13 @@ import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_CONNEC
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_FLIGHT_CONNECTION_PROPERTIES;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_NATIVE_CONNECTION_PROPERTIES;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE;
+import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_SOFTWARE_SSO_ENABLED;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_VERSION;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_NOMINAL;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_ORDINAL;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_QUANTITATIVE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -70,6 +72,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.xml.SafeXMLFactories;
+import com.google.common.base.Strings;
 
 /**
  * Unit tests for {@link TableauMessageBodyGenerator}
@@ -97,8 +100,10 @@ public class TestTableauMessageBodyGenerator {
 
   @Mock
   private Configuration configuration;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
   protected OptionManager optionManager;
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
   protected DremioConfig config;
 
@@ -223,6 +228,20 @@ public class TestTableauMessageBodyGenerator {
     verifyFlightOutput("", TableauSDKConstants.REQUIRE);
   }
 
+  @Test
+  public void verifySsoEnabledSslOff()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)).thenReturn(true);
+    verifySdkOutput("", TableauSDKConstants.NOT_REQUIRE);
+  }
+
+  @Test
+  public void verifySsoEnabledSslOn()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)).thenReturn(true);
+    verifySdkOutput("ssl = true", TableauSDKConstants.REQUIRE);
+  }
+
   protected void verifySdkCustomOutput(Element connection) {
     assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
     assertEquals("", connection.getAttribute(TableauSDKConstants.ENGINE));
@@ -230,10 +249,23 @@ public class TestTableauMessageBodyGenerator {
   }
 
   protected void verifySdkAuthenticationOutput(Element connection) {
-    assertEquals(TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
+    if (optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)) {
+      assertEquals(TableauSDKConstants.OAUTH, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
+      assertFalse(Strings.isNullOrEmpty(connection.getAttribute(TableauSDKConstants.INSTANCEURL)));
+    } else {
+      assertEquals(TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
+    }
   }
 
   protected void verifySdkSSLOutput(Element connection, String sslmode) {
+    if (optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)) {
+      if (sslmode.equalsIgnoreCase(TableauSDKConstants.REQUIRE)) {
+        assertEquals("https://foo:9047", connection.getAttribute(TableauSDKConstants.INSTANCEURL));
+      } else {
+        assertEquals("http://foo:9047", connection.getAttribute(TableauSDKConstants.INSTANCEURL));
+      }
+    }
+
     assertEquals(sslmode, connection.getAttribute(TableauSDKConstants.SSL));
   }
 

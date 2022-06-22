@@ -17,6 +17,21 @@
 export const getFormTabs = (tabs, fields, permissions, tabSelected) => {
   return {
     tabSelected,
-    tabs
+    tabs,
   };
+};
+
+/**
+ * @param {{}} object
+ * @param {string[]} exclude array of properties (keys) to ignore
+ * @returns {{}} an object with whitespace trimmed from values
+ */
+export const trimObjectWhitespace = (object, exclude = []) => {
+  return JSON.parse(
+    JSON.stringify(object, (key, value) => {
+      return typeof value === "string" && !exclude.includes(key)
+        ? value.trim()
+        : value;
+    })
+  );
 };

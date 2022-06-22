@@ -15,57 +15,40 @@
  */
 package com.dremio.exec.planner.sql;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
 import com.google.common.collect.Sets;
 
-
-@RunWith(Parameterized.class)
 public class TestSQLAlterTableChangeColumnSetOption {
   private final ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
 
-  @Parameterized.Parameters(name = "{index}: {0}, {1}, {2}, {3}, {4}")
-  public static Collection<Object[]> data() {
-    return Arrays.asList(new Object[][]{
-      {"dummy_table", "dummy_column", "Modify", "prop1", "strValue"},
-      {"dummy_table", "dummy_column", "change", "prop1", false},
-      {"dummy_table", "dummy_column", "alter", "prop1", 10},
-      {"dummy_table", "dummy_column", "alter", "nullProp", null},
-      {"dummy_table", "dummy_column", "Modify column", "prop1", "strValue"},
-      {"dummy_table", "dummy_column", "change column", "prop1", false},
-      {"dummy_table", "dummy_column", "alter column", "prop1", 10},
-      {"dummy_table", "dummy_column", "alter column", "nullProp", null}
-    });
+  public static Stream<Arguments> testChangeColumnOption() {
+    return Stream.of(
+      Arguments.of("dummy_table", "dummy_column", "Modify", "prop1", "strValue"),
+      Arguments.of("dummy_table", "dummy_column", "change", "prop1", false),
+      Arguments.of("dummy_table", "dummy_column", "alter", "prop1", 10),
+      Arguments.of("dummy_table", "dummy_column", "alter", "nullProp", null),
+      Arguments.of("dummy_table", "dummy_column", "Modify column", "prop1", "strValue"),
+      Arguments.of("dummy_table", "dummy_column", "change column", "prop1", false),
+      Arguments.of("dummy_table", "dummy_column", "alter column", "prop1", 10),
+      Arguments.of("dummy_table", "dummy_column", "alter column", "nullProp", null)
+    );
   }
 
-  private final String table;
-  private final String column;
-  private final String changeColumnKeyword;
-  private final String propertyName;
-  private final Object propertyValue;
-
-  public TestSQLAlterTableChangeColumnSetOption(String table, String column, String changeColumnKeyword, String propertyName, Object propertyValue) {
-    this.table = table;
-    this.column = column;
-    this.changeColumnKeyword = changeColumnKeyword;
-    this.propertyName = propertyName;
-    this.propertyValue = propertyValue;
-  }
-
-  @Test
-  public void testChangeColumnOption() {
+  @ParameterizedTest(name = "{index}: {0}, {1}, {2}, {3}, {4}")
+  @MethodSource
+  public void testChangeColumnOption(String table, String column, String changeColumnKeyword, String propertyName, Object propertyValue) {
     final String sql;
     if (propertyValue == null) {
       sql = String.format("ALTER TABLE %s %s %s RESET %s", table, changeColumnKeyword, column, propertyName);
@@ -74,27 +57,27 @@ public class TestSQLAlterTableChangeColumnSetOption {
         propertyValue instanceof String ? String.format("'%s'", propertyValue) : propertyValue);
     }
 
-    verifyNode(sql);
+    verifyNode(sql, table, column, propertyValue);
   }
 
-  void verifyNode(String sql) {
+  void verifyNode(String sql, String table, String column, Object propertyValue) {
     final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
-    Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.SET_OPTION)));
+    Assertions.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.SET_OPTION)));
 
     final SqlAlterTableChangeColumnSetOption alterTableChangeColumnSetOption = (SqlAlterTableChangeColumnSetOption) sqlNode;
-    Assert.assertEquals(column, alterTableChangeColumnSetOption.getColumn());
-    Assert.assertEquals(table, alterTableChangeColumnSetOption.getTable().toString());
+    Assertions.assertEquals(column, alterTableChangeColumnSetOption.getColumn());
+    Assertions.assertEquals(table, alterTableChangeColumnSetOption.getTable().toString());
 
     if (propertyValue == null) {
-      Assert.assertNull(alterTableChangeColumnSetOption.getValue());
+      Assertions.assertNull(alterTableChangeColumnSetOption.getValue());
     } else if (propertyValue == Optional.empty()) {
-      Assert.assertNull(alterTableChangeColumnSetOption.getValue());
+      Assertions.assertNull(alterTableChangeColumnSetOption.getValue());
     } else if (propertyValue instanceof String) {
-      Assert.assertEquals(propertyValue, ((SqlLiteral) alterTableChangeColumnSetOption.getValue()).toValue());
+      Assertions.assertEquals(propertyValue, ((SqlLiteral) alterTableChangeColumnSetOption.getValue()).toValue());
     } else if (propertyValue instanceof Boolean) {
-      Assert.assertEquals(propertyValue, ((SqlLiteral) alterTableChangeColumnSetOption.getValue()).booleanValue());
+      Assertions.assertEquals(propertyValue, ((SqlLiteral) alterTableChangeColumnSetOption.getValue()).booleanValue());
     } else if (propertyValue instanceof Integer) {
-      Assert.assertEquals(propertyValue, ((SqlLiteral) alterTableChangeColumnSetOption.getValue()).intValue(true));
+      Assertions.assertEquals(propertyValue, ((SqlLiteral) alterTableChangeColumnSetOption.getValue()).intValue(true));
     }
   }
 }

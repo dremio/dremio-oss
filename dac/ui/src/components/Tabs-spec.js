@@ -13,37 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import Tabs from './Tabs';
+import Tabs from "./Tabs";
 
-describe('Tabs-spec', () => {
-
+describe("Tabs-spec", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      activeTab: 'activeTabId'
+      activeTab: "activeTabId",
     };
   });
 
-  it('render Tabs', () => {
+  it("render Tabs", () => {
     const wrapper = shallow(
       <Tabs {...commonProps}>
-        <div tabId='otherTabId' className='tab'><span>First tab content</span></div>
-        <div tabId='activeTabId' className='tab'><span>Second tab content</span></div>
+        <div tabId="otherTabId" className="tab">
+          <span>First tab content</span>
+        </div>
+        <div tabId="activeTabId" className="tab">
+          <span>Second tab content</span>
+        </div>
       </Tabs>
     );
-    expect(wrapper.hasClass('tab-wrapper')).to.be.true;
+    expect(wrapper.hasClass("tab-wrapper")).to.be.true;
   });
 
-  it('Tab Component content', () => {
+  it("Tab Component content", () => {
     const wrapper = shallow(
       <Tabs {...commonProps}>
-        <div tabId='otherTabId' className='tab'><span>First tab content</span></div>
-        <div tabId='activeTabId' className='tab'><span>Second tab content</span></div>
+        <div tabId="otherTabId" className="tab">
+          <span>First tab content</span>
+        </div>
+        <div tabId="activeTabId" className="tab">
+          <span>Second tab content</span>
+        </div>
       </Tabs>
     );
-    expect(wrapper.find('.tab')).to.have.length.of(1);
-    expect(wrapper.find('.tab').text()).to.equal('Second tab content');
+    expect(wrapper.find(".tab")).to.have.length.of(1);
+    expect(wrapper.find(".tab").text()).to.equal("Second tab content");
   });
 });

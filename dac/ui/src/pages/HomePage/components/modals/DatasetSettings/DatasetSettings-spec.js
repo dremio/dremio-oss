@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import AccelerationController from 'components/Acceleration/AccelerationController';
-import { getEntity } from 'selectors/resources';
-import { getHomeEntityOrChild } from '@app/selectors/home';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import AccelerationController from "components/Acceleration/AccelerationController";
+import { getEntity } from "selectors/resources";
+import { getHomeEntityOrChild } from "@app/selectors/home";
 
-import FileFormatController from './FileFormatController';
-import AccelerationUpdatesController from './AccelerationUpdates/AccelerationUpdatesController';
-import DatasetOverviewForm from './DatasetOverviewForm';
+import FileFormatController from "./FileFormatController";
+import AccelerationUpdatesController from "./AccelerationUpdates/AccelerationUpdatesController";
+import DatasetOverviewForm from "./DatasetOverviewForm";
 
-import { DatasetSettings } from './DatasetSettings';
+import { DatasetSettings } from "./DatasetSettings";
 
-describe('DatasetSettings', () => {
+describe("DatasetSettings", () => {
   let minimalProps;
   let commonProps;
   let context;
@@ -33,197 +33,216 @@ describe('DatasetSettings', () => {
     minimalProps = {
       viewState: Immutable.Map(),
       location: {
-        pathname: '/share',
-        state: { tab: '' }
+        pathname: "/share",
+        state: { tab: "" },
       },
       loadDatasetForDatasetType: sinon.spy(),
       updateFormDirtyState: sinon.spy(),
-      showUnsavedChangesConfirmDialog: sinon.spy()
+      showUnsavedChangesConfirmDialog: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
       entity: Immutable.fromJS({
-        id: '1',
-        entityType: 'physicalDataset'
+        id: "1",
+        entityType: "physicalDataset",
       }),
       viewState: Immutable.fromJS({
-        isInProgress: false
-      })
+        isInProgress: false,
+      }),
     };
     context = {
       router: {
         push: sinon.spy(),
-        replace: sinon.spy()
-      }
+        replace: sinon.spy(),
+      },
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DatasetSettings {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DatasetSettings {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render first tab if none specified', () => {
+  it("should render first tab if none specified", () => {
     const props = {
       ...commonProps,
-      tab: 'format'
+      tab: "format",
     };
-    const wrapper = shallow(<DatasetSettings {...props}/>);
+    const wrapper = shallow(<DatasetSettings {...props} />);
     expect(wrapper.find(FileFormatController)).to.have.length(1);
   });
 
-  it('should render Format tab content when tab is active', () => {
+  it("should render Format tab content when tab is active", () => {
     const props = {
       ...commonProps,
-      tab: 'format'
+      tab: "format",
     };
-    const wrapper = shallow(<DatasetSettings {...props}/>);
+    const wrapper = shallow(<DatasetSettings {...props} />);
     expect(wrapper.find(FileFormatController)).to.have.length(1);
   });
 
-  it('should render Acceleration tab content when tab is active', () => {
+  it("should render Acceleration tab content when tab is active", () => {
     const props = {
       ...commonProps,
-      tab: 'acceleration'
+      tab: "acceleration",
     };
-    const wrapper = shallow(<DatasetSettings {...props}/>);
+    const wrapper = shallow(<DatasetSettings {...props} />);
     expect(wrapper.find(AccelerationController)).to.have.length(1);
   });
 
-  it('should render Acceleration Updates tab content when tab is active', () => {
+  it("should render Acceleration Updates tab content when tab is active", () => {
     const props = {
       ...commonProps,
-      tab: 'accelerationUpdates'
+      tab: "accelerationUpdates",
     };
-    const wrapper = shallow(<DatasetSettings {...props}/>);
+    const wrapper = shallow(<DatasetSettings {...props} />);
     expect(wrapper.find(AccelerationUpdatesController)).to.have.length(1);
   });
 
-  it('should render Overview tab content when tab is active', () => {
+  it("should render Overview tab content when tab is active", () => {
     const props = {
       ...commonProps,
-      tab: 'overview'
+      tab: "overview",
     };
-    const wrapper = shallow(<DatasetSettings {...props}/>);
+    const wrapper = shallow(<DatasetSettings {...props} />);
     expect(wrapper.find(DatasetOverviewForm)).to.have.length(1);
   });
 
-  describe('#componentWillMount', () => {
-    it('should not load dataset when datasetUrl is absent', () => {
+  describe("#componentWillMount", () => {
+    it("should not load dataset when datasetUrl is absent", () => {
       const props = {
-        loadDatasetForDatasetType: sinon.stub().returns({ then: f => f()}),
-        location: {state: {}}
+        loadDatasetForDatasetType: sinon.stub().returns({ then: (f) => f() }),
+        location: { state: {} },
       };
-      shallow(<DatasetSettings {...props}/>, {context});
+      shallow(<DatasetSettings {...props} />, { context });
       expect(props.loadDatasetForDatasetType).to.not.be.called;
       expect(context.router.replace).to.not.be.called;
     });
 
-    it('should load dataset and update location state when datasetUrl present and request succeed', () => {
+    it("should load dataset and update location state when datasetUrl present and request succeed", () => {
       const response = {
         payload: Immutable.fromJS({
           entities: {
             dataset: {
-              '/dataset_id': {}
-            }
+              "/dataset_id": {},
+            },
           },
-          result: '/dataset_id'
-        })
+          result: "/dataset_id",
+        }),
       };
       const props = {
-        loadDatasetForDatasetType: sinon.stub().returns({ then: f => f(response)}),
-        datasetUrl: '/dataset_url',
-        datasetType: 'dataset',
-        location: {state: {}}
+        loadDatasetForDatasetType: sinon
+          .stub()
+          .returns({ then: (f) => f(response) }),
+        datasetUrl: "/dataset_url",
+        datasetType: "dataset",
+        location: { state: {} },
       };
-      shallow(<DatasetSettings {...props}/>, {context});
-      expect(props.loadDatasetForDatasetType).to.be.calledWith('dataset', '/dataset_url', 'DATASET_SETTINGS_VIEW_ID');
-      expect(context.router.replace).to.be.calledWith({state: { entityId: '/dataset_id', entityType: 'dataset'}});
-    });
-
-    it('should load dataset when datasetUrl is present and not update location when request failed', () => {
-      const response = {
-        error: true
-      };
-      const props = {
-        loadDatasetForDatasetType: sinon.stub().returns({ then: f => f(response)}),
-        datasetUrl: '/dataset_url',
-        datasetType: 'dataset',
-        location: {state: {}}
-      };
-      shallow(<DatasetSettings {...props}/>, {context});
-      expect(props.loadDatasetForDatasetType).to.be.calledWith('dataset', '/dataset_url', 'DATASET_SETTINGS_VIEW_ID');
-      expect(context.router.replace).to.not.be.called;
-    });
-  });
-
-  describe('#componentDidMount', () => {
-    it('should set first available tab as active if no active tab marked in location state', () => {
-      const instance = shallow(<DatasetSettings {...commonProps}/>, {context}).instance();
-      instance.componentDidMount();
+      shallow(<DatasetSettings {...props} />, { context });
+      expect(props.loadDatasetForDatasetType).to.be.calledWith(
+        "dataset",
+        "/dataset_url",
+        "DATASET_SETTINGS_VIEW_ID"
+      );
       expect(context.router.replace).to.be.calledWith({
-        pathname: '/share',
-        state: { tab: 'overview'}
+        state: { entityId: "/dataset_id", entityType: "dataset" },
       });
     });
 
-    it('should set active according to props.tab', () => {
-      const props = {
-        ...commonProps,
-        tab: 'overview'
+    it("should load dataset when datasetUrl is present and not update location when request failed", () => {
+      const response = {
+        error: true,
       };
-      const wrapper = shallow(<DatasetSettings {...props}/>, {context});
-      const instance = wrapper.instance();
-      instance.componentDidMount();
+      const props = {
+        loadDatasetForDatasetType: sinon
+          .stub()
+          .returns({ then: (f) => f(response) }),
+        datasetUrl: "/dataset_url",
+        datasetType: "dataset",
+        location: { state: {} },
+      };
+      shallow(<DatasetSettings {...props} />, { context });
+      expect(props.loadDatasetForDatasetType).to.be.calledWith(
+        "dataset",
+        "/dataset_url",
+        "DATASET_SETTINGS_VIEW_ID"
+      );
       expect(context.router.replace).to.not.be.called;
-      expect(wrapper.find('NavPanel').props().activeTab).to.be.eql('overview');
     });
   });
 
-  describe('#updateFormDirtyState', function() {
+  describe("#componentDidMount", () => {
+    it("should set first available tab as active if no active tab marked in location state", () => {
+      const instance = shallow(<DatasetSettings {...commonProps} />, {
+        context,
+      }).instance();
+      instance.componentDidMount();
+      expect(context.router.replace).to.be.calledWith({
+        pathname: "/share",
+        state: { tab: "overview" },
+      });
+    });
 
-    it('should update isFormDirty state', function() {
-      const instance = shallow(<DatasetSettings {...minimalProps}/>).instance();
+    it("should set active according to props.tab", () => {
+      const props = {
+        ...commonProps,
+        tab: "overview",
+      };
+      const wrapper = shallow(<DatasetSettings {...props} />, { context });
+      const instance = wrapper.instance();
+      instance.componentDidMount();
+      expect(context.router.replace).to.not.be.called;
+      expect(wrapper.find("NavPanel").props().activeTab).to.be.eql("overview");
+    });
+  });
+
+  describe("#updateFormDirtyState", function () {
+    it("should update isFormDirty state", function () {
+      const instance = shallow(
+        <DatasetSettings {...minimalProps} />
+      ).instance();
       instance.updateFormDirtyState(true);
       expect(instance.state.isFormDirty).to.be.true;
       expect(minimalProps.updateFormDirtyState).to.be.calledWith(true);
     });
   });
 
-  describe('#handleChangeTab', function() {
+  describe("#handleChangeTab", function () {
     let wrapper;
     beforeEach(() => {
-      wrapper = shallow(<DatasetSettings {...minimalProps}/>, {context});
+      wrapper = shallow(<DatasetSettings {...minimalProps} />, { context });
     });
 
-    it('should push next location when form not dirty', function() {
+    it("should push next location when form not dirty", function () {
       const instance = wrapper.instance();
       instance.handleChangeTab();
       expect(context.router.push).to.be.calledOnce;
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.not.be.called;
     });
-    it('should show confirmation dialog when form dirty', function() {
+    it("should show confirmation dialog when form dirty", function () {
       wrapper.setProps({
         location: {
           state: {
-            tab: 'acceleration'
-          }
-        }
+            tab: "acceleration",
+          },
+        },
       });
       const instance = wrapper.instance();
-      instance.setState({isFormDirty: true});
+      instance.setState({ isFormDirty: true });
       instance.handleChangeTab();
       expect(context.router.push).to.not.be.called;
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.calledOnce;
     });
   });
 
-  it('home.js getHomeEntityOrChild and resource.js getEntity must have the same signature', () => {
+  it("home.js getHomeEntityOrChild and resource.js getEntity must have the same signature", () => {
     // you could find following line in DataSetting.js
     // const finalEntitySelector = isHomePage ? getHomeEntityOrChild : getEntity;
     // That line would fine only if it has the same signature
     // Lets check a number of arguments for those methods as weak signature check
-    expect(getEntity.length).to.be.equal(getHomeEntityOrChild.length,
-      'getHomeEntityOrChild must have the same signature as getEntity');
+    expect(getEntity.length).to.be.equal(
+      getHomeEntityOrChild.length,
+      "getHomeEntityOrChild must have the same signature as getEntity"
+    );
   });
 });

@@ -32,6 +32,7 @@ import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -55,7 +56,12 @@ public class JobResourceData {
   }
 
   public JobResourceData(JobsService jobsService, JobSummary jobSummary, String userName, BufferAllocator allocator, int offset, int limit) {
-    this.delegate = new JobDataWrapper(jobsService, JobsProtoUtil.toStuff(jobSummary.getJobId()), userName).range(allocator, offset, limit);
+    SessionId sessionId = jobSummary.getSessionId() == null ? null : JobsProtoUtil.toStuff(jobSummary.getSessionId());
+    this.delegate = new JobDataWrapper(jobsService,
+      JobsProtoUtil.toStuff(jobSummary.getJobId()),
+      sessionId,
+      userName)
+      .range(allocator, offset, limit);
     this.rowCount = jobSummary.getOutputRecords();
   }
 
@@ -159,4 +165,3 @@ public class JobResourceData {
     }
   }
 }
-

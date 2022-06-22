@@ -45,6 +45,7 @@ import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -212,6 +213,57 @@ public abstract class AbstractTestNamespaceService {
     try {
       namespaceService.getSpace(new NamespaceKey("space2"));
       fail("getSpace didn't throw exception");
+    } catch (NamespaceNotFoundException nfe) {
+    }
+  }
+
+
+  @Test
+  public void testUdf() throws Exception {
+    NamespaceTestUtils.addSpace(namespaceService, "sp1");
+    NamespaceTestUtils.addSpace(namespaceService, "sp2");
+
+    final FunctionConfig udf1 = new FunctionConfig();
+    final FunctionConfig udf2 = new FunctionConfig();
+
+    final NamespaceKey udf1Ns = new NamespaceKey(PathUtils.parseFullPath("sp1.udf1"));
+    final NamespaceKey udf2Ns = new NamespaceKey(PathUtils.parseFullPath("sp2.udf2"));
+
+    namespaceService.addOrUpdateFunction(udf1Ns, udf1);
+
+    FunctionConfig newUdf1 = namespaceService.getFunction(udf1Ns);
+    Assert.assertEquals(udf1, newUdf1);
+
+    namespaceService.addOrUpdateFunction(udf2Ns, udf2);
+
+    FunctionConfig newUdf2 = namespaceService.getFunction(udf2Ns);
+    Assert.assertEquals(udf2, newUdf2);
+
+    // no match
+    try {
+      namespaceService.getFunction(new NamespaceKey("sp1.udf3"));
+      fail("getSource didn't throw exception");
+    } catch (NamespaceNotFoundException nfe) {
+    } catch (Exception e) {
+      fail("Got incorrect exception " + e);
+    }
+    // updates
+    namespaceService.addOrUpdateFunction(udf1Ns, udf1);
+    namespaceService.addOrUpdateFunction(udf2Ns, udf2);
+
+    assertEquals(udf1, namespaceService.getFunction(udf1Ns));
+    assertEquals(udf2, namespaceService.getFunction(udf2Ns));
+
+    namespaceService.deleteFunction(udf1Ns);
+    try {
+      namespaceService.getFunction(udf1Ns);
+      fail("get function didn't throw exception");
+    } catch (NamespaceNotFoundException nfe) {
+    }
+    namespaceService.deleteFunction(udf2Ns);
+    try {
+      namespaceService.getFunction(udf2Ns);
+      fail("get function didn't throw exception");
     } catch (NamespaceNotFoundException nfe) {
     }
   }

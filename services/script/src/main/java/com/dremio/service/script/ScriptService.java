@@ -27,17 +27,25 @@ import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
 public interface ScriptService {
   /**
    * get list of scripts based on various parameters provided
+   *
    * @param offset
    * @param limit
    * @param search
    * @param orderBy
    * @param filter
+   * @param createdBy
    * @return
    */
-  List<Script> getScripts(int offset, int limit, String search, String orderBy, String filter);
+  List<Script> getScripts(int offset,
+                          int limit,
+                          String search,
+                          String orderBy,
+                          String filter,
+                          String createdBy);
 
   /**
    * create script
+   *
    * @param scriptRequest
    * @return
    * @throws DuplicateScriptNameException
@@ -46,6 +54,7 @@ public interface ScriptService {
 
   /**
    * update script
+   *
    * @param scriptId
    * @param scriptRequest
    * @return
@@ -58,6 +67,7 @@ public interface ScriptService {
 
   /**
    * get script by id
+   *
    * @param scriptId
    * @return
    * @throws ScriptNotFoundException
@@ -67,6 +77,7 @@ public interface ScriptService {
 
   /**
    * delete script by id
+   *
    * @param scriptId
    * @throws ScriptNotFoundException
    * @throws ScriptNotAccessible
@@ -75,9 +86,11 @@ public interface ScriptService {
 
   /**
    * get count of all scripts created by current user based on search and filter
+   *
    * @param search
    * @param filter
+   * @param createdBy
    * @return
    */
-  Long getCountOfMatchingScripts(String search, String filter);
+  Long getCountOfMatchingScripts(String search, String filter, String createdBy);
 }

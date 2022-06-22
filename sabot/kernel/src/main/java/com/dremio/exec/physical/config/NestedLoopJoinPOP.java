@@ -107,4 +107,3 @@ public class NestedLoopJoinPOP extends AbstractBase {
     return CoreOperatorType.NESTED_LOOP_JOIN_VALUE;
   }
 }
-

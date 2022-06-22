@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
-const datasetUI = new Schema('datasetUI', {
+const datasetUI = new Schema("datasetUI", {
   // id and datasetVersion used to be the same,
   // so there is a lot of code that has a DS version and uses it to look up
   // the datasetUI object - so can't us #id, even though it has one
-  idAttribute: 'datasetVersion'
+  idAttribute: "datasetVersion",
 });
 
 export default datasetUI;

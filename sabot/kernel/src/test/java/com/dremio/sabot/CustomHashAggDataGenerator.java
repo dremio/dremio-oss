@@ -52,23 +52,23 @@ import com.google.common.base.Preconditions;
  * provided by the consumer.
  */
 public class CustomHashAggDataGenerator implements Generator {
-  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
-  private final static ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
-  private final static CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
+  private static final FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
+  private static final ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
+  private static final CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
 
-  private final static Field INT_KEY = CompleteType.INT.toField("INT_KEY");
-  private final static Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
-  private final static Field VARCHAR_KEY = CompleteType.VARCHAR.toField("VARCHAR_KEY");
-  private final static Field FLOAT_KEY = CompleteType.FLOAT.toField("FLOAT_KEY");
-  private final static Field DOUBLE_KEY = CompleteType.DOUBLE.toField("DOUBLE_KEY");
-  private final static Field BOOLEAN_KEY = CompleteType.BIT.toField("BOOLEAN_KEY");
-  private final static Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
+  private static final Field INT_KEY = CompleteType.INT.toField("INT_KEY");
+  private static final Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
+  private static final Field VARCHAR_KEY = CompleteType.VARCHAR.toField("VARCHAR_KEY");
+  private static final Field FLOAT_KEY = CompleteType.FLOAT.toField("FLOAT_KEY");
+  private static final Field DOUBLE_KEY = CompleteType.DOUBLE.toField("DOUBLE_KEY");
+  private static final Field BOOLEAN_KEY = CompleteType.BIT.toField("BOOLEAN_KEY");
+  private static final Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
 
-  private final static Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE");
-  private final static Field BIGINT_MEASURE = CompleteType.BIGINT.toField("BIGINT_MEASURE");
-  private final static Field FLOAT_MEASURE = CompleteType.FLOAT.toField("FLOAT_MEASURE");
-  private final static Field DOUBLE_MEASURE = CompleteType.DOUBLE.toField("DOUBLE_MEASURE");
-  private final static Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
+  private static final Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE");
+  private static final Field BIGINT_MEASURE = CompleteType.BIGINT.toField("BIGINT_MEASURE");
+  private static final Field FLOAT_MEASURE = CompleteType.FLOAT.toField("FLOAT_MEASURE");
+  private static final Field DOUBLE_MEASURE = CompleteType.DOUBLE.toField("DOUBLE_MEASURE");
+  private static final Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
 
   /* arrays on heap that will store column values as we generate data for the schema */
   private Integer[] intKeyValues;

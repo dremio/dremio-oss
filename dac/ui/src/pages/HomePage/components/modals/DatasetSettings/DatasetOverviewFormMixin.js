@@ -13,37 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Link } from 'react-router';
-import { FormattedMessage } from 'react-intl';
+import { Link } from "react-router";
+import { FormattedMessage } from "react-intl";
 
-import { abilities } from 'utils/datasetUtils';
+import { abilities } from "utils/datasetUtils";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderMoveLink() {
       const { entity, location } = this.props;
       const moveLink = {
         ...location,
         state: {
-          modal: 'UpdateDataset',
+          modal: "UpdateDataset",
           item: entity,
           query: {
-            mode: 'move'
-          }
-        }
+            mode: "move",
+          },
+        },
       };
 
-      const { canMove } = abilities(entity, entity.get('entityType'));
+      const { canMove } = abilities(entity, entity.get("entityType"));
 
       if (!canMove) {
         return null;
       }
 
       return (
-        <Link to={moveLink} style={{marginTop: 15, display: 'block'}}>
-          <FormattedMessage id = 'Common.Move' />
+        <Link to={moveLink} style={{ marginTop: 15, display: "block" }}>
+          <FormattedMessage id="Common.Move" />
         </Link>
       );
-    }
+    },
   });
 }

@@ -25,7 +25,7 @@ public class JobTypeStats {
   /**
    * Enum of all possible Job Types we collect stats for.
    */
-  public enum Types { UI, EXTERNAL, ACCELERATION, DOWNLOAD, INTERNAL };
+  public enum Types { UI, EXTERNAL, ACCELERATION, DOWNLOAD, INTERNAL, DAILY_JOBS, USER_JOBS };
 
   private final Types type;
   private final int count;

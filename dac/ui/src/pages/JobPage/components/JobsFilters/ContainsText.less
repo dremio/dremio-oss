@@ -13,19 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- :global {
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
   .containsText {
     display: flex;
-    background-color: @action-btn-hover;
+    background-color: var(--dremio--color--neutral--000);
     height: 24px;
     width: 300px;
     border-radius: 4px;
     border: 1px solid @swiss-white;
 
     &__searchIcon {
-      padding-top: 2px;
-      height: 23px;
+      height: 24px;
+      width: 24px;
+    }
+
+    &:hover {
+      border-color: var(--dremio--color--neutral--300);
+    }
+
+    &.--focused {
+      border-color: var(--dremio--color--primary--500);
     }
   }
 }

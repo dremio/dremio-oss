@@ -34,7 +34,6 @@ import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.proto.OrphanEntry;
 
 public final class CatalogUtil {
-  private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogUtil.class);
 
   private CatalogUtil() {
   }
@@ -65,21 +64,13 @@ public final class CatalogUtil {
   }
 
   public static boolean requestedPluginSupportsVersionedTables(NamespaceKey key, Catalog catalog) {
-    String pluginName = key.getRoot();
-    try {
-      StoragePlugin storagePlugin = catalog.getSource(pluginName);
-      return storagePlugin instanceof VersionedPlugin;
-    } catch (UserException e) {
-      // Source not found
-      return false;
-    }
+    return requestedPluginSupportsVersionedTables(key.getRoot(), catalog);
   }
 
   public static boolean requestedPluginSupportsVersionedTables(String sourceName, Catalog catalog) {
     try {
-      StoragePlugin storagePlugin = catalog.getSource(sourceName);
-      return storagePlugin instanceof VersionedPlugin;
-    } catch (UserException e) {
+      return catalog.getSource(sourceName) instanceof VersionedPlugin;
+    } catch (UserException ignored) {
       // Source not found
       return false;
     }
@@ -93,7 +84,7 @@ public final class CatalogUtil {
       return catalog.resolveVersionContext(sourceName, version);
     } catch (ReferenceNotFoundException e) {
       throw UserException.validationError(e)
-        .message("Requested reference %s not found on source %s.", version.prettyString(), sourceName)
+        .message("Requested %s not found on source %s.", version, sourceName)
         .buildSilently();
     } catch (NoDefaultBranchException e) {
       throw UserException.validationError(e)
@@ -101,7 +92,7 @@ public final class CatalogUtil {
         .buildSilently();
     } catch (ReferenceConflictException e) {
       throw UserException.validationError(e)
-        .message("Requested reference %s does not match source %s.", version.prettyString(), sourceName) // TODO: DX-43144 Wording
+        .message("Requested %s in source %s is not the requested type.", version, sourceName)
         .buildSilently();
     }
   }
@@ -148,10 +139,27 @@ public final class CatalogUtil {
   public static void validateResolvedVersionIsBranch(ResolvedVersionContext resolvedVersionContext, String tableName) {
     if ((resolvedVersionContext != null) && !resolvedVersionContext.isBranch()) {
       throw UserException.validationError()
-        .message("Unable to perform operation on %s - version reference %s is not a branch ",
+        .message("Unable to perform operation on %s - version %s is not a branch ",
           tableName,
           resolvedVersionContext.getRefName())
         .buildSilently();
     }
+  }
+
+  public static boolean isFSInternalIcebergTableOrJsonTableOrMongo(Catalog catalog, NamespaceKey path, DatasetConfig dataset) {
+    StoragePlugin storagePlugin;
+    try {
+      storagePlugin = catalog.getSource(path.getRoot());
+    } catch (UserException uex) {
+      throw UserException.validationError()
+        .message("Source [%s] not found", path)
+        .buildSilently();
+    }
+
+    if (!(storagePlugin instanceof MutablePlugin)) {
+      return false;
+    }
+
+    return ((MutablePlugin) storagePlugin).isSupportUserDefinedSchema(dataset);
   }
 }

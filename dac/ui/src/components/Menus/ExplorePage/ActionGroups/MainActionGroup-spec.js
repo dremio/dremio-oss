@@ -13,29 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import MainActionGroup from './MainActionGroup';
+import MainActionGroup from "./MainActionGroup";
 
-describe('MainActionGroup', () => {
+describe("MainActionGroup", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      makeTransform: sinon.spy()
+      makeTransform: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<MainActionGroup {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<MainActionGroup {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ColumnMenuItem', () => {
-    const wrapper = shallow(<MainActionGroup {...commonProps}/>);
-    expect(wrapper.find('ColumnMenuItem')).to.have.length.of.at.least(3);
+  it("should render ColumnMenuItem", () => {
+    const wrapper = shallow(<MainActionGroup {...commonProps} />);
+    expect(wrapper.find("ColumnMenuItem")).to.have.length.of.at.least(3);
   });
 });

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import SQLTab from './SQLTab';
+import { shallow } from "enzyme";
+import SQLTab from "./SQLTab";
 
-describe('SQLTab', () => {
+describe("SQLTab", () => {
   const datasetGraph = Immutable.fromJS({});
-  it('should render component  without exploding', () => {
-    const wrapper = shallow(<SQLTab datasetGraph={datasetGraph}/>);
+  it("should render component  without exploding", () => {
+    const wrapper = shallow(<SQLTab datasetGraph={datasetGraph} />);
     expect(wrapper).to.have.length(1);
   });
 });

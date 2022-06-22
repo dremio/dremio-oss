@@ -15,7 +15,8 @@
  */
 @import "~@app/uiTheme/less/color-schema.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .helpSection {
     border-radius: 4px;
     background: @secondary-blue;
@@ -31,14 +32,14 @@
     background-repeat: no-repeat;
     background-size: 39% 61%;
     background-position: right 8px top 16px;
-    h2{
+    h2 {
       padding: 8px;
       font-size: 14px;
       line-height: 19px;
       font-weight: 600;
     }
 
-    &__buttons{
+    &__buttons {
       display: flex;
       flex-wrap: wrap;
     }

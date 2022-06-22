@@ -13,38 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import TabsNavigationItem from './TabsNavigationItem';
+import { TabsNavigationItem } from "dremio-ui-lib";
 
-describe('TabsNavigationItem', () => {
+describe("TabsNavigationItem", () => {
   let minimalProps;
-  let commonProps;
   beforeEach(() => {
     minimalProps = {
-      item: Immutable.fromJS({
-        name: 'overview',
-        label: 'Overview'
-      })
-    };
-    commonProps = {
-      ...minimalProps
+      name: "overview",
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TabsNavigationItem {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TabsNavigationItem {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should not highlight item by default', () => {
-    const wrapper = shallow(<TabsNavigationItem {...minimalProps}/>);
-    expect(wrapper.find('.tab-link').hasClass('active')).to.be.false;
-  });
-  it('should highlight item when tab is active', () => {
-    const props = {
-      ...commonProps,
-      activeTab: 'overview'
-    };
-    const wrapper = shallow(<TabsNavigationItem {...props}/>);
-    expect(wrapper.find('.tab-link').hasClass('active')).to.be.true;
+  it("should not highlight item by default", () => {
+    const wrapper = shallow(<TabsNavigationItem {...minimalProps} />);
+    expect(wrapper.find(".tab-link").hasClass("active")).to.be.false;
   });
 });

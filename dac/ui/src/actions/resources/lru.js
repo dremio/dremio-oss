@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const EVICT_ENTITY = 'EVICT_ENTITY';
+export const EVICT_ENTITY = "EVICT_ENTITY";
 
 export function evictEntity(entityType, entityId) {
   return {
     type: EVICT_ENTITY,
-    meta: {entityType, entityId}
+    meta: { entityType, entityId },
   };
 }
 
-export const ACCESS_ENTITY = 'ACCESS_ENTITY';
+export const ACCESS_ENTITY = "ACCESS_ENTITY";
 
 export function accessEntity(entityType, entityId) {
   return {
     type: ACCESS_ENTITY,
-    meta: {entityType, entityId}
+    meta: { entityType, entityId },
   };
 }

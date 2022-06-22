@@ -13,30 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
+import React from "react";
 
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { CopyToClipboard as ReactCopyToClipboard } from 'react-copy-to-clipboard';
-import Tooltip from '@material-ui/core/Tooltip';
-import SvgIcon from '@material-ui/core/SvgIcon';
+import { CopyToClipboard as ReactCopyToClipboard } from "react-copy-to-clipboard";
+import Tooltip from "@material-ui/core/Tooltip";
+import SvgIcon from "@material-ui/core/SvgIcon";
 
-import CopyToClipboard from './CopyToClipboard';
+import CopyToClipboard from "./CopyToClipboard";
 
 const defaultProps = {
-  value: 'Copy text'
+  value: "Copy text",
 };
 
 const getShallowWrapper = (props = {}) => {
   const compProps = {
     ...defaultProps,
-    ...props
+    ...props,
   };
   return shallow(<CopyToClipboard {...compProps} />);
 };
 
-describe('CopyToClipboard', () => {
-  it('renders reqired components', () => {
+describe("CopyToClipboard", () => {
+  it("renders reqired components", () => {
     const wrapper = getShallowWrapper();
     expect(wrapper.find(Tooltip).exists()).toBe(true);
     expect(wrapper.find(ReactCopyToClipboard).exists()).toBe(true);

@@ -15,8 +15,8 @@
  */
 
 export const POPUP_ICON_TYPES = {
-  error: '',
-  success: 'SuccessCircle',
-  default: '',
-  warning: ''
+  error: "job-state/failed",
+  success: "job-state/completed",
+  default: "",
+  warning: "",
 };

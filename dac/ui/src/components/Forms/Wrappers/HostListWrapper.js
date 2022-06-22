@@ -13,26 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import FieldWithError from 'components/Fields/FieldWithError';
-import HostList from 'components/Forms/HostList';
+import { Component } from "react";
+import FieldWithError from "components/Fields/FieldWithError";
+import HostList from "components/Forms/HostList";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class HostListWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
     fields: PropTypes.object,
-    field: PropTypes.array
+    field: PropTypes.array,
   };
 
   render() {
-    const {elementConfig, fields, field} = this.props;
+    const { elementConfig, fields, field } = this.props;
     const elementConfigJson = elementConfig.getConfig();
     const defaultPort = elementConfigJson.defaultPort || 9200;
     return (
       <FieldWithError {...field}>
-        <HostList fields={fields}
+        <HostList
+          fields={fields}
           elementConfig={elementConfigJson}
           defaultPort={defaultPort}
         />

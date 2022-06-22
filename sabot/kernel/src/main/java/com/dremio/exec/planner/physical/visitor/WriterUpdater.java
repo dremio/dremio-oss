@@ -17,8 +17,10 @@ package com.dremio.exec.planner.physical.visitor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
@@ -27,25 +29,41 @@ import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.SortPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.WriterPrel;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
@@ -88,10 +106,10 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
     final RexBuilder rexBuilder = initialInput.getCluster().getRexBuilder();
     final List<RexNode> castExps =
-      RexUtil.generateCastExpressions(rexBuilder, expectedRowType, initialInput.getRowType());
+            RexUtil.generateCastExpressions(rexBuilder, expectedRowType, initialInput.getRowType());
 
     return ProjectPrel.create(initialInput.getCluster(), initialInput.getTraitSet(), initialInput,
-      castExps, expectedRowType);
+            castExps, expectedRowType);
   }
 
   @Override
@@ -99,8 +117,11 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     final WriterOptions options = initialPrel.getCreateTableEntry().getOptions();
     final Prel initialInput = ((Prel) initialPrel.getInput()).accept(this, null);
 
-    final Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput, options.getIcebergWriterOperation());
+    Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput, options.getIcebergWriterOperation());
     final WriterPrel prel = initialPrel.copy(initialPrel.getTraitSet(), ImmutableList.<RelNode>of(input));
+    Boolean icebergWriter = Objects.nonNull(options.getIcebergWriterOperation()) &&
+            options.getIcebergWriterOperation() != WriterOptions.IcebergWriterOperation.NONE;
+
 
     if(options.hasDistributions()){
 
@@ -159,17 +180,27 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       return writer;
 
     } else if(options.hasPartitions()) {
+
+      RelDataType inputRowType = input.getRowType();
+      List<String> partitionColumns = options.getPartitionColumns();
+      PartitionSpec partitionSpec = options.getDeserializedPartitionSpec();
+      if (icebergWriter && partitionSpec != null) {
+        partitionColumns = new ArrayList<>();
+        input = getTableFunctionOnPartitionColumns(options, input, prel, partitionColumns, partitionSpec);
+        inputRowType = input.getRowType();
+      }
+
       List<Integer> sortKeys = new ArrayList<>();
 
       // sort by partitions.
       final Set<Integer> sortedKeys = Sets.newHashSet();
-      List<Integer> partitionKeys = getFieldIndices(options.getPartitionColumns(), input.getRowType());
+      List<Integer> partitionKeys = getFieldIndices(partitionColumns, inputRowType);
       sortKeys.addAll(partitionKeys);
       sortedKeys.addAll(partitionKeys);
 
       // then sort by sort keys, if available.
       if (options.hasSort()) {
-        List<Integer> sortRequestKeys = getFieldIndices(options.getSortColumns(), input.getRowType());
+        List<Integer> sortRequestKeys = getFieldIndices(options.getSortColumns(), inputRowType);
         for(Integer key : sortRequestKeys){
           if(sortedKeys.contains(key)){
             logger.warn("Rejecting sort key {} since it is already included in partition clause.", key);
@@ -183,8 +214,8 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       final Prel sort = SortPrel.create(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
 
       // we need to sort by the partitions.
-      final Prel changeDetectionPrel = addChangeDetectionProject(sort, getFieldIndices(options.getPartitionColumns(), input.getRowType()));
-      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetectionPrel, prel.getCreateTableEntry(), prel.getExpectedInboundRowType());
+      final Prel changeDetectionPrel = addChangeDetectionProject(sort, getFieldIndices(partitionColumns, inputRowType));
+      final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), changeDetectionPrel, prel.getCreateTableEntry(), inputRowType);
       return writer;
 
     } else if(options.hasSort()){
@@ -216,8 +247,8 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
           @Override
           public Integer apply(String input) {
             return Preconditions.checkNotNull(inputRowType.getField(input, false, false),
-                String.format("Partition column '%s' could not be resolved in the table's column lists", input))
-                .getIndex();
+                    String.format("Partition column '%s' could not be resolved in the table's column lists", input))
+                    .getIndex();
           }
         }).toList();
   }
@@ -317,5 +348,59 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     return (Prel) prel.copy(prel.getTraitSet(), newInputs);
   }
 
+  RelDataType getNewProjectedRowType(BatchSchema newSchema, RelOptCluster relOptCluster) {
+    final RelDataTypeFactory factory = relOptCluster.getTypeFactory();
+    final RelDataTypeFactory.FieldInfoBuilder builder = new RelDataTypeFactory.FieldInfoBuilder(factory);
+    for (Field field : newSchema) {
+      builder.add(field.getName(), CalciteArrowHelper.wrap(CompleteType.fromField(field)).toCalciteType(factory, PrelUtil.getPlannerSettings(relOptCluster).isFullNestedSchemaSupport()));
+    }
+    return builder.build();
+  }
 
+  BatchSchema getNewBatchSchema(BatchSchema batchSchema, PartitionSpec partitionSpec, List<String> partitionColumns) {
+    List<Field> fields = new ArrayList<>();
+    Schema schema = partitionSpec.schema();
+
+    SchemaConverter schemaConverter = new SchemaConverter();
+    for (PartitionField partitionField : partitionSpec.fields()) {
+      Types.NestedField field = schema.findField(partitionField.sourceId());
+      Type resultType = partitionField.transform().getResultType(field.type());
+      CompleteType completeType = schemaConverter.fromIcebergType(resultType);
+      Field newField = completeType.toField(IcebergUtils.getPartitionFieldName(partitionField));
+      fields.add(newField);
+      partitionColumns.add(newField.getName());
+    }
+    return batchSchema.cloneWithFields(fields);
+  }
+
+  List<SchemaPath> getNewColumns(BatchSchema newbatchSchema) {
+    List<SchemaPath> schemaPathList = new ArrayList<>();
+    for (Field field: newbatchSchema.getFields()) {
+      schemaPathList.add(SchemaPath.getSimplePath(field.getName()));
+    }
+    return schemaPathList;
+  }
+
+  private Prel getTableFunctionOnPartitionColumns(WriterOptions options, Prel input, WriterPrel prel, List<String> partitionColumns, PartitionSpec partitionSpec) {
+    BatchSchema tableSchema = options.getIcebergTableProps().getPersistedFullSchema();
+    BatchSchema newBatchSchema = getNewBatchSchema(tableSchema, partitionSpec, partitionColumns);
+    RelDataType inputRowType = getNewProjectedRowType(newBatchSchema, prel.getCluster());
+
+    List<SchemaPath> schemaPathList = getNewColumns(newBatchSchema);
+    TableFunctionConfig icebergTransformTableFunctionConfig = TableFunctionUtil.
+            getIcebergPartitionTransformTableFunctionConfig(options.getIcebergTableProps(),
+                    newBatchSchema,
+                    schemaPathList);
+
+    TableFunctionPrel transformTableFunctionPrel = new TableFunctionPrel(
+            prel.getCluster(),
+            prel.getTraitSet(),
+            prel.getTable(),
+            input,
+            null,
+            icebergTransformTableFunctionConfig,
+            inputRowType);
+
+    return transformTableFunctionPrel;
+  }
 }

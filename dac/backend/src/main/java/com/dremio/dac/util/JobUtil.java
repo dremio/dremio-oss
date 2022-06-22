@@ -125,28 +125,30 @@ public class JobUtil {
     return durationDetails;
   }
 
-  public static String getConvertedBytes(Long bytes) {
-    String returnVal = "";
+  public static String getConvertedBytes(long bytes) {
     int loopCount = 0;
-    while (bytes >= 1024 && loopCount <= 3) {
+    while (bytes >= 1024 && loopCount < 3) {
       bytes = bytes / 1024;
       loopCount++;
     }
+    String unitSuffix;
     switch (loopCount) {
       case 0:
-        returnVal = bytes.toString() + BYTES;
+        unitSuffix = BYTES;
         break;
       case 1:
-        returnVal = bytes.toString() + KILOBYTES;
+        unitSuffix = KILOBYTES;
         break;
       case 2:
-        returnVal = bytes.toString() + MEGABYTES;
+        unitSuffix = MEGABYTES;
         break;
       case 3:
-        returnVal = bytes.toString() + GIGABYTES;
+        unitSuffix = GIGABYTES;
         break;
+      default:
+        throw new IllegalStateException("Unsupported loopCount: " + loopCount);
     }
-    return returnVal;
+    return bytes + unitSuffix;
   }
 
   public static String getDatasetType(String datasetType) {

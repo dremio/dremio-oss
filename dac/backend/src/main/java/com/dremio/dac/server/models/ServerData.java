@@ -44,6 +44,7 @@ public class ServerData {
   private final long downloadRecordsLimit;
   private final boolean showMetadataValidityCheckbox;
   private final boolean showNewJobsPage;
+  private final boolean allowAutoComplete;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -68,6 +69,7 @@ public class ServerData {
     this.downloadRecordsLimit = builder.downloadRecordsLimit;
     this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
     this.showNewJobsPage = builder.showNewJobsPage;
+    this.allowAutoComplete = builder.allowAutoComplete;
   }
 
   public String getServerEnvironment() {
@@ -167,6 +169,10 @@ public class ServerData {
     return showNewJobsPage;
   }
 
+  public boolean isAllowAutoComplete() {
+    return allowAutoComplete;
+  }
+
   /**
    * A builder for server data
    */
@@ -193,6 +199,7 @@ public class ServerData {
     private long downloadRecordsLimit;
     private boolean showMetadataValidityCheckbox;
     private boolean showNewJobsPage;
+    private boolean allowAutoComplete;
 
     protected Builder() {
     }
@@ -220,6 +227,7 @@ public class ServerData {
       this.downloadRecordsLimit = builder.downloadRecordsLimit;
       this.showMetadataValidityCheckbox = builder.showMetadataValidityCheckbox;
       this.showNewJobsPage = builder.showNewJobsPage;
+      this.allowAutoComplete = builder.allowAutoComplete;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -332,10 +340,13 @@ public class ServerData {
       return this;
     }
 
+    public Builder setAllowAutoComplete(boolean allowAutoComplete) {
+      this.allowAutoComplete = allowAutoComplete;
+      return this;
+    }
+
     public ServerData build() {
       return new ServerData(this);
     }
   }
 }
-
-

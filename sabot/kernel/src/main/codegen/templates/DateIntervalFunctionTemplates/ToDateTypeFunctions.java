@@ -243,7 +243,7 @@ public class GTo${type} {
           // if replaceWithNullHolder is not set, we throw the exception to be consistent with to_${dremioMinorType}
           // calls without the replaceWithNullHolder argument
           throw errCtx.error()
-            .message("Input text cannot be formatted to date")
+            .message("Input text cannot be formatted to " + "${dremioMinorType}".toLowerCase())
             .addContext("Details", e.getMessage())
             .addContext("Input text", input)
             .build();

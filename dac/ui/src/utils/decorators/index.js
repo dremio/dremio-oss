@@ -22,13 +22,9 @@ import {
   decoratePhysicalDataset,
   decorateSource,
   decorateSpace,
-  decorateProvision
-} from './resourceDecorators';
-import {
-  decorateTable,
-  decorateHistory
-}  from './exploreDecorators';
-
+  decorateProvision,
+} from "./resourceDecorators";
+import { decorateTable, decorateHistory } from "./exploreDecorators";
 
 const decorators = {
   source: decorateSource,
@@ -41,13 +37,11 @@ const decorators = {
   physicalDataset: decoratePhysicalDataset,
   previewTable: decorateTable,
   provision: decorateProvision,
-  history: decorateHistory
+  history: decorateHistory,
 };
 
 export const applyDecorators = (entities) => {
   return entities.map((value, key) => {
-    return decorators[key]
-      ? value.map(decorators[key])
-      : value;
+    return decorators[key] ? value.map(decorators[key]) : value;
   });
 };

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import Select from '../Select';
-import MultiSelect from '../MultiSelect';
+import Select from "../Select";
+import MultiSelect from "../MultiSelect";
 
 const FormikSelect = ({ field, multiple, ...otherProps }) => {
   return multiple ? (
@@ -30,16 +30,18 @@ const FormikSelect = ({ field, multiple, ...otherProps }) => {
 FormikSelect.propTypes = {
   classes: PropTypes.shape({
     root: PropTypes.string,
-    label: PropTypes.string
+    label: PropTypes.string,
   }),
   field: PropTypes.object,
   label: PropTypes.string,
   multiple: PropTypes.bool,
-  options: PropTypes.arrayOf(PropTypes.shape({
-    label: PropTypes.node,
-    value: PropTypes.string
-  })).isRequired,
-  style: PropTypes.object
+  options: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.node,
+      value: PropTypes.string,
+    })
+  ).isRequired,
+  style: PropTypes.object,
 };
 
 FormikSelect.defaultProps = {
@@ -47,7 +49,7 @@ FormikSelect.defaultProps = {
   field: {},
   label: null,
   multiple: false,
-  style: {}
+  style: {},
 };
 
 export default FormikSelect;

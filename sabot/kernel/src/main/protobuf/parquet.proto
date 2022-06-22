@@ -47,6 +47,7 @@ message ParquetDatasetSplitScanXAttr {
   optional int64 length = 4;
   optional int32 rowGroupIndex = 5;
   optional int64 last_modification_time = 6;
+  optional string originalPath = 7;  // original split path before normalized by getContainerSpecificRelativePath()
 }
 
 message ParquetDatasetXAttr {

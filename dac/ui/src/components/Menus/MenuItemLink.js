@@ -13,24 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { Link } from 'react-router';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import { Link } from "react-router";
+import PropTypes from "prop-types";
 
-import MenuItem from './MenuItem';
-import './MenuItemLink.less';
-@Radium
-export default class MenuItemLink extends Component {
+import MenuItem from "./MenuItem";
+import "./MenuItemLink.less";
+
+class MenuItemLink extends Component {
   static propTypes = {
-    href: PropTypes.oneOfType([ PropTypes.string, PropTypes.object ]).isRequired,
+    href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
     text: PropTypes.string.isRequired,
     closeMenu: PropTypes.func,
     disabled: PropTypes.bool,
     external: PropTypes.bool,
     newWindow: PropTypes.bool,
     rightIcon: PropTypes.object,
-    leftIcon: PropTypes.object
+    leftIcon: PropTypes.object,
   };
 
   constructor(props) {
@@ -47,20 +46,38 @@ export default class MenuItemLink extends Component {
   }
 
   render() {
-    const { href, text, disabled, external, newWindow, leftIcon, rightIcon } = this.props;
+    const { href, text, disabled, external, newWindow, leftIcon, rightIcon } =
+      this.props;
 
-    const target = newWindow ? '_blank' : null;
+    const target = newWindow ? "_blank" : null;
 
     const menuItem = (
       <MenuItem disabled={disabled} leftIcon={leftIcon} rightIcon={rightIcon}>
-        <div className='menuItemLink__item'>{text}</div>
+        <div className="menuItemLink__item">{text}</div>
       </MenuItem>
     );
 
-    const link = external
-      ? <a href={href} target={target} className='menuItemLink__link' onClick={this.onClick}>{menuItem}</a>
-      : <Link className='menuItemLink__link' to={href || ''} target={target} onClick={this.onClick}>{menuItem}</Link>;
+    const link = external ? (
+      <a
+        href={href}
+        target={target}
+        className="menuItemLink__link"
+        onClick={this.onClick}
+      >
+        {menuItem}
+      </a>
+    ) : (
+      <Link
+        className="menuItemLink__link"
+        to={href || ""}
+        target={target}
+        onClick={this.onClick}
+      >
+        {menuItem}
+      </Link>
+    );
 
     return link;
   }
 }
+export default MenuItemLink;

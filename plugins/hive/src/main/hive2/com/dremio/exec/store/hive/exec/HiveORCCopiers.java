@@ -109,7 +109,7 @@ public class HiveORCCopiers {
     void ensureHasRequiredCapacity(int required);
   }
 
-  private static abstract class ORCCopierBase implements ORCCopier {
+  private abstract static class ORCCopierBase implements ORCCopier {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveORCCopiers.class);
     public abstract void copy(int inputIdx, int count, int outputIdx);
     public abstract void ensureHasRequiredCapacity(int required);

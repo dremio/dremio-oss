@@ -38,6 +38,7 @@ import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
@@ -59,9 +60,10 @@ public class TestJobResource extends JobResource {
     @Context SecurityContext securityContext,
     NamespaceService namespace,
     BufferAllocatorFactory allocatorFactory,
-    @PathParam("jobId") JobId jobId
+    @PathParam("jobId") JobId jobId,
+    @PathParam("sessionId") SessionId sessionId
   ) {
-    super(jobsService, datasetService, securityContext, namespace, allocatorFactory, jobId);
+    super(jobsService, datasetService, securityContext, namespace, allocatorFactory, jobId, sessionId);
     this.jobId = jobId;
   }
 

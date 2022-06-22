@@ -13,38 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { applyValidators, isRequired } from 'utils/validation';
-import ExtractMap from './../../cardContent/ExtractMap';
-import TransformCard from './../../TransformCard';
-import { styles } from './ExtractListCard';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { applyValidators, isRequired } from "utils/validation";
+import ExtractMap from "./../../cardContent/ExtractMap";
+import TransformCard from "./../../TransformCard";
+import { styles } from "./ExtractListCard";
 
-@Radium
-export default class ExtractMapCard extends Component {
-
+class ExtractMapCard extends Component {
   static getFields() {
-    return ['path', 'type'];
+    return ["path", "type"];
   }
 
-  static validate = (values) => applyValidators(values, [isRequired(`cards[${values.activeCard}].path`)]);
+  static validate = (values) =>
+    applyValidators(values, [isRequired(`cards[${values.activeCard}].path`)]);
 
   static propTypes = {
     card: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     active: PropTypes.bool,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
   };
 
   renderBack() {
     const { fields } = this.props;
     return (
       <div>
-        <div style={styles.title}>{la('Path:')}</div>
-        <div className='transform-card-content'>
-          <ExtractMap path={fields.path}/>
+        <div style={styles.title}>{la("Path:")}</div>
+        <div className="transform-card-content">
+          <ExtractMap path={fields.path} />
         </div>
       </div>
     );
@@ -63,3 +62,4 @@ export default class ExtractMapCard extends Component {
     );
   }
 }
+export default Radium(ExtractMapCard);

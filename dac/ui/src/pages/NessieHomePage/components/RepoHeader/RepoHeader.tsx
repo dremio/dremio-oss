@@ -14,30 +14,42 @@
  * limitations under the License.
  */
 
-import Art from '@app/components/Art';
-import FontIcon from '@app/components/Icon/FontIcon';
-import { Entry } from '@app/services/nessie/client';
-import NessieLink from '../NessieLink/NessieLink';
+import Art from "@app/components/Art";
+import FontIcon from "@app/components/Icon/FontIcon";
+import { Entry } from "@app/services/nessie/client";
+import NessieLink from "../NessieLink/NessieLink";
 
-import './RepoHeader.less';
+import "./RepoHeader.less";
 
-function RepoHeader({ entry, isLoading }: { entry: Entry, isLoading: boolean }) {
+function RepoHeader({
+  entry,
+  isLoading,
+}: {
+  entry: Entry;
+  isLoading: boolean;
+}) {
   if (!entry.name) return null;
   const [repo, branch] = entry.name.elements;
   return (
-    <NessieLink to='/' className='repoHeader' title={isLoading ? '' : `${repo} / ${branch}`}>
-      <FontIcon type={isLoading ? 'Loader spinner' : 'DatalakeIcon'} />
+    <NessieLink
+      to="/"
+      className="repoHeader"
+      title={isLoading ? "" : `${repo} / ${branch}`}
+    >
+      <FontIcon type={isLoading ? "Loader spinner" : "DatalakeIcon"} />
       {!isLoading && (
         <>
-          <span className='repoHeader-repoName text-ellipsis'>
-            {repo}
-          </span>
-          <span className='repoHeader-divider'>/</span>
-          <NessieLink to='/' className='repoHeader-branch'>
-            <span className='repoHeader-branchIcon'>
-              <Art src='GitBranch.svg' alt='Reference' style={{ width: 24, height: 24 }} />
+          <span className="repoHeader-repoName text-ellipsis">{repo}</span>
+          <span className="repoHeader-divider">/</span>
+          <NessieLink to="/" className="repoHeader-branch">
+            <span className="repoHeader-branchIcon">
+              <Art
+                src="GitBranch.svg"
+                alt="Reference"
+                style={{ width: 24, height: 24 }}
+              />
             </span>
-            <span className='repoHeader-branchName text-ellipsis'>
+            <span className="repoHeader-branchName text-ellipsis">
               {branch}
             </span>
           </NessieLink>

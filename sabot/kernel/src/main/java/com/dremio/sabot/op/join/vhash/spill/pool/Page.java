@@ -15,9 +15,14 @@
  */
 package com.dremio.sabot.op.join.vhash.spill.pool;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.arrow.memory.ArrowBuf;
+
+import com.dremio.common.HistoricalLog;
+import com.dremio.exec.util.AssertionUtil;
 
 /**
  * Provides a piece of memory of a certain size that can be sub-divided. Memory
@@ -27,17 +32,29 @@ import org.apache.arrow.memory.ArrowBuf;
  */
 @NotThreadSafe
 public class Page implements AutoCloseable {
+  public static final boolean DEBUG = AssertionUtil.isAssertionsEnabled();
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Page.class);
+  private static final AtomicLong idCounter = new AtomicLong(0);
 
   private final int pageSize;
   private final PagePool.Release release;
   private final ArrowBuf memory;
+  private final long id;
   private int offset = 0;
   private int referenceCount = 0;
+  // debugging only (helps catch ref leaks)
+  private final HistoricalLog historicalLog;
+
+  static {
+    logger.info("Debug mode " + (DEBUG ? "enabled." : "disabled."));
+  }
 
   Page(int pageSize, ArrowBuf memory, PagePool.Release release) {
     this.pageSize = pageSize;
     this.memory = memory;
     this.release = release;
+    this.id = idCounter.incrementAndGet();
+    this.historicalLog = DEBUG ? new HistoricalLog("Page[%d]", id) : null;
   }
 
   public int getPageSize() {
@@ -48,6 +65,10 @@ public class Page implements AutoCloseable {
   public long getAddress() {
     checkHasReferences();
     return memory.memoryAddress();
+  }
+
+  public long getId() {
+    return id;
   }
 
   /**
@@ -63,7 +84,7 @@ public class Page implements AutoCloseable {
     if (size + offset > pageSize) {
       throw new IllegalArgumentException(String.format("Attempting to slice beyond limit. Desired size: %d, available space: %d.", size, pageSize - offset));
     }
-    final ArrowBuf buf = memory.slice(offset, size);
+    final ArrowBuf buf = memory.slice(offset, size).writerIndex(0);
     memory.getReferenceManager().retain();
     offset += size;
     return buf;
@@ -121,11 +142,17 @@ public class Page implements AutoCloseable {
   }
 
   void initialRetain() {
+    if (DEBUG) {
+      historicalLog.recordEvent("initialRetain");
+    }
     checkNoReferences();
     referenceCount++;
   }
 
   public void retain() {
+    if (DEBUG) {
+      historicalLog.recordEvent("retain");
+    }
     checkHasReferences();
     referenceCount++;
   }
@@ -136,6 +163,9 @@ public class Page implements AutoCloseable {
    */
   public void release() {
     checkHasReferences();
+    if (DEBUG) {
+      historicalLog.recordEvent("release");
+    }
 
     referenceCount--;
     if (referenceCount == 0) {

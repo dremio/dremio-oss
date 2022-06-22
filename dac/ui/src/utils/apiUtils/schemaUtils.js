@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { normalize } from 'normalizr';
-import Immutable from 'immutable';
+import { normalize } from "normalizr";
+import Immutable from "immutable";
 
-import { mapDataset } from 'apiMappers/datasetMapper';
-import { applyDecorators } from 'utils/decorators';
+import { mapDataset } from "apiMappers/datasetMapper";
+import { applyDecorators } from "utils/decorators";
 
 class SchemaUtils {
   getSuccessActionTypeWithSchema(type, schema, meta, key, value, transform) {
@@ -25,30 +25,53 @@ class SchemaUtils {
       type,
       meta,
       payload: (action, state, res) => {
-        const contentType = res.headers.get('Content-Type');
-        if (contentType && contentType.indexOf('json') !== -1) {
+        const contentType = res.headers.get("Content-Type");
+        if (contentType && contentType.indexOf("json") !== -1) {
           return res.json().then((pureJson) => {
-            const finalJson = !!transform && typeof transform === 'function' ? transform(pureJson) : pureJson;
-            if (typeof key === 'object') {
-              key.forEach(item => {
+            const finalJson =
+              !!transform && typeof transform === "function"
+                ? transform(pureJson)
+                : pureJson;
+            if (typeof key === "object") {
+              key.forEach((item) => {
                 finalJson[item.key] = item.value;
               });
             } else if (key && value) {
               finalJson[key] = value; //when no id from api, we generate it
             }
             const hash = {
-              fullDataset: mapDataset
+              fullDataset: mapDataset,
             };
-            const payload = Immutable.fromJS(normalize(hash[schema._key] && hash[schema._key](finalJson, key) || finalJson, schema));
-            let newPayLoad = payload.set('entities', applyDecorators(payload.get('entities')));
+            const payload = Immutable.fromJS(
+              normalize(
+                (hash[schema._key] && hash[schema._key](finalJson, key)) ||
+                  finalJson,
+                schema
+              )
+            );
+            let newPayLoad = payload.set(
+              "entities",
+              applyDecorators(payload.get("entities"))
+            );
 
-            if (payload.getIn(['entities', 'accessControlList', finalJson.id, 'grants']) !== undefined && type === 'ACCESS_CONTROL_GET_SUCCESS') {
-              newPayLoad = newPayLoad.setIn(['entities', 'accessControlList', finalJson.id], Immutable.fromJS(finalJson));
+            if (
+              payload.getIn([
+                "entities",
+                "accessControlList",
+                finalJson.id,
+                "grants",
+              ]) !== undefined &&
+              type === "ACCESS_CONTROL_GET_SUCCESS"
+            ) {
+              newPayLoad = newPayLoad.setIn(
+                ["entities", "accessControlList", finalJson.id],
+                Immutable.fromJS(finalJson)
+              );
             }
             return newPayLoad;
           });
         }
-      }
+      },
     };
   }
 }

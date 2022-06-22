@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-@import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 
 .flexTable {
   width: 100%;
@@ -22,7 +22,8 @@
   flex-basis: 100%;
   flex-direction: column;
 
-  &__headerContainer, &__dataContainer {
+  &__headerContainer,
+  &__dataContainer {
     display: flex;
     width: 100%;
     flex-wrap: wrap;

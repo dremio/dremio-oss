@@ -13,47 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import param from 'jquery-param';
-import Immutable from 'immutable';
+import param from "jquery-param";
+import Immutable from "immutable";
 
 export const parseQueryState = (query) => {
   return Immutable.fromJS({
     filters: query.filters ? JSON.parse(query.filters) : {},
-    sort: query.sort || 'st',
-    order: query.order || 'DESCENDING'
+    sort: query.sort || "st",
+    order: query.order || "DESCENDING",
   });
 };
 
 export const renderQueryState = (queryState) => {
-  const {filters, sort, order} = queryState.toJS();
+  const { filters, sort, order } = queryState.toJS();
   return {
-    ...( sort && order ? {sort, order} : {}),
-    filters: JSON.stringify(filters)
+    ...(sort && order ? { sort, order } : {}),
+    filters: JSON.stringify(filters),
   };
 };
 
-const escapeFilterValue = (value) => value.replace(/\\/, '\\\\').replace(/"/g, '\\"');
+const escapeFilterValue = (value) =>
+  value.replace(/\\/, "\\\\").replace(/"/g, '\\"');
 
 export const renderQueryStateForServer = (queryState) => {
-  const filters = queryState.get('filters');
-  const filterStrings = filters.entrySeq().map(([key, values]) => {
-    if (!values) {
-      return null;
-    }
-    if (key === 'st' && values instanceof Immutable.List) {           //start time
-      return `(st=gt=${values.get(0)};st=lt=${values.get(1)})`;
-    } else if (key === 'contains' && values) {
-      return `*=contains="${escapeFilterValue(values.get(0))}"`;
-    }
-    if (values.size) {
-      return '(' + values.map((value) => `${key}=="${escapeFilterValue(value)}"`).join(',') + ')';
-    }
-  }).filter(x => x);
+  const filters = queryState.get("filters");
+  const filterStrings = filters
+    .entrySeq()
+    .map(([key, values]) => {
+      if (!values) {
+        return null;
+      }
+      if (key === "st" && values instanceof Immutable.List) {
+        //start time
+        return `(st=gt=${values.get(0)};st=lt=${values.get(1)})`;
+      } else if (key === "contains" && values) {
+        return `*=contains="${escapeFilterValue(values.get(0))}"`;
+      }
+      if (values.size) {
+        return (
+          "(" +
+          values
+            .map((value) => `${key}=="${escapeFilterValue(value)}"`)
+            .join(",") +
+          ")"
+        );
+      }
+    })
+    .filter((x) => x);
 
-  const sort = queryState.get('sort');
-  const order = queryState.get('order');
+  const sort = queryState.get("sort");
+  const order = queryState.get("order");
   return param({
-    ...(sort && order ? {sort, order} : {}),
-    filter: filterStrings.join(';')
+    ...(sort && order ? { sort, order } : {}),
+    filter: filterStrings.join(";"),
   });
 };

@@ -22,9 +22,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
 
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -40,6 +42,16 @@ public interface SupportsIcebergRootPointer {
    * @return A copy of the configuration to use for the plugin.
    */
   Configuration getFsConfCopy();
+
+  /**
+   * Checks if a metadata validity check is required.
+   */
+  default boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
+    Configuration conf = getFsConfCopy();
+    final long metadataAggressiveExpiryTime = Long.parseLong(conf.get(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS.getOptionName(),
+      String.valueOf(optionManager.getOption(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS)))) * 1000;
+    return (lastMetadataValidityCheckTime != null && (lastMetadataValidityCheckTime + metadataAggressiveExpiryTime >= currentTime)); // dataset metadata validity was checked too long ago (or never)
+  }
 
   /**
    *

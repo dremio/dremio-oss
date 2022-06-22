@@ -86,7 +86,7 @@ public final class DatasetHelper {
   }
 
   /**
-   * Checks if dataset is iceberg dataset
+   * Checks if dataset is (Native) iceberg dataset
    *
    * @param dataset Dataset to check
    * @return true if dataset is an iceberg dataset
@@ -102,13 +102,6 @@ public final class DatasetHelper {
       return true;
     }
 
-    return DatasetHelper.isIcebergFile(dataset.getPhysicalDataset().getFormatSettings());
-  }
-
-  public static boolean isNativeIcebergTable(DatasetConfig dataset) {
-    if (dataset.getPhysicalDataset() == null) {
-      return false;
-    }
     return DatasetHelper.isIcebergFile(dataset.getPhysicalDataset().getFormatSettings());
   }
 
@@ -131,10 +124,6 @@ public final class DatasetHelper {
 
     return (dataset.getPhysicalDataset().getIcebergMetadataEnabled() != null
       && dataset.getPhysicalDataset().getIcebergMetadataEnabled());
-  }
-
-  public static boolean isInternalIcebergTableOrJsonTable(DatasetConfig dataset) {
-    return isInternalIcebergTable(dataset) || isJsonDataset(dataset);
   }
 
   /**

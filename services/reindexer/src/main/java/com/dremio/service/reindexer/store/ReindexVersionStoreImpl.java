@@ -15,24 +15,16 @@
  */
 package com.dremio.service.reindexer.store;
 
-import java.util.Iterator;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
-import com.dremio.datastore.SearchQueryUtils;
-import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
-import com.dremio.datastore.api.FindByCondition;
-import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.api.IndexedStore;
-import com.dremio.datastore.api.IndexedStoreCreationFunction;
 import com.dremio.datastore.api.KVStoreProvider;
-import com.dremio.datastore.api.StoreBuildingFactory;
 import com.dremio.datastore.api.options.VersionOption;
-import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.reindexer.proto.ReindexVersionInfo;
 import com.google.common.base.Preconditions;
@@ -48,40 +40,40 @@ public class ReindexVersionStoreImpl implements ReindexVersionStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReindexVersionStoreImpl.class);
 
   private Supplier<IndexedStore<String, ReindexVersionInfo>> store;
-  private static String collectionName = "DEFAULT_VERSION_STORE"; // Default value only for testcases.
+  private final Class<? extends ReindexVersionStoreCreator> storeCreator;
   private final Provider<KVStoreProvider> kvStoreProvider;
   public static final IndexKey COLLECTION_NAME_INDEX_KEY = IndexKey.newBuilder("cn", "COLLECTION_NAME", String.class).build();
-  public static final IndexKey VERSION_INDEX_KEY = IndexKey.newBuilder("version", "VERSION", Integer.class).build();
+  public static final IndexKey COLLECTION_VERSION_INDEX_KEY = IndexKey.newBuilder("cv", "collectionversion", Integer.class).build();
 
-  public ReindexVersionStoreImpl(Provider<KVStoreProvider> storeProvider, String name) {
+
+  public ReindexVersionStoreImpl(Provider<KVStoreProvider> storeProvider, Class<? extends ReindexVersionStoreCreator> storeCreatorFunction) {
     Preconditions.checkNotNull(storeProvider, "store provider cannot be null");
     kvStoreProvider = storeProvider;
-    collectionName = name;
+    this.storeCreator = storeCreatorFunction;
   }
 
   @Override
   public void start() throws Exception {
-    logger.info("Starting Reindex version store service");
-    store = Suppliers.memoize(() -> kvStoreProvider.get().getStore(ReindexStoreCreator.class));
+    logger.info("Starting ReindexVersionStore");
+
+    // KVStoreProvider is started here because
+    // 1. In coordinator, start of this class (i.e ReindexVersionStoreImpl)
+    // and that of its dependent kvStoreProvider may be called in any order.
+    // So this creates a necessity to start kvStoreProvider explicitly in coordinator, atleast on demand.
+    //
+    // 2. In mt-services, both starts are called in correct order as defined XXXApplication.java
+    //
+    // 3. To solve above problem in coordinator, we use IdempotentStartKVStoreProvider as kvStoreProvider (variable here).
+    // Its start() is idempotent, so its safe to call start method multiple times.
+    kvStoreProvider.get().start();
+    store = Suppliers.memoize(() -> kvStoreProvider.get().getStore(storeCreator));
+    logger.info("ReindexVersionStore is started");
   }
 
   @Override
   public void close() throws Exception {
-    logger.info("Stopping Reindex version store service");
-  }
-
-  /**
-   * store creator for version store
-   */
-  public static final class ReindexStoreCreator implements IndexedStoreCreationFunction<String, ReindexVersionInfo> {
-    @Override
-    public IndexedStore<String, ReindexVersionInfo> build(StoreBuildingFactory factory) {
-      return factory.<String, ReindexVersionInfo>newStore()
-        .name(collectionName)
-        .keyFormat(Format.ofString())
-        .valueFormat(Format.ofProtobuf(ReindexVersionInfo.class))
-        .buildIndexed(new ReindexVersionDocumentConverter());
-    }
+    kvStoreProvider.get().close();
+    logger.info("Stopped ReindexVersionStore");
   }
 
   /**
@@ -92,7 +84,7 @@ public class ReindexVersionStoreImpl implements ReindexVersionStore {
     @Override
     public void convert(DocumentWriter writer, String key, ReindexVersionInfo record) {
       writer.write(COLLECTION_NAME_INDEX_KEY, record.getCollectionName());
-      writer.write(VERSION_INDEX_KEY, record.getVersion());
+      writer.write(COLLECTION_VERSION_INDEX_KEY, record.getVersion());
     }
 
     @Override
@@ -108,7 +100,7 @@ public class ReindexVersionStoreImpl implements ReindexVersionStore {
   }
 
   @Override
-  public void update(String collectionName, Function<ReindexVersionInfo, ReindexVersionInfo> modifier, Predicate<Integer> predicate) throws ReindexVersionStoreException {
+  public void update(String collectionName, UnaryOperator<ReindexVersionInfo> modifier, Predicate<Integer> predicate) throws ReindexVersionStoreException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(collectionName));
 
     Document<String, ReindexVersionInfo> versionDoc = store.get().get(collectionName);
@@ -129,21 +121,8 @@ public class ReindexVersionStoreImpl implements ReindexVersionStore {
   }
 
   @Override
-  public ReindexVersionInfo get(String collectionName, int version) {
-    ImmutableFindByCondition.Builder builder = new ImmutableFindByCondition.Builder();
-    SearchTypes.SearchQuery collectionQuery = SearchQueryUtils.newTermQuery(COLLECTION_NAME_INDEX_KEY, collectionName);
-    SearchTypes.SearchQuery versionQuery = SearchQueryUtils.newTermQuery(VERSION_INDEX_KEY, version);
-    SearchTypes.SearchQuery query = SearchQueryUtils.and(collectionQuery, versionQuery);
-    FindByCondition findByCondition = builder.setCondition(query).build();
-
-    Iterable<Document<String, ReindexVersionInfo>> iterable = store.get().find(findByCondition);
-    Iterator<Document<String, ReindexVersionInfo>> iter = iterable.iterator();
-
-    if (iter.hasNext()) {
-      Document<String, ReindexVersionInfo> doc = iter.next();
-      return doc.getValue();
-    }
-
-    return null;
+  public ReindexVersionInfo get(String collectionName) {
+    Document<String, ReindexVersionInfo> reindexVersionInfoDocument = store.get().get(collectionName);
+    return reindexVersionInfoDocument == null ? null : reindexVersionInfoDocument.getValue();
   }
 }

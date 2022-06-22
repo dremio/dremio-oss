@@ -39,7 +39,7 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
   private SystemOptionManager somMaster;
   private SystemOptionManager somNonMaster;
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(50, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void init() throws Exception {
@@ -128,4 +128,3 @@ public class TestSystemOptionManagerMultiCoordinators extends BaseTestServer {
   }
 
 }
-

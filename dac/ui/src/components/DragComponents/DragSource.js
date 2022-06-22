@@ -20,10 +20,10 @@
 // This class also encapsulates all possible fields a dragged object might use, instead of just having an @data any-type prop.
 // And places that take /dragType: *PropTypes\.string/ need to be updated to take arrays for DropTarget.
 
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { DragSource } from 'react-dnd';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { DragSource } from "react-dnd";
+import classNames from "classnames";
 
 const source = {
   beginDrag(props) {
@@ -35,19 +35,19 @@ const source = {
       args: props.args,
       isFromAnother: props.isFromAnother,
       index: props.index,
-      type: props.dragType
+      type: props.dragType,
     };
   },
   endDrag(props) {
     if (props.onDragEnd) {
       props.onDragEnd(props);
     }
-  }
+  },
 };
 
-@DragSource(props => props.dragType, source, (connect, monitor) => ({
+@DragSource((props) => props.dragType, source, (connect, monitor) => ({
   connectDragSource: connect.dragSource(),
-  isDragging: monitor.isDragging()
+  isDragging: monitor.isDragging(),
 }))
 export default class DragSourceWrap extends Component {
   static propTypes = {
@@ -61,7 +61,8 @@ export default class DragSourceWrap extends Component {
     args: PropTypes.string,
     id: PropTypes.any,
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
+    dragStyles: PropTypes.object,
   };
 
   constructor(props) {
@@ -72,19 +73,28 @@ export default class DragSourceWrap extends Component {
   onDragStart(ev) {
     if (this.props.nativeDragData) {
       // dataType must be 'text' for IE
-      ev.dataTransfer.setData('text', JSON.stringify(this.props.nativeDragData));
+      ev.dataTransfer.setData(
+        "text",
+        JSON.stringify(this.props.nativeDragData)
+      );
     }
   }
 
   render() {
+    const dragStyles = this.props.dragStyles || {};
     const style = {
-      width: '100%',
-      userSelect: 'none',
-      opacity: this.props.isDragging ? 0.3 : 1
+      width: "100%",
+      userSelect: "none",
+      opacity: this.props.isDragging ? 0.3 : 1,
+      ...(this.props.isDragging ? dragStyles : {}),
     };
 
     const content = (
-      <div style={style} onDragStart={this.onDragStart} className={classNames('dragSource', this.props.className)}>
+      <div
+        style={style}
+        onDragStart={this.onDragStart}
+        className={classNames("dragSource", this.props.className)}
+      >
         {this.props.children}
       </div>
     );
@@ -93,8 +103,6 @@ export default class DragSourceWrap extends Component {
       return content;
     }
 
-    return this.props.connectDragSource(
-      content
-    );
+    return this.props.connectDragSource(content);
   }
 }

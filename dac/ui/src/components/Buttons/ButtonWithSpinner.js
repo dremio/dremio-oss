@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { Button } from 'dremio-ui-lib';
-import FontIcon from 'components/Icon/FontIcon';
+import { Button } from "dremio-ui-lib";
+import FontIcon from "components/Icon/FontIcon";
 
-import * as classes from './buttonWithSpinner.less';
+import * as classes from "./buttonWithSpinner.less";
 
 const ButtonWithSpinner = (props) => {
   const {
@@ -35,10 +35,9 @@ const ButtonWithSpinner = (props) => {
     ...otherProps
   } = props;
 
-  const renderSpinner = () => {
-    const loader = color === 'primary' && variant === 'contained' ? 'LoaderWhite' : 'Loader';
-    return <FontIcon type={loader + ' spinner'} theme={styles.spinner} />;
-  };
+  const renderSpinner = () => (
+    <FontIcon type="Loader spinner" theme={styles.spinner} />
+  );
 
   return (
     <div className={`${classes.buttonWithSpinner} ${className}`}>
@@ -69,23 +68,23 @@ ButtonWithSpinner.propTypes = {
   inProgress: PropTypes.bool,
   text: PropTypes.string,
   onClick: PropTypes.func,
-  children: PropTypes.any
+  children: PropTypes.any,
 };
 
 ButtonWithSpinner.defaultProps = {
-  variant: 'contained',
-  className: '',
-  buttonClassName: '',
-  inProgress: false
+  variant: "contained",
+  className: "",
+  buttonClassName: "",
+  inProgress: false,
 };
 
 const styles = {
   spinner: {
     Container: {
-      display: 'block',
-      height: 24
-    }
-  }
+      display: "block",
+      height: 24,
+    },
+  },
 };
 
 export default ButtonWithSpinner;

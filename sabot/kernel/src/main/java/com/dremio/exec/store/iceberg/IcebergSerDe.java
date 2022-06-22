@@ -32,12 +32,16 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 /**
  * Serialization/Deserialization for iceberg entities.
@@ -91,6 +95,7 @@ public class IcebergSerDe {
     }
   }
 
+  @Deprecated
   public static byte[] serializePartitionSpecMap(Map<Integer, PartitionSpec> partitionSpecMap) {
     try {
       return serializeToByteArray(partitionSpecMap);
@@ -99,12 +104,72 @@ public class IcebergSerDe {
     }
   }
 
+  public static byte[] serializePartitionSpecAsJsonMap(Map<Integer, PartitionSpec> partitionSpecMap) {
+    try {
+      Map<Integer, String> specAsJsonMap = Maps.newHashMap();
+      partitionSpecMap.forEach((specId, spec) -> specAsJsonMap.put(specId, PartitionSpecParser.toJson(spec)));
+      return serializeToByteArray(specAsJsonMap);
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to serialize PartitionSpecMap");
+    }
+  }
+
+  public static Map<Integer, PartitionSpec> deserializeJsonPartitionSpecMap(Schema schema, byte[] serialized) {
+    ImmutableMap.Builder<Integer, PartitionSpec> builder = ImmutableMap.builder();
+    try {
+      if (serialized.length > 0) {
+        Map<Integer, String> specAsJsonMap = deserializeFromByteArray(serialized);
+        specAsJsonMap.forEach((k,v) -> {
+          builder.put(k, PartitionSpecParser.fromJson(schema, v));
+        });
+      }
+      return builder.build();
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to deserialize PartitionSpecMap");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("failed to deserialize PartitionSpecMap", e);
+    }
+  }
+
+  public static String serializedSchemaAsJson(Schema schema) {
+    return SchemaParser.toJson(schema);
+  }
+
+  public static Schema deserializedJsonAsSchema(String schema) {
+    return SchemaParser.fromJson(schema);
+  }
+
+  @Deprecated
   public static Map<Integer, PartitionSpec> deserializePartitionSpecMap(byte[] serialized) {
     try {
       return deserializeFromByteArray(serialized);
     } catch (InvalidClassException e) {
       logger.debug("SerialVersionUID is mismatch for PartitionSpec Class");
       return null; //serialVersionUID is mismatch;
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to deserialize PartitionSpecMap");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("failed to deserialize PartitionSpecMap", e);
+    }
+  }
+
+  public static byte[] serializePartitionSpec(PartitionSpec partitionSpec) {
+    return PartitionSpecParser.toJson(partitionSpec).getBytes();
+  }
+
+  /**
+   * @param schema Iceberg Table Schema
+   * @param serialized PartitionSpec serialized value with byte array {Refer: serializePartitionSpec}
+   * @return PartitionSpec with schema details
+   */
+  public static PartitionSpec deserializePartitionSpec(Schema schema, byte[] serialized) {
+    return PartitionSpecParser.fromJson(schema, new String(serialized));
+  }
+
+  @Deprecated
+  public static PartitionSpec deserializePartitionSpec(byte[] serialized) {
+    try {
+      return deserializeFromByteArray(serialized);
     } catch (IOException e) {
       throw new RuntimeIOException(e, "failed to deserialize PartitionSpecMap");
     } catch (ClassNotFoundException e) {

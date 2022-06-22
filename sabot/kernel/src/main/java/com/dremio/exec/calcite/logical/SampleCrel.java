@@ -73,4 +73,3 @@ public final class SampleCrel extends SampleRelBase implements CopyToCluster {
     );
   }
 }
-

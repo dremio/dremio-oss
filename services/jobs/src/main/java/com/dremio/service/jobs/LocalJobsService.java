@@ -63,6 +63,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
@@ -83,7 +84,10 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
+import com.dremio.common.concurrent.CloseableExecutorService;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.CloseableThreadPool;
+import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logging.StructuredLogger;
 import com.dremio.common.perf.Timer;
@@ -126,6 +130,7 @@ import com.dremio.exec.planner.observer.AbstractQueryObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
+import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -221,11 +226,13 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.JoinInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.jobtelemetry.DeleteProfileRequest;
 import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
@@ -244,6 +251,7 @@ import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.usersessions.UserSessionService;
+import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -317,6 +325,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private final boolean isMaster;
   private final LocalAbandonedJobsHandler localAbandonedJobsHandler;
   private final StructuredLogger<Job> jobResultLogger;
+  private final ContextMigratingCloseableExecutorService executorService;
+  private final List<ExternalCleaner> extraExternalCleaners;
+  private final CloseableExecutorService queryLoggerExecutorService;
 
   private NodeEndpoint identity;
   private LegacyIndexedStore<JobId, JobResult> store;
@@ -324,7 +335,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private String storageName;
   private JobResultsStore jobResultsStore;
   private Cancellable jobResultsCleanupTask;
-  private Cancellable jobProfilesCleanupTask;
+  private Cancellable jobDependenciesCleanupTask;
   private Cancellable abandonLocalJobsTask;
   private QueryObserverFactory queryObserverFactory;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub;
@@ -366,7 +377,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       final boolean isMaster,
       final Provider<ConduitProvider> conduitProvider,
       final Provider<UserSessionService> userSessionService,
-      final Provider<OptionValidatorListing> optionValidatorProvider
+      final Provider<OptionValidatorListing> optionValidatorProvider,
+      final List<ExternalCleaner> extraExternalCleaners
   ) {
     this.kvStoreProvider = kvStoreProvider;
     this.allocator = allocator;
@@ -390,6 +402,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     this.localAbandonedJobsHandler = new LocalAbandonedJobsHandler();
     this.userSessionService = userSessionService;
     this.optionValidatorProvider = optionValidatorProvider;
+    this.executorService = new ContextMigratingCloseableExecutorService<>(
+      new CloseableThreadPool("job-event-collating-observer"), TracerFacade.INSTANCE);
+    this.extraExternalCleaners = extraExternalCleaners;
+    this.queryLoggerExecutorService = new CloseableThreadPool("async-query-logger");
   }
 
   public QueryObserverFactory getQueryObserverFactory() {
@@ -443,7 +459,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       final long releaseLeadership = optionManager.getOption(ExecConstants.JOBS_RELEASE_LEADERSHIP_MS);
       final Schedule schedule;
 
-      // Schedule job profiles cleanup to run every day unless the max age is less than a day (used for testing)
+      // Schedule job dependencies cleanup to run every day unless the max age is less than a day (used for testing)
       if (maxJobProfilesAgeInDays != DISABLE_CLEANUP_VALUE) {
         if (maxJobProfilesAgeInMillis < ONE_DAY_IN_MILLIS) {
           schedule = Schedule.Builder.everyMillis(maxJobProfilesAgeInMillis)
@@ -463,7 +479,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
             .releaseOwnershipAfter(releaseLeadership, TimeUnit.MILLISECONDS)
             .build();
         }
-        jobProfilesCleanupTask = schedulerService.get().schedule(schedule, new JobProfilesCleanupTask());
+        jobDependenciesCleanupTask = schedulerService.get().schedule(schedule, new JobDependenciesCleanupTask());
       }
 
       // Schedule job results cleanup
@@ -545,9 +561,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       jobResultsCleanupTask = null;
     }
 
-    if (jobProfilesCleanupTask != null) {
-      jobProfilesCleanupTask.cancel(false);
-      jobProfilesCleanupTask = null;
+    if (jobDependenciesCleanupTask != null) {
+      jobDependenciesCleanupTask.cancel(false);
+      jobDependenciesCleanupTask = null;
     }
 
     if (abandonLocalJobsTask != null) {
@@ -555,7 +571,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       abandonLocalJobsTask = null;
     }
 
-    AutoCloseables.close(localAbandonedJobsHandler, jobResultsStore, allocator);
+    AutoCloseables.close(localAbandonedJobsHandler, jobResultsStore, allocator, executorService, queryLoggerExecutorService);
     logger.info("Stopped JobsService");
   }
 
@@ -624,6 +640,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     ExternalId externalId,
     SubmitJobRequest jobRequest,
     JobEventCollatingObserver eventObserver,
+    SessionObserver sessionObserver,
     PlanTransformationListener planTransformationListener,
     String sessionId) {
     // (1) create job details
@@ -640,7 +657,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         .setEndpoint(identity)
         .setState(PENDING)
         .setDetails(new JobDetails());
-    final Job job = new Job(jobId, jobAttempt);
+    final Job job = new Job(jobId, jobAttempt, new SessionId().setId(sessionId));
 
     // (2) deduce execution configuration
     final QueryType queryType = JobsProtoUtil.toStuff(jobRequest.getQueryType());
@@ -661,10 +678,12 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         .setSourceVersionMapping(JobsProtoUtil.toSourceVersionMapping(jobRequest.getSqlQuery().getSourceVersionMappingMap()))
         .setEngineName(jobRequest.getSqlQuery().getEngineName())
         .setSessionId(sessionId) // Should be the same as jobRequest.getSqlQuery().getSessionId() after the first statement
+        .setStoreQueryResultsPolicy(jobRequest.getStreamResultsMode() ? StoreQueryResultsPolicy.NO : StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID)
         .build();
 
     // (3) register listener
-    final QueryListener jobObserver = new QueryListener(job, eventObserver, planTransformationListener);
+    final QueryListener jobObserver = new QueryListener(job, eventObserver, sessionObserver,
+      planTransformationListener, jobRequest.getStreamResultsMode());
     storeJob(job);
     runningJobs.put(jobId, jobObserver);
 
@@ -696,6 +715,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         SessionOptionManager sessionOptionManager = sessionOptionManagerFactory.getOrCreate(sessionId);
         session.setSessionOptionManager(sessionOptionManager, optionManagerProvider.get());
       }
+      sessionObserver.onSessionModified(session);
       queryExecutor.get()
         .submitLocalQuery(externalId, jobObserver, queryRequest, isPrepare, config, jobRequest.getRunInSameThread(), session);
     } catch (Exception ex) {
@@ -752,6 +772,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     submitJobRequestBuilder.setSqlQuery(submitJobRequest.getSqlQuery());
     submitJobRequestBuilder.setQueryType(submitJobRequest.getQueryType());
     submitJobRequestBuilder.setRunInSameThread(submitJobRequest.getRunInSameThread());
+    submitJobRequestBuilder.setStreamResultsMode(submitJobRequest.getStreamResultsMode());
 
     if (submitJobRequest.hasDownloadSettings()) {
       Preconditions.checkArgument(submitJobRequest.getQueryType() == com.dremio.service.job.QueryType.UI_EXPORT,
@@ -793,7 +814,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   }
 
   @VisibleForTesting
-  public JobId submitJob(
+  public JobSubmission submitJob(
       SubmitJobRequest submitJobRequest,
       StreamObserver<JobEvent> eventObserver,
       PlanTransformationListener planTransformationListener
@@ -801,17 +822,20 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     final SubmitJobRequest jobRequest = validateJobRequest(submitJobRequest);
     final ExternalId externalId = ExternalIdHelper.generateExternalId();
     final JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
+    final JobSubmission jobSubmission = new JobSubmission().setJobId(jobId);
     checkNotNull(eventObserver, "an event observer must be provided");
-    final JobEventCollatingObserver collatingObserver = new JobEventCollatingObserver(jobId, eventObserver);
+    final JobEventCollatingObserver collatingObserver = new JobEventCollatingObserver(jobId, eventObserver, executorService, submitJobRequest.getStreamResultsMode());
     final String sessionId;
+    final SessionObserver sessionObserver;
 
     if (optionManagerProvider.get().getOption(UserSession.ENABLE_SESSION_IDS)) {
-      sessionId = getSessionId(jobRequest);
-      jobId.setSessionId(sessionId);
+      sessionId = getSessionId(eventObserver, jobRequest);
+      sessionObserver = new SessionUpdateObserver(userSessionService.get(), sessionId);
+      jobSubmission.setSessionId(new SessionId().setId(sessionId));
     } else {
       sessionId = null;
+      sessionObserver = SessionObserver.NO_OP;
     }
-
 
     commandPoolService.get().submit(CommandPool.Priority.HIGH,
       ExternalIdHelper.toString(externalId) + ":job-submission",
@@ -823,7 +847,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         }
 
         Span.current().setAttribute("jobId", jobId.getId());
-        startJob(externalId, jobRequest, collatingObserver, planTransformationListener, sessionId);
+        startJob(externalId, jobRequest, collatingObserver, sessionObserver, planTransformationListener, sessionId);
         logger.debug("Submitted new job. Id: {} Type: {} Sql: {}", jobId.getId(), jobRequest.getQueryType(),
           jobRequest.getSqlQuery());
         if (waitInMillis > CommandPool.WARN_DELAY_MS) {
@@ -846,14 +870,14 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         }
       });
 
-    // begin sending events to the client, and start with jobId
+    // begin sending events to the client, and start with jobId + sessionId
     collatingObserver.start(JobEvent.newBuilder()
-        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setJobSubmission(JobsProtoUtil.toBuf(jobSubmission))
         .build());
-    return jobId;
+    return jobSubmission;
   }
 
-  private String getSessionId(SubmitJobRequest jobRequest) {
+  private String getSessionId(StreamObserver<JobEvent> eventObserver, SubmitJobRequest jobRequest) {
     String sessionId = jobRequest.getSqlQuery().getSessionId();
     if (StringUtil.isEmpty(sessionId)) {
       // Create a new session
@@ -880,8 +904,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     } else {
       // Check if the session is still active
       if (userSessionService.get().getSession(sessionId) == null) {
-        // Session expired/not found. Throw an exception.
-        throw new RuntimeException("Session expired/not found.");
+        // Session expired/not found.
+        JobsRpcUtils.handleException(eventObserver,
+          UserException.systemError(new SessionNotFoundException(sessionId))
+            .buildSilently());
       }
     }
     return sessionId;
@@ -928,7 +954,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     // release the slot in the releasable command pool; submit the job and wait before re-acquiring
     try (Closeable closeable = jobSubmissionHelper.releaseAndReacquireCommandPool()) {
       // submit the job to the command pool
-      JobId submittedJobId = jobSubmissionHelper.submitJobToCommandPool();
+      JobSubmission jobSubmission = jobSubmissionHelper.submitJobToCommandPool();
+      JobId submittedJobId = jobSubmission.getJobId();
 
       logger.info("New job submitted. Job Id: {} - Type: {} - Query: {}", submittedJobId, jobRequest.getQueryType(), jobRequest.getSqlQuery().getSql());
       // Renames the current thread to indicate the JobId of the new triggered job
@@ -975,7 +1002,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       throw new JobNotFoundException(jobId);
     }
 
-    Job job = new Job(jobId, jobResult, jobResultsStore);
+    SessionId sessionId = jobResult.getSessionId();
+    Job job = new Job(jobId, jobResult, jobResultsStore, sessionId);
     populateJobDetailsFromFullProfile(job);
     return job;
   }
@@ -1119,26 +1147,23 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           new SimpleEntry<>(JobStats.Type.EXTERNAL, JobIndexKeys.EXTERNAL_JOBS_FILTER),
           new SimpleEntry<>(JobStats.Type.ACCELERATION, JobIndexKeys.ACCELERATION_JOBS_FILTER),
           new SimpleEntry<>(JobStats.Type.DOWNLOAD, JobIndexKeys.DOWNLOAD_JOBS_FILTER),
-          new SimpleEntry<>(JobStats.Type.INTERNAL, JobIndexKeys.INTERNAL_JOBS_FILTER)
+          new SimpleEntry<>(JobStats.Type.INTERNAL, JobIndexKeys.INTERNAL_JOBS_FILTER),
+          new SimpleEntry<>(JobStats.Type.DAILY_JOBS, JobIndexKeys.DAILY_JOBS_FILTER),
+          new SimpleEntry<>(JobStats.Type.USER_JOBS, JobIndexKeys.USER_JOBS_FILTER)
       );
 
   JobStats getJobStats(JobStatsRequest request) {
     final long startDate = Timestamps.toMillis(request.getStartDate());
     final long endDate = Timestamps.toMillis(request.getEndDate());
+    final List<JobStats.Type> typeList = request.getJobStatsTypeList();
 
-    final List<Integer> counts = store.getCounts(JOBS_STATS_TYPE_TO_SEARCH_QUERY_MAPPING.stream()
-        .map(SimpleEntry::getValue)
-        .map(searchQuery -> SearchQueryUtils.and(
-            SearchQueryUtils.newRangeLong(JobIndexKeys.START_TIME.getIndexFieldName(), startDate, endDate, true, true),
-            searchQuery))
-        .toArray(SearchQuery[]::new));
-
-    // same order as above
     final JobStats.Builder jobStats = JobStats.newBuilder();
-    for (int i = 0; i < counts.size(); i++) {
+    for (JobStats.Type jobStatsType : typeList) {
       jobStats.addCounts(JobStats.JobCountWithType.newBuilder()
-          .setType(JOBS_STATS_TYPE_TO_SEARCH_QUERY_MAPPING.get(i).getKey())
-          .setCount(counts.get(i)));
+        .setType(JOBS_STATS_TYPE_TO_SEARCH_QUERY_MAPPING.get(jobStatsType.getNumber()).getKey())
+        .setCount(store.getCounts(SearchQueryUtils.and(
+          SearchQueryUtils.newRangeLong(JobIndexKeys.START_TIME.getIndexFieldName(), startDate, endDate, true, true),
+          JOBS_STATS_TYPE_TO_SEARCH_QUERY_MAPPING.get(jobStatsType.getNumber()).getValue())).get(0)));
     }
     return jobStats.build();
   }
@@ -1344,7 +1369,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     return Iterables.transform(entries, new Function<Entry<JobId, JobResult>, Job>() {
       @Override
       public Job apply(Entry<JobId, JobResult> input) {
-        return new Job(input.getKey(), input.getValue(), jobResultsStore);
+        return new Job(input.getKey(), input.getValue(), jobResultsStore, input.getValue().getSessionId());
       }
     });
   }
@@ -1471,7 +1496,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
             .setState(PENDING)
             .setDetails(new JobDetails());
 
-      final Job job = new Job(jobId, jobAttempt);
+      final Job job = new Job(jobId, jobAttempt, null);
 
       QueryListener listener = new QueryListener(job, handler, session.getSessionOptionManager());
       runningJobs.put(jobId, listener);
@@ -1488,8 +1513,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     private final ExternalId externalId;
     private final UserResponseHandler responseHandler;
     private final JobEventCollatingObserver eventObserver;
+    private final SessionObserver sessionObserver;
     private final PlanTransformationListener planTransformationListener;
     private final boolean isInternal;
+    private final boolean streamResultsMode;
     private final ExternalListenerManager listeners = new ExternalListenerManager();
     private final CountDownLatch completionLatch = new CountDownLatch(1);
     private final DeferredException exception = new DeferredException();
@@ -1498,14 +1525,17 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     private SessionOptionManager sessionOptionManager = null;
     private ExecutionControls executionControls;
 
+
     private QueryListener(Job job, UserResponseHandler connection, SessionOptionManager sessionOptionManager) {
       this.job = job;
       this.externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
       this.responseHandler = Preconditions.checkNotNull(connection, "handler cannot be null");
       this.eventObserver = null;
+      this.sessionObserver = null;
       this.planTransformationListener = null;
       this.isInternal = false;
       this.job.setIsInternal(false);
+      this.streamResultsMode = true;
       setupJobData();
       this.sessionOptionManager = sessionOptionManager;
     }
@@ -1513,15 +1543,19 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     private QueryListener(
         Job job,
         JobEventCollatingObserver eventObserver,
-        PlanTransformationListener planTransformationListener
+        SessionObserver sessionObserver,
+        PlanTransformationListener planTransformationListener,
+        boolean streamResultsMode
     ) {
       this.job = job;
-      externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
+      this.externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
       this.responseHandler = null;
       this.eventObserver = Preconditions.checkNotNull(eventObserver, "eventObserver cannot be null");
+      this.sessionObserver = Preconditions.checkNotNull(sessionObserver, "sessionObserver cannot be null");
       this.planTransformationListener = Preconditions.checkNotNull(planTransformationListener, "statusListener cannot be null");
-      isInternal = true;
+      this.isInternal = true;
       this.job.setIsInternal(true);
+      this.streamResultsMode = streamResultsMode;
       setupJobData();
     }
 
@@ -1530,10 +1564,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
 
     private void setupJobData() {
-      final JobLoader jobLoader = isInternal ?
+      final JobLoader jobLoader = (isInternal && !streamResultsMode) ?
           new InternalJobLoader(exception, completionLatch, job.getJobId(), jobResultsStore, store) :
           new ExternalJobLoader(completionLatch, exception);
-      JobData jobData = new JobDataImpl(jobLoader, job.getJobId());
+      JobData jobData = new JobDataImpl(jobLoader, job.getJobId(), job.getSessionId());
       job.setData(jobData);
     }
 
@@ -1561,7 +1595,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       job.getJobAttempt().setAttemptId(AttemptIdUtils.toString(attemptId));
 
       if (isInternal) {
-        attemptObserver = new JobResultListener(attemptId, job, allocator, eventObserver, planTransformationListener, listeners);
+        if (streamResultsMode) {
+          attemptObserver = new InternalJobResultStreamingListener(attemptId, job, allocator, eventObserver, planTransformationListener, listeners);
+        } else {
+          attemptObserver = new JobResultListener(attemptId, job, allocator, eventObserver, planTransformationListener, listeners);
+        }
       } else {
         attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator, listeners);
       }
@@ -1639,9 +1677,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
                   .setFinalJobSummary(JobsServiceUtil.toJobSummary(job))
                   .build());
               eventObserver.onCompleted();
+              sessionObserver.onCompleted();
               break;
             case FAILED:
               eventObserver.onError(ex);
+              sessionObserver.onError(ex);
               break;
 
             default:
@@ -1657,8 +1697,17 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       }
 
       listeners.close(JobsServiceUtil.toJobSummary(job));
+      try {
+        AutoCloseables.close(eventObserver);
+      } catch (Exception e) {
+        logger.error("Exception while closing JobEventObserver: {}", job.getJobId(), e);
+      }
 
-      jobResultLogger.info(String.format("Query: %s; outcome: %s",job.getJobId().getId(),job.getJobAttempt().getState()), job);
+      queryLoggerExecutorService.submit(() -> {
+        //We dont want to load the query profile as part of job execution for DCS. Hence, separating this into a thread.
+        populateJobDetailsFromFullProfile(job);
+        jobResultLogger.info(String.format("Query: %s; outcome: %s",job.getJobId().getId(),job.getJobAttempt().getState()), job);
+      });
     }
   }
 
@@ -1760,7 +1809,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         BufferAllocator allocator,
         ExternalListenerManager externalListenerManager
     ) {
-      super(attemptId, job, allocator, new JobEventCollatingObserver(job.getJobId(), NoopStreamObserver.instance()),
+      super(attemptId, job, allocator, new JobEventCollatingObserver(job.getJobId(), NoopStreamObserver.instance(), executorService, false),
           PlanTransformationListener.NO_OP, externalListenerManager);
       this.connection = connection;
       this.externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
@@ -1771,6 +1820,46 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       connection.sendData(outcomeListener, ExternalIdHelper.replaceQueryId(result, externalId));
 
       // TODO: maybe capture and write the first few result batches to the job store so we can view those results?
+    }
+  }
+
+  /**
+   * A query observer for internal queries with streamResultsMode. Delegates the data back to the original grpc connection.
+   */
+  private final class InternalJobResultStreamingListener extends JobResultListener {
+
+    private final JobEventCollatingObserver eventObserver;
+
+    InternalJobResultStreamingListener(AttemptId attemptId,
+                                       Job job,
+                                       BufferAllocator allocator,
+                                       JobEventCollatingObserver eventObserver,
+                                       PlanTransformationListener planTransformationListener,
+                                       ExternalListenerManager externalListenerManager) {
+      super(attemptId, job, allocator, eventObserver, planTransformationListener,
+        externalListenerManager);
+      this.eventObserver = eventObserver;
+    }
+
+    @Override
+    public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch data) {
+      try {
+        int totalSize = 0;
+        for (int i = 0; i < data.getBuffers().length; i++) {
+          totalSize += data.getBuffers()[i].readableBytes();
+        }
+        com.google.protobuf.ByteString.Output outputStream = com.google.protobuf.ByteString.newOutput(totalSize);
+
+        for (int i = 0; i < data.getBuffers().length; i++) {
+          data.getBuffers()[i].readBytes(outputStream, data.getBuffers()[i].readableBytes());
+          data.getBuffers()[i].release();
+        }
+        // todo: fix ser/deser overhead (https://dremio.atlassian.net/browse/DX-46512)
+        eventObserver.onData(JobEvent.newBuilder().setResultData(outputStream.toByteString()).build(), outcomeListener);
+      } catch (IOException ex) {
+        outcomeListener.failed(new RpcException(ex));
+        getDeferredException().addException(ex);
+      }
     }
   }
 
@@ -1817,9 +1906,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       this.job = job;
       this.jobId = job.getJobId();
       this.allocator = allocator;
-      this.builder = QueryMetadata.builder(namespaceService)
-        .addQuerySql(job.getJobAttempt().getInfo().getSql())
-        .addQueryContext(job.getJobAttempt().getInfo().getContextList());
+      this.builder = QueryMetadata.builder(namespaceService, storageName)
+          .addQuerySql(job.getJobAttempt().getInfo().getSql())
+          .addQueryContext(job.getJobAttempt().getInfo().getContextList());
       this.eventObserver = eventObserver;
       this.planTransformationListener = planTransformationListener;
       this.detailsPopulator = accelerationManagerProvider.get().newPopulator();
@@ -1828,6 +1917,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
     Exception getException() {
       return exception.getException();
+    }
+
+    DeferredException getDeferredException() {
+      return exception;
     }
 
     @Override
@@ -2048,8 +2141,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           // There is DX-14280. We will be able to remove clone call, when it would be resolved.
           jobInfo.setBatchSchema(schema.get().clone(BatchSchema.SelectionVectorMode.NONE).toByteString());
         }
-        if(metadata.getSourceNames() != null) {
+        if (metadata.getSourceNames() != null) {
           jobInfo.setSourceNamesList(metadata.getSourceNames());
+        }
+        if (metadata.getSinkPath() != null) {
+          jobInfo.setSinkPathList(metadata.getSinkPath());
         }
 
         storeJob(job);
@@ -2092,8 +2188,12 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         break;
       case REDUCE_EXPRESSIONS:
         builder.addExpandedPlan(before);
+        break;
+      case PHYSICAL:
+        builder.addPhysicalPlan(before);
+        break;
       default:
-        return;
+        break;
       }
     }
 
@@ -2103,10 +2203,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
 
     @Override
-    public void attemptCompletion(UserResult result) {
+    public synchronized void attemptCompletion(UserResult result) {
       try {
         final QueryState queryState = result.getState();
         if (queryState == QueryState.COMPLETED) {
+          storeJob(job);
           detailsPopulator.attemptCompleted(result.getProfile());
           if (joinPreAnalyzer != null) {
             JoinAnalyzer joinAnalyzer = new JoinAnalyzer(result.getProfile(), joinPreAnalyzer);
@@ -2123,7 +2224,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
 
     @Override
-    public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
+    public synchronized void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
       try (TimedBlock b = Timer.time("dataMetadataArrived");
           QueryDataBatch dataBatch = LocalUserUtil.acquireData(allocator, outcomeListener, result);
           RecordBatchLoader loader = new RecordBatchLoader(allocator)) {
@@ -2147,7 +2248,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
                 ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataVector.getObject(i));
             job.getJobAttempt().getInfo().getResultMetadataList().add(ArrowFileReader.toBean(metadata));
           }
-          storeJob(job);
         }
       } catch (Exception ex) {
         exception.addException(ex);
@@ -2361,7 +2461,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   void remoteCancel(JobId jobId, ExternalId externalId, NodeEndpoint endpoint, String reason) throws JobException {
     if(endpoint.equals(identity)){
-      throw new JobWarningException(jobId, "Unable to cancel job started on current node. It may have completed before cancellation was requested.");
+      throw new JobCancelException(String.format("Job %s may have completed and cannot be canceled.",jobId.getId()));
     }
 
     try{
@@ -2371,7 +2471,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         logger.debug("Job cancellation requested on {}.", endpoint.getAddress());
         return;
       } else {
-        throw new JobWarningException(jobId, String.format("Unable to cancel job started on %s. It may have completed before cancellation was requested.", endpoint.getAddress()));
+        throw new JobCancelException(String.format("Job %s may have completed and cannot be canceled.",jobId.getId()));
       }
     } catch(TimeoutException | RpcException | RuntimeException e){
       logger.info("Unable to cancel remote job for external id: {}", ExternalIdHelper.toString(externalId), e);
@@ -2519,8 +2619,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   /**
    * Removes the job details and profile
    */
-  class JobProfilesCleanupTask implements Runnable {
-    private final OnlineProfileCleaner onlineProfileCleanup = new OnlineProfileCleaner();
+  class JobDependenciesCleanupTask implements Runnable {
+    private final List<ExternalCleaner> externalCleaners = Stream
+      .concat(Stream.of(new OnlineProfileCleaner()), extraExternalCleaners.stream())
+      .collect(Collectors.toList());
 
     @Override
     public void run() {
@@ -2532,7 +2634,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       final OptionManager optionManager = optionManagerProvider.get();
       final long maxAgeInDays = optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
       if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
-        deleteOldJobsAndDependencies(Arrays.asList(onlineProfileCleanup), kvStoreProvider.get(),
+        deleteOldJobsAndDependencies(externalCleaners, kvStoreProvider.get(),
           TimeUnit.DAYS.toMillis(maxAgeInDays));
       }
     }
@@ -2828,7 +2930,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       this.planTransformationListener = planTransformationListener;
     }
 
-    JobId submitJobToCommandPool() {
+    JobSubmission submitJobToCommandPool() {
       return submitJob(this.jobRequest, this.eventObserver, this.planTransformationListener);
     }
 

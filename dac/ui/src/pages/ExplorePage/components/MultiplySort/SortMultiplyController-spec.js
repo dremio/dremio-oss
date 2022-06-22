@@ -13,43 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import SortMultiplyController from './SortMultiplyController';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import SortMultiplyController from "./SortMultiplyController";
 
-describe('SortMultiplyController', () => {
-
+describe("SortMultiplyController", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
   beforeEach(() => {
     minimalProps = {
       location: {
-        state: {}
+        state: {},
       },
       fields: {},
-      columns: Immutable.List()
+      columns: Immutable.List(),
     };
     commonProps = {
       ...minimalProps,
       columns: Immutable.fromJS([
         {
-          name: 'revenue',
-          type: 'Integer',
-          index: 0
+          name: "revenue",
+          type: "Integer",
+          index: 0,
         },
         {
-          name: 'age',
-          type: 'Text',
-          index: 1
-        }
-      ])
+          name: "age",
+          type: "Text",
+          index: 1,
+        },
+      ]),
     };
-    wrapper = shallow(<SortMultiplyController {...commonProps}/>);
+    wrapper = shallow(<SortMultiplyController {...commonProps} />);
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<SortMultiplyController {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<SortMultiplyController {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

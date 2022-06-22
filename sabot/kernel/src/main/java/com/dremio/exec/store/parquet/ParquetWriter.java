@@ -15,29 +15,26 @@
  */
 package com.dremio.exec.store.parquet;
 
-import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.StoragePluginResolver;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWriter;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
 
 @JsonTypeName("parquet-writer")
 public class ParquetWriter extends FileSystemWriter {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetWriter.class);
 
   private final String location;
-  private final FileSystemPlugin plugin;
-  private final ParquetFormatPlugin formatPlugin;
+  private final MutablePlugin plugin;
 
   @JsonCreator
   public ParquetWriter(
@@ -50,8 +47,6 @@ public class ParquetWriter extends FileSystemWriter {
   ) {
     super(props, child, options);
     this.plugin = storagePluginResolver.getSource(pluginId);
-    this.formatPlugin = (ParquetFormatPlugin) plugin.getFormatPlugin(new ParquetFormatConfig());
-    Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
     this.location = location;
   }
 
@@ -60,11 +55,9 @@ public class ParquetWriter extends FileSystemWriter {
       PhysicalOperator child,
       String location,
       WriterOptions options,
-      FileSystemPlugin<?> plugin,
-      ParquetFormatPlugin formatPlugin) {
+      MutablePlugin plugin) {
     super(props, child, options);
     this.plugin = plugin;
-    this.formatPlugin = formatPlugin;
     this.location = location;
   }
 
@@ -77,19 +70,9 @@ public class ParquetWriter extends FileSystemWriter {
     return location;
   }
 
-  @JsonIgnore
-  public FormatPluginConfig getFormatConfig(){
-    return formatPlugin.getConfig();
-  }
-
-  @JsonIgnore
-  public ParquetFormatPlugin getFormatPlugin(){
-    return formatPlugin;
-  }
-
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new ParquetWriter(props, child, location, getOptions(), plugin, formatPlugin);
+    return new ParquetWriter(props, child, location, getOptions(), plugin);
   }
 
   @Override
@@ -101,5 +84,10 @@ public class ParquetWriter extends FileSystemWriter {
   @JsonIgnore
   public boolean isPdfs() {
     return plugin.getSystemUserFS().isPdfs();
+  }
+
+  @JsonIgnore
+  public MutablePlugin getPlugin() {
+    return this.plugin;
   }
 }

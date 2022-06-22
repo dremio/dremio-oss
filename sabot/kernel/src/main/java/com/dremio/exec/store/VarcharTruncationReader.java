@@ -134,4 +134,3 @@ public class VarcharTruncationReader implements AutoCloseable {
     AutoCloseables.close(splitter);
   }
 }
-

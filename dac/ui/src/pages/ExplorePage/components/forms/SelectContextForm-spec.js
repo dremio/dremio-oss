@@ -13,51 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import ResourceTreeController from 'components/Tree/ResourceTreeController';
-import { minimalFormProps } from 'testUtil';
+import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
+import { minimalFormProps } from "testUtil";
 
-import { SelectContextForm, FIELDS } from './SelectContextForm';
+import { SelectContextForm, FIELDS } from "./SelectContextForm";
 
-describe('SelectContextForm', () => {
+describe("SelectContextForm", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       onCancel: sinon.spy(),
       onFormSubmit: sinon.spy(),
-      ...minimalFormProps(FIELDS)
+      ...minimalFormProps(FIELDS),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SelectContextForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SelectContextForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ModalForm, FormBody and ResourceTree', () => {
-    const wrapper = shallow(<SelectContextForm {...commonProps}/>);
-    expect(wrapper.type()).to.equal('div');
+  it("should render ModalForm, FormBody and ResourceTree", () => {
+    const wrapper = shallow(<SelectContextForm {...commonProps} />);
+    expect(wrapper.type()).to.equal("div");
 
-    expect(wrapper.find('ModalForm')).to.have.length(1);
-    expect(wrapper.find('FormBody')).to.have.length(1);
-    expect(wrapper.find(ResourceTreeController)).to.have.length(1);
+    expect(wrapper.find("ModalForm")).to.have.length(1);
+    expect(wrapper.find("FormBody")).to.have.length(1);
+    expect(wrapper.find(ResourceTreeContainer)).to.have.length(1);
   });
 
-  it('should render FieldWithError wrapping a TextField with props from this.props.fields.context', () => {
-    const wrapper = shallow(<SelectContextForm {...commonProps}/>);
-    expect(wrapper.find('FieldWithError').prop('value')).to.equal(commonProps.fields.context.value);
-    expect(wrapper.find('TextField').prop('value')).to.equal(commonProps.fields.context.value);
+  it("should render FieldWithError wrapping a TextField with props from this.props.fields.context", () => {
+    const wrapper = shallow(<SelectContextForm {...commonProps} />);
+    expect(wrapper.find("FieldWithError").prop("value")).to.equal(
+      commonProps.fields.context.value
+    );
+    expect(wrapper.find("TextField").prop("value")).to.equal(
+      commonProps.fields.context.value
+    );
   });
 
-  it('should call fields.context.onChange when a folder is selected in the ResourceTree', () => {
-    const wrapper = shallow(<SelectContextForm {...commonProps}/>);
-    const selected = 'my.folder';
+  it("should call fields.context.onChange when a folder is selected in the ResourceTree", () => {
+    const wrapper = shallow(<SelectContextForm {...commonProps} />);
+    const selected = "my.folder";
     wrapper.instance().handleChangeSelectedNode(selected);
-    expect(commonProps.fields.context.onChange).to.have.been.calledWith(selected);
+    expect(commonProps.fields.context.onChange).to.have.been.calledWith(
+      selected
+    );
   });
 });

@@ -20,25 +20,24 @@ import java.util.List;
 
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 
+/**
+ * Class PreferenceData
+ */
 public class PreferenceData {
-  private final String type;
-  private final List<String> entityIds;
+  private final UserPreferenceProto.PreferenceType preferenceType;
+  private final List<Entity> entities;
 
-  public PreferenceData(String type, List<String> entityIds) {
-    this.type = type;
-    this.entityIds = entityIds;
+  public PreferenceData(UserPreferenceProto.PreferenceType preferenceType, List<Entity> entities) {
+    this.preferenceType = preferenceType;
+    this.entities = entities;
   }
 
-  public String getType() {
-    return type;
+  public UserPreferenceProto.PreferenceType getType() {
+    return preferenceType;
   }
 
-  public List<String> getEntityIds() {
-    return entityIds;
-  }
-
-  public static PreferenceData fromPreference(UserPreferenceProto.Preference preference) {
-    return new PreferenceData(preference.getType().toString(), preference.getEntityIdsList());
+  public List<Entity> getEntities() {
+    return entities;
   }
 
 }

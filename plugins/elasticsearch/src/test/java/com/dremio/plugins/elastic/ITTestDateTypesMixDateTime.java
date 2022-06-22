@@ -46,7 +46,7 @@ public class ITTestDateTypesMixDateTime extends ElasticBaseTestQuery {
   private DateTimeFormatter formatterToBaselineJT;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public ITTestDateTypesMixDateTime(String format) {
     this.format = format;

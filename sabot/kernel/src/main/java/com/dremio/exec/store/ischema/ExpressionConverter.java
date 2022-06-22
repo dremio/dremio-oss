@@ -46,7 +46,7 @@ import com.google.common.collect.ImmutableMap;
  * Enables conversion of a filter condition into a search query and remainder for pushdown purposes.
  */
 public class ExpressionConverter {
-  private final static ImmutableMap<String, IndexKey> FIELDS = ImmutableMap.of(
+  private static final ImmutableMap<String, IndexKey> FIELDS = ImmutableMap.of(
       "TABLE_SCHEMA".toLowerCase(), DatasetIndexKeys.UNQUOTED_SCHEMA,
       "TABLE_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_NAME,
       "SCHEMA_NAME".toLowerCase(), DatasetIndexKeys.UNQUOTED_SCHEMA

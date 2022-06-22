@@ -13,70 +13,99 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import schemaUtils from 'utils/apiUtils/schemaUtils';
-import exploreUtils from 'utils/explore/exploreUtils';
-import { datasetWithoutData } from 'schemas/v2/fullDataset';
-import { APIV2Call } from '@app/core/APICall';
-import { updateBody } from '@inject/actions/explore/dataset/updateLocation';
+import schemaUtils from "utils/apiUtils/schemaUtils";
+import exploreUtils from "utils/explore/exploreUtils";
+import { datasetWithoutData } from "schemas/v2/fullDataset";
+import { APIV2Call } from "@app/core/APICall";
+import { updateBody } from "@inject/actions/explore/dataset/updateLocation";
+import { getNessieReferencePayload } from "@app/utils/nessieUtils";
+import { store } from "@app/store/store";
 
-export const NEW_UNTITLED_START   = 'NEW_UNTITLED_START';
-export const NEW_UNTITLED_SUCCESS = 'NEW_UNTITLED_SUCCESS';
-export const NEW_UNTITLED_FAILURE = 'NEW_UNTITLED_FAILURE';
+export const NEW_UNTITLED_START = "NEW_UNTITLED_START";
+export const NEW_UNTITLED_SUCCESS = "NEW_UNTITLED_SUCCESS";
+export const NEW_UNTITLED_FAILURE = "NEW_UNTITLED_FAILURE";
 
-export const newUntitledActionTypes = [NEW_UNTITLED_START, NEW_UNTITLED_SUCCESS, NEW_UNTITLED_FAILURE];
+export const newUntitledActionTypes = [
+  NEW_UNTITLED_START,
+  NEW_UNTITLED_SUCCESS,
+  NEW_UNTITLED_FAILURE,
+];
 
-function newUntitledFetch(dataset, parentFullPath, viewId) {
+function newUntitledFetch(dataset, parentFullPath, viewId, references) {
   // todo: DX-6630: why is this called multiple times per PERFORM_NEW_UNTITLED?
   // (only one seems to be sent though)
   const meta = { viewId, entity: dataset };
   const newVersion = exploreUtils.getNewDatasetVersion();
-  const apiCall = exploreUtils.getAPICallForUntitledDatasetConfig(parentFullPath, newVersion, true);
-
+  const apiCall = exploreUtils.getAPICallForUntitledDatasetConfig(
+    parentFullPath,
+    newVersion,
+    true
+  );
   return {
     [RSAA]: {
       types: [
         { type: NEW_UNTITLED_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(NEW_UNTITLED_SUCCESS, datasetWithoutData, meta),
-        { type: NEW_UNTITLED_FAILURE, meta }
+        schemaUtils.getSuccessActionTypeWithSchema(
+          NEW_UNTITLED_SUCCESS,
+          datasetWithoutData,
+          meta
+        ),
+        { type: NEW_UNTITLED_FAILURE, meta },
       ],
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      endpoint: apiCall
-    }
+      method: "POST",
+      body: JSON.stringify({ references }),
+      headers: { "Content-Type": "application/json" },
+      endpoint: apiCall,
+    },
   };
 }
 
 export const newUntitled = (dataset, parentFullPath, viewId) => {
-  return dispatch => dispatch(newUntitledFetch(dataset, parentFullPath, viewId));
+  return (dispatch) => {
+    const { nessie } = store.getState(); //getState from Thunk API was not working from transformWatcher.performWatchedTransform Saga
+    const references = getNessieReferencePayload(nessie);
+    return dispatch(
+      newUntitledFetch(dataset, parentFullPath, viewId, references)
+    );
+  };
 };
 
-export const PERFORM_NEW_UNTITLED = 'PERFORM_NEW_UNTITLED';
+export const PERFORM_NEW_UNTITLED = "PERFORM_NEW_UNTITLED";
 
 export const performNewUntitled = (dataset, viewId) => {
-  return (dispatch) => dispatch({type: PERFORM_NEW_UNTITLED, meta: {dataset, viewId}});
+  return (dispatch) =>
+    dispatch({ type: PERFORM_NEW_UNTITLED, meta: { dataset, viewId } });
 };
 
-
-export const NEW_UNTITLED_SQL_START = 'NEW_UNTITLED_SQL_START';
-export const NEW_UNTITLED_SQL_SUCCESS = 'NEW_UNTITLED_SQL_SUCCESS';
-export const NEW_UNTITLED_SQL_FAILURE = 'NEW_UNTITLED_SQL_FAILURE';
+export const NEW_UNTITLED_SQL_START = "NEW_UNTITLED_SQL_START";
+export const NEW_UNTITLED_SQL_SUCCESS = "NEW_UNTITLED_SQL_SUCCESS";
+export const NEW_UNTITLED_SQL_FAILURE = "NEW_UNTITLED_SQL_FAILURE";
 
 export const newUntitledSqlActionTypes = [
-  NEW_UNTITLED_SQL_START, NEW_UNTITLED_SQL_SUCCESS, NEW_UNTITLED_SQL_FAILURE
+  NEW_UNTITLED_SQL_START,
+  NEW_UNTITLED_SQL_SUCCESS,
+  NEW_UNTITLED_SQL_FAILURE,
 ];
 
 /**
  * common helper for different table operations
  */
-export function postNewUntitledSql(href, sql, queryContext, viewId, references) {
+export function postNewUntitledSql(
+  href,
+  sql,
+  queryContext,
+  viewId,
+  references,
+  noUpdate
+) {
   const meta = { viewId };
 
   const body = {
     context: queryContext,
     sql,
-    references
+    references,
   };
   updateBody(body);
 
@@ -86,29 +115,56 @@ export function postNewUntitledSql(href, sql, queryContext, viewId, references) 
     [RSAA]: {
       types: [
         { type: NEW_UNTITLED_SQL_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(NEW_UNTITLED_SQL_SUCCESS, datasetWithoutData, meta),
-        { type: NEW_UNTITLED_SQL_FAILURE, meta }
+        schemaUtils.getSuccessActionTypeWithSchema(
+          NEW_UNTITLED_SQL_SUCCESS,
+          datasetWithoutData,
+          meta
+        ),
+        { type: NEW_UNTITLED_SQL_FAILURE, meta: { ...meta, noUpdate } },
       ],
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      endpoint: apiCall
-    }
+      endpoint: apiCall,
+    },
   };
 }
 
-export function newUntitledSql(sql, queryContext, viewId, references) {
+export function newUntitledSql(
+  sql,
+  queryContext,
+  viewId,
+  references,
+  sessionId,
+  version,
+  noUpdate
+) {
   return (dispatch) => {
-    const newVersion = exploreUtils.getNewDatasetVersion();
-    const href = exploreUtils.getUntitledSqlHref({newVersion});
-    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, references));
+    const newVersion = version ? version : exploreUtils.getNewDatasetVersion();
+    const href = exploreUtils.getUntitledSqlHref({ newVersion, sessionId });
+    return dispatch(
+      postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate)
+    );
   };
 }
 
-export function newUntitledSqlAndRun(sql, queryContext, viewId, references) {
+export function newUntitledSqlAndRun(
+  sql,
+  queryContext,
+  viewId,
+  references,
+  sessionId,
+  version,
+  noUpdate
+) {
   return (dispatch) => {
-    const newVersion = exploreUtils.getNewDatasetVersion();
-    const href = exploreUtils.getUntitledSqlAndRunHref({newVersion});
-    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, references));
+    const newVersion = version ? version : exploreUtils.getNewDatasetVersion();
+    const href = exploreUtils.getUntitledSqlAndRunHref({
+      newVersion,
+      sessionId,
+    });
+    return dispatch(
+      postNewUntitledSql(href, sql, queryContext, viewId, references, noUpdate)
+    );
   };
 }

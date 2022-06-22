@@ -46,4 +46,3 @@ public class RawByteStore implements TestStoreCreationFunction<String, byte[]> {
     return Arrays.asList(String.class);
   }
 }
-

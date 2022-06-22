@@ -13,29 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { race, take, put, call, takeEvery } from 'redux-saga/effects';
-import { delay } from 'redux-saga';
+import { race, take, put, call, takeEvery } from "redux-saga/effects";
+import { delay } from "redux-saga";
 
-import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_QV_JOB_PROGRESS } from '@inject/utils/socket';
-import { addNotification } from 'actions/notification';
-
+import socket, {
+  WS_MESSAGE_JOB_PROGRESS,
+  WS_MESSAGE_QV_JOB_PROGRESS,
+} from "@inject/utils/socket";
+import { addNotification } from "actions/notification";
 
 import {
   START_DATASET_DOWNLOAD,
   downloadDataset,
-  showDownloadModal
-} from 'actions/explore/download';
+  showDownloadModal,
+} from "actions/explore/download";
 
-import { hideConfirmationDialog } from 'actions/confirmation';
+import { hideConfirmationDialog } from "actions/confirmation";
 
-import { handleDownloadFile } from './downloadFile';
+import { handleDownloadFile } from "./downloadFile";
 
-
-const LOCATION_CHANGE = '@@router/LOCATION_CHANGE';
+const LOCATION_CHANGE = "@@router/LOCATION_CHANGE";
 const DELAY_BEFORE_MODAL = 1000;
 
 const getJobDoneActionFilter = (jobId) => (action) =>
-  action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS && action.payload.id.id === jobId && action.payload.update.isComplete;
+  action.type === WS_MESSAGE_JOB_PROGRESS ||
+  (action.type === WS_MESSAGE_QV_JOB_PROGRESS &&
+    action.payload.id.id === jobId &&
+    action.payload.update.isComplete);
 
 export default function* () {
   yield takeEvery(START_DATASET_DOWNLOAD, handleStartDatasetDownload);
@@ -58,29 +62,31 @@ export function* handleStartDatasetDownload({ meta }) {
 
   const { response } = yield race({
     response: downloadPromise,
-    locationChange: take(LOCATION_CHANGE)
+    locationChange: take(LOCATION_CHANGE),
   });
   if (response) {
     if (response.error) {
       return;
     }
-    const {downloadUrl, jobId} = response.payload;
+    const { downloadUrl, jobId } = response.payload;
     yield call([socket, socket.startListenToJobProgress], jobId.id);
     const { jobDone } = yield race({
       modalShownAndClosed: call(showDownloadModalAfterDelay, jobId.id),
-      jobDone: take(getJobDoneActionFilter(jobId.id))
+      jobDone: take(getJobDoneActionFilter(jobId.id)),
     });
 
     if (jobDone) {
       yield put(hideConfirmationDialog());
-      if (jobDone.payload.update.state !== 'COMPLETED') {
-        yield put(addNotification(la('Error preparing job download.'), 'error'));
+      if (jobDone.payload.update.state !== "COMPLETED") {
+        yield put(
+          addNotification(la("Error preparing job download."), "error")
+        );
         return;
       }
     } else {
       yield take(getJobDoneActionFilter(jobId.id));
     }
 
-    yield call(handleDownloadFile, {meta: {url: downloadUrl}});
+    yield call(handleDownloadFile, { meta: { url: downloadUrl } });
   }
 }

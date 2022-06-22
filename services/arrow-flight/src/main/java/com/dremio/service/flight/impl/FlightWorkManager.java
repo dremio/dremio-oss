@@ -16,43 +16,58 @@
 
 package com.dremio.service.flight.impl;
 
-import static com.dremio.common.types.Types.getJdbcTypeCode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.IntStream.range;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import javax.inject.Provider;
 
-import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightProducer;
+import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
+import org.apache.arrow.flight.sql.FlightSqlColumnMetadata;
 import org.apache.arrow.flight.sql.FlightSqlProducer;
 import org.apache.arrow.flight.sql.impl.FlightSql;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ZeroVector;
+import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.IntervalUnit;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -67,7 +82,10 @@ import com.dremio.service.flight.DremioFlightServiceOptions;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BackpressureHandlingResponseHandler;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandler;
 import com.dremio.service.flight.protector.CancellableUserResponseHandler;
+import com.dremio.service.flight.utils.TypeInfo;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Manager class for submitting jobs to a UserWorker and optionally returning the appropriate Dremio Flight
@@ -80,6 +98,47 @@ public class FlightWorkManager {
   private final RunQueryResponseHandlerFactory runQueryResponseHandlerFactory;
 
   private static final byte[] EMPTY_SERIALIZED_SCHEMA = getSerializedSchema(Collections.emptyList());
+
+  /**
+   * Data returned by Flight SQL's CommandXdbcGetTypeInfo.
+   * All values originally came from Dremio's legacy ODBC driver.
+   */
+  private static final List<TypeInfo> TYPE_INFOS =
+    ImmutableList.of(
+      new TypeInfo("NATIONAL CHARACTER VARYING", -9, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "WVARCHAR", null, null, -9, null, null),
+      new TypeInfo("WVARCHAR", -9, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "WVARCHAR", null, null, -9, null, null),
+      new TypeInfo("NATIONAL CHARACTER", -8, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "WCHAR", null, null, -8, null, null),
+      new TypeInfo("WCHAR", -8, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "WCHAR", null, null, -8, null, null),
+      new TypeInfo("BIT", -7, 1, null, null, null, 1, 0, 2, null, 0, null, "BIT", null, null, -7, null, null),
+      new TypeInfo("BOOLEAN", -7, 1, null, null, null, 1, 0, 2, null, 0, null, "BIT", null, null, -7, null, null),
+      new TypeInfo("TINYINT", -6, 3, null, null, null, 1, 0, 2, 0, 0, null, "TINYINT", null, null, -6, null, 2),
+      new TypeInfo("BIGINT", -5, 19, null, null, null, 1, 0, 2, 0, 0, null, "BIGINT", null, null, -5, null, 2),
+      new TypeInfo("BINARY VARYING", -3, 2147483647, null, null, "max length", 1, 0, 2, null, 0, null, "VARBINARY", null, null, -3, null, null),
+      new TypeInfo("VARBINARY", -3, 2147483647, null, null, "max length", 1, 0, 2, null, 0, null, "VARBINARY", null, null, -3, null, null),
+      new TypeInfo("BINARY", -2, 2147483647, null, null, "length", 1, 0, 2, null, 0, null, "BINARY", null, null, -2, null, null),
+      new TypeInfo("CHAR", 1, 2147483647, "'", "'", "length", 1, 0, 3, null, 0, null, "CHAR", null, null, 1, null, null),
+      new TypeInfo("CHARACTER", 1, 2147483647, "'", "'", "length", 1, 0, 3, null, 0, null, "CHAR", null, null, 1, null, null),
+      new TypeInfo("DECIMAL", 3, 38, null, null, null, 1, 0, 2, 0, 0, null, "DECIMAL", 0, 0, 3, null, 10),
+      new TypeInfo("INTEGER", 4, 10, null, null, null, 1, 0, 2, 0, 0, null, "INTEGER", null, null, 4, null, 2),
+      new TypeInfo("SMALLINT", 5, 5, null, null, null, 1, 0, 2, 0, 0, null, "SMALLINT", null, null, 5, null, 2),
+      new TypeInfo("FLOAT", 7, 24, null, null, null, 1, 0, 2, 0, 0, null, "REAL", 0, 0, 7, null, 2),
+      new TypeInfo("REAL", 7, 24, null, null, null, 1, 0, 2, 0, 0, null, "REAL", 0, 0, 7, null, 2),
+      new TypeInfo("DOUBLE", 8, 53, null, null, null, 1, 0, 2, 0, 0, null, "DOUBLE", 0, 0, 8, null, 2),
+      new TypeInfo("ANY", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("ARRAY", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("CHARACTER VARYING", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("MAP", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("NULL", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("UNION", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("VARCHAR", 12, 2147483647, "'", "'", "max length", 1, 0, 3, null, 0, null, "VARCHAR", null, null, 12, null, null),
+      new TypeInfo("DATE", 91, 10, null, null, null, 1, 0, 2, null, 0, null, "TYPE_DATE", null, null, 9, 1, null),
+      new TypeInfo("TIME", 92, 12, null, null, null, 1, 0, 2, null, 0, null, "TYPE_TIME", 0, 3, 9, 2, null),
+      new TypeInfo("TIME WITH TIME ZONE", 93, 23, null, null, null, 1, 0, 2, null, 0, null, "TYPE_TIMESTAMP", 0, 3, 9, 3, null),
+      new TypeInfo("TIMESTAMP WITH TIME ZONE", 93, 23, null, null, null, 1, 0, 2, null, 0, null, "TYPE_TIMESTAMP", 0, 3, 9, 3, null),
+      new TypeInfo("TIMESTAMP", 93, 23, null, null, null, 1, 0, 2, null, 0, null, "TYPE_TIMESTAMP", 0, 3, 9, 3, null),
+      new TypeInfo("INTERVAL YEAR TO MONTH", 107, 5, null, null, null, 1, 0, 2, null, 0, null, "INTERVAL_YEAR_TO_MONTH", null, null, 10, 7, null),
+      new TypeInfo("INTERVAL", 110, 18, null, null, null, 1, 0, 2, null, 0, null, "INTERVAL_DAY_TO_SECOND", null, null, 10, 10, null),
+      new TypeInfo("INTERVAL DAY TO SECOND", 110, 18, null, null, null, 1, 0, 2, null, 0, null, "INTERVAL_DAY_TO_SECOND", null, null, 10, 10, null));
 
   public FlightWorkManager(Provider<UserWorker> workerProvider,
                            Provider<OptionManager> optionManagerProvider,
@@ -176,13 +235,131 @@ public class FlightWorkManager {
         .filter(tableType -> tableType != TableType.UNKNOWN_TABLE_TYPE && tableType != TableType.UNRECOGNIZED)
         .collect(Collectors.toList());
       final int tablesCount = tableTypes.size();
-      final IntStream range = IntStream.range(0, tablesCount);
+      final IntStream range = range(0, tablesCount);
 
       range.forEach(i -> tableTypeVector.setSafe(i, new Text(String.valueOf(tableTypes.get(i)))));
 
       vectorSchemaRoot.setRowCount(tablesCount);
       listener.putNext();
       listener.completed();
+    }
+  }
+
+  /**
+   * Retrieve the type info values and sends the response to given ServerStreamListener.
+   *
+   * @param listener  ServerStreamListener listening to the job result.
+   * @param allocator BufferAllocator used to allocate the response VectorSchemaRo
+   */
+  public void runGetTypeInfo(ServerStreamListener listener,
+                             BufferAllocator allocator) {
+    Objects.requireNonNull(allocator, "BufferAllocator cannot be null.");
+
+    try (VectorSchemaRoot root = VectorSchemaRoot.create(FlightSqlProducer.Schemas.GET_TYPE_INFO_SCHEMA,
+      allocator)) {
+      listener.start(root);
+
+      root.allocateNew();
+
+      VarCharVector typeNameVector = (VarCharVector) root.getVector("type_name");
+      IntVector dataTypeVector = (IntVector) root.getVector("data_type");
+      IntVector columnSizeVector = (IntVector) root.getVector("column_size");
+      VarCharVector literalPrefixVector = (VarCharVector) root.getVector("literal_prefix");
+      VarCharVector literalSuffixVector = (VarCharVector) root.getVector("literal_suffix");
+      ListVector createParamsVector = (ListVector) root.getVector("create_params");
+      IntVector nullableVector = (IntVector) root.getVector("nullable");
+      BitVector caseSensitiveVector = (BitVector) root.getVector("case_sensitive");
+      IntVector searchableVector = (IntVector) root.getVector("searchable");
+      BitVector unsignedAttributeVector = (BitVector) root.getVector("unsigned_attribute");
+      BitVector fixedPrecScaleVector = (BitVector) root.getVector("fixed_prec_scale");
+      BitVector autoIncrementVector = (BitVector) root.getVector("auto_increment");
+      VarCharVector localTypeNameVector = (VarCharVector) root.getVector("local_type_name");
+      IntVector minimumScaleVector = (IntVector) root.getVector("minimum_scale");
+      IntVector maximumScaleVector = (IntVector) root.getVector("maximum_scale");
+      IntVector sqlDataTypeVector = (IntVector) root.getVector("sql_data_type");
+      IntVector sqlDatetimeSubVector = (IntVector) root.getVector("datetime_subcode");
+      IntVector numPrecRadixVector = (IntVector) root.getVector("num_prec_radix");
+
+      for (int i = 0; i < TYPE_INFOS.size(); i++) {
+        TypeInfo typeInfo = TYPE_INFOS.get(i);
+        if (typeInfo.getTypeName() != null) {
+          typeNameVector.setSafe(i, new Text(typeInfo.getTypeName()));
+        }
+        if (typeInfo.getDataType() != null) {
+          dataTypeVector.setSafe(i, typeInfo.getDataType());
+        }
+        if (typeInfo.getColumnSize() != null) {
+          columnSizeVector.setSafe(i, typeInfo.getColumnSize());
+        }
+        if (typeInfo.getLiteralPrefix() != null) {
+          literalPrefixVector.setSafe(i, new Text(typeInfo.getLiteralPrefix()));
+        }
+        if (typeInfo.getLiteralSuffix() != null) {
+          literalSuffixVector.setSafe(i, new Text(typeInfo.getLiteralSuffix()));
+        }
+        if (typeInfo.getCreateParams() != null) {
+          fillListVector(createParamsVector, i,typeInfo.getCreateParams());
+        }
+        if (typeInfo.getNullable() != null) {
+          nullableVector.setSafe(i, typeInfo.getNullable());
+        }
+        if (typeInfo.getCaseSensitive() != null) {
+          caseSensitiveVector.setSafe(i, typeInfo.getCaseSensitive());
+        }
+        if (typeInfo.getSearchable() != null) {
+          searchableVector.setSafe(i, typeInfo.getSearchable());
+        }
+        if (typeInfo.getUnsignedAttribute() != null) {
+          unsignedAttributeVector.setSafe(i, typeInfo.getUnsignedAttribute());
+        }
+        if (typeInfo.getFixedPrecScale() != null) {
+          fixedPrecScaleVector.setSafe(i, typeInfo.getFixedPrecScale());
+        }
+        if (typeInfo.getAutoUniqueValue() != null) {
+          autoIncrementVector.setSafe(i, typeInfo.getAutoUniqueValue());
+        }
+        if (typeInfo.getLocalTypeName() != null) {
+          localTypeNameVector.setSafe(i, new Text(typeInfo.getLocalTypeName()));
+        }
+        if (typeInfo.getMinimumScale() != null) {
+          minimumScaleVector.setSafe(i, typeInfo.getMinimumScale());
+        }
+        if (typeInfo.getMaximumScale() != null) {
+          maximumScaleVector.setSafe(i, typeInfo.getMaximumScale());
+        }
+        if (typeInfo.getSqlDataType() != null) {
+          sqlDataTypeVector.setSafe(i, typeInfo.getSqlDataType());
+        }
+        if (typeInfo.getSqlDatetimeSub() != null) {
+          sqlDatetimeSubVector.setSafe(i, typeInfo.getSqlDatetimeSub());
+        }
+        if (typeInfo.getNumPrecRadix() != null) {
+          numPrecRadixVector.setSafe(i, typeInfo.getNumPrecRadix());
+        }
+      }
+
+      root.setRowCount(TYPE_INFOS.size());
+      listener.putNext();
+      listener.completed();
+    }
+  }
+
+  private void fillListVector(ListVector listVector, int i, String s) {
+    try (ArrowBuf buf = listVector.getAllocator().buffer(1024)) {
+      UnionListWriter writer = listVector.getWriter();
+      writer.setPosition(i);
+      writer.startList();
+
+      String[] split = s.split(",");
+      range(0, split.length)
+        .forEach(j -> {
+          byte[] bytes = split[j].getBytes(UTF_8);
+          Preconditions.checkState(bytes.length < 1024,
+            "The amount of bytes is greater than what the ArrowBuf supports");
+          buf.setBytes(0, bytes);
+          writer.varChar().writeVarChar(0, bytes.length, buf);
+        });
+      writer.endList();
     }
   }
 
@@ -227,7 +404,7 @@ public class FlightWorkManager {
     final Schema schema = includeSchema ? FlightSqlProducer.Schemas.GET_TABLES_SCHEMA :
       FlightSqlProducer.Schemas.GET_TABLES_SCHEMA_NO_SCHEMA;
 
-    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(schema,allocator)) {
+    try (VectorSchemaRoot vectorSchemaRoot = VectorSchemaRoot.create(schema, allocator)) {
       listener.start(vectorSchemaRoot);
 
       vectorSchemaRoot.allocateNew();
@@ -238,7 +415,7 @@ public class FlightWorkManager {
       VarBinaryVector schemaVector = (VarBinaryVector) vectorSchemaRoot.getVector("table_schema");
 
       final int tablesCount = getTablesResp.getTablesCount();
-      final IntStream range = IntStream.range(0, tablesCount);
+      final IntStream range = range(0, tablesCount);
 
       range.forEach(i -> {
         final UserProtos.TableMetadata table = getTablesResp.getTables(i);
@@ -272,15 +449,21 @@ public class FlightWorkManager {
    */
   @VisibleForTesting
   protected static byte[] getSerializedSchema(List<Field> fields) {
-    if (fields == null) {
+    if (EMPTY_SERIALIZED_SCHEMA == null && fields == null) {
+      fields = Collections.emptyList();
+    } else if (fields == null) {
       return Arrays.copyOf(EMPTY_SERIALIZED_SCHEMA, EMPTY_SERIALIZED_SCHEMA.length);
     }
+
     final ByteArrayOutputStream columnOutputStream = new ByteArrayOutputStream();
+    final Schema schema = new Schema(fields);
+
     try {
-      MessageSerializer.serialize(new WriteChannel(Channels.newChannel(columnOutputStream)), new Schema(fields));
+      MessageSerializer.serialize(new WriteChannel(Channels.newChannel(columnOutputStream)), schema);
     } catch (final IOException e) {
-      throw new RuntimeException("Failed to serialize schema", e);
+      throw new RuntimeException("IO Error when serializing schema '" + schema + "'.", e);
     }
+
     return columnOutputStream.toByteArray();
   }
 
@@ -315,10 +498,11 @@ public class FlightWorkManager {
    * @return A map with tables and its fields.
    */
   private Map<UserProtos.TableMetadata, List<Field>> runGetColumns(Supplier<Boolean> isRequestCancelled, UserSession userSession,
-                             UserBitShared.ExternalId runExternalId, UserProtos.GetTablesReq getTablesReq) {
+                                                                   UserBitShared.ExternalId runExternalId, UserProtos.GetTablesReq getTablesReq) {
     final UserBitShared.ExternalId columnRunExternalId = ExternalIdHelper.generateExternalId();
 
     final UserProtos.GetColumnsReq.Builder columnBuilder = UserProtos.GetColumnsReq.newBuilder();
+    columnBuilder.setSupportsComplexTypes(userSession.isSupportComplexTypes());
 
     // Reuse GetTablesReq to filter the columns in the GET_COLUMNS call
     columnBuilder.setCatalogNameFilter(getTablesReq.getCatalogNameFilter());
@@ -341,31 +525,89 @@ public class FlightWorkManager {
 
   protected static Map<UserProtos.TableMetadata, List<Field>> buildArrowFieldsByTableMap(
     UserProtos.GetColumnsResp getColumnsResp) {
-    Map<UserProtos.TableMetadata, List<Field>> result = new HashMap<>();
+    Map<UserProtos.TableMetadata, List<Field>> result = new LinkedHashMap<>();
 
-    final IntStream columnsRange = IntStream.range(0, getColumnsResp.getColumnsCount());
+    final IntStream columnsRange = range(0, getColumnsResp.getColumnsCount());
 
     columnsRange.forEach(i -> {
-      final UserProtos.ColumnMetadata columns = getColumnsResp.getColumns(i);
+      final UserProtos.ColumnMetadata columnMetadata = getColumnsResp.getColumns(i);
 
       final UserProtos.TableMetadata tableMetadata = UserProtos.TableMetadata.newBuilder()
-        .setSchemaName(columns.getSchemaName())
-        .setTableName(columns.getTableName())
+        .setSchemaName(columnMetadata.getSchemaName())
+        .setTableName(columnMetadata.getTableName())
         .build();
       final List<Field> fields = result.computeIfAbsent(tableMetadata, tableName_ -> new ArrayList<>());
 
+      final ArrowType columnArrowType = getArrowType(
+        columnMetadata.getDataType(),
+        columnMetadata.getNumericPrecision(),
+        columnMetadata.getNumericScale());
+
+      List<Field> columnArrowTypeChildren;
+      // Arrow complex types may require children fields for parsing the schema on C++
+      switch (columnArrowType.getTypeID()) {
+        case List:
+        case LargeList:
+        case FixedSizeList:
+          columnArrowTypeChildren = Collections.singletonList(Field.notNullable(BaseRepeatedValueVector.DATA_VECTOR_NAME,
+            ZeroVector.INSTANCE.getField().getType()));
+          break;
+        case Map:
+          columnArrowTypeChildren = Collections.singletonList(Field.notNullable(MapVector.DATA_VECTOR_NAME, new ArrowType.List()));
+          break;
+        case Struct:
+          columnArrowTypeChildren = Collections.emptyList();
+          break;
+        default:
+          columnArrowTypeChildren = null;
+          break;
+      }
+
       final Field field = new Field(
-        columns.getColumnName(),
+        columnMetadata.getColumnName(),
         new FieldType(
-          columns.getIsNullable(),
-          getArrowType(getJdbcTypeCode(columns.getDataType()),
-            columns.getNumericPrecision(), columns.getNumericScale()),
-          null),
-        null);
+          columnMetadata.getIsNullable(),
+          columnArrowType,
+          null,
+          createFlightSqlColumnMetadata(columnMetadata, columnArrowType)),
+        columnArrowTypeChildren);
       fields.add(field);
     });
 
     return result;
+  }
+
+  private static Map<String, String> createFlightSqlColumnMetadata(final UserProtos.ColumnMetadata columnMetadata,
+                                                                   final ArrowType columnArrowType) {
+    final FlightSqlColumnMetadata.Builder columnMetadataBuilder = new FlightSqlColumnMetadata.Builder()
+      .schemaName(columnMetadata.getSchemaName())
+      .tableName(columnMetadata.getTableName())
+      .typeName(columnMetadata.getDataType())
+      // Set same values as PreparedStatementProvider#serializeColumn
+      .isAutoIncrement(false)
+      .isCaseSensitive(false)
+      .isReadOnly(true)
+      .isSearchable(true);
+
+    Integer scale = columnMetadata.hasNumericScale() ? columnMetadata.getNumericScale() : null;
+    Integer precision = columnMetadata.hasNumericPrecision() ? columnMetadata.getNumericPrecision() : null;
+    if (columnArrowType != null) {
+      final CompleteType type = new CompleteType(columnArrowType);
+      if (type.getPrecision() != null) {
+        precision = type.getPrecision();
+      }
+      if (type.getScale() != null) {
+        scale = type.getScale();
+      }
+    }
+    if (precision != null) {
+      columnMetadataBuilder.precision(precision);
+    }
+    if (scale != null) {
+      columnMetadataBuilder.scale(scale);
+    }
+
+    return columnMetadataBuilder.build().getMetadataMap();
   }
 
   /**
@@ -376,8 +618,53 @@ public class FlightWorkManager {
    * @param scale     scale in case the type is numeric.
    * @return          the Arrow type that is equivalent to dremio type.
    */
-  private static ArrowType getArrowType(final int dataType, final int precision, final int scale) {
-    return JdbcToArrowUtils.getArrowTypeFromJdbcType(new JdbcFieldInfo(dataType, precision, scale), JdbcToArrowUtils.getUtcCalendar());
+  private static ArrowType getArrowType(final String dataType, final int precision, final int scale) {
+    // Should be close to com.dremio.common.types.Types and com.dremio.exec.store.ischema.Column
+    // as they're used for GetColummsReq as well
+    switch (dataType) {
+      case "ARRAY":
+        return new ArrowType.List();
+      case "BIGINT":
+        return new ArrowType.Int(64, true);
+      case "INTEGER":
+        return new ArrowType.Int(32, true);
+      case "SMALLINT":
+        return new ArrowType.Int(16, true);
+      case "TINYINT":
+        return new ArrowType.Int(8, true);
+      case "BINARY VARYING":
+      case "BINARY":
+        return new ArrowType.Binary();
+      case "BOOLEAN":
+        return new ArrowType.Bool();
+      case "NATIONAL CHARACTER VARYING":
+      case "CHARACTER VARYING":
+      case "NATIONAL CHARACTER":
+      case "CHARACTER":
+        return new ArrowType.Utf8();
+      case "DATE":
+        return new ArrowType.Date(DateUnit.MILLISECOND);
+      case "DECIMAL":
+        return new ArrowType.Decimal(precision, scale, 128);
+      case "DOUBLE":
+        return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+      case "FLOAT":
+        return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+      case "INTERVAL YEAR TO MONTH":
+        return new ArrowType.Interval(IntervalUnit.YEAR_MONTH);
+      case "INTERVAL DAY TO SECOND":
+        return new ArrowType.Interval(IntervalUnit.DAY_TIME);
+      case "ROW":
+        return new ArrowType.Struct();
+      case "MAP":
+        return new ArrowType.Map(false);
+      case "TIME":
+        return new ArrowType.Time(TimeUnit.MILLISECOND, 32);
+      case "TIMESTAMP":
+        return new ArrowType.Timestamp(TimeUnit.MILLISECOND, JdbcToArrowUtils.getUtcCalendar().getTimeZone().getID());
+      default:
+        return new ArrowType.Null();
+    }
   }
 
   /**
@@ -468,7 +755,7 @@ public class FlightWorkManager {
         .toRuntimeException();
     }
     byte[] rawBytes = descriptor.getCommand();
-    return new String(rawBytes, StandardCharsets.UTF_8);
+    return new String(rawBytes, UTF_8);
   }
 
   /**

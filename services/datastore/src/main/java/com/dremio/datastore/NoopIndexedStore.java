@@ -44,6 +44,11 @@ public class NoopIndexedStore<K, V> extends NoopKVStore<K, V> implements Indexed
   }
 
   @Override
+  public long reindex(FindByCondition findByCondition, FindOption... options) {
+    throw new UnsupportedOperationException("Reindexing not supported on this store.");
+  }
+
+  @Override
   public List<Integer> getCounts(SearchQuery... conditions) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }

@@ -13,57 +13,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import filterMappers from './filterMappers.js';
+import filterMappers from "./filterMappers.js";
 
-describe('filterMappers', () => {
-
-  describe('getCommonValues', () => {
-    it('should return commonValues', () => {
-      const result = filterMappers.getCommonFilterValues({
-        keepNull: false
-      }, Immutable.Map({columnName: 'age', transformType: 'keeponly'}));
+describe("filterMappers", () => {
+  describe("getCommonValues", () => {
+    it("should return commonValues", () => {
+      const result = filterMappers.getCommonFilterValues(
+        {
+          keepNull: false,
+        },
+        Immutable.Map({ columnName: "age", transformType: "keeponly" })
+      );
       expect(result).to.eql({
-        type: 'filter',
-        sourceColumnName: 'age',
+        type: "filter",
+        sourceColumnName: "age",
         keepNull: false,
-        exclude: false
+        exclude: false,
       });
     });
   });
 
-  describe('mapFilterExcludeRange', () => {
-    it('should return correct values', () => {
+  describe("mapFilterExcludeRange", () => {
+    it("should return correct values", () => {
       const values = {
         lowerBound: 2,
         upperBound: 4,
-        keepNull:false,
+        keepNull: false,
         lowerBoundInclusive: true,
         upperBoundInclusive: false,
-        replacementType: 'INTEGER',
-        replacementValue: '1'
+        replacementType: "INTEGER",
+        replacementValue: "1",
       };
-      expect(filterMappers.mapFilterExcludeRange(values, 'INTEGER')).to.eql({
-        type: 'Range',
+      expect(filterMappers.mapFilterExcludeRange(values, "INTEGER")).to.eql({
+        type: "Range",
         lowerBound: 2,
         upperBound: 4,
         lowerBoundInclusive: true,
         upperBoundInclusive: false,
-        dataType: 'INTEGER'
+        dataType: "INTEGER",
       });
     });
   });
 
-  describe('mapFilterExcludeValues', () => {
-    it('should return correct values', () => {
+  describe("mapFilterExcludeValues", () => {
+    it("should return correct values", () => {
       const values = {
-        replaceType: 'VALUE',
-        replacementValue: 'ss',
-        replaceValues: ['address1']
+        replaceType: "VALUE",
+        replacementValue: "ss",
+        replaceValues: ["address1"],
       };
-      expect(filterMappers.mapFilterExcludeValues(values, 'TEXT')).to.eql({
-        type: 'Value',
-        valuesList: ['address1'],
-        dataType: 'TEXT'
+      expect(filterMappers.mapFilterExcludeValues(values, "TEXT")).to.eql({
+        type: "Value",
+        valuesList: ["address1"],
+        dataType: "TEXT",
       });
     });
   });

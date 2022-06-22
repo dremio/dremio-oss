@@ -30,7 +30,6 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -200,8 +199,11 @@ public class ExpressionSplitter implements AutoCloseable {
     return splitExpressions.size() - (numExprsInGandiva + numExprsInJava);
   }
 
-  public ExpressionSplitCache.ExpressionSplitsHolder splitExpressionAndReturnTheSplits(NamedExpression namedExpression, LogicalExpression originalExpr) throws Exception {
-    ExpressionSplit finalSplit = splitExpression(new NamedExpression(namedExpression.getExpr(), namedExpression
+  public ExpressionSplitCache.ExpressionSplitsHolder splitExpressionWhenCacheIsEnabled(NamedExpression namedExpression) throws Exception {
+    ExpressionEvaluationOptions expressionEvaluationOptions = new ExpressionEvaluationOptions(context.getOptions());
+    expressionEvaluationOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+    LogicalExpression expWithCodeGenContextInfo = context.getClassProducer().annotateTheExpression(expressionEvaluationOptions, namedExpression.getExpr(), incoming);
+    ExpressionSplit finalSplit = splitExpression(new NamedExpression(expWithCodeGenContextInfo, namedExpression
       .getRef()));
 
     List<ExpressionSplit> splitsForExpression = currentExprSplits;
@@ -209,9 +211,7 @@ public class ExpressionSplitter implements AutoCloseable {
       if (!isPreferredCodeGenDoingEnoughWork(currentExprSplits)) {
         logger.debug("Flipping preferred execution engine for {}", namedExpression.getExpr());
         // preferred code gen is not doing enough work
-        final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer()
-          .materializeAndAllowComplex(options.flipPreferredCodeGen(), originalExpr, incoming);
-        final LogicalExpression exprWithChangedCodeGen = codeGenContextExpAndMaterializedExpTuple.first;
+        final LogicalExpression exprWithChangedCodeGen = context.getClassProducer().annotateTheExpression(expressionEvaluationOptions.flipPreferredCodeGen(), namedExpression.getExpr(), incoming);
         ExpressionSplit flippedSplit = flipCodeGenSplitter.splitExpression(new NamedExpression
           (exprWithChangedCodeGen, namedExpression.getRef()));
         if (isFlippedCodeGenBetter(flipCodeGenSplitter.currentExprSplits, currentExprSplits)) {
@@ -363,8 +363,8 @@ public class ExpressionSplitter implements AutoCloseable {
   }
 
   // Add one expression to be split
-  public ValueVector addExpr(VectorContainer outgoing, NamedExpression namedExpression, LogicalExpression originalExp) throws Exception {
-    ExpressionSplit split = addToSplitter(incoming, namedExpression, originalExp);
+  public ValueVector addExpr(VectorContainer outgoing, NamedExpression namedExpression) throws Exception {
+    ExpressionSplit split = addToSplitter(incoming, namedExpression);
     LogicalExpression expr = split.getNamedExpression().getExpr();
     Field outputField = expr.getCompleteType().toField(namedExpression.getRef());
     return outgoing.addOrGet(outputField);
@@ -399,14 +399,15 @@ public class ExpressionSplitter implements AutoCloseable {
     return flippedSplits.size() < preferredSplits.size();
   }
 
-  private ExpressionSplit addToSplitter(VectorAccessible incoming, NamedExpression namedExpression, LogicalExpression originalExp) throws Exception {
+  private ExpressionSplit addToSplitter(VectorAccessible incoming, NamedExpression namedExpression) throws Exception {
     logger.debug("Splitting expression {}", namedExpression.getExpr());
     if (!context.getOptions().getOption(ExecConstants.SPLIT_CACHING_ENABLED)) {
       expressionSplitCache.invalidateCache();
-      return addToSplitterWhenCacheIsDisabled(incoming, namedExpression, originalExp);
+      return addToSplitterWhenCacheIsDisabled(incoming, namedExpression);
     }
+
     ExpressionSplitCache.ExpressionSplitsHolder expressionSplitsHolder = expressionSplitCache.
-      getSplitsFromCache(new ExpAndCodeGenEngineHolder(namedExpression, options.getCodeGenOption(), this, originalExp));
+      getSplitsFromCache(new ExpAndCodeGenEngineHolder(namedExpression, options.getCodeGenOption(), this));
 
     List<CachableExpressionSplit> splitsFromTheCache = new ArrayList<>();
     splitsFromTheCache.addAll(expressionSplitsHolder.getExpressionSplits());
@@ -426,17 +427,29 @@ public class ExpressionSplitter implements AutoCloseable {
     return split;
   }
 
-  private ExpressionSplit addToSplitterWhenCacheIsDisabled(VectorAccessible incoming, NamedExpression namedExpression, LogicalExpression originalExpr) throws Exception {
-    ExpressionSplit split = splitExpression(new NamedExpression(namedExpression.getExpr(), namedExpression
+  private ExpressionSplit addToSplitterWhenCacheIsDisabled(VectorAccessible incoming, NamedExpression namedExpression) throws Exception {
+    final ExpressionEvaluationOptions expressionEvaluationOptions = new ExpressionEvaluationOptions(context.getOptions());
+    expressionEvaluationOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+    LogicalExpression expWithCodeGenContextInfo = namedExpression.getExpr();
+    //Check the exp if is annotated already
+    if(!(namedExpression.getExpr() instanceof CodeGenContext)) {
+      expWithCodeGenContextInfo = context.getClassProducer().annotateTheExpression(expressionEvaluationOptions, namedExpression.getExpr(), incoming);
+    }
+    ExpressionSplit split = splitExpression(new NamedExpression(expWithCodeGenContextInfo, namedExpression
       .getRef()));
+    LogicalExpression expr = expWithCodeGenContextInfo;
     List<ExpressionSplit> splitsForExpression = currentExprSplits;
     if (currentExprSplits.size() > maxSplitsPerExpression && checkExcessiveSplits) {
       if (!isPreferredCodeGenDoingEnoughWork(currentExprSplits)) {
-        logger.debug("Flipping preferred execution engine for {}", namedExpression.getExpr());
+        logger.debug("Flipping preferred execution engine for {}", expWithCodeGenContextInfo);
+        LogicalExpression originalExp = namedExpression.getExpr();
+        if(namedExpression.getExpr() instanceof  CodeGenContext) {
+          originalExp = CodeGenerationContextRemover.removeCodeGenContext
+            (namedExpression.getExpr());
+        }
         // preferred code gen is not doing enough work
-        final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer()
-          .materializeAndAllowComplex(options.flipPreferredCodeGen(), originalExpr, incoming);
-        final LogicalExpression exprWithChangedCodeGen = codeGenContextExpAndMaterializedExpTuple.first;
+        final LogicalExpression exprWithChangedCodeGen = context.getClassProducer().annotateTheExpression(expressionEvaluationOptions.flipPreferredCodeGen(), originalExp, incoming);
+        expr = exprWithChangedCodeGen;
         ExpressionSplit flippedSplit = flipCodeGenSplitter.splitExpression(new NamedExpression
           (exprWithChangedCodeGen, namedExpression.getRef()));
         if (isFlippedCodeGenBetter(flipCodeGenSplitter.currentExprSplits, currentExprSplits)) {
@@ -445,7 +458,7 @@ public class ExpressionSplitter implements AutoCloseable {
         }
       }
     }
-    printDebugInfoForSplits(namedExpression.getExpr(), split, splitsForExpression);
+    printDebugInfoForSplits(expr, split, splitsForExpression);
     splitExpressions.addAll(splitsForExpression);
     flipCodeGenSplitter.currentExprSplits.clear();
     this.currentExprSplits.clear();
@@ -547,8 +560,8 @@ public class ExpressionSplitter implements AutoCloseable {
   // create and setup the pipeline for filter operation
   public void setupFilter(VectorContainer outgoing, NamedExpression namedExpression,
                           Stopwatch javaCodeGenWatch,
-                          Stopwatch gandivaCodeGenWatch, LogicalExpression originalExp) throws Exception {
-    addToSplitter(incoming, namedExpression, originalExp);
+                          Stopwatch gandivaCodeGenWatch) throws Exception {
+    addToSplitter(incoming, namedExpression);
     verifySplitsInGandiva();
     createPipeline();
     filterSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);

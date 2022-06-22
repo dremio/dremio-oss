@@ -37,6 +37,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.util.TSI;
@@ -1508,6 +1509,78 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
     query = "SELECT hashSHA1(full_name) FROM cp.\"employee.json\"";
     test(query);
+  }
+
+  private static final String TEST_RES_PATH =   TestTools.getWorkingPath() + "/src/test/resources";
+
+  @Test
+  public void testNegativeIntervalDay() throws  Exception {
+
+    final String query1 = String.format("select stringinterval as interval_day " +
+      "from dfs.\"%s/test_negative_intervalday.json\" " +
+      "where cast(stringinterval as interval day) = negative(interval '0.002' second + interval '2' day)", TEST_RES_PATH);
+    testBuilder()
+      .sqlQuery(query1)
+      .unOrdered()
+      .baselineColumns("interval_day")
+      .baselineValues("P-2DT-0.002S")
+      .build().run();
+
+    final String query2 = String.format("select stringinterval as interval_day " +
+      "from dfs.\"%s/test_negative_intervalday.json\" " +
+      "where cast(stringinterval as interval day) = negative(interval '1.5' second + interval '4' day)", TEST_RES_PATH);
+    testBuilder()
+      .sqlQuery(query2)
+      .unOrdered()
+      .baselineColumns("interval_day")
+      .baselineValues("P-4DT-1.500S")
+      .build().run();
+
+    final String query3 = String.format("select stringinterval as interval_day " +
+      "from dfs.\"%s/test_negative_intervalday.json\" " +
+      "where cast(stringinterval as interval day) = negative(interval '-1.5' second + interval '-4' day)", TEST_RES_PATH);
+    testBuilder()
+      .sqlQuery(query3)
+      .unOrdered()
+      .baselineColumns("interval_day")
+      .baselineValues("P4DT1.500S")
+      .build().run();
+
+  }
+
+  @Test
+  public void testNegativeIntervalMonth() throws  Exception {
+
+    final String query1 = String.format("select stringinterval as interval_month " +
+      "from dfs.\"%s/test_negative_intervalmonth.json\" " +
+      "where cast(stringinterval as interval month) = negative(interval '99' month)", TEST_RES_PATH);
+    testBuilder()
+      .sqlQuery(query1)
+      .unOrdered()
+      .baselineColumns("interval_month")
+      .baselineValues("P-8Y-3M")
+      .build().run();
+
+    final String query2 = String.format("select stringinterval as interval_month " +
+      "from dfs.\"%s/test_negative_intervalmonth.json\" " +
+      "where cast(stringinterval as interval month) = negative(interval '2' month)", TEST_RES_PATH);
+    testBuilder()
+      .sqlQuery(query2)
+      .unOrdered()
+      .baselineColumns("interval_month")
+      .baselineValues("P-0Y-2M")
+      .build().run();
+
+    final String query3 = String.format("select stringinterval as interval_month " +
+      "from dfs.\"%s/test_negative_intervalmonth.json\" " +
+      "where cast(stringinterval as interval month) = negative(interval '-2' month)", TEST_RES_PATH);
+    testBuilder()
+      .sqlQuery(query3)
+      .unOrdered()
+      .baselineColumns("interval_month")
+      .baselineValues("P0Y2M")
+      .build().run();
+
   }
 
 }

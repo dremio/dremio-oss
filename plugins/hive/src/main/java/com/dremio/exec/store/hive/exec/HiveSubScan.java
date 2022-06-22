@@ -28,12 +28,11 @@ import com.dremio.exec.planner.fragment.SplitNormalizer;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 
 @Extension

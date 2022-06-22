@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { MarkdownEditorView } from './MarkdownEditor';
+import { shallow } from "enzyme";
+import { MarkdownEditorView } from "./MarkdownEditor";
 
-describe('MarkdownEditor', () => {
-  it('MarkdownEditor could be in fullScreenMode only, when readMode is disabled', () => {
+describe("MarkdownEditor", () => {
+  it("MarkdownEditor could be in fullScreenMode only, when readMode is disabled", () => {
     const wrapper = shallow(<MarkdownEditorView readMode={false} />);
 
     wrapper.setState({
-      fullScreenMode: true
+      fullScreenMode: true,
     });
 
     wrapper.setProps({ readMode: true });
@@ -29,8 +29,8 @@ describe('MarkdownEditor', () => {
     expect(wrapper.state().fullScreenMode).to.eql(false); //state should be reset
   });
 
-  describe('onReadModeHasScrollChanged', () => {
-    const mockInstance = editorElement => {
+  describe("onReadModeHasScrollChanged", () => {
+    const mockInstance = (editorElement) => {
       const wrapper = shallow(editorElement);
 
       wrapper.instance().editor = {}; // mock the editor
@@ -40,7 +40,7 @@ describe('MarkdownEditor', () => {
 
     const simulateHasScrollChanged = (editorWrapper, hasScrollValue) => {
       const instance = editorWrapper.instance();
-      sinon.stub(instance, 'hasScrollInReadMode');
+      sinon.stub(instance, "hasScrollInReadMode");
       instance.hasScrollInReadMode.returns(hasScrollValue);
 
       instance._updateHasScrollImpl();
@@ -49,12 +49,14 @@ describe('MarkdownEditor', () => {
     };
 
     //todo may be we should mock a debounce timeout somehow to not slow down the tests
-    it('onReadModeHasScrollChanged is called only when hasScrollValue is changed', () => {
+    it("onReadModeHasScrollChanged is called only when hasScrollValue is changed", () => {
       const changeHandler = sinon.stub();
-      const wrapper = mockInstance(<MarkdownEditorView
-        readMode
-        onReadModeHasScrollChanged={changeHandler}
-      />);
+      const wrapper = mockInstance(
+        <MarkdownEditorView
+          readMode
+          onReadModeHasScrollChanged={changeHandler}
+        />
+      );
 
       const testChange = (currentValue) => {
         simulateHasScrollChanged(wrapper, currentValue);
@@ -65,21 +67,20 @@ describe('MarkdownEditor', () => {
       testChange(false);
     });
 
-    it('Editor should works without onReadModeHasScrollChanged in read mode', () => {
+    it("Editor should works without onReadModeHasScrollChanged in read mode", () => {
       // if this test fails, then somebody changed _updateHasScrollImpl method so onReadModeHasScrollChanged is called, when it is not provided.
       // Please fix _updateHasScrollImpl
-      const wrapper = mockInstance(<MarkdownEditorView
-        readMode
-      />);
+      const wrapper = mockInstance(<MarkdownEditorView readMode />);
 
       simulateHasScrollChanged(wrapper, true); // there should not be any errors
     });
   });
 
-  describe('marked', () => {
-    const marked = require('marked');
+  describe("marked", () => {
+    const marked = require("marked");
 
-    const getCleanMarkup = markeup => marked(markeup).replace(/\r\n|\r|\n/g, ''); // remove new lines charactes
+    const getCleanMarkup = (markeup) =>
+      marked(markeup).replace(/\r\n|\r|\n/g, ""); // remove new lines charactes
 
     const originalOptions = { ...marked.defaults };
     afterEach(() => {
@@ -88,30 +89,31 @@ describe('MarkdownEditor', () => {
 
     // This functionality was broken by initial version of markedjsOverrides.js. So put tests here
     // to avoid this in future.
-    it('Table is rendered', () => {
+    it("Table is rendered", () => {
       const inputString = `| a | b | c | d | e |
       |---|---|---|---|---|
       | 1 | 2 | 3 | 4 | 5 |`;
-      const html = '<table><thead><tr><th>a</th><th>b</th><th>c</th><th>d</th><th>e</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr></tbody></table>';
+      const html =
+        "<table><thead><tr><th>a</th><th>b</th><th>c</th><th>d</th><th>e</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr></tbody></table>";
       expect(getCleanMarkup(inputString)).to.be.equal(html);
     });
 
-    const listOptionTests = isSmartLists => {
+    const listOptionTests = (isSmartLists) => {
       // This functionality was broken by initial version of markedjsOverrides.js. So put tests here
       // to avoid this in future.
-      it(`should render unordered list ${isSmartLists ? 'with' : 'without'} smartList option`, () => {
+      it(`should render unordered list ${
+        isSmartLists ? "with" : "without"
+      } smartList option`, () => {
         marked.setOptions({
-          smartLists: isSmartLists
+          smartLists: isSmartLists,
         });
-        const inputString = '* item 1.\n* item 2.';
-        const html = '<ul><li>item 1.</li><li>item 2.</li></ul>';
+        const inputString = "* item 1.\n* item 2.";
+        const html = "<ul><li>item 1.</li><li>item 2.</li></ul>";
         expect(getCleanMarkup(inputString)).to.be.equal(html);
       });
     };
     [true, false].forEach(listOptionTests);
   });
-
-
 
   // other part is hard to test as it requires mounting of the react-simple-mde, which fails in test environment
 });

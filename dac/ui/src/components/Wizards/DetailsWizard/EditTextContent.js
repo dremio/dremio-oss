@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import ConvertCaseOptions from 'components/Forms/ConvertCaseOptions';
-import TrimWhiteSpaceOptions from 'components/Forms/TrimWhiteSpaceOptions';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import TransformForm, { formWrapperProps } from 'pages/ExplorePage/components/forms/TransformForm';
-import { transformProps } from 'pages/ExplorePage/components/forms/TransformationPropTypes';
-import { sectionMargin } from '@app/uiTheme/less/layout.less';
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import ConvertCaseOptions from "components/Forms/ConvertCaseOptions";
+import TrimWhiteSpaceOptions from "components/Forms/TrimWhiteSpaceOptions";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import TransformForm, {
+  formWrapperProps,
+} from "pages/ExplorePage/components/forms/TransformForm";
+import { transformProps } from "pages/ExplorePage/components/forms/TransformationPropTypes";
+import { sectionMargin } from "@app/uiTheme/less/layout.less";
 
 const SECTIONS = [NewFieldSection, ConvertCaseOptions, TrimWhiteSpaceOptions];
 
-@Radium
 class EditTextContent extends PureComponent {
-
   static propTypes = {
     ...transformProps,
-    type: PropTypes.string.isRequired
+    type: PropTypes.string.isRequired,
   };
 
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -46,9 +45,12 @@ class EditTextContent extends PureComponent {
 
   render() {
     const { transform, columnName, fields } = this.props;
-    const content = this.props.type !== 'trim'
-      ? <ConvertCaseOptions fields={fields}/>
-      : <TrimWhiteSpaceOptions fields={fields}/>;
+    const content =
+      this.props.type !== "trim" ? (
+        <ConvertCaseOptions fields={fields} />
+      ) : (
+        <TrimWhiteSpaceOptions fields={fields} />
+      );
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
@@ -56,9 +58,13 @@ class EditTextContent extends PureComponent {
         onFormSubmit={this.props.submit}
         style={{ minHeight: 0 }}
       >
-        <div style={[style.base]} className='edit-text-content'>
+        <div style={style.base} className="edit-text-content">
           {content}
-          <NewFieldSection columnName={columnName} fields={fields} className={sectionMargin} />
+          <NewFieldSection
+            columnName={columnName}
+            fields={fields}
+            className={sectionMargin}
+          />
         </div>
       </TransformForm>
     );
@@ -67,26 +73,31 @@ class EditTextContent extends PureComponent {
 
 const style = {
   base: {
-    height: '100%',
-    position: 'relative'
-  }
+    height: "100%",
+    position: "relative",
+  },
 };
 
 export function getEditTextInitialValues(detailType, columnName) {
   return {
     newFieldName: columnName,
-    action: detailType !== 'TRIM_WHITE_SPACES' ? 'UPPERCASE' : 'BOTH',
-    dropSourceField: true
+    action: detailType !== "TRIM_WHITE_SPACES" ? "UPPERCASE" : "BOTH",
+    dropSourceField: true,
   };
 }
 
 function mapToFormState(state, props) {
   const { type } = state.routing.locationBeforeTransitions.query;
   return {
-    initialValues: getEditTextInitialValues(type, props.columnName)
+    initialValues: getEditTextInitialValues(type, props.columnName),
   };
 }
 
-export default connectComplexForm({
-  form: 'convertCase'
-}, SECTIONS, mapToFormState, null)(EditTextContent);
+export default connectComplexForm(
+  {
+    form: "convertCase",
+  },
+  SECTIONS,
+  mapToFormState,
+  null
+)(EditTextContent);

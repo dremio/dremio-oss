@@ -44,9 +44,11 @@ public class TDigestFunctions {
    * Computes the tdigest for a column of doubles
    */
   @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableFloat8TDigestFunction implements AggrFunction {
+  public static class NullableFloat8TDigestSampleFunction implements AggrFunction {
     @Param
     private NullableFloat8Holder in;
+    @Param
+    private NullableBitHolder sample;
     @Workspace
     private ObjectHolder digest;
     @Output
@@ -66,7 +68,7 @@ public class TDigestFunctions {
 
     @Override
     public void add() {
-      if (in.isSet == 1) {
+      if (in.isSet == 1 && sample.isSet == 1 && sample.value == 1) {
         ((com.tdunning.math.stats.TDigest) digest.obj).add(in.value);
       }
     }
@@ -90,9 +92,11 @@ public class TDigestFunctions {
   }
 
   @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableDateTDigestFunction implements AggrFunction {
+  public static class NullableDateTDigestSampleFunction implements AggrFunction {
     @Param
     private NullableDateMilliHolder in;
+    @Param
+    private NullableBitHolder sample;
     @Workspace
     private ObjectHolder digest;
     @Output
@@ -112,7 +116,7 @@ public class TDigestFunctions {
 
     @Override
     public void add() {
-      if (in.isSet == 1) {
+      if (in.isSet == 1 && sample.isSet == 1 && sample.value == 1) {
         ((com.tdunning.math.stats.TDigest) digest.obj).add(in.value);
       }
     }
@@ -137,9 +141,11 @@ public class TDigestFunctions {
 
 
   @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableTimeTDigestFunction implements AggrFunction {
+  public static class NullableTimeTDigestSampleFunction implements AggrFunction {
     @Param
     private NullableTimeMilliHolder in;
+    @Param
+    private NullableBitHolder sample;
     @Workspace
     private ObjectHolder digest;
     @Output
@@ -159,7 +165,7 @@ public class TDigestFunctions {
 
     @Override
     public void add() {
-      if (in.isSet == 1) {
+      if (in.isSet == 1 && sample.isSet == 1 && sample.value == 1) {
         ((com.tdunning.math.stats.TDigest) digest.obj).add(in.value);
       }
     }
@@ -183,9 +189,11 @@ public class TDigestFunctions {
   }
 
   @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableTimeStampTDigestFunction implements AggrFunction {
+  public static class NullableTimeStampTDigestSampleFunction implements AggrFunction {
     @Param
     private NullableTimeStampMilliHolder in;
+    @Param
+    private NullableBitHolder sample;
     @Workspace
     private ObjectHolder digest;
     @Output
@@ -205,7 +213,7 @@ public class TDigestFunctions {
 
     @Override
     public void add() {
-      if (in.isSet == 1) {
+      if (in.isSet == 1 && sample.isSet == 1 && sample.value == 1) {
         ((com.tdunning.math.stats.TDigest) digest.obj).add(in.value);
       }
     }
@@ -229,9 +237,11 @@ public class TDigestFunctions {
   }
 
   @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableBitTDigestFunction implements AggrFunction {
+  public static class NullableBitTDigestSampleFunction implements AggrFunction {
     @Param
     private NullableBitHolder in;
+    @Param
+    private NullableBitHolder sample;
     @Workspace
     private ObjectHolder digest;
     @Output
@@ -251,7 +261,7 @@ public class TDigestFunctions {
 
     @Override
     public void add() {
-      if (in.isSet == 1) {
+      if (in.isSet == 1 && sample.isSet == 1 && sample.value == 1) {
         ((com.tdunning.math.stats.TDigest) digest.obj).add(in.value);
       }
     }

@@ -13,20 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import Immutable from 'immutable';
-import { withRouter } from 'react-router';
-import { connect } from 'react-redux';
-import { isWikAvailable } from '@app/selectors/explore';
-import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
-import { changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
-import Art from '@app/components/Art';
-import { formatMessage } from '@app/utils/locale';
-import PageTypeButtonsMixin from 'dyn-load/pages/ExplorePage/components/PageTypeButtonsMixin';
-import exploreUtils from '@app/utils/explore/exploreUtils';
-import { buttonsContainer, button, buttonActive, icon as iconClass } from './PageTypeButtons.less';
+import { PureComponent, Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import Immutable from "immutable";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import { isWikAvailable } from "@app/selectors/explore";
+import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
+import Art from "@app/components/Art";
+import { formatMessage } from "@app/utils/locale";
+import PageTypeButtonsMixin from "dyn-load/pages/ExplorePage/components/PageTypeButtonsMixin";
+import exploreUtils from "@app/utils/explore/exploreUtils";
+import {
+  buttonsContainer,
+  button,
+  buttonActive,
+  icon as iconClass,
+} from "./PageTypeButtons.less";
 
 export class SinglePageTypeButton extends Component {
   static propTypes = {
@@ -35,26 +40,22 @@ export class SinglePageTypeButton extends Component {
     isSelected: PropTypes.bool,
     onClick: PropTypes.func,
     dataQa: PropTypes.string,
-    classname: PropTypes.string
+    classname: PropTypes.string,
   };
 
   render() {
-    const {
-      isSelected,
-      onClick,
-      text,
-      icon,
-      dataQa,
-      classname
-    } = this.props;
+    const { isSelected, onClick, text, icon, dataQa, classname } = this.props;
 
-    return <span
-      className={classNames(button, isSelected && buttonActive, classname)}
-      onClick={onClick}
-      data-qa={dataQa}>
-      {icon && <Art src={`${icon}.svg`} className={iconClass} alt={text} />}
-      {text}
-    </span>;
+    return (
+      <span
+        className={classNames(button, isSelected && buttonActive, classname)}
+        onClick={onClick}
+        data-qa={dataQa}
+      >
+        {icon && <Art src={`${icon}.svg`} className={iconClass} alt={text} />}
+        {text}
+      </span>
+    );
   }
 }
 
@@ -68,7 +69,7 @@ class ButtonController extends PureComponent {
 
     //withRouter props
     location: PropTypes.object.isRequired,
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   setPageType = () => {
@@ -76,31 +77,27 @@ class ButtonController extends PureComponent {
       selectedPageType,
       pageType, // new page type to select
       location,
-      router
+      router,
     } = this.props;
 
     if (selectedPageType !== pageType) {
       const pathname = changePageTypeInUrl(location.pathname, pageType);
-      router.push({...location, pathname});
+      router.push({ ...location, pathname });
     }
   };
 
   render() {
-    const {
-      selectedPageType,
-      pageType,
-      text,
-      icon,
-      dataQa
-    } = this.props;
+    const { selectedPageType, pageType, text, icon, dataQa } = this.props;
 
-    return <SinglePageTypeButton
-      isSelected={selectedPageType === pageType}
-      text={text}
-      icon={icon}
-      onClick={this.setPageType}
-      dataQa={dataQa}
-    />;
+    return (
+      <SinglePageTypeButton
+        isSelected={selectedPageType === pageType}
+        text={text}
+        icon={icon}
+        onClick={this.setPageType}
+        dataQa={dataQa}
+      />
+    );
   }
 }
 
@@ -108,29 +105,29 @@ const PageTypeButton = withRouter(ButtonController);
 
 const buttonsConfigs = {
   [PageTypes.default]: {
-    intlId: 'Dataset.Data',
-    icon: 'HeaderData',
-    dataQa: 'Data'
+    intlId: "Dataset.Data",
+    icon: "HeaderData",
+    dataQa: "Data",
   },
   [PageTypes.wiki]: {
-    intlId: 'Dataset.Wiki',
-    icon: 'HeaderMetadata',
-    dataQa: 'Wiki'
+    intlId: "Dataset.Wiki",
+    icon: "HeaderMetadata",
+    dataQa: "Wiki",
   },
   [PageTypes.graph]: {
-    intlId: 'Dataset.Graph',
-    icon: 'HeaderGraph',
-    dataQa: 'Graph'
+    intlId: "Dataset.Graph",
+    icon: "HeaderGraph",
+    dataQa: "Graph",
   },
   [PageTypes.reflections]: {
-    intlId: 'Reflection.Reflections',
-    icon: 'HeaderReflection',
-    dataQa: 'Reflections'
-  }
+    intlId: "Reflection.Reflections",
+    icon: "HeaderReflection",
+    dataQa: "Reflections",
+  },
 };
 
 const mapStateToProps = (state, { location }) => ({
-  showWiki: isWikAvailable(state, location)
+  showWiki: isWikAvailable(state, location),
 });
 
 @PageTypeButtonsMixin
@@ -140,13 +137,11 @@ export class PageTypeButtonsView extends PureComponent {
     dataset: PropTypes.instanceOf(Immutable.Map),
     showWiki: PropTypes.bool,
     dataQa: PropTypes.string,
-    location: PropTypes.object
+    location: PropTypes.object,
   };
 
   getAvailablePageTypes() {
-    const {
-      showWiki
-    } = this.props;
+    const { showWiki } = this.props;
     const pageTypeList = [PageTypes.default];
 
     if (showWiki) {
@@ -157,32 +152,29 @@ export class PageTypeButtonsView extends PureComponent {
   }
 
   render() {
-    const {
-      selectedPageType,
-      dataQa,
-      location
-    } = this.props;
+    const { selectedPageType, dataQa, location } = this.props;
     const pageTypes = this.getAvailablePageTypes();
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
 
     // Show tabbed content for dataset
     if (pageTypes.length > 1 && isDatasetPage) {
-      return <span className={buttonsContainer}
-        data-qa={dataQa}>
-        {pageTypes.map(pageType => {
-          const {
-            intlId,
-            ...rest
-          } = buttonsConfigs[pageType];
+      return (
+        <span className={buttonsContainer} data-qa={dataQa}>
+          {pageTypes.map((pageType) => {
+            const { intlId, ...rest } = buttonsConfigs[pageType];
 
-          return <PageTypeButton key={pageType}
-            selectedPageType={selectedPageType}
-            text={formatMessage(intlId)}
-            pageType={pageType}
-            {...rest}
-          />;
-        })}
-      </span>;
+            return (
+              <PageTypeButton
+                key={pageType}
+                selectedPageType={selectedPageType}
+                text={formatMessage(intlId)}
+                pageType={pageType}
+                {...rest}
+              />
+            );
+          })}
+        </span>
+      );
     } else {
       // Hide all tabs for New Query and Updated Queries
       return null;
@@ -190,4 +182,6 @@ export class PageTypeButtonsView extends PureComponent {
   }
 }
 
-export const PageTypeButtons = withRouter(connect(mapStateToProps)(PageTypeButtonsView));
+export const PageTypeButtons = withRouter(
+  connect(mapStateToProps)(PageTypeButtonsView)
+);

@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.dremio.common.Any;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -75,6 +76,9 @@ final class NamespaceEntity {
         break;
       case SPACE:
         container.setSpace((SpaceConfig) config);
+        break;
+      case FUNCTION:
+        container.setFunction((FunctionConfig) config);
         break;
       default:
         throw new UnsupportedOperationException("Unknown type: " + type);

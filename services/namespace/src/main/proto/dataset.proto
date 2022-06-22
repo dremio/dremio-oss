@@ -94,6 +94,11 @@ message PhysicalDataset {
   optional bool icebergMetadataEnabled = 6; // For this selection, iceberg metadata is present. False by default.
   optional com.dremio.service.namespace.dataset.proto.IcebergMetadata iceberg_metadata = 7;
   optional com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings internal_schema_settings = 8;
+  optional PrimaryKey primary_key = 9;
+}
+
+message PrimaryKey {
+  repeated string column = 1;
 }
 
 message DatasetField {

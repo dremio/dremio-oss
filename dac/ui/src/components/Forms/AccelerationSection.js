@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { sectionTitle } from 'uiTheme/radium/forms';
-import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { sectionTitle } from "uiTheme/radium/forms";
+import DataFreshnessSection from "components/Forms/DataFreshnessSection";
 
 export default class AccelerationSection extends Component {
   static propTypes = {
-    fields: PropTypes.object
+    fields: PropTypes.object,
   };
 
   static getFields() {
@@ -29,7 +29,7 @@ export default class AccelerationSection extends Component {
 
   static validate(values) {
     return {
-      ...DataFreshnessSection.validate(values)
+      ...DataFreshnessSection.validate(values),
     };
   }
 
@@ -37,11 +37,8 @@ export default class AccelerationSection extends Component {
     const { fields } = this.props;
     return (
       <div>
-        <h3 style={sectionTitle}>{la('Acceleration')}</h3>
-        <DataFreshnessSection
-          fields={fields}
-          entityType='source'
-        />
+        <h3 style={sectionTitle}>{la("Acceleration")}</h3>
+        <DataFreshnessSection fields={fields} entityType="source" />
       </div>
     );
   }

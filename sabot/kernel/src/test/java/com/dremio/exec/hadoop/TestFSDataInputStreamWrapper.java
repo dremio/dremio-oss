@@ -28,17 +28,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -49,11 +47,9 @@ import com.google.common.collect.FluentIterable;
 /**
  * Test to verify how {@code FSDataInputStream} handle {@code FSError}
  */
-@RunWith(Parameterized.class)
 public class TestFSDataInputStreamWrapper {
-  @Parameters(name = "method: {0}")
-  public static Object[] methodsToTest() {
-    List<Method> methods = FluentIterable
+  private static Stream<Method> test() {
+    return FluentIterable
         .from(FSInputStream.class.getMethods())
         .filter(new Predicate<Method>() {
           @Override
@@ -66,15 +62,7 @@ public class TestFSDataInputStreamWrapper {
             }
             return Arrays.asList(input.getExceptionTypes()).contains(IOException.class);
           }
-        }).toList();
-
-    return methods.toArray();
-  }
-
-  private final Method method;
-
-  public TestFSDataInputStreamWrapper(Method method) {
-    this.method = method;
+        }).stream();
   }
 
   private static Class<?> getClass(String clsName) {
@@ -85,8 +73,9 @@ public class TestFSDataInputStreamWrapper {
     }
   }
 
-  @Test
-  public void test() throws Exception {
+  @ParameterizedTest(name = "method: {0}")
+  @MethodSource
+  public void test(Method method) throws Exception {
     Class<?> byteBufferPositionedReadableClass = getClass("org.apache.hadoop.fs.ByteBufferPositionedReadable");
 
     assumeNonMaprProfile();

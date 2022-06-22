@@ -13,31 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import SimpleButton from 'components/Buttons/SimpleButton';
+import SimpleButton from "components/Buttons/SimpleButton";
 
-import config from 'dyn-load/utils/config';
+import config from "dyn-load/utils/config";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     getButtons() {
       const map = [
-        config.supportEmailTo && ['email', <SimpleButton
-          buttonStyle='secondary'
-          children={la('Email Help')}
-          onClick={this.handleEmail}/>],
-        ['download', <SimpleButton
-          buttonStyle='secondary'
-          children={la('Download Profile')}
-          submitting={this.props.downloadViewState.get('isInProgress')}
-          onClick={this.handleDownload}/>],
-        this.props.isSupport && this.props.clusterType === 'YARN' && ['bundleDownload', <SimpleButton
-          buttonStyle='secondary'
-          style={{width: '220px'}}
-          children={la('Download Query Support Bundle')}
-          onClick={this.handleQueryDownload}
-        />]
+        config.supportEmailTo && [
+          "email",
+          <SimpleButton
+            key="email-help"
+            buttonStyle="secondary"
+            onClick={this.handleEmail}
+          >
+            {la("Email Help")}
+          </SimpleButton>,
+        ],
+        [
+          "download",
+          <SimpleButton
+            key="download-profile"
+            buttonStyle="secondary"
+            submitting={this.props.downloadViewState.get("isInProgress")}
+            onClick={this.handleDownload}
+          >
+            {la("Download Profile")}
+          </SimpleButton>,
+        ],
+        this.props.isSupport &&
+          this.props.clusterType === "YARN" && [
+            "bundleDownload",
+            <SimpleButton
+              key="support-bundle"
+              buttonStyle="secondary"
+              style={{ width: "220px" }}
+              onClick={this.handleQueryDownload}
+            >
+              {la("Download Query Support Bundle")}
+            </SimpleButton>,
+          ],
       ];
       return new Immutable.OrderedMap(map);
-    }
+    },
   });
 }

@@ -36,7 +36,7 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(2000, TimeUnit.SECONDS);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
 
   private void testDistributed(final String fileName) throws Exception {
     final String query = getFile(fileName).replace(";", " ");

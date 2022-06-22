@@ -93,7 +93,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
 
   }
 
-  public static abstract class ConvertedReader<V extends ValueVector> extends FixedByteAlignedReader<V> {
+  public abstract static class ConvertedReader<V extends ValueVector> extends FixedByteAlignedReader<V> {
 
     protected int dataTypeLengthInBytes;
 

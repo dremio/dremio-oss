@@ -26,6 +26,7 @@ import static java.lang.String.format;
 import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
@@ -564,7 +565,8 @@ public class ElasticsearchCluster implements Closeable {
 
     PutMapping putMapping = new PutMapping(schema, table);
 
-    XContentBuilder json = XContentFactory.jsonBuilder();
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    XContentBuilder json = XContentFactory.jsonBuilder(baos);
     json.startObject().startObject(table).startObject("properties");
 
     for (ColumnData datum : data) {
@@ -579,11 +581,12 @@ public class ElasticsearchCluster implements Closeable {
     }
 
     json.endObject().endObject().endObject();
-    putMapping.setMapping(json.string());
-     try {
+    json.close();
+    putMapping.setMapping(baos.toString("UTF-8"));
+    try {
       connection.execute(putMapping, elasticVersionBehaviorProvider.isEnable7vFeatures() || elasticVersionBehaviorProvider.isEs68Version());
     } catch (Exception e) {
-      throw new IOException();
+      throw new IOException(e);
     }
 
     int max = 0;
@@ -601,7 +604,8 @@ public class ElasticsearchCluster implements Closeable {
 
     for (int i = 0; i < max; i++) {
 
-      json = XContentFactory.jsonBuilder().startObject();
+      final ByteArrayOutputStream entryBaos = new ByteArrayOutputStream();
+      json = XContentFactory.jsonBuilder(entryBaos).startObject();
 
       for (ColumnData datum : data) {
         if (datum.rows != null && i < datum.rows.length && datum.rows[i] != null) {
@@ -615,7 +619,9 @@ public class ElasticsearchCluster implements Closeable {
       }
 
       bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
-      bulk.add(json.endObject().string());
+      json.endObject();
+      json.close();
+      bulk.add(entryBaos.toString("UTF-8"));
     }
 
     Result response = getResultWithRetries(bulk);
@@ -666,7 +672,8 @@ public class ElasticsearchCluster implements Closeable {
     schema(shards, replicas, schema);
 
     PutMapping putMapping = new PutMapping(schema, table);
-    XContentBuilder json = XContentFactory.jsonBuilder();
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    XContentBuilder json = XContentFactory.jsonBuilder(baos);
     json.startObject().startObject(table).startObject("properties");
 
     for (ElasticsearchType type : types) {
@@ -725,8 +732,9 @@ public class ElasticsearchCluster implements Closeable {
     }
 
     json.endObject().endObject().endObject();
+    json.close();
 
-    putMapping.setMapping(json.string());
+    putMapping.setMapping(baos.toString("UTF-8"));
     elasticVersionBehaviorProvider.executeMapping(connection, putMapping);
   }
 
@@ -791,7 +799,7 @@ public class ElasticsearchCluster implements Closeable {
    * Creates schemas with the given name(s).
    */
   public void schema(int shards, int replicas, String... schemas) {
-    logger.info("creating schema for {}, {}, {}.", shards, replicas);
+    logger.info("creating schema for {}, {}.", shards, replicas);
     for (String schema : schemas) {
 
       if (deleteExisting) {
@@ -895,7 +903,8 @@ public class ElasticsearchCluster implements Closeable {
     for (int i = 0; i < rows; i++) {
 
       bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
-      XContentBuilder json = XContentFactory.jsonBuilder().startObject();
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      XContentBuilder json = XContentFactory.jsonBuilder(baos).startObject();
       Tuple<Boolean, Integer> tuple;
 
       for (ElasticsearchType type : types) {
@@ -1070,7 +1079,9 @@ public class ElasticsearchCluster implements Closeable {
         }
       }
 
-      bulk.add(json.endObject().string());
+      json.endObject();
+      json.close();
+      bulk.add(baos.toString("UTF-8"));
     }
 
     Result response = getResultWithRetries(bulk);

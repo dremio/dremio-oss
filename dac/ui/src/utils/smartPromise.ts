@@ -13,22 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { oc } from 'ts-optchain';
-import Immutable from 'immutable';
-import { StatusCondition } from 'react-smart-promise/dist-types/StatusCondition.type';
+import Immutable from "immutable";
+import { StatusCondition } from "react-smart-promise/dist-types/StatusCondition.type";
 
 export function isReqLoading(status: StatusCondition) {
-  return ['INITIAL', 'PENDING' ].includes(status);
+  return ["INITIAL", "PENDING"].includes(status);
 }
 
-export function getViewStateFromReq(error: any, status: StatusCondition, defaultError = 'Failed to fetch') {
-  if (['PENDING', 'INITIAL'].includes(status)) {
+export function getViewStateFromReq(
+  error: any,
+  status: StatusCondition,
+  defaultError = "Failed to fetch"
+) {
+  if (["PENDING", "INITIAL"].includes(status)) {
     return Immutable.Map({ isInProgress: true });
-  } else if (error || status === 'ERROR') {
+  } else if (error || status === "ERROR") {
     return Immutable.Map({
       isInProgress: false,
       isFailed: true,
-      error: Immutable.Map({ message: oc(error).statusText(defaultError) })
+      error: Immutable.Map({ message: error?.statusText || defaultError }),
     });
   }
   return;

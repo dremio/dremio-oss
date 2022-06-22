@@ -13,37 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { RSAA } from 'redux-api-middleware';
-import { createSampleSource } from './sources';
+import Immutable from "immutable";
+import { RSAA } from "redux-api-middleware";
+import { createSampleSource } from "./sources";
 
-describe('createSampleSource', () => {
+describe("createSampleSource", () => {
   const thunk = createSampleSource();
   const dispatch = sinon.stub();
   const getState = () => ({
     home: {
-      pinnedEntities: {}
+      pinnedEntities: {},
     },
     resources: {
       entities: Immutable.fromJS({
         source: {
-          'source_id': {
-            name: 'Samples'
-          }
+          source_id: {
+            name: "Samples",
+          },
         },
         space: {
-          'space_id': {
-            path: ['Samples (1)'],
-            containerType: 'SPACE'
-          }
-        }
-      })
-    }
+          space_id: {
+            path: ["Samples (1)"],
+            containerType: "SPACE",
+          },
+        },
+      }),
+    },
   });
-  it('generates a unique name for sample source', () => {
+  it("generates a unique name for sample source", () => {
     thunk(dispatch, getState);
     const apiCallArg = dispatch.lastCall.args[0][RSAA];
     const [startAction] = apiCallArg.types;
-    expect(startAction.meta.source.toJS().name).to.be.equal('Samples (2)');
+    expect(startAction.meta.source.toJS().name).to.be.equal("Samples (2)");
   });
 });

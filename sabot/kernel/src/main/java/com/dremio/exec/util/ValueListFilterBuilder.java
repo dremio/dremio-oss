@@ -44,18 +44,19 @@ public class ValueListFilterBuilder implements AutoCloseable{
     private ArrowBuf valuesList;
     private BufferAllocator allocator;
 
-    private ValueListFilter valueListFilter;
+    protected ValueListFilter valueListFilter;
 
-    private int capacity;
-    private byte blockSize;
-    private int nextEmptyIndex = 0;
+    protected int capacity;
+    protected byte blockSize;
+    protected int nextEmptyIndex = 0;
     private int maxHashBuckets;
-    private boolean isBoolean;
+    protected boolean isBoolean;
+    private boolean buildWithBloomFilter;
 
-    private List<AutoCloseable> closeables = new ArrayList<>();
+    protected List<AutoCloseable> closeables = new ArrayList<>();
 
     public ValueListFilterBuilder(final BufferAllocator allocator, final int capacity, final byte blockSize,
-                                  final boolean isBoolean) {
+                                  final boolean isBoolean, final boolean buildWithBloomFilter) {
         checkNotNull(allocator, "Allocator is null");
         checkArgument(capacity > 0, "Invalid capacity");
         if (isBoolean) {
@@ -68,6 +69,12 @@ public class ValueListFilterBuilder implements AutoCloseable{
         this.maxHashBuckets = capacity;
         this.blockSize = blockSize;
         this.isBoolean = isBoolean;
+        this.buildWithBloomFilter = buildWithBloomFilter;
+    }
+
+    public ValueListFilterBuilder(final BufferAllocator allocator, final int capacity, final byte blockSize,
+                                  final boolean isBoolean) {
+      this(allocator, capacity, blockSize, isBoolean, false);
     }
 
     public void setup() {
@@ -85,9 +92,8 @@ public class ValueListFilterBuilder implements AutoCloseable{
         }
 
         // Buffer with actual keys
-        long sizeReqd = ValueListFilter.META_SIZE + ((isBoolean) ? 0 : (blockSize * capacity));
-        final ArrowBuf fullBuffer = allocator.buffer(sizeReqd);
-        this.valueListFilter = new ValueListFilter(fullBuffer);
+        final ArrowBuf fullBuffer = allocator.buffer(getValueListFilterSize());
+        this.valueListFilter = buildWithBloomFilter ? new ValueListWithBloomFilter(fullBuffer) : new ValueListFilter(fullBuffer);
         this.valueListFilter.setBoolField(isBoolean);
         closeables.add(valueListFilter);
         this.valuesList = valueListFilter.valOnlyBuf();
@@ -98,12 +104,12 @@ public class ValueListFilterBuilder implements AutoCloseable{
         checkArgument(keyBuf.capacity() >= blockSize, "Invalid key size %s. Compatible key size is %s",
                 keyBuf.capacity(), blockSize); // KeyBuf can round up and have extra bytes than the capacity it asked for.
         final long hashIndex = hash(keyBuf);
-        int keyIndex = hashBuckets.getInt(hashIndex);
+        int keyIndex = hashBuckets.getInt(hashIndex * 4);
 
         if (keyIndex == -1) {
             // new entry
             final int insertedValIndex = insertNewElement(keyBuf);
-            hashBuckets.setInt(hashIndex, insertedValIndex);
+            hashBuckets.setInt(hashIndex * 4, insertedValIndex);
             return true;
         }
 
@@ -123,7 +129,6 @@ public class ValueListFilterBuilder implements AutoCloseable{
                 hashKeyNextIndexes.setInt(keyIndex * 4, insertedValIndex);
                 return true;
             }
-
             keyIndex = nextValIndex;
         }
     }
@@ -132,7 +137,7 @@ public class ValueListFilterBuilder implements AutoCloseable{
         checkState(isNotFull(), "Store is full.");
         final int insertionIndex = nextEmptyIndex;
         Copier.copy(keyBuf.memoryAddress(), valuesList.memoryAddress() + (insertionIndex * blockSize), blockSize);
-        nextEmptyIndex ++;
+        nextEmptyIndex++;
         return insertionIndex;
     }
 
@@ -194,6 +199,7 @@ public class ValueListFilterBuilder implements AutoCloseable{
 
         // After building, it is the responsibility of the caller to manage valueListFilter.
         closeables.remove(valueListFilter);
+        valueListFilter.buildBloomFilter();
         return this.valueListFilter;
     }
 
@@ -225,7 +231,16 @@ public class ValueListFilterBuilder implements AutoCloseable{
         return valueListFilter;
     }
 
-    private void sortValList() {
+    public static ValueListWithBloomFilter fromBufferWithBloomFilter(ArrowBuf arrowBuf, ValueListFilter valueListFilter) {
+      ValueListWithBloomFilter valueListWithBloomFilter = new ValueListWithBloomFilter(arrowBuf);
+      ValueListFilter.copyValueList(valueListFilter, valueListWithBloomFilter);
+      ValueListFilter.copyMetadataBuffer(valueListFilter, valueListWithBloomFilter);
+      valueListWithBloomFilter.initializeMetaFromBuffer();
+      valueListWithBloomFilter.buildBloomFilter();
+      return valueListWithBloomFilter;
+    }
+
+    protected void sortValList() {
         if (this.valueListFilter.isBoolField()) {
             return;
         }
@@ -236,7 +251,7 @@ public class ValueListFilterBuilder implements AutoCloseable{
     }
 
     private long hash(ArrowBuf key) {
-        return Math.abs((MurmurHash3.murmur3_128(0, key.capacity(), key, 0).getHash1() % maxHashBuckets)) * 4;
+        return Math.abs(MurmurHash3.murmur3_128(0, key.capacity(), key, 0).getHash1() % maxHashBuckets);
     }
 
     @VisibleForTesting
@@ -251,5 +266,10 @@ public class ValueListFilterBuilder implements AutoCloseable{
     @Override
     public void close() throws Exception {
         AutoCloseables.close(closeables);
+    }
+
+    protected long getValueListFilterSize() {
+      long size = ValueListFilter.META_SIZE + ((isBoolean) ? 0 : (blockSize * capacity));
+      return buildWithBloomFilter ? size + ValueListFilter.BLOOM_FILTER_SIZE : size;
     }
 }

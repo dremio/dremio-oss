@@ -38,6 +38,8 @@ service ExecutorService {
   rpc GetNodeStats(google.protobuf.Empty) returns (exec.bit.control.NodeStatResp) {}
 
   rpc ReconcileActiveQueries(exec.bit.control.ActiveQueryList) returns (google.protobuf.Empty) {}
+
+  rpc PropagatePluginChange(exec.bit.control.SourceWrapper) returns (google.protobuf.Empty) {}
 }
 
 

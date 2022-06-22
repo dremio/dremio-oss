@@ -14,41 +14,52 @@
  * limitations under the License.
  */
 
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import moment from 'moment';
+import ApiUtils from "utils/apiUtils/apiUtils";
+import moment from "@app/utils/dayjs";
 
 export default {
   fetchClusterStats() {
-    return ApiUtils.fetchJson('cluster/stats?showCompactStats=true', json => {
-      return json;
-    }, () => {
-    }); //ignore errors
+    return ApiUtils.fetchJson(
+      "cluster/stats?showCompactStats=true",
+      (json) => {
+        return json;
+      },
+      () => {}
+    ); //ignore errors
   },
 
   fetchDailyJobStats(numDaysBack) {
-    let url = 'cluster/jobstats';
+    let url = "cluster/jobstats";
     if (numDaysBack) {
       const end = moment().unix() * 1000;
-      const start = moment().subtract(numDaysBack, 'days').unix() * 1000;
+      const start = moment().subtract(numDaysBack, "days").unix() * 1000;
 
       url += `?start=${start}&end=${end}&onlyDateWiseTotals=true`;
     }
 
-    return ApiUtils.fetchJson(url, json => {
-      return json;
-    }, () => {}); //ignore errors
+    return ApiUtils.fetchJson(
+      url,
+      (json) => {
+        return json;
+      },
+      () => {}
+    ); //ignore errors
   },
 
   fetchUserStats(numDaysBack) {
-    let url = 'stats/user';
+    let url = "stats/user";
     if (numDaysBack) {
       const end = moment().unix() * 1000;
-      const start = moment().subtract(numDaysBack, 'days').unix() * 1000;
+      const start = moment().subtract(numDaysBack, "days").unix() * 1000;
 
       url += `?start=${start}&end=${end}&onlyUniqueUsersByDate=true`;
     }
-    return ApiUtils.fetchJson(url, json => {
-      return json;
-    }, () => {}); //ignore errors
-  }
+    return ApiUtils.fetchJson(
+      url,
+      (json) => {
+        return json;
+      },
+      () => {}
+    ); //ignore errors
+  },
 };

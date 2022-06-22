@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.namespace.function.proto;
+
+import "namespace-common.proto";
+
+option java_package = "com.dremio.service.namespace.function.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "UdfProtobuf";
+
+message FunctionBody {
+  optional string raw_body = 1;
+}
+
+message ReturnType {
+  optional bytes rawDataType = 1;
+}
+
+message FunctionArg {
+  optional string name = 1;
+  optional bytes raw_data_type = 2;
+}
+
+message FunctionDefinition {
+  repeated FunctionArg function_arg = 1;
+  optional FunctionBody function_body = 2;
+}
+
+message FunctionConfig {
+  optional EntityId id = 1;
+  optional string name = 2;
+  optional string tag = 3;
+  repeated string full_path = 4;
+  optional int64 created_at = 5;
+  optional int64 last_modified = 6;
+  repeated FunctionDefinition function_definitions = 7;
+  optional ReturnType return_type = 8;
+}

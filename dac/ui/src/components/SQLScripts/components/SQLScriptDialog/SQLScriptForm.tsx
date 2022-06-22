@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { connectComplexForm, FormBody, ModalForm, modalFormProps } from '@app/components/Forms';
-import { FieldWithError, TextField } from 'components/Fields';
-import { formRow } from 'uiTheme/radium/forms';
-import { applyValidators, isRequired } from 'utils/validation';
+import React from "react";
+import {
+  connectComplexForm,
+  FormBody,
+  ModalForm,
+  modalFormProps,
+} from "@app/components/Forms";
+import { FieldWithError, TextField } from "components/Fields";
+import { formRow } from "uiTheme/radium/forms";
+import { applyValidators, isRequired } from "utils/validation";
 
 type SQLScriptFormProps = {
   onFormSubmit: (values: any) => void;
@@ -29,21 +34,43 @@ type SQLScriptFormProps = {
   error: any;
 };
 
-export const FIELDS = ['name'];
+export const FIELDS = ["name"];
 
 function validate(values: any): any {
-  return applyValidators(values, [isRequired('name')]);
+  return applyValidators(values, [isRequired("name")]);
 }
 
 function SQLScriptForm(props: SQLScriptFormProps): React.ReactElement {
-  const { fields: { name }, handleSubmit, onFormSubmit, initialValues, intl, error } = props;
-  const endpointError = error ? { error: error.message.get('errorMessage'), touched: true } : {};
+  const {
+    fields: { name },
+    handleSubmit,
+    onFormSubmit,
+    initialValues,
+    intl,
+    error,
+  } = props;
+  const endpointError = error
+    ? { error: error.message.get("errorMessage"), touched: true }
+    : {};
   return (
-    <ModalForm {...modalFormProps(props)} hideError onSubmit={handleSubmit(onFormSubmit)}>
+    <ModalForm
+      {...modalFormProps(props)}
+      hideError
+      onSubmit={handleSubmit(onFormSubmit)}
+    >
       <FormBody>
         <div style={formRow}>
-          <FieldWithError label={intl.formatMessage({ id: 'Script.Name' })} {...name} {...endpointError}>
-            <TextField initialFocus initialValue={initialValues && initialValues.name} {...name} {...endpointError} />
+          <FieldWithError
+            label={intl.formatMessage({ id: "Script.Name" })}
+            {...name}
+            {...endpointError}
+          >
+            <TextField
+              initialFocus
+              initialValue={initialValues && initialValues.name}
+              {...name}
+              {...endpointError}
+            />
           </FieldWithError>
         </div>
       </FormBody>
@@ -51,8 +78,13 @@ function SQLScriptForm(props: SQLScriptFormProps): React.ReactElement {
   );
 }
 
-export default connectComplexForm({
-  form: 'saveAsScript',
-  fields: FIELDS,
-  validate
-}, [], null, null)(SQLScriptForm);
+export default connectComplexForm(
+  {
+    form: "saveAsScript",
+    fields: FIELDS,
+    validate,
+  },
+  [],
+  null,
+  null
+)(SQLScriptForm);

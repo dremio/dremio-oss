@@ -1,4 +1,3 @@
-
 To create this:
 
 1. start with an SVG version of the logo, trimmed of whitespace, but square (see ./seed-logo.svg)
@@ -10,7 +9,6 @@ To create this:
 1. Generate...
 1. Download and extract zip into src/favicons (replace existing dir)
 1. copy HTML into src/index.html
-
 
 other reading:
 https://github.com/audreyr/favicon-cheat-sheet

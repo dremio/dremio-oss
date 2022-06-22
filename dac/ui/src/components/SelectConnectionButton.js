@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import SourceIcon from 'components/Icon/SourceIcon';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import SourceIcon from "components/Icon/SourceIcon";
+import sendEventToIntercom from "@inject/sagas/utils/sendEventToIntercom";
+import INTERCOM_EVENTS from "@inject/constants/intercomEvents";
+import * as VersionUtils from "@app/utils/versionUtils";
 import {
   buttonBase,
   buttonDisabled,
@@ -24,63 +27,90 @@ import {
   connectionLabel,
   pill,
   pillBeta,
-  pillCommunity
-} from './SelectConnectionButton.less';
+  pillCommunity,
+  iconContainer,
+} from "./SelectConnectionButton.less";
 
 export default class SelectConnectionButton extends Component {
   static propTypes = {
+    sampleSource: PropTypes.bool,
     label: PropTypes.string.isRequired,
     iconType: PropTypes.string.isRequired,
     icon: PropTypes.string,
     pillText: PropTypes.string,
     isCommunity: PropTypes.bool,
     disabled: PropTypes.bool,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
   };
 
   static defaultProps = {
-    disabled: false
+    disabled: false,
   };
 
   render() {
-    const { label, iconType, icon, pillText, disabled, isCommunity, onClick } = this.props;
+    const {
+      label,
+      iconType,
+      icon,
+      pillText,
+      disabled,
+      isCommunity,
+      onClick,
+      sampleSource = false,
+    } = this.props;
+    const edition = VersionUtils.getEditionFromConfig();
     // if icon is provided, use it, otherwise use iconType as an icon file name
     let src = icon;
     if (!src) {
-      src = (iconType === 'sources/NETEZZA') ? `${iconType}.png` : `${iconType}.svg`;
+      src =
+        iconType === "sources/NETEZZA" ? `${iconType}.png` : `${iconType}.svg`;
     }
     const buttonClass = classNames({
       [buttonBase]: true,
       [buttonDisabled]: disabled,
-      [buttonClickable]: !disabled
+      [buttonClickable]: !disabled,
     });
-    return <button
-      disabled={disabled}
-      className={buttonClass}
-      onClick={!disabled ? onClick : undefined}
-      data-qa={iconType}
-      key={iconType}
-    >
-      <SourceIcon src={src} alt='' style={styles.iconStyle} />
-      <h3 className={connectionLabel}>
-        {label}
-      </h3>
-      {pillText && <div
-        className={classNames({
-          [pill]: true,
-          [pillBeta]: !isCommunity,
-          [pillCommunity]: isCommunity
-        })}
+    return (
+      <button
+        disabled={disabled}
+        className={buttonClass}
+        onClick={
+          !disabled
+            ? () => {
+                onClick();
+                // sends intercom event for sample source since it doesnt have a form like the rest.
+                if (sampleSource && edition === "DCS")
+                  sendEventToIntercom(INTERCOM_EVENTS.SOURCE_ADD_COMPLETE);
+              }
+            : undefined
+        }
+        data-qa={iconType}
+        key={iconType}
       >
-        {pillText}
-      </div>}
-    </button>;
+        <div className={iconContainer}>
+          <SourceIcon src={src} alt="" style={styles.iconStyle} />
+        </div>
+        <h3 className={connectionLabel}>{label}</h3>
+        {pillText && (
+          <div
+            className={classNames({
+              [pill]: true,
+              [pillBeta]: !isCommunity,
+              [pillCommunity]: isCommunity,
+            })}
+          >
+            {pillText}
+          </div>
+        )}
+      </button>
+    );
   }
 }
 
 const styles = {
   iconStyle: {
-    width: 40,
-    height: 40
-  }
+    margin: 0,
+    width: 33,
+    height: 33,
+  },
 };

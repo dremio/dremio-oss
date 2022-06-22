@@ -476,7 +476,7 @@ public class TypeInferenceUtils {
 
     // Throw an exception
     // if no BaseFunctionHolder matched for the given list of operand types
-    if(func == null) {
+    if (func == null) {
       String operandTypes = "";
       for(int i = 0; i < opBinding.getOperandCount(); ++i) {
         operandTypes += opBinding.getOperandType(i).getSqlTypeName();
@@ -490,7 +490,7 @@ public class TypeInferenceUtils {
           .message(String.format("%s does not support operand types (%s)",
               opBinding.getOperator().getName(),
               operandTypes))
-          .build(logger);
+          .buildSilently();
     }
     return func;
   }

@@ -13,29 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Summary from './Summary';
+import { shallow } from "enzyme";
+import Summary from "./Summary";
 
-describe('Summary', () => {
+describe("Summary", () => {
   const minimalProps = {
-    jobSummary: []
+    jobSummary: [],
   };
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Summary {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('renders child correctly', () => {
+  it("renders child correctly", () => {
     const jobSummary = [
-      { label: 'Job.QueryType', content: 'UI(run)' },
-      { label: 'Job.StartTime', content: '14/04/2021 5:30' },
-      { label: 'Job.Duration', content: '14.0s' },
-      { label: 'Common.User', content: 'satheesh@dremio' },
-      { label: 'Common.Queue', content: 'High Cost User Queries' },
-      { label: 'Job.Summary.Input', content: '1.2GB/1.5m Records' },
-      { label: 'Job.Summary.Output', content: '1.7MB/13k Records' },
-      { label: 'Job.Summary.WaitOnClient', content: '<1s' }
+      { label: "Job.QueryType", content: "UI(run)" },
+      { label: "Job.StartTime", content: "14/04/2021 5:30" },
+      { label: "Job.Duration", content: "14.0s" },
+      { label: "Common.User", content: "satheesh@dremio" },
+      { label: "Common.Queue", content: "High Cost User Queries" },
+      { label: "Job.Summary.Input", content: "1.2GB/1.5m Records" },
+      { label: "Job.Summary.Output", content: "1.7MB/13k Records" },
+      { label: "Job.Summary.WaitOnClient", content: "<1s" },
     ];
     const wrapper = shallow(<Summary jobSummary={jobSummary} />);
-    expect(wrapper.find('.summary__content').length).equal(jobSummary.length);
+    expect(wrapper.find(".summary__content").length).equal(jobSummary.length);
   });
 });

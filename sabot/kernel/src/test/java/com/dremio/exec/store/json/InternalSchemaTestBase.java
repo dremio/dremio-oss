@@ -16,6 +16,7 @@
 package com.dremio.exec.store.json;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URI;
@@ -135,6 +136,21 @@ public class InternalSchemaTestBase extends PlanTestBase {
     runSQL(query);
   }
 
+  void alterTableDisableSchemaLearning(String dirName) throws Exception {
+    String query = String.format("ALTER TABLE dfs_test.\"%s\" DISABLE SCHEMA LEARNING", dirName);
+    runSQL(query);
+  }
+
+  void alterTableEnableSchemaLearning(String dirName) throws Exception {
+    String query = String.format("ALTER TABLE dfs_test.\"%s\" ENABLE SCHEMA LEARNING", dirName);
+    runSQL(query);
+  }
+
+  void alterTableForgetMetadata(String dirName) throws Exception {
+    String query = String.format("ALTER TABLE dfs_test.\"%s\" forget metadata", dirName);
+    runSQL(query);
+  }
+
   void triggerSchemaLearning(String dirName) {
     String query = String.format("SELECT * FROM dfs_test.\"%s\"", dirName);
     assertThatExceptionOfType(Exception.class)
@@ -142,6 +158,16 @@ public class InternalSchemaTestBase extends PlanTestBase {
       .havingCause()
       .isInstanceOf(UserRemoteException.class)
       .withMessageContaining("New schema found");
+  }
+
+  void triggerOptionalSchemaLearning(String dirName) {
+    String query = String.format("SELECT * FROM dfs_test.\"%s\"", dirName);
+    try {
+      testRunAndReturn(UserBitShared.QueryType.SQL, query);
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof UserRemoteException);
+      assertTrue(e.getCause().getMessage().contains("New schema found"));
+    }
   }
 
   String runDescribeQuery(String dirName) throws Exception {

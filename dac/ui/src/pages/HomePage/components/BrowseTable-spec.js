@@ -13,82 +13,80 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import Mousetrap from 'mousetrap';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import Mousetrap from "mousetrap";
 
-import BrowseTable from './BrowseTable';
+import BrowseTable from "./BrowseTable";
 
-describe('BrowseTable', () => {
+describe("BrowseTable", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       tableData: Immutable.List([
-        { data: { name: { node: 'foo', value: 'foo'}}},
-        { data: { name: { node: 'bar', value: 'bar'}}},
-        { data: { name: { node: 'baz', value: 'baz'}}}
-      ])
+        { data: { name: { node: "foo", value: "foo" } } },
+        { data: { name: { node: "bar", value: "bar" } } },
+        { data: { name: { node: "baz", value: "baz" } } },
+      ]),
     };
     commonProps = {
       ...minimalProps,
-      title: 'Browse',
-      columns: [
-        {title: 'name'}
-      ]
+      title: "Browse",
+      columns: [{ title: "name" }],
     };
-    sinon.stub(Mousetrap, 'bind');
-    sinon.stub(Mousetrap, 'unbind');
+    sinon.stub(Mousetrap, "bind");
+    sinon.stub(Mousetrap, "unbind");
   });
   afterEach(() => {
     Mousetrap.bind.restore();
     Mousetrap.unbind.restore();
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<BrowseTable {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<BrowseTable {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render SearchField and VirtualizedTableViewer', () => {
-    const wrapper = shallow(<BrowseTable {...commonProps}/>);
+  it("should render SearchField and VirtualizedTableViewer", () => {
+    const wrapper = shallow(<BrowseTable {...commonProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.find('SearchField')).to.have.length(1);
-    expect(wrapper.find('StatefulTableViewer')).to.have.length(1);
+    expect(wrapper.find("SearchField")).to.have.length(1);
+    expect(wrapper.find("StatefulTableViewer")).to.have.length(1);
   });
-  describe('#componentDidMount', () => {
-    it('should call Mousetrap.bind', () => {
-      const wrapper = shallow(<BrowseTable {...commonProps}/>);
+  describe("#componentDidMount", () => {
+    it("should call Mousetrap.bind", () => {
+      const wrapper = shallow(<BrowseTable {...commonProps} />);
       const instance = wrapper.instance();
       instance.componentDidMount();
       expect(Mousetrap.bind).to.been.called;
     });
   });
-  describe('#componentWillUnmount', () => {
-    it('should call Mousetrap.unbind', () => {
-      const wrapper = shallow(<BrowseTable {...commonProps}/>);
+  describe("#componentWillUnmount", () => {
+    it("should call Mousetrap.unbind", () => {
+      const wrapper = shallow(<BrowseTable {...commonProps} />);
       const instance = wrapper.instance();
       instance.componentWillUnmount();
       expect(Mousetrap.unbind).to.been.called;
     });
   });
-  describe('#handleFilterChange', () => {
-    it('should change state.filter', () => {
-      const wrapper = shallow(<BrowseTable {...commonProps}/>);
+  describe("#handleFilterChange", () => {
+    it("should change state.filter", () => {
+      const wrapper = shallow(<BrowseTable {...commonProps} />);
       const instance = wrapper.instance();
-      instance.handleFilterChange('filter');
+      instance.handleFilterChange("filter");
       instance.handleFilterChange.flush();
-      expect(wrapper.state('filter')).to.eql('filter');
+      expect(wrapper.state("filter")).to.eql("filter");
     });
   });
-  describe('#filteredTableData', () => {
-    it('should filter tableData based on state.filter', () => {
-      const wrapper = shallow(<BrowseTable {...commonProps}/>);
+  describe("#filteredTableData", () => {
+    it("should filter tableData based on state.filter", () => {
+      const wrapper = shallow(<BrowseTable {...commonProps} />);
       const instance = wrapper.instance();
       wrapper.setState({
-        filter: 'f'
+        filter: "f",
       });
       const filteredTableData = instance.filteredTableData();
       expect(filteredTableData).to.have.size(1);
-      expect(filteredTableData.get(0).data.name.value).to.eql('foo');
+      expect(filteredTableData.get(0).data.name.value).to.eql("foo");
     });
   });
 });

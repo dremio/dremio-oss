@@ -47,7 +47,7 @@ public class SqlNodeUtil {
       throw new IllegalArgumentException("You must provide a string literal.");
     }
 
-    String str = ((SqlCharStringLiteral) node).toValue();
+    String str = ((SqlCharStringLiteral) node).toValue().trim();
     return Pattern.compile(RegexpUtil.sqlToRegexLike(str),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.DOTALL);
   }

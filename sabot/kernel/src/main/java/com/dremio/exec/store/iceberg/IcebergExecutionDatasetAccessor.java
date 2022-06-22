@@ -51,9 +51,11 @@ public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDataset
       FormatPlugin formatPlugin,
       FileSystem fs,
       TableSnapshotProvider tableSnapshotProvider,
-      MutablePlugin plugin
+      MutablePlugin plugin,
+      TableSchemaProvider tableSchemaProvider
   ) {
-    super(datasetPath, tableSupplier, configuration, tableSnapshotProvider, plugin);
+    super(datasetPath, tableSupplier, configuration, tableSnapshotProvider, plugin, tableSchemaProvider,
+        formatPlugin.getContext().getOptionManager());
     this.tableSupplier = tableSupplier;
     this.fs = fs;
     this.formatPlugin = formatPlugin;

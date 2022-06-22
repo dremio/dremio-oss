@@ -13,166 +13,209 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { minimalFormProps } from 'testUtil';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { minimalFormProps } from "testUtil";
 
-import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
-import { AccelerationUpdatesForm } from './AccelerationUpdatesForm';
+import DataFreshnessSection from "components/Forms/DataFreshnessSection";
+import { AccelerationUpdatesForm } from "./AccelerationUpdatesForm";
 
-describe('AccelerationUpdatesForm', () => {
+describe("AccelerationUpdatesForm", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    const fieldNames = ['method', 'refreshField'];
+    const fieldNames = ["method", "refreshField"];
     const values = {
-      method: 'FULL',
-      accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
-      accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod(),
+      method: "FULL",
+      accelerationRefreshPeriod:
+        DataFreshnessSection.defaultFormValueRefreshInterval(),
+      accelerationGracePeriod:
+        DataFreshnessSection.defaultFormValueGracePeriod(),
       accelerationNeverExpire: false,
-      accelerationNeverRefresh: false
+      accelerationNeverRefresh: false,
     };
     minimalProps = {
       ...minimalFormProps(fieldNames),
       datasetFields: Immutable.List(),
-      values
+      values,
     };
     commonProps = {
       ...minimalProps,
-      entityType: 'dataset',
+      entityType: "dataset",
       values: {
         ...values,
-        method: 'INCREMENTAL',
-        refreshField: 'col1'
-      }
+        method: "INCREMENTAL",
+        refreshField: "col1",
+      },
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.find('Radio').at(1).props().label).to.be.eql('Incremental update');
+    expect(wrapper.find("Radio").at(1).props().label).to.be.eql(
+      "Incremental update"
+    );
   });
 
-  it('should render Incremental option as disabled when #canUseIncremental() is false', () => {
-    const stub = sinon.stub(AccelerationUpdatesForm.prototype, 'canUseIncremental').returns(false);
-    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
-    expect(wrapper.find('Radio').at(1).props().disabled).to.be.true;
+  it("should render Incremental option as disabled when #canUseIncremental() is false", () => {
+    const stub = sinon
+      .stub(AccelerationUpdatesForm.prototype, "canUseIncremental")
+      .returns(false);
+    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
+    expect(wrapper.find("Radio").at(1).props().disabled).to.be.true;
     stub.restore();
   });
 
-  it('should render Incremental option as enabled when #canUseIncremental() is true', () => {
-    const stub = sinon.stub(AccelerationUpdatesForm.prototype, 'canUseIncremental').returns(true);
-    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
-    expect(wrapper.find('Radio').at(1).props().disabled).to.be.false;
+  it("should render Incremental option as enabled when #canUseIncremental() is true", () => {
+    const stub = sinon
+      .stub(AccelerationUpdatesForm.prototype, "canUseIncremental")
+      .returns(true);
+    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
+    expect(wrapper.find("Radio").at(1).props().disabled).to.be.false;
     stub.restore();
   });
 
-  it('should render Incremental option for folder', () => {
-    const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} entityType='folder'/>);
-    expect(wrapper.find('Radio').at(1).props().label).to.be.eql('Incremental update based on new files');
+  it("should render Incremental option for folder", () => {
+    const wrapper = shallow(
+      <AccelerationUpdatesForm {...minimalProps} entityType="folder" />
+    );
+    expect(wrapper.find("Radio").at(1).props().label).to.be.eql(
+      "Incremental update based on new files"
+    );
   });
 
-  describe('#canUseIncremental()', () => {
+  describe("#canUseIncremental()", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+      wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
       instance = wrapper.instance();
     });
 
-    it('should return false when entity is file', () => {
-      wrapper.setProps({ entityType: 'file' });
+    it("should return false when entity is file", () => {
+      wrapper.setProps({ entityType: "file" });
       expect(instance.canUseIncremental()).to.be.false;
     });
 
-    it('should return true when entity is folder', () => {
-      wrapper.setProps({ entityType: 'folder' });
+    it("should return true when entity is folder", () => {
+      wrapper.setProps({ entityType: "folder" });
       expect(instance.canUseIncremental()).to.be.true;
     });
 
-    it('should return false when entity is physicalDataset and datasetFields is empty', () => {
-      wrapper.setProps({ entityType: 'physicalDataset' });
+    it("should return false when entity is physicalDataset and datasetFields is empty", () => {
+      wrapper.setProps({ entityType: "physicalDataset" });
       expect(instance.canUseIncremental()).to.be.false;
     });
 
-    it('should return true when entity is physicalDataset and datasetFields is not empty', () => {
-      wrapper.setProps({ entityType: 'physicalDataset', datasetFields: Immutable.List(['foo']) });
+    it("should return true when entity is physicalDataset and datasetFields is not empty", () => {
+      wrapper.setProps({
+        entityType: "physicalDataset",
+        datasetFields: Immutable.List(["foo"]),
+      });
       expect(instance.canUseIncremental()).to.be.true;
     });
   });
 
-  describe('#requiresIncrementalFieldSelection()', () => {
+  describe("#requiresIncrementalFieldSelection()", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+      wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
       instance = wrapper.instance();
     });
 
-    it('should return false when method is not incremental', () => {
+    it("should return false when method is not incremental", () => {
       expect(instance.requiresIncrementalFieldSelection({})).to.be.false;
     });
 
-    it('should return false when method is incremental and entityType is not physicalDataset', () => {
-      wrapper.setProps({ entityType: 'folder' });
-      expect(instance.requiresIncrementalFieldSelection({method: 'INCREMENTAL'})).to.be.false;
+    it("should return false when method is incremental and entityType is not physicalDataset", () => {
+      wrapper.setProps({ entityType: "folder" });
+      expect(
+        instance.requiresIncrementalFieldSelection({ method: "INCREMENTAL" })
+      ).to.be.false;
     });
 
-    it('should return true when method is incremental and entityType is physicalDataset', () => {
-      wrapper.setProps({ entityType: 'physicalDataset' });
-      expect(instance.requiresIncrementalFieldSelection({method: 'INCREMENTAL'})).to.be.true;
+    it("should return true when method is incremental and entityType is physicalDataset", () => {
+      wrapper.setProps({ entityType: "physicalDataset" });
+      expect(
+        instance.requiresIncrementalFieldSelection({ method: "INCREMENTAL" })
+      ).to.be.true;
     });
   });
 
-  describe('#mapFormValues', () => {
-    it('should not include fieldList and refreshField fields when requiresIncrementalFieldSelection() is false', () => {
-      const stub = sinon.stub(AccelerationUpdatesForm.prototype, 'requiresIncrementalFieldSelection').returns(false);
+  describe("#mapFormValues", () => {
+    it("should not include fieldList and refreshField fields when requiresIncrementalFieldSelection() is false", () => {
+      const stub = sinon
+        .stub(
+          AccelerationUpdatesForm.prototype,
+          "requiresIncrementalFieldSelection"
+        )
+        .returns(false);
 
-      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
       const instance = wrapper.instance();
-      expect(instance.mapFormValues(minimalProps.values)).to.be.eql(minimalProps.values);
+      expect(instance.mapFormValues(minimalProps.values)).to.be.eql(
+        minimalProps.values
+      );
 
       stub.restore();
     });
 
-    it('should include fieldList and refreshField fields when requiresIncrementalFieldSelection() is true', () => {
-      const stub = sinon.stub(AccelerationUpdatesForm.prototype, 'requiresIncrementalFieldSelection').returns(true);
+    it("should include fieldList and refreshField fields when requiresIncrementalFieldSelection() is true", () => {
+      const stub = sinon
+        .stub(
+          AccelerationUpdatesForm.prototype,
+          "requiresIncrementalFieldSelection"
+        )
+        .returns(true);
 
-      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
       const instance = wrapper.instance();
 
-      wrapper.setProps({ ...commonProps});
+      wrapper.setProps({ ...commonProps });
       const expectedValues = {
-        method: 'INCREMENTAL',
-        accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
-        accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod(),
+        method: "INCREMENTAL",
+        accelerationRefreshPeriod:
+          DataFreshnessSection.defaultFormValueRefreshInterval(),
+        accelerationGracePeriod:
+          DataFreshnessSection.defaultFormValueGracePeriod(),
         accelerationNeverExpire: false,
         accelerationNeverRefresh: false,
-        fieldList: ['col1'],
-        refreshField: 'col1'
+        fieldList: ["col1"],
+        refreshField: "col1",
       };
-      expect(instance.mapFormValues(commonProps.values)).to.be.eql(expectedValues);
+      expect(instance.mapFormValues(commonProps.values)).to.be.eql(
+        expectedValues
+      );
 
       stub.restore();
     });
 
+    it("should include never expire/never refresh", () => {
+      const stub = sinon
+        .stub(
+          AccelerationUpdatesForm.prototype,
+          "requiresIncrementalFieldSelection"
+        )
+        .returns(true);
 
-    it('should include never expire/never refresh', () => {
-      const stub = sinon.stub(AccelerationUpdatesForm.prototype, 'requiresIncrementalFieldSelection').returns(true);
-
-      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
       const instance = wrapper.instance();
 
       const props = {
         ...minimalProps,
         accelerationNeverExpire: true,
-        accelerationNeverRefresh: true
+        accelerationNeverRefresh: true,
       };
 
-      wrapper.setProps({ ...props});
-      expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(true);
-      expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(true);
+      wrapper.setProps({ ...props });
+      expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(
+        true
+      );
+      expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(
+        true
+      );
 
       stub.restore();
     });

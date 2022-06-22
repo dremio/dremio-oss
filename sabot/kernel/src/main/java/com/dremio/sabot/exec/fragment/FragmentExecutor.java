@@ -61,6 +61,8 @@ import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
+import com.dremio.sabot.memory.MemoryArbiter;
+import com.dremio.sabot.memory.MemoryArbiterTask;
 import com.dremio.sabot.op.receiver.IncomingBuffers;
 import com.dremio.sabot.task.AsyncTask;
 import com.dremio.sabot.task.AsyncTaskWrapper;
@@ -92,10 +94,11 @@ import io.netty.util.internal.OutOfDirectMemoryError;
  * scheduled and then the execution thread is responsible for handling those
  * messages.
  */
-public class FragmentExecutor {
+public class FragmentExecutor implements MemoryArbiterTask {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutor.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(FragmentExecutor.class);
+  private static final long MB = 1024 * 1024;
 
   @VisibleForTesting
   public static final String INJECTOR_DO_WORK = "injectOOMOnRun";
@@ -164,12 +167,17 @@ public class FragmentExecutor {
   private final int schedulingWeight;
   private final boolean leafFragment;
 
+  // This is used to keep track of fragments that use the memory arbiter
+  private final MemoryArbiter memoryArbiter;
+  private long memoryGrantInBytes = 0;
+
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
       SabotConfig config,
       ExecutionControls executionControls,
       PlanFragmentFull fragment,
       int schedulingWeight,
+      MemoryArbiter memoryArbiter,
       ClusterCoordinator clusterCoordinator,
       CachedFragmentReader reader,
       SharedResourceManager sharedResources,
@@ -196,6 +204,7 @@ public class FragmentExecutor {
     this.fragmentWeight = fragment.getMajor().getFragmentExecWeight() <= 0 ?
       1 : fragment.getMajor().getFragmentExecWeight();
     this.schedulingWeight = schedulingWeight;
+    this.memoryArbiter = memoryArbiter;
     this.leafFragment = fragment.getMajor().getLeafFragment();
     this.clusterCoordinator = clusterCoordinator;
     this.reader = reader;
@@ -223,6 +232,38 @@ public class FragmentExecutor {
     this.cancelled = SettableFuture.create();
     this.executionControls = executionControls;
     this.allocatorLock = sharedResources.getGroup(PIPELINE_RES_GRP).createResource("frag-allocator", SharedResourceType.UNKNOWN);
+  }
+
+  @Override
+  public String getTaskId() {
+    return name;
+  }
+
+  @Override
+  public long getMemoryGrant() {
+    return this.memoryGrantInBytes;
+  }
+
+  @Override
+  public void setMemoryGrant(long memoryGrantInBytes) {
+    this.memoryGrantInBytes = memoryGrantInBytes;
+  }
+
+  @Override
+  public long getUsedMemory() {
+    return allocator.getAllocatedMemory();
+  }
+
+  // TODO: Improve this based on actual usage
+  private long getMemoryToAcquire() {
+    return 16 * MB;
+  }
+
+  private void postRunUpdate() {
+    if (memoryArbiter != null) {
+      memoryArbiter.releaseMemoryGrant(this);
+    }
+    assert memoryGrantInBytes == 0 : "Memory grant should be 0";
   }
 
   /**
@@ -280,6 +321,9 @@ public class FragmentExecutor {
       if(!isSetup){
         stats.setupStarted();
         try {
+          if (memoryArbiter != null) {
+            memoryArbiter.acquireMemoryGrant(this, getMemoryToAcquire());
+          }
           setupExecution();
         } finally {
           stats.setupEnded();
@@ -304,6 +348,9 @@ public class FragmentExecutor {
         pipeline.getTerminalOperator().receivingFragmentFinished(finishedFragment);
       }
 
+      if (memoryArbiter != null) {
+        memoryArbiter.acquireMemoryGrant(this, getMemoryToAcquire());
+      }
       // pump the pipeline
       taskState = pumper.run();
 
@@ -771,6 +818,11 @@ public class FragmentExecutor {
     @Override
     public void run() {
       FragmentExecutor.this.run();
+    }
+
+    @Override
+    public void postRunUpdate() {
+      FragmentExecutor.this.postRunUpdate();
     }
 
     @Override

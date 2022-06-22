@@ -45,7 +45,7 @@ public class ITTestDateTypesTimeJavaTime extends ElasticBaseTestQuery {
   private final DateTimeFormatter dateTimeFormatter;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public ITTestDateTypesTimeJavaTime(String format) {
     this.format = format ;

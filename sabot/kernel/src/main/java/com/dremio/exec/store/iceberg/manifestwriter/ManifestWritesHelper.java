@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 import org.apache.arrow.util.Preconditions;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.iceberg.DataFile;
@@ -48,6 +49,7 @@ import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
@@ -57,8 +59,10 @@ import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.service.users.SystemUser;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -78,6 +82,7 @@ public class ManifestWritesHelper {
   protected DremioFileIO dremioFileIO;
 
   protected VarBinaryVector inputDatafiles;
+  protected IntVector operationTypes;
   protected Map<DataFile, byte[]> deletedDataFiles = new LinkedHashMap<>(); // required that removed file is cleared with each row.
   protected Optional<Integer> partitionSpecId = Optional.empty();
   private final Set<IcebergPartitionData> partitionDataInCurrentManifest = new HashSet<>();
@@ -95,11 +100,19 @@ public class ManifestWritesHelper {
     this.writer = writer;
     this.schema = writer.getOptions().getIcebergTableProps().getFullSchema().serialize();
     this.listOfFilesCreated = Lists.newArrayList();
-    this.dremioFileIO = new DremioFileIO(writer.getPlugin().getFsConfCopy(), writer.getPlugin());
+    FileSystem fs  = null;
+    try {
+      fs = writer.getPlugin().createFS(writer.getOptions().getIcebergTableProps().getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to create File System", e);
+    }
+
+    this.dremioFileIO = new DremioFileIO(fs, writer.getPlugin().getFsConfCopy(), writer.getPlugin());
   }
 
   public void setIncoming(VectorAccessible incoming) {
     inputDatafiles = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordWriter.ICEBERG_METADATA_COLUMN);
+    operationTypes = (IntVector) getVectorFromSchemaPath(incoming, RecordWriter.OPERATION_TYPE_COLUMN);
   }
 
   public void startNewWriter() {
@@ -119,9 +132,10 @@ public class ManifestWritesHelper {
     try {
       Preconditions.checkNotNull(manifestWriter);
       final byte[] metaInfoBytes = inputDatafiles.get(recordIndex);
+      final Integer operationTypeValue = operationTypes.get(recordIndex);
       final IcebergMetadataInformation icebergMetadataInformation = IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
-      final IcebergMetadataInformation.IcebergMetadataFileType metadataFileType = icebergMetadataInformation.getIcebergMetadataFileType();
-      switch (metadataFileType) {
+      final OperationType operationType = OperationType.valueOf(operationTypeValue);
+      switch (operationType) {
         case ADD_DATAFILE:
           final DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
           addDataFile(dataFile);
@@ -131,7 +145,7 @@ public class ManifestWritesHelper {
           deletedDataFiles.put(IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte()), metaInfoBytes);
           break;
         default:
-          throw new IOException("Unsupported File type - " + metadataFileType);
+          throw new IOException("Unsupported File type - " + operationType);
       }
     } catch (IOException ioe) {
       throw ioe;
@@ -177,6 +191,11 @@ public class ManifestWritesHelper {
   }
 
   PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
+    PartitionSpec partitionSpec = writer.getOptions().getDeserializedPartitionSpec();
+    if (partitionSpec != null) {
+      return partitionSpec;
+    }
+
     List<String> partitionColumns = writerOptions.getIcebergTableProps().getPartitionColumnNames();
     BatchSchema batchSchema = writerOptions.getIcebergTableProps().getFullSchema();
 

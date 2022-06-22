@@ -45,7 +45,7 @@ import io.netty.buffer.NettyArrowBuf;
  */
 public class BloomFilterTest {
     private BufferAllocator bfTestAllocator;
-    private final static String TEST_NAME = "20ed4177-87c7-91cc-c869-82b1d90cd300:frag:1:3";
+    private static final String TEST_NAME = "20ed4177-87c7-91cc-c869-82b1d90cd300:frag:1:3";
 
     @Rule
     public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();

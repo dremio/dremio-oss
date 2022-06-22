@@ -13,22 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Link } from 'react-router';
-import FontIcon from 'components/Icon/FontIcon';
-import { abilities } from 'utils/datasetUtils';
-import { datasetTypeToEntityType } from '@app/constants/datasetTypes';
+import { Link } from "react-router";
+import FontIcon from "components/Icon/FontIcon";
+import { abilities } from "utils/datasetUtils";
+import { datasetTypeToEntityType } from "@app/constants/datasetTypes";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderPencil(summaryDataset) {
       const { canEdit } = abilities(
         summaryDataset,
-        datasetTypeToEntityType[summaryDataset.get('datasetType')],
-        summaryDataset.get('datasetType') === 'PHYSICAL_DATASET_HOME_FILE'
+        datasetTypeToEntityType[summaryDataset.get("datasetType")],
+        summaryDataset.get("datasetType") === "PHYSICAL_DATASET_HOME_FILE"
       );
-      return canEdit
-        ? <Link to={summaryDataset.getIn(['links', 'edit'])}><FontIcon type='Edit'/></Link>
-        : null;
-    }
+      return canEdit ? (
+        <Link to={summaryDataset.getIn(["links", "edit"])}>
+          <FontIcon type="Edit" />
+        </Link>
+      ) : null;
+    },
   });
 }

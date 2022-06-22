@@ -20,6 +20,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
@@ -49,6 +50,7 @@ import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
@@ -56,6 +58,8 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
+import com.dremio.sabot.op.join.hash.HashJoinOperator;
+import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 import com.google.common.collect.ImmutableList;
 
 @Options
@@ -63,9 +67,10 @@ public class HashJoinPrel extends JoinPrel {
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.hashjoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.hashjoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator LOW_LIMIT = new PositiveLongValidator("planner.op.hashjoin.low_limit_bytes", Long.MAX_VALUE, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
 
   public static final DoubleValidator FACTOR = new RangeDoubleValidator("planner.op.hashjoin.factor", 0.0, 1000.0, 1.0d);
-  public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", false);
+  public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", true);
 
   private final boolean swapped;
   private final RexNode extraCondition;
@@ -149,8 +154,10 @@ public class HashJoinPrel extends JoinPrel {
 
     final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, currentLeftKeys, currentRightKeys);
 
-    final boolean vectorize = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)
+    final OptionManager options = creator.getContext().getOptions();
+    final boolean vectorize = options.getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)
         && canVectorize(creator.getContext().getFunctionRegistry(), leftPop, rightPop, conditions);
+    final boolean canSpill = vectorize && options.getOption(HashJoinOperator.ENABLE_SPILL);
 
     final LogicalExpression extraJoinCondition = buildExtraJoinCondition(vectorize);
 
@@ -163,10 +170,18 @@ public class HashJoinPrel extends JoinPrel {
     }
     BatchSchema schema = b.build();
 
+    long lowLimit = options.getOption(LOW_LIMIT);
+    long reservation = options.getOption(RESERVE);
+    if (canSpill) {
+      // safety code in case users set very low values via support option. Cannot use PostiveRangeValidator since the
+      // min values are different for spilling & non-spilling variants.
+      lowLimit = Long.max(lowLimit, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
+      reservation = Long.max(reservation, VectorizedSpillingHashJoinOperator.MIN_RESERVE);
+    }
     return new HashJoinPOP(
       creator
-        .props(this, null, schema, RESERVE, LIMIT)
-        .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
+        .props(this, null, schema, reservation, LIMIT, lowLimit)
+        .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill)
         .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
         .cloneWithMemoryExpensive(true),
       leftPop,
@@ -195,7 +210,9 @@ public class HashJoinPrel extends JoinPrel {
         }
       } else if(relNode instanceof RuntimeFilteredRel) {
         List<RuntimeFilteredRel.Info> infoList =
-          ((RuntimeFilteredRel) relNode).getRuntimeFilters();
+          ((RuntimeFilteredRel) relNode).getRuntimeFilters().stream()
+            .filter(info -> info.getRuntimeFilterId().equals(runtimeFilterId))
+            .collect(Collectors.toList());
         if (!infoList.isEmpty()){
           PrelSequencer.OpId id = creator.getOpId((Prel) relNode);
           RuntimeFilterProbeTarget.Builder target = new RuntimeFilterProbeTarget.Builder(

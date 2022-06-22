@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.rpc;
 
-import io.netty.buffer.ByteBuf;
-
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
+
+import io.netty.buffer.ByteBuf;
 
 public class Response {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Response.class);

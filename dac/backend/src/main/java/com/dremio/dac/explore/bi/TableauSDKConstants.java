@@ -31,10 +31,13 @@ public final class TableauSDKConstants {
     public static final String SCHEMA = "schema";
     public static final String PRODUCT = "v-dremio-product";
     public static final String SOFTWARE = "v-software";
+    public static final String UI_PORT = "9047";
 
     // Authentication Modes
     public static final String AUTHENTICATION = "authentication";
     public static final String BASIC = "basic";
+    public static final String OAUTH = "oauth";
+    public static final String INSTANCEURL = "instanceurl";
 
     // SSL
     public static final String SSL = "sslmode";

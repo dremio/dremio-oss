@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { isModuleInitialized } from '@app/reducers';
-import { initModuleState, resetModuleState } from '@app/actions/modulesState';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { isModuleInitialized } from "@app/reducers";
+import { initModuleState, resetModuleState } from "@app/actions/modulesState";
 
-const mapStateToProps = (state, /* ownProps */ {
-  moduleKey
-}) => ({
-  isStateInitialized: isModuleInitialized(state, moduleKey)
+const mapStateToProps = (state, /* ownProps */ { moduleKey }) => ({
+  isStateInitialized: isModuleInitialized(state, moduleKey),
 });
 
 const mapDispatchToProps = {
   initState: initModuleState,
-  resetState: resetModuleState
+  resetState: resetModuleState,
 };
 
 export class ModuleStateView extends Component {
@@ -38,14 +36,16 @@ export class ModuleStateView extends Component {
     initState: PropTypes.func.isRequired, // (moduleKey, reducer) => void
     resetState: PropTypes.func.isRequired, // (moduleKey) => void
     shouldResetState: PropTypes.func, // (prevProps, nextProps) => bool
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   static defaultProps = {
     shouldResetState: (prevProps, nextProps) => {
-      return nextProps.moduleKey !== prevProps.moduleKey ||
-        nextProps.reducer !== prevProps.reducer;
-    }
+      return (
+        nextProps.moduleKey !== prevProps.moduleKey ||
+        nextProps.reducer !== prevProps.reducer
+      );
+    },
   };
 
   componentDidMount() {
@@ -64,37 +64,29 @@ export class ModuleStateView extends Component {
   }
 
   initState() {
-    const {
-      moduleKey,
-      reducer,
-      initState
-    } = this.props;
+    const { moduleKey, reducer, initState } = this.props;
 
     initState(moduleKey, reducer);
   }
 
   resetState(props) {
-    const {
-      moduleKey,
-      resetState
-    } = props;
+    const { moduleKey, resetState } = props;
 
     resetState(moduleKey);
   }
 
   render() {
-    const {
-      isStateInitialized,
-      children
-    } = this.props;
+    const { isStateInitialized, children } = this.props;
 
     return isStateInitialized ? children : null;
   }
 }
 
-
-const ModuleStateContainer = connect(mapStateToProps, mapDispatchToProps)(ModuleStateView);
-export const moduleStateHOC = (moduleKey, reducer) => ComponentToWrap => {
+const ModuleStateContainer = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ModuleStateView);
+export const moduleStateHOC = (moduleKey, reducer) => (ComponentToWrap) => {
   return class ModuleStateHOC extends Component {
     render() {
       return (

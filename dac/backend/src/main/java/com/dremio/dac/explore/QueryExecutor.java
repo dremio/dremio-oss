@@ -49,8 +49,9 @@ import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.VersionedDatasetPath;
-import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
@@ -140,6 +141,7 @@ public class QueryExecutor {
           if (job.getQueryType() == JobsProtoUtil.toBuf(queryType)
             && query.getSql().equals(job.getSql())
             && job.getJobState() == JobState.COMPLETED) {
+            SessionId sessionId = job.getSessionId() == null ? null : JobsProtoUtil.toStuff(job.getSessionId());
             try {
               if (!jobsService.getJobDetails(
                   JobDetailsRequest.newBuilder()
@@ -152,7 +154,10 @@ public class QueryExecutor {
               }
 
               statusListener.jobCompleted();
-              return new JobDataWrapper(jobsService, JobsProtoUtil.toStuff(job.getJobId()), query.getUsername());
+              return new JobDataWrapper(jobsService,
+                JobsProtoUtil.toStuff(job.getJobId()),
+                sessionId,
+                query.getUsername());
             } catch (JobNotFoundException | RuntimeException e) {
               logger.debug("job {} not found for dataset {}", job.getJobId().getId(), messagePath, e);
               // no result
@@ -164,7 +169,7 @@ public class QueryExecutor {
       }
 
       final JobSubmittedListener submittedListener = new JobSubmittedListener();
-      final JobId jobId = jobsService.submitJob(
+      final JobSubmission jobSubmission = jobsService.submitJob(
         SubmitJobRequest.newBuilder()
           .setSqlQuery(JobsProtoUtil.toBuf(query))
           .setQueryType(JobsProtoUtil.toBuf(queryType))
@@ -177,7 +182,7 @@ public class QueryExecutor {
         new MultiJobStatusListener(statusListener, submittedListener));
       submittedListener.await();
 
-      return new JobDataWrapper(jobsService, jobId, query.getUsername());
+      return new JobDataWrapper(jobsService, jobSubmission.getJobId(), jobSubmission.getSessionId(), query.getUsername());
     } catch (UserRemoteException e) {
       throw new DACRuntimeException(format("Failure while running %s query for dataset %s :\n%s", queryType, messagePath, query) + "\n" + e.getMessage(), e);
     }
@@ -204,11 +209,12 @@ public class QueryExecutor {
       null, context.getUserPrincipal().getName());
     // We still need to truncate the results to 500 as the preview physical datasets doesn't support pagination yet
     final CompletionListener listener = new CompletionListener();
-    final JobId jobId = jobsService.submitJob(
+    final JobSubmission jobSubmission = jobsService.submitJob(
       SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(com.dremio.service.job.QueryType.UI_INITIAL_PREVIEW).build(),
       listener);
     listener.awaitUnchecked();
 
-    return new JobDataWrapper(jobsService, jobId, SystemUser.SYSTEM_USERNAME).truncate(allocator, 500);
+    return new JobDataWrapper(jobsService, jobSubmission.getJobId(), jobSubmission.getSessionId(), SystemUser.SYSTEM_USERNAME)
+      .truncate(allocator, 500);
   }
 }

@@ -28,11 +28,15 @@ import org.apache.commons.io.FileUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 import com.dremio.fmpp.mojo.MavenDataLoader.MavenData;
 import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
+
 import fmpp.Engine;
 import fmpp.ProgressListener;
 import fmpp.progresslisteners.TerseConsoleProgressListener;
@@ -42,62 +46,47 @@ import fmpp.util.MiscUtil;
 /**
  * a maven plugin to run the freemarker generation incrementally
  * (if output has not changed, the files are not touched)
- * @goal generate
- * @phase generate-sources
  */
+@Mojo(name = "generate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class FMPPMojo extends AbstractMojo {
 
   /**
    * Used to add new source directories to the build.
-   * @parameter default-value="${project}"
-   * @required
-   * @readonly
    **/
+  @Parameter(defaultValue = "${project}", readonly = true, required = true)
   private MavenProject project;
 
   /**
    * Where to find the FreeMarker template files.
-   *
-   * @parameter default-value="src/main/resources/fmpp/templates/"
-   * @required
    */
+  @Parameter(defaultValue = "src/main/resources/fmpp/templates/", required = true)
   private File templates;
 
   /**
    * Where to write the generated files of the output files.
-   *
-   * @parameter default-value="${project.build.directory}/generated-sources/fmpp/"
-   * @required
    */
+  @Parameter(defaultValue = "${project.build.directory}/generated-sources/fmpp/", required = true)
   private File output;
 
   /**
    * Location of the FreeMarker config file.
-   *
-   * @parameter default-value="src/main/resources/fmpp/config.fmpp"
-   * @required
    */
+  @Parameter(defaultValue = "src/main/resources/fmpp/config.fmpp", required = true)
   private File config;
 
   /**
    * compilation scope to be added to ("compile" or "test")
-   *
-   * @parameter default-value="compile"
-   * @required
    */
+  @Parameter(defaultValue = "compile", required = true)
   private String scope;
 
-  /**
-   * @parameter
-   */
+  @Parameter
   private String data;
 
   /**
    * if maven properties are added as data
-   *
-   * @parameter default-value="true"
-   * @required
    */
+  @Parameter(defaultValue = "true", required = true)
   private boolean addMavenDataLoader;
 
   @Override
@@ -181,9 +170,9 @@ public class FMPPMojo extends AbstractMojo {
   }
 
   private static final class Report {
-    int changedFiles;
-    int unchangedFiles;
-    int newFiles;
+    private int changedFiles;
+    private int unchangedFiles;
+    private int newFiles;
     Report(int changedFiles, int unchangedFiles, int newFiles) {
       super();
       this.changedFiles = changedFiles;
@@ -253,5 +242,4 @@ public class FMPPMojo extends AbstractMojo {
     }
     return report;
   }
-
 }

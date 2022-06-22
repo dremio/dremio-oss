@@ -24,6 +24,7 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -113,6 +114,12 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @DisplayMetadata(label = "Client ID")
   public String clientId = "";
 
+
+  @Tag(16)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -146,6 +153,11 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @Override
   public boolean isAsyncEnabled() {
     return asyncEnabled;
+  }
+
+  @Override
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
   }
 
   @Override

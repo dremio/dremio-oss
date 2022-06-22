@@ -17,7 +17,6 @@ package com.dremio.resource;
 
 import java.io.Closeable;
 
-
 import com.dremio.exec.proto.CoordinationProtos;
 
 /**

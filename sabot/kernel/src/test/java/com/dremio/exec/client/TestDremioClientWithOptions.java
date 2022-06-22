@@ -21,6 +21,7 @@ import static com.dremio.TestBuilder.mapOf;
 import java.util.Properties;
 
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -56,6 +57,7 @@ public class TestDremioClientWithOptions extends BaseTestQuery {
   }
 
   @Test // DX-5338
+  @Ignore("DX-50441")
   public void supportFullyQualifiedProjectsQueryView() throws Exception {
     try {
       properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");

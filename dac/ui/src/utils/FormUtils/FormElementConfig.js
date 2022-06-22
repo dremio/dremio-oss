@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from 'utils/FormUtils/FormUtils';
-import TextWrapper from 'components/Forms/Wrappers/TextWrapper';
-import TextareaWrapper from 'components/Forms/Wrappers/TextareaWrapper';
-import CheckboxWrapper from 'components/Forms/Wrappers/CheckboxWrapper';
-import SelectWrapper from 'components/Forms/Wrappers/SelectWrapper';
-import RadioWrapper from 'components/Forms/Wrappers/RadioWrapper';
-import DurationWrapper from 'components/Forms/Wrappers/DurationWrapper';
-import ByteWrapper from 'components/Forms/Wrappers/ByteWrapper';
-import SqlWrapper from 'components/Forms/Wrappers/SqlWrapper';
+import FormUtils from "utils/FormUtils/FormUtils";
+import TextWrapper from "components/Forms/Wrappers/TextWrapper";
+import TextareaWrapper from "components/Forms/Wrappers/TextareaWrapper";
+import CheckboxWrapper from "components/Forms/Wrappers/CheckboxWrapper";
+import SelectWrapper from "components/Forms/Wrappers/SelectWrapper";
+import RadioWrapper from "components/Forms/Wrappers/RadioWrapper";
+import DurationWrapper from "components/Forms/Wrappers/DurationWrapper";
+import ByteWrapper from "components/Forms/Wrappers/ByteWrapper";
+import SqlWrapper from "components/Forms/Wrappers/SqlWrapper";
 
 /**
  * Base class for configuration of complex form elements and used as is for simple elements
@@ -37,23 +37,23 @@ export default class FormElementConfig {
     // Because this config class is used for several simple element types,
     // the renderer component is selected based on the element type
     switch (type) {
-    /* eslint-disable indent */
-      case 'text':
-      case 'number':
+      /* eslint-disable indent */
+      case "text":
+      case "number":
         return TextWrapper;
-      case 'textarea':
+      case "textarea":
         return TextareaWrapper;
-      case 'checkbox':
+      case "checkbox":
         return CheckboxWrapper;
-      case 'select':
+      case "select":
         return SelectWrapper;
-      case 'radio':
+      case "radio":
         return RadioWrapper;
-      case 'duration':
+      case "duration":
         return DurationWrapper;
-      case 'byte':
+      case "byte":
         return ByteWrapper;
-      case 'sql':
+      case "sql":
         return SqlWrapper;
       default:
         return TextWrapper;
@@ -96,11 +96,15 @@ export default class FormElementConfig {
   addInitValues(initValues) {
     if (this._config.value === undefined) return initValues;
 
-    return FormUtils.addInitValue(initValues, this._config.propName, this._config.value, this._config.multiplier);
+    return FormUtils.addInitValue(
+      initValues,
+      this._config.propName,
+      this._config.value,
+      this._config.multiplier
+    );
   }
 
   addValidators(validations) {
     return FormUtils.addValidators(validations, this._config);
   }
-
 }

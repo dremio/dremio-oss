@@ -14,22 +14,32 @@
  * limitations under the License.
  */
 @font-face {
-    font-family: 'DremioIconsOld';
-    src: url('../fonts/DremioIcons.woff');
-    font-weight: normal;
-    font-style: normal;
+  font-family: "DremioIconsOld";
+  src: url("../fonts/DremioIcons.woff");
+  font-weight: normal;
+  font-style: normal;
 }
-[class*='dremioIconOld-']:before{
-   display: inline-block;
-   font-family: 'DremioIconsOld';
-   font-style: normal;
-   font-weight: normal;
-   line-height: 1;
-   -webkit-font-smoothing: antialiased;
-   -moz-osx-font-smoothing: grayscale
+[class*="dremioIconOld-"]:before {
+  display: inline-block;
+  font-family: "DremioIconsOld";
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-.dremioIconOld-HeaderJobs:before{content:'\0041';}
-.dremioIconOld-HeaderHelp:before{content:'\0042';}
-.dremioIconOld-HeaderDataset:before{content:'\0043';}
-.dremioIconOld-HeaderTutorials:before{content:'\0044';}
-.dremioIconOld-HeaderSettings:before{content:'\0045';}
+.dremioIconOld-HeaderJobs:before {
+  content: "\0041";
+}
+.dremioIconOld-HeaderHelp:before {
+  content: "\0042";
+}
+.dremioIconOld-HeaderDataset:before {
+  content: "\0043";
+}
+.dremioIconOld-HeaderTutorials:before {
+  content: "\0044";
+}
+.dremioIconOld-HeaderSettings:before {
+  content: "\0045";
+}

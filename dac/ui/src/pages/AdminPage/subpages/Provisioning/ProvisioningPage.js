@@ -13,49 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { compose } from 'redux';
-import { withRouter } from 'react-router';
-import { injectIntl, FormattedMessage } from 'react-intl';
+import { Component } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { injectIntl, FormattedMessage } from "react-intl";
+import { openConfirmationModal } from "dremio-ui-lib";
 
-import withEnginePrivileges from '@inject/pages/AdminPage/subpages/Provisioning/withEnginePrivileges';
+import withEnginePrivileges from "@inject/pages/AdminPage/subpages/Provisioning/withEnginePrivileges";
 
 import {
-  loadProvision, removeProvision,
-  openAddProvisionModal, openEditProvisionModal,
-  editProvision, openAdjustWorkersModal
-} from '@app/actions/resources/provisioning';
-import {extraProvisingPageMapDispatchToProps } from '@inject/actions/resources/provisioning';
-import { showConfirmationDialog } from '@app/actions/confirmation';
-import { addNotification } from '@app/actions/notification';
-import { getViewState } from '@app/selectors/resources';
-import { getAllProvisions } from '@app/selectors/provision';
-import { PROVISION_MANAGERS } from 'dyn-load/constants/provisioningPage/provisionManagers';
-import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
-import Art from '@app/components/Art';
-import SettingHeader from '@app/components/SettingHeader';
-import ViewStateWrapper from '@app/components/ViewStateWrapper';
-import { page, pageContent } from '@app/uiTheme/radium/general';
-import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import { SingleEngineView } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineView';
-import SingleEngineHeader from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader';
-import ProvisioningPageMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/ProvisioningPageMixin';
-import ClusterListView from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
+  loadProvision,
+  removeProvision,
+  openAddProvisionModal,
+  openEditProvisionModal,
+  editProvision,
+  openAdjustWorkersModal,
+} from "@app/actions/resources/provisioning";
+import { extraProvisingPageMapDispatchToProps } from "@inject/actions/resources/provisioning";
+import { showConfirmationDialog } from "@app/actions/confirmation";
+import { addNotification } from "@app/actions/notification";
+import { getViewState } from "@app/selectors/resources";
+import { getAllProvisions } from "@app/selectors/provision";
+import { PROVISION_MANAGERS } from "dyn-load/constants/provisioningPage/provisionManagers";
+import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import SettingHeader from "@app/components/SettingHeader";
+import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import { page, pageContent } from "@app/uiTheme/radium/general";
+import ApiUtils from "@app/utils/apiUtils/apiUtils";
+import { SingleEngineView } from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineView";
+import SingleEngineHeader from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeader";
+import ProvisioningPageMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/ProvisioningPageMixin";
+import ClusterListView from "@app/pages/AdminPage/subpages/Provisioning/ClusterListView";
 import {
   getRemoveFunction,
   getLoadProvisionFunction,
   getExtraFunctions,
-  getRemoveConfirmationMsgId
-} from '@inject/pages/AdminPage/subpages/Provisioning/ProvisioningPageUtils';
+  getRemoveConfirmationMsgId,
+} from "@inject/pages/AdminPage/subpages/Provisioning/ProvisioningPageUtils";
 
-const VIEW_ID = 'ProvisioningPage';
+const VIEW_ID = "ProvisioningPage";
 const PROVISION_POLL_INTERVAL = 3000;
 
-@Radium
 @ProvisioningPageMixin
 export class ProvisioningPage extends Component {
   static propTypes = {
@@ -72,11 +73,11 @@ export class ProvisioningPage extends Component {
     intl: PropTypes.object,
     canCreate: PropTypes.bool,
     location: PropTypes.object,
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   state = {
-    selectedEngineId: null
+    selectedEngineId: null,
   };
 
   pollId = 0;
@@ -87,22 +88,17 @@ export class ProvisioningPage extends Component {
     this.startPollingProvisionData(true);
     this.loadData();
     // if engineId is present in search params then load details for that engine
-    const {
-      location,
-      router
-    } = this.props;
+    const { location, router } = this.props;
     const searchParams = new URLSearchParams(location.search);
-    if (searchParams && searchParams.get('engineId')) {
-      const {
-        state: locationState
-      } = location || {};
+    if (searchParams && searchParams.get("engineId")) {
+      const { state: locationState } = location || {};
       router.push({
         ...location,
         state: {
           ...locationState,
-          selectedEngineId: searchParams.get('engineId'),
-          fromEngineListPage: true
-        }
+          selectedEngineId: searchParams.get("engineId"),
+          fromEngineListPage: true,
+        },
       });
     }
   }
@@ -114,60 +110,66 @@ export class ProvisioningPage extends Component {
 
   removeProvision = (entity) => {
     const { unselectEngine } = this;
-    const {
-      location: {
-        state: {
-          selectedEngineId
-        } = {}
-      } = {}
-    } = this.props;
+    const { location: { state: { selectedEngineId } = {} } = {} } = this.props;
     const removeFunction = getRemoveFunction(this.props);
     const loadFunction = getLoadProvisionFunction(this.props);
-    ApiUtils.attachFormSubmitHandlers(
-      removeFunction(entity.get('id'), VIEW_ID)
-    ).then(() => {
-      if (selectedEngineId) {
-        unselectEngine();
-      }
-      loadFunction(null, VIEW_ID);
-    }).catch(e => {
-      const message = e &&  e._error && e._error.message;
-      const errorMessage = message && message.get('errorMessage') || la('Failed to remove provision');
-      this.props.addNotification(<span>{errorMessage}</span>, 'error', MSG_CLEAR_DELAY_SEC);
-    });
+    ApiUtils.attachFormSubmitHandlers(removeFunction(entity.get("id"), VIEW_ID))
+      .then(() => {
+        if (selectedEngineId) {
+          unselectEngine();
+        }
+        loadFunction(null, VIEW_ID);
+        return null;
+      })
+      .catch((e) => {
+        const message = e && e._error && e._error.message;
+        const errorMessage =
+          (message && message.get("errorMessage")) ||
+          la("Failed to remove provision");
+        this.props.addNotification(
+          <span>{errorMessage}</span>,
+          "error",
+          MSG_CLEAR_DELAY_SEC
+        );
+      });
   };
 
   handleRemoveProvision = (entity) => {
-    const { intl: { formatMessage } } = this.props;
+    const {
+      intl: { formatMessage },
+    } = this.props;
     const textId = getRemoveConfirmationMsgId(entity);
-    const text = entity && entity.get('name') ? formatMessage({ id: textId }).replace('{engName}', entity.get('name')) : formatMessage({ id: textId }).replace('{engName}', 'this engine');
-    const title = formatMessage({id: 'Admin.Engine.Delete.Title'});
-    const confirmText = formatMessage({id: 'Common.Delete'});
-    this.props.showConfirmationDialog({
+    const text =
+      entity && entity.get("name")
+        ? formatMessage({ id: textId }).replace("{engName}", entity.get("name"))
+        : formatMessage({ id: textId }).replace("{engName}", "this engine");
+    const title = formatMessage({ id: "Admin.Engine.Delete.Title" });
+    const primaryButtonText = formatMessage({ id: "Common.Delete" });
+    openConfirmationModal({
       title,
-      text,
-      confirmText,
-      confirm: () => this.removeProvision(entity)
+      element: text,
+      primaryButtonText: primaryButtonText,
+      submitFn: () => this.removeProvision(entity),
     });
   };
 
   handleStopProvision = (confirmCallback) => {
     this.props.showConfirmationDialog({
-      title: la('Stop Engine'),
+      title: la("Stop Engine"),
       text: [
-        la('Existing jobs will be halted.'),
-        la('Are you sure you want to stop the engine?')
+        la("Existing jobs will be halted."),
+        la("Are you sure you want to stop the engine?"),
       ],
-      cancelText: la('Don\'t Stop Engine'),
-      confirmText: la('Stop Engine'),
-      confirm: confirmCallback
+      cancelText: la("Don't Stop Engine"),
+      confirmText: la("Stop Engine"),
+      confirm: confirmCallback,
     });
   };
 
   handleChangeProvisionState = (desiredState, entity, viewId) => {
     const data = {
       ...entity.toJS(),
-      desiredState
+      desiredState,
     };
     delete data.workersSummary; // we add this in a decorator
     // server should be ignoring these readonly fields on write
@@ -178,14 +180,16 @@ export class ProvisioningPage extends Component {
     delete data.stateChangeTime;
 
     const commitChange = () => {
-      const actionName = data.desiredState === 'STOPPED' ? 'stop' : 'start';
-      const msg = la(`Request to ${actionName} the engine has been sent to the server.`);
-      this.props.addNotification(<span>{msg}</span>, 'info');
+      const actionName = data.desiredState === "STOPPED" ? "stop" : "start";
+      const msg = la(
+        `Request to ${actionName} the engine has been sent to the server.`
+      );
+      this.props.addNotification(<span>{msg}</span>, "info");
 
       this.props.editProvision(data, viewId);
     };
 
-    if (data.desiredState === 'STOPPED') {
+    if (data.desiredState === "STOPPED") {
       this.handleStopProvision(commitChange);
     } else {
       commitChange();
@@ -193,49 +197,37 @@ export class ProvisioningPage extends Component {
   };
 
   handleEditProvision = (entity) => {
-    let clusterType = entity.get('clusterType');
+    let clusterType = entity.get("clusterType");
     if (clusterType === undefined && PROVISION_MANAGERS.length === 1) {
       clusterType = PROVISION_MANAGERS[0].clusterType;
     }
 
-    this.openEdit(this.props, entity.get('id'), clusterType);
+    this.openEdit(this.props, entity.get("id"), clusterType);
   };
 
   handleAdjustWorkers = (entity) => {
-    this.props.openAdjustWorkersModal(entity.get('id'));
+    this.props.openAdjustWorkersModal(entity.get("id"));
   };
 
   selectEngine = (engineId) => {
-    const {
-      location,
-      router
-    } = this.props;
-    const {
-      state: locationState
-    } = location || {};
+    const { location, router } = this.props;
+    const { state: locationState } = location || {};
     router.push({
       ...location,
       state: {
         ...locationState,
         selectedEngineId: engineId,
-        fromEngineListPage: true
-      }
+        fromEngineListPage: true,
+      },
     });
-  }
+  };
 
   unselectEngine = () => {
-    const {
-      router,
-      location
-    } = this.props;
+    const { router, location } = this.props;
 
-    const {
-      state: locationState
-    } = location || {};
+    const { state: locationState } = location || {};
 
-    const {
-      fromEngineListPage
-    } = locationState || {};
+    const { fromEngineListPage } = locationState || {};
 
     if (fromEngineListPage) {
       router.goBack();
@@ -244,8 +236,8 @@ export class ProvisioningPage extends Component {
         ...location,
         state: {
           ...locationState,
-          selectedEngineId: null
-        }
+          selectedEngineId: null,
+        },
       });
     }
   };
@@ -271,7 +263,10 @@ export class ProvisioningPage extends Component {
   startPollingProvisionData = (isFirst) => {
     const pollAgain = () => {
       if (!this._isUnmounted && (isFirst || this.pollId)) {
-        this.pollId = setTimeout(this.startPollingProvisionData, PROVISION_POLL_INTERVAL);
+        this.pollId = setTimeout(
+          this.startPollingProvisionData,
+          PROVISION_POLL_INTERVAL
+        );
       }
     };
     let clusterType = null;
@@ -282,29 +277,35 @@ export class ProvisioningPage extends Component {
   };
 
   getSelectedEngine = (id) => {
-    return id && this.props.provisions.find(engine => engine.get('id') === id);
+    return (
+      id && this.props.provisions.find((engine) => engine.get("id") === id)
+    );
   };
 
   renderAddEngineButton = () => (
-    <div data-qa='add-engine-button' className='settingHeader__action' onClick={this.openAddProvisionModal}>
-      <Art src='PlusSolid.svg' alt='+' className='settingPage__icon margin-right'/>
-      <FormattedMessage id='Admin.Engines.ElasticEngines.Add' />
+    <div
+      data-qa="add-engine-button"
+      className="settingHeader__action"
+      onClick={this.openAddProvisionModal}
+    >
+      <dremio-icon
+        name="interface/circle-plus"
+        alt="+"
+        class="settingPage__icon margin-right"
+      />
+      <FormattedMessage id="Admin.Engines.ElasticEngines.Add" />
     </div>
-  )
+  );
 
   renderHeader() {
     const {
       canCreate,
       provisions,
-      location: {
-        state: {
-          selectedEngineId
-        } = {}
-      } = {}
+      location: { state: { selectedEngineId } = {} } = {},
     } = this.props;
 
     const selectedEngine = this.getSelectedEngine(selectedEngineId);
-    return (selectedEngineId && selectedEngine) ?
+    return selectedEngineId && selectedEngine ? (
       <SingleEngineHeader
         engine={selectedEngine}
         unselectEngine={this.unselectEngine}
@@ -314,12 +315,15 @@ export class ProvisioningPage extends Component {
         showConfirmationDialog={this.props.showConfirmationDialog}
         provisions={provisions}
         {...getExtraFunctions(this.props)}
-      /> :
+      />
+    ) : (
       <SettingHeader
-        titleStyle={{fontSize: 20}}
-        title={la('Engines')}
+        icon="Engines.svg"
+        titleStyle={{ fontSize: 20 }}
+        title={la("Engines")}
         endChildren={canCreate ? this.renderAddEngineButton() : null}
-      />;
+      />
+    );
   }
 
   renderProvisions(selectedEngineId, provisions, viewState) {
@@ -327,38 +331,40 @@ export class ProvisioningPage extends Component {
     const queues = this.getQueues();
     return (
       <div style={styles.baseContent}>
-        {selectedEngineId && selectedEngine && <SingleEngineView
-          engine={selectedEngine} queues={queues} viewState={viewState}
-        />}
-        {!selectedEngineId && <ClusterListView
-          editProvision={this.handleEditProvision}
-          removeProvision={this.handleRemoveProvision}
-          changeProvisionState={this.handleChangeProvisionState}
-          adjustWorkers={this.handleAdjustWorkers}
-          selectEngine={this.selectEngine}
-          provisions={provisions}
-          queues={queues}
-          showConfirmationDialog={this.props.showConfirmationDialog}
-          {...getExtraFunctions(this.props)}
-        />}
+        {selectedEngineId && selectedEngine && (
+          <SingleEngineView
+            engine={selectedEngine}
+            queues={queues}
+            viewState={viewState}
+          />
+        )}
+        {!selectedEngineId && (
+          <ClusterListView
+            editProvision={this.handleEditProvision}
+            removeProvision={this.handleRemoveProvision}
+            changeProvisionState={this.handleChangeProvisionState}
+            adjustWorkers={this.handleAdjustWorkers}
+            selectEngine={this.selectEngine}
+            provisions={provisions}
+            queues={queues}
+            showConfirmationDialog={this.props.showConfirmationDialog}
+            {...getExtraFunctions(this.props)}
+          />
+        )}
       </div>
     );
   }
 
   render() {
     const {
-      location: {
-        state: {
-          selectedEngineId
-        } = {}
-      } = {},
+      location: { state: { selectedEngineId } = {} } = {},
       provisions,
-      viewState
+      viewState,
     } = this.props;
     // want to not flicker the UI as we poll
     const isInFirstLoad = !this.pollId;
     return (
-      <div id='admin-provisioning' style={page}>
+      <div id="admin-provisioning" style={page}>
         {this.renderHeader()}
         <ViewStateWrapper
           viewState={viewState}
@@ -376,25 +382,22 @@ export class ProvisioningPage extends Component {
 function mapStateToProps(state) {
   return {
     viewState: getViewState(state, VIEW_ID),
-    provisions: getAllProvisions(state)
+    provisions: getAllProvisions(state),
   };
 }
 
 export default compose(
-  connect(
-    mapStateToProps,
-    {
-      loadProvision,
-      removeProvision,
-      openAddProvisionModal,
-      openEditProvisionModal,
-      openAdjustWorkersModal,
-      showConfirmationDialog,
-      addNotification,
-      editProvision,
-      ...extraProvisingPageMapDispatchToProps
-    }
-  ),
+  connect(mapStateToProps, {
+    loadProvision,
+    removeProvision,
+    openAddProvisionModal,
+    openEditProvisionModal,
+    openAdjustWorkersModal,
+    showConfirmationDialog,
+    addNotification,
+    editProvision,
+    ...extraProvisingPageMapDispatchToProps,
+  }),
   injectIntl,
   withRouter,
   withEnginePrivileges
@@ -402,8 +405,8 @@ export default compose(
 
 const styles = {
   baseContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%'
-  }
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+  },
 };

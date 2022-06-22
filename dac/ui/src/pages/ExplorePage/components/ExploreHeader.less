@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../../components/colors.less'; // contains only variables
+@import "../../../components/colors.less"; // contains only variables
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-  .ExploreHeader-container {
-    min-height: 40px;
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .ExploreHeader__container {
+    height: 41px;
   }
-  
+
   .ExploreHeader {
     align-items: center;
-    border-bottom: 1px solid #E9EDF0;
+    border-bottom: 1px solid #e9edf0;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    padding: .4rem 1rem;
+    padding: 0.4rem 1rem;
 
     .ExploreHeader__left,
     .ExploreHeader__right {
@@ -34,10 +35,37 @@
       display: flex;
       gap: 8px;
     }
+
+    .ExploreHeader__left {
+      .preview-btn.--outlined,
+      .discard-btn.--outlined,
+      .edit-btn.--outlined {
+        color: var(--dremio--color--neutral--600);
+      }
+
+      .run-btn.--disabled,
+      .preview-btn.--disabled,
+      .discard-btn.--disabled,
+      .edit-btn.--disabled {
+        color: var(--dremio--color--neutral--300);
+      }
+    }
   }
 
   .font-icon .Loader {
-    filter: invert(95%) sepia(32%) saturate(3044%) hue-rotate(156deg) brightness(88%) contrast(91%);
+    filter: invert(95%) sepia(32%) saturate(3044%) hue-rotate(156deg)
+      brightness(88%) contrast(91%);
     margin-right: 0px !important; // Overrides inline component styles
+  }
+
+  .exploreHeaderLeft__tooltip-content {
+    display: flex;
+    align-items: center;
+    span {
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      background-color: var(--dremio--color--neutral--600);
+    }
   }
 }

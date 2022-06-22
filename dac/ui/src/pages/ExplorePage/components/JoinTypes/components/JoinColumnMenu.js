@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
-import { formLabel } from 'uiTheme/radium/typography';
-import EllipsedText from 'components/EllipsedText';
+import DragColumnMenu from "components/DragComponents/DragColumnMenu";
+import { formLabel } from "uiTheme/radium/typography";
+import EllipsedText from "components/EllipsedText";
 
-@Radium
-export default class JoinColumnMenu extends PureComponent {
+class JoinColumnMenu extends PureComponent {
   static propTypes = {
     handleDragStart: PropTypes.func,
     onDragEnd: PropTypes.func,
@@ -35,26 +34,40 @@ export default class JoinColumnMenu extends PureComponent {
     disabledColumnNames: PropTypes.instanceOf(Immutable.Set),
     type: PropTypes.string,
     nameForDisplay: PropTypes.string,
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
   };
 
   render() {
-    const { columns, disabledColumnNames, handleDragStart, onDragEnd, type, canSelect } = this.props;
-    return ( // todo: loc
+    const {
+      columns,
+      disabledColumnNames,
+      handleDragStart,
+      onDragEnd,
+      type,
+      canSelect,
+    } = this.props;
+    return (
+      // todo: loc
       <div style={[styles.base]}>
-        <div style={{...styles.titleWrap, ...formLabel}}>
-          <EllipsedText text={`Select fields from “${this.props.nameForDisplay}”${type === 'default' ? ' (current)' : ''}:`}/>
+        <div style={{ ...styles.titleWrap, ...formLabel }}>
+          <EllipsedText
+            text={`Select fields from “${this.props.nameForDisplay}”${
+              type === "default" ? " (current)" : ""
+            }:`}
+          />
         </div>
         <DragColumnMenu
           style={styles.menu}
           items={columns}
           disabledColumnNames={disabledColumnNames}
-          type='column'
+          type="column"
           fieldType={type}
-          handleDragStart={handleDragStart && handleDragStart.bind(this, this.props.type)}
+          handleDragStart={
+            handleDragStart && handleDragStart.bind(this, this.props.type)
+          }
           onDragEnd={onDragEnd}
           dragType={this.props.dragType}
-          name={this.props.nameForDisplay + ' <current>'}
+          name={this.props.nameForDisplay + " <current>"}
           canAlter={canSelect}
         />
       </div>
@@ -63,20 +76,19 @@ export default class JoinColumnMenu extends PureComponent {
 }
 
 const styles = {
-  base: {
-
-  },
+  base: {},
   titleWrap: {
-    display: 'flex',
+    display: "flex",
     width: 275,
-    position: 'relative',
-    justifyContent: 'flex-start',
-    padding: '0 10px',
-    backgroundColor: '#f3f3f3',
+    position: "relative",
+    justifyContent: "flex-start",
+    padding: "0 10px",
+    backgroundColor: "#f3f3f3",
     height: 30,
-    alignItems: 'center'
+    alignItems: "center",
   },
   menu: {
-    height: 150
-  }
+    height: 150,
+  },
 };
+export default Radium(JoinColumnMenu);

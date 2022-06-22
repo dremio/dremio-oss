@@ -59,7 +59,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
   private static final Logger logger = LoggerFactory.getLogger(SchemaMerger.class);
 
-  public final static ObjectMapper MAPPER = new ObjectMapper()
+  public static final ObjectMapper MAPPER = new ObjectMapper()
       .registerModule(new GuavaModule())
       .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
       .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

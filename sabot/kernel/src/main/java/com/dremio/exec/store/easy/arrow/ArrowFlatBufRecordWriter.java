@@ -50,7 +50,7 @@ import io.netty.util.internal.PlatformDependent;
  *    <4 byte offset array len>
  *    Array<8 byte batch offsets>
  *    Array<4 byte batch counts>
- *    <8 byte footer start offset></8>
+ *    <8 byte footer start offset>
  */
 public class ArrowFlatBufRecordWriter implements RecordWriter {
 
@@ -176,7 +176,7 @@ public class ArrowFlatBufRecordWriter implements RecordWriter {
 
       final long fileSize = outputStream.getPosition();
 
-      outputEntryListener.recordsWritten(recordCount, fileSize, null, null, null, null, null, null);
+      outputEntryListener.recordsWritten(recordCount, fileSize, null, null, null, null, null, null, null);
       isClosed = true;
     }
   }

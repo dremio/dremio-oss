@@ -13,33 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
-import { connect } from 'react-redux';
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
+import { connect } from "react-redux";
 
-import config from 'dyn-load/utils/config';
-import { getAnalyzeToolsConfig } from '@app/utils/config';
-import MenuItem from 'components/Menus/MenuItem';
-import SubMenu from 'components/Menus/SubMenu';
-import Art from 'components/Art';
-import AnalyzeMenuItems from 'components/Menus/AnalyzeMenuItems';
+import config from "dyn-load/utils/config";
+import { getAnalyzeToolsConfig } from "@app/utils/config";
+import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
+import MenuItem from "components/Menus/MenuItem";
+import SubMenu from "components/Menus/SubMenu";
+import Art from "components/Art";
+import AnalyzeMenuItems from "components/Menus/AnalyzeMenuItems";
 
-import { openTableau, openQlikSense, openPowerBI } from 'actions/explore/download';
+import {
+  openTableau,
+  openQlikSense,
+  openPowerBI,
+} from "actions/explore/download";
 
 @injectIntl
 export class AnalyzeMenuItem extends PureComponent {
-
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
     openTableau: PropTypes.func,
     openQlikSense: PropTypes.func,
     openPowerBI: PropTypes.func,
-    settings: PropTypes.instanceOf(Immutable.Map),
     closeMenu: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   handleTableauClick = () => {
@@ -58,45 +61,62 @@ export class AnalyzeMenuItem extends PureComponent {
   };
 
   haveEnabledTools = (analyzeToolsConfig) => {
-    return analyzeToolsConfig.tableau.enabled
-      || analyzeToolsConfig.powerbi.enabled
-      || analyzeToolsConfig.qlik.enabled;
+    if (HANDLE_THROUGH_API) {
+      const supportFlags = localStorage.getItem("supportFlags")
+        ? JSON.parse(localStorage.getItem("supportFlags"))
+        : null;
+
+      return (
+        supportFlags &&
+        (supportFlags["client.tools.tableau"] ||
+          supportFlags["client.tools.powerbi"] ||
+          analyzeToolsConfig.qlik.enabled)
+      );
+    } else {
+      return (
+        analyzeToolsConfig.tableau.enabled ||
+        analyzeToolsConfig.powerbi.enabled ||
+        analyzeToolsConfig.qlik.enabled
+      );
+    }
   };
 
   render() {
-    const { settings } = this.props;
-    const analyzeToolsConfig = getAnalyzeToolsConfig(settings, config);
+    const analyzeToolsConfig = getAnalyzeToolsConfig(config);
     if (!this.haveEnabledTools(analyzeToolsConfig)) return null;
 
-    return <MenuItem
-      rightIcon={<Art src='TriangleRight.svg' alt={''} style={styles.rightIcon} />}
-      menuItems={[
-        <SubMenu key='analyze-with'>
-          <AnalyzeMenuItems
-            openTableau={this.handleTableauClick}
-            openPowerBI={this.handlePowerBIClick}
-            openQlikSense={this.handleQlikClick}
-            analyzeToolsConfig={analyzeToolsConfig}
-          />
-        </SubMenu>
-      ]}>{la('Analyze With')}</MenuItem>;
+    return (
+      <MenuItem
+        rightIcon={
+          <Art src="TriangleRight.svg" alt={""} style={styles.rightIcon} />
+        }
+        menuItems={[
+          <SubMenu key="analyze-with">
+            <AnalyzeMenuItems
+              openTableau={this.handleTableauClick}
+              openPowerBI={this.handlePowerBIClick}
+              openQlikSense={this.handleQlikClick}
+              analyzeToolsConfig={analyzeToolsConfig}
+            />
+          </SubMenu>,
+        ]}
+      >
+        {la("Analyze With")}
+      </MenuItem>
+    );
   }
 }
 
-const mapStateToProps = (state) => ({
-  settings: state.resources.entities.get('setting')
-});
-
-export default connect(mapStateToProps, {
+export default connect(null, {
   openTableau,
   openQlikSense,
-  openPowerBI
+  openPowerBI,
 })(AnalyzeMenuItem);
 
 const styles = {
   rightIcon: {
     width: 25,
     height: 25,
-    marginRight: -10
-  }
+    marginRight: -10,
+  },
 };

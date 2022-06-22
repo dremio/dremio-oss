@@ -32,6 +32,7 @@ import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListRefle
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.job.DCSActiveJobSummary;
 import com.dremio.service.sysflight.ProtobufRecordReader;
 import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SysFlightStreamObserver;
@@ -66,6 +67,33 @@ public class SysFlightTablesProvider {
       return ProtobufRecordReader.getSchema(ActiveJobSummary.getDescriptor());
     }
   }
+
+  /**
+   * DCS Jobs table
+   */
+  public static class DCSJobsTable implements SysFlightDataProvider {
+    private final Provider<ChronicleGrpc.ChronicleStub> jobsStub;
+    public DCSJobsTable(Provider<ChronicleGrpc.ChronicleStub> jobsStub) {
+      this.jobsStub = jobsStub;
+    }
+
+    @Override
+    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
+      int recordBatchSize) {
+      ActiveJobsRequest.Builder requestBuilder = ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery());
+      if(!(ticket.getUserName().equals(""))){
+        requestBuilder.setUserName(ticket.getUserName());
+      }
+      jobsStub.get().getActiveJobs(requestBuilder.build(), new SysFlightStreamObserver<>(allocator, listener,
+        DCSActiveJobSummary.getDescriptor(), recordBatchSize));
+    }
+
+    @Override
+    public BatchSchema getSchema() {
+      return ProtobufRecordReader.getSchema(DCSActiveJobSummary.getDescriptor());
+    }
+  }
+
 
   /**
    * Reflections table

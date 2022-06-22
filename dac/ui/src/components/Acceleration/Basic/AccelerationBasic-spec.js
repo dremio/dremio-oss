@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import {AccelerationBasic} from './AccelerationBasic';
+import { AccelerationBasic } from "./AccelerationBasic";
 
 const context = {
   context: {
-    reflectionSaveErrors: Immutable.fromJS({})
-  }
+    reflectionSaveErrors: Immutable.fromJS({}),
+  },
 };
 
-describe('AccelerationBasic', () => {
+describe("AccelerationBasic", () => {
   let minimalProps;
   let commonProps;
 
@@ -32,51 +32,77 @@ describe('AccelerationBasic', () => {
     minimalProps = {
       location: {},
       dataset: Immutable.fromJS({
-        id: '1',
-        path: ['path', 'name']
+        id: "1",
+        path: ["path", "name"],
       }),
       reflections: Immutable.fromJS({
-        a: {id: 'a', type: 'AGGREGATION', measureFields: ['cm1'], dimensionFields: ['cd1']},
-        b: {id: 'b', type: 'RAW', displayFields: ['cm1']}
+        a: {
+          id: "a",
+          type: "AGGREGATION",
+          measureFields: ["cm1"],
+          dimensionFields: ["cd1"],
+        },
+        b: { id: "b", type: "RAW", displayFields: ["cm1"] },
       }),
       fields: {
         rawReflections: [],
-        aggregationReflections: []
-      }
+        aggregationReflections: [],
+      },
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AccelerationBasic {...minimalProps}/>, context);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AccelerationBasic {...minimalProps} />, context);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AccelerationBasic {...commonProps}/>, context);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<AccelerationBasic {...commonProps} />, context);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#getHighlightedSection()', () => {
-    it('none', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps}/>, context).instance();
+  describe("#getHighlightedSection()", () => {
+    it("none", () => {
+      const instance = shallow(
+        <AccelerationBasic {...commonProps} />,
+        context
+      ).instance();
       expect(instance.getHighlightedSection()).to.be.equal(null);
     });
 
-    it('AGGREGATION', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'a'}}}/>, context).instance();
-      expect(instance.getHighlightedSection()).to.be.equal('AGGREGATION');
+    it("AGGREGATION", () => {
+      const instance = shallow(
+        <AccelerationBasic
+          {...commonProps}
+          location={{ state: { layoutId: "a" } }}
+        />,
+        context
+      ).instance();
+      expect(instance.getHighlightedSection()).to.be.equal("AGGREGATION");
     });
 
-    it('RAW', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'b'}}}/>, context).instance();
-      expect(instance.getHighlightedSection()).to.be.equal('RAW');
+    it("RAW", () => {
+      const instance = shallow(
+        <AccelerationBasic
+          {...commonProps}
+          location={{ state: { layoutId: "b" } }}
+        />,
+        context
+      ).instance();
+      expect(instance.getHighlightedSection()).to.be.equal("RAW");
     });
 
-    it('missing', () => {
-      const instance = shallow(<AccelerationBasic {...commonProps} location={{state:{layoutId:'n/a'}}}/>, context).instance();
+    it("missing", () => {
+      const instance = shallow(
+        <AccelerationBasic
+          {...commonProps}
+          location={{ state: { layoutId: "n/a" } }}
+        />,
+        context
+      ).instance();
       expect(instance.getHighlightedSection()).to.be.equal(undefined);
     });
   });

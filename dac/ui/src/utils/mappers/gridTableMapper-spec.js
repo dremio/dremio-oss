@@ -13,43 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import gridTableMapper from './gridTableMapper';
-import tableMockedData from './mocks/gridMapper/table.json';
-import tableMockedDataExpected from './mocks/gridMapper/expected.json';
+import gridTableMapper from "./gridTableMapper";
+import tableMockedData from "./mocks/gridMapper/table.json";
+import tableMockedDataExpected from "./mocks/gridMapper/expected.json";
 
-describe('Test grid mappers', () => {
-  it('test simple data map', () => {
-    expect(gridTableMapper.mapJson({}, tableMockedData, 1, true)).to.eql(tableMockedDataExpected);
+describe("Test grid mappers", () => {
+  it("test simple data map", () => {
+    expect(gridTableMapper.mapJson({}, tableMockedData, 1, true)).to.eql(
+      tableMockedDataExpected
+    );
   });
 
-  describe('#sortFunctions', () => {
-    it('should ignore double quotes in func.name and return сorrectly sorted array', () => {
+  describe("#sortFunctions", () => {
+    it("should ignore double quotes in func.name and return сorrectly sorted array", () => {
       const result = {
         funcs: [
-          { name: 'AVG'},
-          { name: 'MAX'},
-          { name: 'STDDEV'},
-          { name: 'VAR_POP'},
-          { name: '"CORR"'},
-          { name: '"LEFT"'},
-          { name: 'TO_CHAR'},
-          { name: 'TO_TIMESTAMP'},
-          { name: 'DATE_TRUNC'}
-        ]
+          { name: "AVG" },
+          { name: "MAX" },
+          { name: "STDDEV" },
+          { name: "VAR_POP" },
+          { name: '"CORR"' },
+          { name: '"LEFT"' },
+          { name: "TO_CHAR" },
+          { name: "TO_TIMESTAMP" },
+          { name: "DATE_TRUNC" },
+        ],
       };
       gridTableMapper.sortFunctions(result);
       expect(result).to.eql({
         funcs: [
-          { name: 'AVG'},
-          { name: '"CORR"'},
-          { name: 'DATE_TRUNC'},
-          { name: '"LEFT"'},
-          { name: 'MAX'},
-          { name: 'STDDEV'},
-          { name: 'TO_CHAR'},
-          { name: 'TO_TIMESTAMP'},
-          { name: 'VAR_POP'}
-        ]
+          { name: "AVG" },
+          { name: '"CORR"' },
+          { name: "DATE_TRUNC" },
+          { name: '"LEFT"' },
+          { name: "MAX" },
+          { name: "STDDEV" },
+          { name: "TO_CHAR" },
+          { name: "TO_TIMESTAMP" },
+          { name: "VAR_POP" },
+        ],
       });
     });
   });

@@ -200,7 +200,7 @@ public class InterpreterEvaluator {
 
     @Override
     public ValueHolder visitBooleanConstant(ValueExpressions.BooleanExpression e,Integer value) throws RuntimeException {
-      return ValueHolderHelper.getBitHolder(e.getBoolean() == false ? 0 : 1);
+      return ValueHolderHelper.getBitHolder(e.getBoolean() ? 1 : 0);
     }
 
     @Override

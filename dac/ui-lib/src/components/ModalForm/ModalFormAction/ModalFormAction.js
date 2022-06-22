@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import clsx from 'clsx';
+import clsx from "clsx";
 
-import './modalFormAction.scss';
-import Button from '../../Button';
-import * as ButtonTypes from '../../Button/ButtonTypes';
-import DialogContext from '../../Dialog/DialogContext';
+import "./modalFormAction.scss";
+import Button from "../../Button";
+import * as ButtonTypes from "../../Button/ButtonTypes";
+import DialogContext from "../../Dialog/DialogContext";
 
 export const MODAL_FORM_ACTION_DIRECTION = {
-  LEFT: 'left',
-  RIGHT: 'right'
+  LEFT: "left",
+  RIGHT: "right",
 };
 
 const ModalFormAction = (props) => {
@@ -45,19 +45,21 @@ const ModalFormAction = (props) => {
     text,
     title,
     type,
-    direction
+    direction,
   } = props;
 
   const updatedClassName = clsx([
-    'modalFormAction',
-    { 'modalFormAction--left': direction === MODAL_FORM_ACTION_DIRECTION.LEFT },
-    { 'modalFormAction--right': direction === MODAL_FORM_ACTION_DIRECTION.RIGHT }
+    "modalFormAction",
+    { "modalFormAction--left": direction === MODAL_FORM_ACTION_DIRECTION.LEFT },
+    {
+      "modalFormAction--right": direction === MODAL_FORM_ACTION_DIRECTION.RIGHT,
+    },
   ]);
 
   const handleClick = (onClose, ...args) => {
     if (isClose && !onClick) {
       onClose(...args);
-    } else if (onClick && typeof onClick === 'function') {
+    } else if (onClick && typeof onClick === "function") {
       onClick(...args);
     }
   };
@@ -104,11 +106,11 @@ ModalFormAction.propTypes = {
   style: PropTypes.object,
   title: PropTypes.string,
   dataQa: PropTypes.string,
-  direction: PropTypes.oneOf(Object.values(MODAL_FORM_ACTION_DIRECTION))
+  direction: PropTypes.oneOf(Object.values(MODAL_FORM_ACTION_DIRECTION)),
 };
 
 ModalFormAction.defaultProps = {
-  direction: MODAL_FORM_ACTION_DIRECTION.LEFT
+  direction: MODAL_FORM_ACTION_DIRECTION.LEFT,
 };
 
 export default ModalFormAction;

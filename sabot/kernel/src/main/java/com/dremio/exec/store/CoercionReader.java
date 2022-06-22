@@ -237,6 +237,6 @@ public class CoercionReader extends AbstractRecordReader {
     String op = String.format("CoercionReader:%d:%d:%d, %s --> %s", h.getMajorFragmentId(), h.getMinorFragmentId(), context.getStats().getOperatorId(), incoming.getSchema(), projectorOut.getSchema());
     System.out.println(op);
     mutator.getContainer().setAllCount(2);
-    BatchPrinter.printBatch(mutator.getContainer());
+    BatchPrinter.printBatch(mutator.getContainer(), true, false);
   }
 }

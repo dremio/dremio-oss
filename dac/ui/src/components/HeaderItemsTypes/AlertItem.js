@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
 
 export default class AlertItem extends Component {
-
   static propTypes = {
-    name: PropTypes.string.isRequired
+    name: PropTypes.string.isRequired,
   };
 
   constructor(props) {
@@ -29,8 +28,10 @@ export default class AlertItem extends Component {
 
   render() {
     return (
-      <div className='alert-item item'>
-        <Link to='/jobs' style={{color: '#fff'}}><span className='item-wrap'>{this.props.name}</span></Link>
+      <div className="alert-item item">
+        <Link to="/jobs" style={{ color: "#fff" }}>
+          <span className="item-wrap">{this.props.name}</span>
+        </Link>
       </div>
     );
   }

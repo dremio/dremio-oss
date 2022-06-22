@@ -13,44 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import SQL from '../SQL/SQL';
-import DatasetGraph from './DatasetGraph';
-import Dataset from './Dataset';
-import './SQLTab.less';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import SQL from "../SQL/SQL";
+import DatasetGraph from "./DatasetGraph";
+import Dataset from "./Dataset";
+import "./SQLTab.less";
 
 const SQLTab = ({
-  intl: {
-    formatMessage
-  },
+  intl: { formatMessage },
   submittedSql,
   datasetGraph,
   algebricMatch,
   isContrast,
-  onClick
+  onClick,
 }) => {
   const exceptionCheck = datasetGraph.toJS();
   return (
-    <div className='sqlTab'>
+    <div className="sqlTab">
       <SQL
         defaultContrast={isContrast}
         onClick={onClick}
         showContrast
         sqlString={submittedSql}
-        sqlClass='sqlTab__SQLBody'
-        title={formatMessage({ id: 'SubmittedSQL' })}
+        sqlClass="sqlTab__SQLBody"
+        title={formatMessage({ id: "SubmittedSQL" })}
       />
-      <span className='sqlTab__SQLGraphHeader'>
-        {formatMessage({ id: 'DataSetGraph' })}
+      <span className="sqlTab__SQLGraphHeader">
+        {formatMessage({ id: "DataSetGraph" })}
       </span>
-      <div className='sqlTab__SQLQueryVisualizer'>
-        {
-          exceptionCheck.length && exceptionCheck[0].description ?
-            <Dataset description={exceptionCheck[0].description} />
-            :
-            <DatasetGraph datasetGraph={datasetGraph} algebricMatch={algebricMatch} />
-        }
+      <div className="sqlTab__SQLQueryVisualizer">
+        {exceptionCheck.length && exceptionCheck[0].description ? (
+          <Dataset description={exceptionCheck[0].description} />
+        ) : (
+          <DatasetGraph
+            datasetGraph={datasetGraph}
+            algebricMatch={algebricMatch}
+          />
+        )}
       </div>
     </div>
   );
@@ -59,9 +59,9 @@ SQLTab.propTypes = {
   intl: PropTypes.object.isRequired,
   submittedSql: PropTypes.string,
   expandedSql: PropTypes.string,
-  datasetGraph:PropTypes.object,
+  datasetGraph: PropTypes.object,
   isContrast: PropTypes.bool,
   onClick: PropTypes.func,
-  algebricMatch: PropTypes.object
+  algebricMatch: PropTypes.object,
 };
 export default injectIntl(SQLTab);

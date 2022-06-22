@@ -13,46 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import Acceleration from './Acceleration';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import Acceleration from "./Acceleration";
 
 const reflectionsNotUsed = Immutable.fromJS([
   {
-    reflectionName: 'Reflection.TransactionAgg',
-    reflectionCreated: '1626236060790',
-    reflectionPath: 'transaction_analysis.base_views.scrubbed_transactions'
-  }
+    reflectionName: "Reflection.TransactionAgg",
+    reflectionCreated: "1626236060790",
+    reflectionPath: "transaction_analysis.base_views.scrubbed_transactions",
+  },
 ]);
 const reflectionsUsed = Immutable.fromJS([
   {
-    reflectionName: 'Raw Reflection',
-    reflectionCreated: '1626236060790',
-    reflectionPath: 'transaction_analysis.base_views.scrubbed_transactions'
+    reflectionName: "Raw Reflection",
+    reflectionCreated: "1626236060790",
+    reflectionPath: "transaction_analysis.base_views.scrubbed_transactions",
   },
   {
-    reflectionName: 'Reflection.TransactionsRaw',
-    reflectionCreated: '1626237060360',
-    reflectionPath: 'transaction_analysis.base_views.scrubbed_transactions'
-  }
+    reflectionName: "Reflection.TransactionsRaw",
+    reflectionCreated: "1626237060360",
+    reflectionPath: "transaction_analysis.base_views.scrubbed_transactions",
+  },
 ]);
 
-describe('Acceleration', () => {
+describe("Acceleration", () => {
   const minimalProps = {
     reflectionsUsed: new Immutable.List(),
     reflectionsNotUsed: new Immutable.List(),
-    location: {}
+    location: {},
   };
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<Acceleration {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('renders child correctly', () => {
+  it("renders child correctly", () => {
     minimalProps.reflectionsUsed = reflectionsUsed;
     minimalProps.reflectionsNotUsed = reflectionsNotUsed;
     const wrapper = shallow(<Acceleration {...minimalProps} />);
-    expect(wrapper.find('[data-qa="reflectionUsedTestCase"]').length).equal(reflectionsUsed.size);
-    expect(wrapper.find('[data-qa="reflectionNotUsedTestCase"]').length).equal(reflectionsNotUsed.size);
+    expect(wrapper.find('[data-qa="reflectionUsedTestCase"]').length).equal(
+      reflectionsUsed.size
+    );
+    expect(wrapper.find('[data-qa="reflectionNotUsedTestCase"]').length).equal(
+      reflectionsNotUsed.size
+    );
   });
 });

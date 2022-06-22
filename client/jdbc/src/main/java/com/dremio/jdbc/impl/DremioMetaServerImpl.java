@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.calcite.avatica.AvaticaParameter;
 import org.apache.calcite.avatica.AvaticaStatement;
 import org.apache.calcite.avatica.ColumnMetaData.StructType;
 import org.apache.calcite.avatica.Meta;
@@ -111,7 +110,7 @@ class DremioMetaServerImpl implements DremioMeta {
     return Pat.of(sb.toString());
   }
 
-  abstract private class MetadataAdapter<CalciteMetaType, Response, ResponseValue> {
+  private abstract class MetadataAdapter<CalciteMetaType, Response, ResponseValue> {
     private final Class<? extends CalciteMetaType> clazz;
 
     public MetadataAdapter(Class<? extends CalciteMetaType> clazz) {
@@ -159,10 +158,10 @@ class DremioMetaServerImpl implements DremioMeta {
       }
     }
 
-    abstract protected RequestStatus getStatus(Response response);
-    abstract protected DremioPBError getError(Response response);
-    abstract protected List<ResponseValue> getResult(Response response);
-    abstract protected CalciteMetaType adapt(ResponseValue protoValue);
+    protected abstract RequestStatus getStatus(Response response);
+    protected abstract DremioPBError getError(Response response);
+    protected abstract List<ResponseValue> getResult(Response response);
+    protected abstract CalciteMetaType adapt(ResponseValue protoValue);
   }
 
   @Override

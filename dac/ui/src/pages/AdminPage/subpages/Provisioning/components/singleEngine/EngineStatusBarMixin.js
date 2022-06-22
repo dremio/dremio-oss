@@ -14,14 +14,30 @@
  * limitations under the License.
  */
 
-import { CLUSTER_STATE } from '@app/constants/provisioningPage/provisioningConstants';
+import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
 
 export const getItems = (statusCounts) => {
   const items = [
-    {status: CLUSTER_STATE.running, label: la('Online'), count: statusCounts.active},
-    {status: CLUSTER_STATE.starting, label: la('Starting'), count: statusCounts.pending},
-    {status: CLUSTER_STATE.provisioning, label: la('Provisioning'), count: statusCounts.disconnected},
-    {status: CLUSTER_STATE.stopping, label: la('Stopping'), count: statusCounts.decommissioning}
+    {
+      status: CLUSTER_STATE.running,
+      label: la("Online"),
+      count: statusCounts.active,
+    },
+    {
+      status: CLUSTER_STATE.starting,
+      label: la("Starting"),
+      count: statusCounts.pending,
+    },
+    {
+      status: CLUSTER_STATE.provisioning,
+      label: la("Provisioning"),
+      count: statusCounts.disconnected,
+    },
+    {
+      status: CLUSTER_STATE.stopping,
+      label: la("Stopping"),
+      count: statusCounts.decommissioning,
+    },
   ];
 
   return items;

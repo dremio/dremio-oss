@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -27,7 +28,7 @@ import com.google.common.collect.ImmutableList;
 
 /**
  * {@link Catalog} implementation that caches table requests.
- * One case not handled yet is {@link Catalog#getFunctions(NamespaceKey)}.
+ * One case not handled yet is {@link SimpleCatalog#getFunctions(NamespaceKey, FunctionType)}.
  */
 public class CachingCatalog extends DelegatingCatalog {
 
@@ -72,15 +73,15 @@ public class CachingCatalog extends DelegatingCatalog {
   }
 
   @Override
-  public void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
+  public void updateView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException {
     tablesByNamespaceKey.remove(key);
-    super.updateView(key, view, attributes);
+    super.updateView(key, view, viewOptions, attributes);
   }
 
   @Override
-  public void dropView(final NamespaceKey key) throws IOException {
+  public void dropView(final NamespaceKey key, ViewOptions viewOptions) throws IOException {
     tablesByNamespaceKey.remove(key);
-    super.dropView(key);
+    super.dropView(key, viewOptions);
   }
 
   @Override
@@ -115,6 +116,16 @@ public class CachingCatalog extends DelegatingCatalog {
   @Override
   public Catalog resolveCatalog(CatalogIdentity subject) {
     return new CachingCatalog(delegate.resolveCatalog(subject), tablesByNamespaceKey);
+  }
+
+  @Override
+  public Catalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping) {
+    return new CachingCatalog(delegate.resolveCatalog(sourceVersionMapping), tablesByNamespaceKey);
+  }
+
+  @Override
+  public Catalog resolveCatalogResetContext(String sourceName, VersionContext versionContext) {
+    return new CachingCatalog(delegate.resolveCatalogResetContext(sourceName, versionContext));
   }
 
   @Override

@@ -13,8 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import moize from 'moize';
+import moize from "moize";
 
 export const memoOne = moize({
-  maxSize: 1
+  maxSize: 1,
+});
+
+export const memoDeep = moize({
+  maxSize: 1,
+  isDeepEqual: true,
 });

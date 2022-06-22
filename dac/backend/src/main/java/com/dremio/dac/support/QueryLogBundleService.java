@@ -109,7 +109,7 @@ public interface QueryLogBundleService extends Service {
           taros.write(buf, 0, len);
         }
       } catch (IOException e) {
-        logger.warn("Failed to write file {} to tar. {}", file.getName(), e);
+        logger.warn("Failed to write file {} to tar", file.getName(), e);
       } finally {
         taros.closeArchiveEntry();
         if (cleanUp) {
@@ -117,7 +117,7 @@ public interface QueryLogBundleService extends Service {
         }
       }
     } catch (Exception e) {
-      logger.warn("I/O error when read file {}. {}", file.getName(), e);
+      logger.warn("I/O error when read file {}", file.getName(), e);
     }
   }
 

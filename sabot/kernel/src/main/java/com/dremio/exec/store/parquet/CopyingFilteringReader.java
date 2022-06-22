@@ -180,6 +180,8 @@ public class CopyingFilteringReader implements RecordReader {
       throw UserException.memoryError().message("Ran out of memory while trying to copy the records.").build(logger);
     }
 
+    copyOutput.setAllCount(recordCount);
+
     for (TransferPair t : copierToOutputTransfers) {
       t.transfer();
     }

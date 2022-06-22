@@ -33,13 +33,11 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
-import com.dremio.exec.store.SampleMutator;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
-import com.google.common.base.Preconditions;
 
 /**
  * Parquet reader for datasets. This will be an inner reader of a
@@ -61,7 +59,7 @@ public class UpPromotingParquetReader implements RecordReader {
   private final ParquetDatasetSplitScanXAttr readEntry;
   private final InputStreamProvider inputStreamProvider;
   private final ParquetScanProjectedColumns projectedColumns;
-  private final List<ParquetFilterCondition> filterConditions;
+  private final ParquetFilters filters;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final String filePath;
   private final List<String> tableSchemaPath;
@@ -70,10 +68,12 @@ public class UpPromotingParquetReader implements RecordReader {
   private List<Field> droppedColumns = Collections.emptyList();
   private List<Field> updatedColumns = Collections.emptyList();
 
+  private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
+
   public UpPromotingParquetReader(OperatorContext context, ParquetReaderFactory readerFactory,
                                   BatchSchema tableSchema, ParquetScanProjectedColumns projectedColumns,
                                   Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-                                  List<ParquetFilterCondition> filterConditions, ParquetDatasetSplitScanXAttr readEntry,
+                                  ParquetFilters filters, ParquetDatasetSplitScanXAttr readEntry,
                                   FileSystem fs, MutableParquetMetadata footer, String filePath, List<String> tableSchemaPath, GlobalDictionaries dictionaries,
                                   SchemaDerivationHelper schemaHelper, boolean vectorize, boolean enableDetailedTracing,
                                   boolean supportsColocatedReads, InputStreamProvider inputStreamProvider, UserDefinedSchemaSettings userDefinedSchemaSettings) {
@@ -89,7 +89,7 @@ public class UpPromotingParquetReader implements RecordReader {
     this.schemaHelper = schemaHelper;
     this.readerFactory = readerFactory;
     this.projectedColumns = projectedColumns;
-    this.filterConditions = filterConditions;
+    this.filters = filters;
     this.inputStreamProvider = inputStreamProvider;
     this.enableDetailedTracing = enableDetailedTracing;
     this.supportsColocatedReads = supportsColocatedReads;
@@ -108,7 +108,7 @@ public class UpPromotingParquetReader implements RecordReader {
     MutatorSetupManager mutatorSetupManager = new MutatorSetupManager(context, tableSchema, footer, filePath, tableSchemaPath, schemaHelper, columnResolver);
     AdditionalColumnResolver additionalColumnResolver = new AdditionalColumnResolver(tableSchema, columnResolver);
 
-    logger.info("F[setupMutator] Footer size is {} for file {}, current row group index is {}",(footer.getBlocks() == null)? -1:footer.getBlocks().size(), filePath, readEntry.getRowGroupIndex());
+    logger.debug("F[setupMutator] Footer size is {} for file {}, current row group index is {}",(footer.getBlocks() == null)? -1:footer.getBlocks().size(), filePath, readEntry.getRowGroupIndex());
     BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
     Collection<SchemaPath> resolvedColumns = additionalColumnResolver.resolveColumns(block.getColumns());
     mutatorSetupManager.setupMutator(outputMutator, resolvedColumns, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser);
@@ -116,7 +116,6 @@ public class UpPromotingParquetReader implements RecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
 
     List<SchemaPath> projectedParquetColumns = columnResolver.getProjectedParquetColumns();
     OutputMutatorHelper.addFooterFieldsToOutputMutator(output, schemaHelper, footer, projectedParquetColumns);
@@ -127,7 +126,7 @@ public class UpPromotingParquetReader implements RecordReader {
       tableSchema,
       projectedColumns,
       globalDictionaryFieldInfoMap,
-      filterConditions,
+      filters,
       readerFactory.newFilterCreator(context, null, null, context.getAllocator()),
       ParquetDictionaryConvertor.DEFAULT,
       readEntry,
@@ -140,6 +139,7 @@ public class UpPromotingParquetReader implements RecordReader {
       supportsColocatedReads,
       inputStreamProvider,
       new ArrayList<>());
+    runtimeFilters.forEach(currentReader::addRuntimeFilter);
     currentReader.setup(output);
   }
 
@@ -162,6 +162,7 @@ public class UpPromotingParquetReader implements RecordReader {
 
   @Override
   public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    this.runtimeFilters.add(runtimeFilter);
     if (this.currentReader != null) {
       this.currentReader.addRuntimeFilter(runtimeFilter);
     }

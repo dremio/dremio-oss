@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import uuid from 'uuid';
+import uuid from "uuid";
 
 class AccountMapper {
   mapSourceCredentialList(json) {
@@ -23,7 +23,7 @@ class AccountMapper {
         name: item.name,
         type: item.type,
         properties: item.properties,
-        isOwner: item.isOwner
+        isOwner: item.isOwner,
       };
     });
   }

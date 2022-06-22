@@ -108,6 +108,7 @@ public class AccelerationListServiceImpl extends ReflectionDescriptionServiceGrp
   @Override
   public void listReflectionDependencies(ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest request,
                                         StreamObserver<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> responseObserver) {
+    logger.info("Received listReflectionDependencies request {}", request);
     Iterator<AccelerationListManager.DependencyInfo> dependencyInfos = getReflectionService().getReflectionDependencies();
     Iterator<ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse> dependenciesProto = Streams.stream(dependencyInfos).map(AccelerationListManager.DependencyInfo::toProto).iterator();
 

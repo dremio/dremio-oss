@@ -18,11 +18,16 @@ package com.dremio.service.flight;
 
 import static com.dremio.service.flight.BaseFlightQueryTest.setupBaseFlightQueryTest;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.experimental.runners.Enclosed;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.service.flight.impl.FlightWorkManager;
 
 /**
@@ -30,6 +35,9 @@ import com.dremio.service.flight.impl.FlightWorkManager;
  */
 @RunWith(Enclosed.class)
 public class TestFlightSqlServerWithTokenAuth {
+
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
 
   private static void setup() throws Exception {
     setupBaseFlightQueryTest(

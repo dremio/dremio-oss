@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { bodyWhite } from 'uiTheme/radium/typography';
+import { bodyWhite } from "uiTheme/radium/typography";
 
-import './MainHeaderItem.less';
+import "./MainHeaderItem.less";
 
-@Radium
-export default class MainHeaderItem extends Component {
+class MainHeaderItem extends Component {
   static propTypes = {
     children: PropTypes.node,
-    customStyle: PropTypes.object
+    customStyle: PropTypes.object,
   };
 
   constructor(props) {
@@ -34,19 +32,26 @@ export default class MainHeaderItem extends Component {
   }
 
   render() {
-    const {customStyle} = this.props;
+    const { customStyle } = this.props;
     return (
-      <div className='main-header-item' style={[styles.exploreHeaderItem, bodyWhite, customStyle || {}]}>
+      <div
+        className="main-header-item"
+        style={{
+          ...styles.exploreHeaderItem,
+          ...bodyWhite,
+          ...(customStyle || {}),
+        }}
+      >
         {this.props.children}
       </div>
     );
   }
 }
 
-
 const styles = {
   exploreHeaderItem: {
-    display: 'flex',
-    whiteSpace: 'nowrap'
-  }
+    display: "flex",
+    whiteSpace: "nowrap",
+  },
 };
+export default MainHeaderItem;

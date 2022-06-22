@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-export const MEMORY_UNITS = new Map([ // todo: loc
-// ['B', 1024 ** 0],
-  ['KB', 1024 ** 1],
-  ['MB', 1024 ** 2],
-  ['GB', 1024 ** 3],
-  ['TB', 1024 ** 4]
+export const MEMORY_UNITS = new Map([
+  // todo: loc
+  // ['B', 1024 ** 0],
+  ["KB", 1024 ** 1],
+  ["MB", 1024 ** 2],
+  ["GB", 1024 ** 3],
+  ["TB", 1024 ** 4],
 ]);
 
-
 export default class NumberFormatUtils {
-
   static roundNumberField(value, precision = 2) {
     return Number(parseFloat(value).toFixed(precision)).toString();
   }
@@ -37,15 +36,17 @@ export default class NumberFormatUtils {
    * @param bytes
    * @return {string}
    */
-  static makeMemoryValueString = function(bytes) {
-    const i = bytes === 0 ? 0 : Math.floor( Math.log(bytes) / Math.log(1024) );
-    return (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.?0+$/, '') + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
+  static makeMemoryValueString = function (bytes) {
+    const i = bytes === 0 ? 0 : Math.floor(Math.log(bytes) / Math.log(1024));
+    return (
+      (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.?0+$/, "") +
+      " " +
+      ["B", "kB", "MB", "GB", "TB"][i]
+    );
   };
 
   static formatMemoryInMB = (memoryInBytes) => {
-    const mbs = (memoryInBytes / MEMORY_UNITS.get('MB')).toFixed(2);
+    const mbs = (memoryInBytes / MEMORY_UNITS.get("MB")).toFixed(2);
     return `${mbs} MB`;
   };
-
-
 }

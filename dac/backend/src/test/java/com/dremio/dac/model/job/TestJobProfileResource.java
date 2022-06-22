@@ -25,7 +25,7 @@ import com.dremio.exec.proto.UserBitShared;
 
 public class TestJobProfileResource extends BaseTestServer {
 
-  UserBitShared.QueryProfile queryProfile;
+  private UserBitShared.QueryProfile queryProfile;
 
   @Before
   public void setUp() throws Exception {

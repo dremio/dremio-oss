@@ -14,13 +14,28 @@
  * limitations under the License.
  */
 
-import { getExploreState } from './explore';
+import { getExploreState } from "./explore";
 
 export const getScripts = (state: any): any[] => {
-  return state.resources.scripts.scripts;
+  return state.resources.scripts.all;
+};
+
+export const getMineScripts = (state: any): any[] => {
+  const mineScripts = state.resources.scripts.mine;
+  return mineScripts || [];
+};
+
+export const getNumberOfMineScripts = (state: any): any[] => {
+  const mineScripts = state.resources.scripts.mine;
+  return mineScripts.length || 0;
 };
 
 export const getActiveScript = (state: any): any[] => {
   const exploreState = getExploreState(state);
   return exploreState ? exploreState.view.activeScript : {};
+};
+
+export const getActiveScriptPermissions = (state: any): any[] => {
+  const exploreState = getExploreState(state);
+  return exploreState ? exploreState.view.activeScript.permissions : [];
 };

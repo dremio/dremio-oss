@@ -14,200 +14,199 @@
  * limitations under the License.
  */
 
- // This is the library for colors used in OSS
- // DX-34369: Need to replace colors with branding primary/secondary/dark colors.
+// This is the library for colors used in OSS
+// DX-34369: Need to replace colors with branding primary/secondary/dark colors.
 
- // PRIMARY COLORS
- @PRIMARY_900: #196C79;
- @PRIMARY_800: #2B8F9D;
- @PRIMARY_700: #3DA5B4;
- @PRIMARY_600: #43B8C9;
- @PRIMARY_500: #6ECBD9;
- @PRIMARY_400: #AADEE6;
- @PRIMARY_300: #D2EDF2;
- @PRIMARY_200: #E9F5F9;
- @PRIMARY_100: #F4FAFC;
+// PRIMARY COLORS
+@PRIMARY_900: #196c79;
+@PRIMARY_800: #2b8f9d;
+@PRIMARY_700: #3da5b4;
+@PRIMARY_600: #43b8c9;
+@PRIMARY_500: #6ecbd9;
+@PRIMARY_400: #aadee6;
+@PRIMARY_300: #d2edf2;
+@PRIMARY_200: #e9f5f9;
+@PRIMARY_100: #f4fafc;
 
- // SECONDARY COLORS
- @SECONDARY_900: #2A394A;
- @SECONDARY_800: #3F4C5C;
- @SECONDARY_700: #4C5B6C;
- @SECONDARY_600: #6E7987;
- @SECONDARY_500: #848D9A;
- @SECONDARY_400: #9FA6B0;
- @SECONDARY_300: #C5CAD0;
- @SECONDARY_200: #E9EDF0;
- @SECONDARY_150: #F6F7F8;
- @SECONDARY_100: #F4F6F7;
+// SECONDARY COLORS
+@SECONDARY_900: #2a394a;
+@SECONDARY_800: #3f4c5c;
+@SECONDARY_700: #4c5b6c;
+@SECONDARY_600: #6e7987;
+@SECONDARY_500: #848d9a;
+@SECONDARY_400: #9fa6b0;
+@SECONDARY_300: #c5cad0;
+@SECONDARY_200: #e9edf0;
+@SECONDARY_150: #f6f7f8;
+@SECONDARY_100: #f4f6f7;
 
- // DARK AND FOR TEXT COLORS
- @DARK_900: #202124;
- @DARK_800: #505050;
- @DARK_700: #888888;
- @DARK_600: #9C9C9C;
- @DARK_500: #B4B4B4;
- @DARK_400: #D9D9D9;
- @DARK_300: #DEDEDE;
- @DARK_200: #E5E5E5;
- @DARK_100: #F2F2F2;
- @DARK_050: #F9FAFA;
+// DARK AND FOR TEXT COLORS
+@DARK_900: #202124;
+@DARK_800: #505050;
+@DARK_700: #888888;
+@DARK_600: #9c9c9c;
+@DARK_500: #b4b4b4;
+@DARK_400: #d9d9d9;
+@DARK_300: #dedede;
+@DARK_200: #e5e5e5;
+@DARK_100: #f2f2f2;
+@DARK_050: #f9fafa;
 
- @WHITE: #FFFFFF;
- @BLACK: #000000;
+@WHITE: #ffffff;
+@BLACK: #000000;
 
- @IRON: #D2D6DA;
- @TROUT: #505862;
+@IRON: #d2d6da;
+@TROUT: #505862;
 
- @GREY: #6A7781;
- @NAVY: #2A394A;
- @BLUE: #008489;
- @TEAL: #5ED7B9;
- @ORANGE: #FFBB57;
- @LIGHT_GREY: #ECECEC;
- @PALE_NAVY: #E4F2F7;
- @DARK_NAVY: #344253;
- @PALE_BLUE: #F5FCFF;
- @PALE_ORANGE: #FFF5DC;
- @PALE_GREY: #F6F6F6;
- @MID_GREY: #555555;
- @RED: #DA3030;
- @GREEN: #81D94A;
- @CHARCOAL: #505050;
- @TRANSPARENT_COLOR: transparent;
- @TABLE_BORDER: rgba(0, 0, 0, 0.1);
- @SECONDARY_BORDER: rgba(0, 0, 0, 0.05);
- @CONTAINER_BORDER: #C2C2C2;
- @OVERLAY_BORDER: #E9E9E9;
- @COLLABORATION_BORDER: #E4E4E4;
- @font-color1: @DARK_900;
- @font-color2: #999999;
- @font-color-disabled: #bbb;
- @button-hover-bg: rgba(0, 0, 0, 0.02);
- @icon-button-hover-bg: rgba(0, 0, 0, 0.05);
- @overlay-color: rgba(255, 255, 255, 0.5);
- @btn-hover-border: #C0E9F5;
+@GREY: #6a7781;
+@NAVY: #2a394a;
+@BLUE: var(--dremio--color--link);
+@TEAL: #5ed7b9;
+@ORANGE: #ffbb57;
+@LIGHT_GREY: #ececec;
+@PALE_NAVY: #e4f2f7;
+@DARK_NAVY: #344253;
+@PALE_BLUE: #f5fcff;
+@PALE_ORANGE: #fff5dc;
+@PALE_GREY: #f6f6f6;
+@MID_GREY: #555555;
+@RED: #da3030;
+@GREEN: #81d94a;
+@CHARCOAL: #505050;
+@TRANSPARENT_COLOR: transparent;
+@TABLE_BORDER: rgba(0, 0, 0, 0.1);
+@SECONDARY_BORDER: rgba(0, 0, 0, 0.05);
+@CONTAINER_BORDER: #c2c2c2;
+@OVERLAY_BORDER: #e9e9e9;
+@COLLABORATION_BORDER: #e4e4e4;
+@font-color1: @DARK_900;
+@font-color2: #999999;
+@font-color-disabled: #bbb;
+@button-hover-bg: rgba(0, 0, 0, 0.02);
+@icon-button-hover-bg: rgba(0, 0, 0, 0.05);
+@overlay-color: rgba(255, 255, 255, 0.5);
+@btn-hover-border: #c0e9f5;
 
- @CODE_BLUE: #358da3;
- @ELM: #196C79;
- @PELOROUS: #43b8c8;
+@CODE_BLUE: #358da3;
+@ELM: #196c79;
+@PELOROUS: #43b8c8;
 
- //monaco variables
- @monaco-error: rgba(255, 18, 18, 0.7);
- @monaco-purple: #a100ff;
- @monaco-green: #0D5E33;
- @monaco-persian-green: #AA8900;
- @monaco-light-green: #79B5F6;
- @monaco-orange: #E28171;
+//monaco variables
+@monaco-error: rgba(255, 18, 18, 0.7);
+@monaco-purple: #a100ff;
+@monaco-green: #0d5e33;
+@monaco-persian-green: #aa8900;
+@monaco-light-green: #79b5f6;
+@monaco-orange: #e28171;
+@monaco-grey: #dfe2e7;
 
- @table-bg: @TRANSPARENT_COLOR;
- @table-bg-accent: #f9f9f9;
- @table-bg-hover: #f5f5f5;
- @table-bg-active: @table-bg-hover;
- @box-shadow: #c2c2c2;
- @action-btn-bg: #eeeeee;
- @action-btn-hover: @WHITE;
- @aqua-spring: #F4FAFC;
- @black-haze: #F3F4F4;
- @mercury: #E5E5E5;
- @pale-sky: #6E7987;
- @polar: #E9F5F9;
- @fordGray: #979797;
- @gainsboro: #D8D8D8;
- @secondary-blue: #E3F2F7;
- @lite-grey :#D3D3D3;
- @greyish-blue: #393D41;
- @liteSlate-grey: #848D9A;
- @bluemine: #196c79;
- @black-russian: rgba(0,0,0,0.0001);
- @solitude: #E9EDF0;
- @alto: #DDDDDD;
- @white: #FEFEFE;
- @chinese-silver: #CCCCCC;
- @liteGreyish-blue: #7F8B95;
- @white-smoke: #F1F1F1;
- @grey: #888888;
- @pale_liteGrey: #e5e5e5;
- @silver-chalice: #B2B2B2;
- @swiss-white: #DBDEDF;
- @ton-grey: #9C9C9C;
- @alice-blue: #F4F6F7;
- @outline-btn-bg:#fff;
- @outline-btn-border:#2B8F9D;
- @title-text:#7F8B95;
- @sql-link:#3F4C5C;
- @tab-bottom-border:#f3f3f3;
+@table-bg: @TRANSPARENT_COLOR;
+@table-bg-accent: #f9f9f9;
+@table-bg-hover: #f5f5f5;
+@table-bg-active: @table-bg-hover;
+@box-shadow: #c2c2c2;
+@action-btn-bg: #eeeeee;
+@action-btn-hover: @WHITE;
+@aqua-spring: #f4fafc;
+@black-haze: #f3f4f4;
+@mercury: #e5e5e5;
+@pale-sky: #6e7987;
+@polar: #e9f5f9;
+@fordGray: #979797;
+@gainsboro: #d8d8d8;
+@secondary-blue: #e3f2f7;
+@lite-grey: #d3d3d3;
+@greyish-blue: #393d41;
+@liteSlate-grey: #848d9a;
+@bluemine: #196c79;
+@black-russian: rgba(0, 0, 0, 0.0001);
+@solitude: #e9edf0;
+@alto: #dddddd;
+@white: #fefefe;
+@chinese-silver: #cccccc;
+@liteGreyish-blue: #7f8b95;
+@white-smoke: #f1f1f1;
+@grey: #888888;
+@pale_liteGrey: #e5e5e5;
+@silver-chalice: #b2b2b2;
+@swiss-white: #dbdedf;
+@ton-grey: #9c9c9c;
+@alice-blue: #f4f6f7;
+@outline-btn-bg: #fff;
+@outline-btn-border: #2b8f9d;
+@title-text: #7f8b95;
+@sql-link: #3f4c5c;
+@tab-bottom-border: #f3f3f3;
 
- // REFLECTIONS/ACCELERATION PAGES:
- @BORDER_TABLE: @SECONDARY_300;
- @BORDER_TABLE_DARK: @DARK_900;
- @TEXT_COLOR: @DARK_800;
- @CELL_EXPANSION_HEADER: #F3F3F3;
+// REFLECTIONS/ACCELERATION PAGES:
+@BORDER_TABLE: @SECONDARY_300;
+@BORDER_TABLE_DARK: @DARK_900;
+@TEXT_COLOR: @DARK_800;
+@CELL_EXPANSION_HEADER: #f3f3f3;
 
- // REFLECTIONS/ACCELERATION PAGES - BASIC VIEW
- @ACTIVE_DRAG_AREA: @PRIMARY_200;
- @ACTIVE_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
- @ACTIVE_HOVER_DRAG_AREA: @PRIMARY_200;
- @ACTIVE_DRAG_AREA_BACKGROUND_COLOR: @PRIMARY_100;
+// REFLECTIONS/ACCELERATION PAGES - BASIC VIEW
+@ACTIVE_DRAG_AREA: @PRIMARY_200;
+@ACTIVE_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
+@ACTIVE_HOVER_DRAG_AREA: @PRIMARY_200;
+@ACTIVE_DRAG_AREA_BACKGROUND_COLOR: @PRIMARY_100;
 
- @DISABLED_DRAG_AREA_BACKGROUND_COLOR: @WHITE;
- @DISABLED_DRAG_AREA: @SECONDARY_200;
+@DISABLED_DRAG_AREA_BACKGROUND_COLOR: @WHITE;
+@DISABLED_DRAG_AREA: @SECONDARY_200;
 
- @DISABLED_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
+@DISABLED_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
 
- // REFLECTIONS/ACCELERATION PAGES - ADVANCED VIEW
- @ACTIVE_ADVANCED_LIGHT_ROW: @ACTIVE_DRAG_AREA_BACKGROUND_COLOR;
- @ACTIVE_ADVANCED_DARK_ROW: @ACTIVE_HOVER_DRAG_AREA;
- @DISABLED_ADVANCED_LIGHT_ROW: @DISABLED_DRAG_AREA_BACKGROUND_COLOR;
- @DISABLED_ADVANCED_DARK_ROW: @SECONDARY_100;
+// REFLECTIONS/ACCELERATION PAGES - ADVANCED VIEW
+@ACTIVE_ADVANCED_LIGHT_ROW: @ACTIVE_DRAG_AREA_BACKGROUND_COLOR;
+@ACTIVE_ADVANCED_DARK_ROW: @ACTIVE_HOVER_DRAG_AREA;
+@DISABLED_ADVANCED_LIGHT_ROW: @DISABLED_DRAG_AREA_BACKGROUND_COLOR;
+@DISABLED_ADVANCED_DARK_ROW: @SECONDARY_100;
 
- @ADVANCED_INNER_BORDER_GREY: @BORDER_TABLE;
+@ADVANCED_INNER_BORDER_GREY: @BORDER_TABLE;
 
- // REFLECTIONS/ACCELERATION PAGES - CELLPOPOVER
- @ACTIVE_COLUMN_BORDER: #a8e7d9;
- @ACTIVE_COLUMN_BACKGROUND_COLOR: #ebf9f6;
- @ACTIVE_COLUMN_INDEX_BACKGROUND_COLOR: #96e3d1;
- @DISABLED_COLUMN_BORDER: #F0F0F0;
- @DISABLED_COLUMN_BACKGROUND_COLOR: @WHITE;
- @DISABLED_COLUMN_INDEX_BACKGROUND_COLOR: @action-btn-bg;
- @DISABLED_COLUMN_INDEX_TEXT_COLOR: #D2D2D2;
+// REFLECTIONS/ACCELERATION PAGES - CELLPOPOVER
+@ACTIVE_COLUMN_BORDER: #a8e7d9;
+@ACTIVE_COLUMN_BACKGROUND_COLOR: #ebf9f6;
+@ACTIVE_COLUMN_INDEX_BACKGROUND_COLOR: #96e3d1;
+@DISABLED_COLUMN_BORDER: #f0f0f0;
+@DISABLED_COLUMN_BACKGROUND_COLOR: @WHITE;
+@DISABLED_COLUMN_INDEX_BACKGROUND_COLOR: @action-btn-bg;
+@DISABLED_COLUMN_INDEX_TEXT_COLOR: #d2d2d2;
 
- @CLEAR_ALL_BORDER_COLOR: #CCCCCC; // DX-34369: use once SimpleButton component is refactored
- @CLEAR_ALL_BACKGROUND_COLOR: #F2F2F2; // DX-34369: use once SimpleButton component is refactored
- @NEW_REFLECTION_BUTTON_BORDER_COLOR: #D9D9D9; // DX-34369
+@CLEAR_ALL_BORDER_COLOR: #cccccc; // DX-34369: use once SimpleButton component is refactored
+@CLEAR_ALL_BACKGROUND_COLOR: #f2f2f2; // DX-34369: use once SimpleButton component is refactored
+@NEW_REFLECTION_BUTTON_BORDER_COLOR: #d9d9d9; // DX-34369
 
- // AGGREGATE STYLES:
- @BORDER_GREEN: #92E2D0;
- @BORDER_GRAY: rgba(0,0,0,0.10);
+// AGGREGATE STYLES:
+@BORDER_GREEN: #92e2d0;
+@BORDER_GRAY: rgba(0, 0, 0, 0.1);
 
-
-
-@MENU-HOVER: #E9F5F9;
+@MENU-HOVER: #e9f5f9;
 
 @datasets-search-bar-background: #f4f6f7;
 @datasets-search-field-background: #fff;
-@datasets-search-field-border: #DBDEDF;
+@datasets-search-field-border: #dbdedf;
 
 // colors for side nav
 @sideBar-background-color: #2a394a;
 @sideBar-font-color-default: #fcfcfc;
 @sideBar-font-label-color: #f4fafc;
-@sideBar-icon-image-color: #EEEFF1;
-@sideBar-icon-image-color-active: #FFFFFF;
-@sideBar-icon-active-background: #2B8F9D;
+@sideBar-icon-image-color: #eeeff1;
+@sideBar-icon-image-color-active: #ffffff;
+@sideBar-icon-active-background: #2b8f9d;
 @sideBar-account-background: #43b8c9;
-@sideBar-account-icon-text-color: #2A394A;
+@sideBar-account-icon-text-color: #2a394a;
 @sideBar-project-background: #64c5bf;
-@sideBar-project-icon-text-color: #2A394A;
-@sideBar-hover-background: #2B8F9D66;
+@sideBar-project-icon-text-color: #2a394a;
+@sideBar-hover-background: #2b8f9d66;
 @sideBar-separator-bar: #f4fafc;
 
 @input-element-border: @TABLE_BORDER;
 
-@linen: #FEEAEA;
-@red:  #d44451;
-@raven: #77818F;
-@light-blue: #8CA4E9;
-@pale-litesky: #6E7880;
+@linen: #feeaea;
+@red: #d44451;
+@raven: #77818f;
+@light-blue: #8ca4e9;
+@pale-litesky: #6e7880;
 
 // Dropdown menu
 @MAIN_TEXT: #202124;
@@ -216,37 +215,39 @@
 // FIGMA NEW DESIGN COLORS ( THESE WILL BE USED FOR THE NEW COMPONENTS/REVAMPS UNTIL WE CAN SWITCH COMPLETELY TO IT )
 
 // FIGMA PRIMARY COLORS
-@FIGMA_PRIMARY_100: #F1FAFB;
-@FIGMA_PRIMARY_150: #E9F5F9;
-@FIGMA_PRIMARY_200: #C6E9EF;
-@FIGMA_PRIMARY_500: #43B8C9;
-@FIGMA_PRIMARY_600: #2E92A1;
+@FIGMA_PRIMARY_100: #f1fafb;
+@FIGMA_PRIMARY_150: #e9f5f9;
+@FIGMA_PRIMARY_200: #c6e9ef;
+@FIGMA_PRIMARY_500: #43b8c9;
+@FIGMA_PRIMARY_600: #2e92a1;
 @FIGMA_PRIMARY_700: #206771;
-@FIGMA_PRIMARY_800: #133C42;
+@FIGMA_PRIMARY_800: #133c42;
 
 // FIGMA NEUTRAL COLORS
-@FIGMA_NEUTRAL_0: #FFFFFF;
-@FIGMA_NEUTRAL_100: #F6F7F8;
-@FIGMA_NEUTRAL_150: #EEEFF1;
-@FIGMA_NEUTRAL_200: #D2D6DA;
-@FIGMA_NEUTRAL_300: #B0B7BF;
+@FIGMA_NEUTRAL_0: #ffffff;
+@FIGMA_NEUTRAL_100: #f6f7f8;
+@FIGMA_NEUTRAL_150: #eeeff1;
+@FIGMA_NEUTRAL_200: #d2d6da;
+@FIGMA_NEUTRAL_300: #b0b7bf;
 @FIGMA_NEUTRAL_600: #505862;
-@FIGMA_NEUTRAL_700: #32383E;
+@FIGMA_NEUTRAL_700: #32383e;
 @FIGMA_NEUTRAL_850: #060607;
 
 // FIGMA TEXT COLORS
-@FIGMA_TEXT_DISABLED: #B0B7BF;
+@FIGMA_TEXT_DISABLED: #b0b7bf;
 @FIGMA_TEXT_LESS_IMPORTANT: #505862;
 @FIGMA_TEXT_MAIN: #202124;
-@FIGMA_TEXT_LINK: #008489;
 
 // FIGMA ICON COLORS
-@FIGMA_ICON_DISABLED: #D2D6DA;
+@FIGMA_ICON_DISABLED: #d2d6da;
 @FIGMA_ICON_DEFAULT: #505862;
 
 // FIGMA STATUS COLORS
-@FIGMA_STATUS_ERROR: #CA3F32;
-@FIGMA_STATUS_SUCCESS: #5ABD4A;
-@FIGMA_STATUS_WARNING: #FFA940;
+@FIGMA_STATUS_ERROR: #ca3f32;
+@FIGMA_STATUS_SUCCESS: #5abd4a;
+@FIGMA_STATUS_WARNING: #ffa940;
 
-@FIGMA_USERNAV_BACKGROUND: #F4FBFC;
+// BORDER/MISC/DIVIDERS COLOR
+@FIGMA_MISC_DIVIDERS_BORDERS: @FIGMA_NEUTRAL_150;
+
+@FIGMA_USERNAV_BACKGROUND: #f4fbfc;

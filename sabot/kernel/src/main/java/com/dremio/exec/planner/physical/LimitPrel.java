@@ -85,11 +85,7 @@ public class LimitPrel extends LimitRelBase implements Prel {
 
   public boolean isTrivial(){
     Integer last = getLast();
-    if(last != null && last <= PrelUtil.getPlannerSettings(getCluster()).getSliceTarget() ){
-      return true;
-    } else {
-      return false;
-    }
+    return last != null && last <= PrelUtil.getPlannerSettings(getCluster()).getSliceTarget();
   }
 
   @Override

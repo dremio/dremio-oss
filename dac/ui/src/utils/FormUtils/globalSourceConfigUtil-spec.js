@@ -14,38 +14,41 @@
  * limitations under the License.
  */
 
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from "lodash";
 import addAlwaysPresent, {
   crossSourceSelectionUiConfig,
   getAlwaysPresentFunctionalConfig,
-  inlineMetadataRefreshConfig
-} from './globalSourceConfigUtil';
+  inlineMetadataRefreshConfig,
+} from "./globalSourceConfigUtil";
 
-describe('globalSourceConfigUtil', () => {
-
+describe("globalSourceConfigUtil", () => {
   const defaultFunctionalConfig = {
-    elements: []
+    elements: [],
   };
 
   const defaultUiConfig = {
     form: {
       tabs: [
         {
-          name: 'General'
+          name: "General",
         },
         {
-          name: 'Advanced',
-          sections: [{
-            elements: [{
-              propName: 'config.allowCreateDrop'
-            }]
-          }]
-        }
-      ]
-    }
+          name: "Advanced",
+          sections: [
+            {
+              elements: [
+                {
+                  propName: "config.allowCreateDrop",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   };
 
-  it('adds always present config to functional config and ui config', () => {
+  it("adds always present config to functional config and ui config", () => {
     const functionalConfig = cloneDeep(defaultFunctionalConfig);
     const uiConfig = cloneDeep(defaultUiConfig);
 
@@ -53,48 +56,48 @@ describe('globalSourceConfigUtil', () => {
       ...functionalConfig,
       elements: [
         ...functionalConfig.elements,
-        ...getAlwaysPresentFunctionalConfig()
-      ]
+        ...getAlwaysPresentFunctionalConfig(),
+      ],
     };
 
     const expectedUiConfig = cloneDeep(uiConfig);
-    expectedUiConfig.form.tabs[1].sections[0].elements.push(crossSourceSelectionUiConfig, inlineMetadataRefreshConfig);
+    expectedUiConfig.form.tabs[1].sections[0].elements.push(
+      crossSourceSelectionUiConfig,
+      inlineMetadataRefreshConfig
+    );
     addAlwaysPresent(functionalConfig, uiConfig);
     expect(functionalConfig).to.deep.equal(expectedFunctionalConfig);
     expect(uiConfig).to.deep.equal(expectedUiConfig);
   });
 
-  it('handles case where there are no elements in advanced tab', () => {
+  it("handles case where there are no elements in advanced tab", () => {
     const functionalConfig = cloneDeep(defaultFunctionalConfig);
     const uiConfig = {
       form: {
         tabs: [
           {
-            name: 'General'
+            name: "General",
           },
           {
-            name: 'Advanced'
-          }
-        ]
-      }
+            name: "Advanced",
+          },
+        ],
+      },
     };
 
     const expectedFunctionalConfig = {
       ...functionalConfig,
       elements: [
         ...functionalConfig.elements,
-        ...getAlwaysPresentFunctionalConfig()
-      ]
+        ...getAlwaysPresentFunctionalConfig(),
+      ],
     };
 
     const expectedUiConfig = cloneDeep(uiConfig);
     expectedUiConfig.form.tabs[1].sections = [
       {
-        elements: [
-          crossSourceSelectionUiConfig,
-          inlineMetadataRefreshConfig
-        ]
-      }
+        elements: [crossSourceSelectionUiConfig, inlineMetadataRefreshConfig],
+      },
     ];
     addAlwaysPresent(functionalConfig, uiConfig);
     expect(functionalConfig).to.deep.equal(expectedFunctionalConfig);

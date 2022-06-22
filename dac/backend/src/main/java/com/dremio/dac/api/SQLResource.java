@@ -88,7 +88,8 @@ public class SQLResource {
     final JobId jobId = jobs.submitJob(SubmitJobRequest.newBuilder()
       .setSqlQuery(sqlQuery)
       .setQueryType(QueryType.REST)
-      .build(), listener);
+      .build(), listener)
+      .getJobId();
 
     // if async disabled, wait until job has been submitted then return
     if (!projectOptionManager.getOption(ExecConstants.REST_API_RUN_QUERY_ASYNC)) {

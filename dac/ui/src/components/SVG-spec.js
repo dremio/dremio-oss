@@ -13,37 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import SVG from './SVG';
+import SVG from "./SVG";
 
-describe('SVG-spec', () => {
+describe("SVG-spec", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      src: 'NarwhalLogo.svg',
-      'aria-label': 'some text'
+      src: "NarwhalLogo.svg",
+      "aria-label": "some text",
     };
     commonProps = {
       ...minimalProps,
-      title: 'tooltip'
+      title: "tooltip",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<SVG {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
+  it("should render with common props without exploding", () => {
     const wrapper = shallow(<SVG {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-// todo: enable test when we have such an image
-//   it('should render inline without exploding', () => {
-//     const wrapper = shallow(<SVG {...commonProps} />);
-//     expect(wrapper).to.have.length(1);
-//   });
+  // todo: enable test when we have such an image
+  //   it('should render inline without exploding', () => {
+  //     const wrapper = shallow(<SVG {...commonProps} />);
+  //     expect(wrapper).to.have.length(1);
+  //   });
 });

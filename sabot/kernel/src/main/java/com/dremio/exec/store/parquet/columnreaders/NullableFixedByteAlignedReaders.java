@@ -384,7 +384,7 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static abstract class NullableConvertedReader<V extends ValueVector> extends NullableFixedByteAlignedReader<V> {
+  abstract static class NullableConvertedReader<V extends ValueVector> extends NullableFixedByteAlignedReader<V> {
 
     protected int dataTypeLengthInBytes;
 
@@ -507,4 +507,3 @@ public class NullableFixedByteAlignedReaders {
   }
 
 }
-

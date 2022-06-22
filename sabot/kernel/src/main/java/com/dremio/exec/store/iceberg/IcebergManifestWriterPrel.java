@@ -29,7 +29,6 @@ import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
@@ -41,7 +40,7 @@ public class IcebergManifestWriterPrel extends WriterPrel {
     public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.manifest_writer.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
     public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.manifest_writer.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-    private final FileSystemCreateTableEntry createTableEntry;
+    private final CreateTableEntry createTableEntry;
 
     public IcebergManifestWriterPrel(
             RelOptCluster cluster,
@@ -49,7 +48,7 @@ public class IcebergManifestWriterPrel extends WriterPrel {
             RelNode child,
             CreateTableEntry createTableEntry) {
         super(cluster, traits, child, createTableEntry, child.getRowType());
-        this.createTableEntry = (FileSystemCreateTableEntry) createTableEntry;
+        this.createTableEntry = createTableEntry;
     }
 
     @Override

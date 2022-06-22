@@ -58,7 +58,7 @@ public class IcebergManifestListScanCreator implements ProducerOperator.Creator<
                 IcebergManifestListRecordReader(context,
                 splitXAttr.getPath(), plugin, config.getTableSchemaPath(),
                 config.getDatasourcePluginId().getName(), config.getFullSchema(), config.getProps(),
-                config.getPartitionColumns(), config.getIcebergExtendedProp());
+                config.getPartitionColumns(), config.getIcebergExtendedProp(), config.getManifestContent());
         return new ScanOperator(config, context, RecordReaderIterator.from(reader));
     }
 }

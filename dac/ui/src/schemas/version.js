@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
-export default new Schema('version', {
+export default new Schema("version", {
   idAttribute() {
-    return 'singleton';
-  }
+    return "singleton";
+  },
 });

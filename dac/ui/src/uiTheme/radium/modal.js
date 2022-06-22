@@ -15,102 +15,105 @@
  */
 
 export const overlay = {
-  backgroundColor: 'rgba(41,56,73,0.5)',
-  width: '100%',
-  height: '100%',
-  pointerEvents: 'all'
+  backgroundColor: "rgba(41,56,73,0.5)",
+  width: "100%",
+  height: "100%",
+  pointerEvents: "all",
 };
 
 export const modalContent = {
-  width: '100%',
-  border: 'none',
-  borderRadius: 3,
-  display: 'flex',
-  flexDirection: 'column',
-  margin: '0 auto',
+  width: "100%",
+  border: "none",
+  borderRadius: 4,
+  display: "flex",
+  flexDirection: "column",
+  margin: "0 auto",
   padding: 0,
   flexGrow: 1,
-  top: '10%',
-  bottom: '10%',
-  maxHeight: '80%'
+  top: "10%",
+  bottom: "10%",
+  maxHeight: "80%",
+  lineHeight: "20px",
+  fontSize: 14,
 };
 
 export const smallModal = {
   overlay,
   content: {
     ...modalContent,
-    overflow: 'visible',
+    overflow: "visible",
     width: 670,
     height: 480,
 
-    top: '10%'
-  }
+    top: "10%",
+  },
 };
 
 export const smallestModal = {
   overlay,
   content: {
     ...modalContent,
-    overflow: 'visible',
+    overflow: "visible",
     width: 450,
-    height: 200
-  }
+    height: 200,
+  },
 };
 
 export const mediumModal = {
   overlay,
   content: {
     ...modalContent,
-    width: 840
-  }
+    width: 840,
+  },
 };
 
 export const largeModal = {
   overlay,
   content: {
     ...modalContent,
-    width: '90%',
-    maxWidth: 1200
-  }
+    width: "90%",
+    maxWidth: 1200,
+  },
 };
 
 export const tallModal = {
   overlay,
   content: {
     ...modalContent,
-    width: '50%',
-    maxWidth: 440
-  }
+    width: "50%",
+    maxWidth: 440,
+  },
 };
 
 export const modalBody = {
-  display: 'flex',
-  flexDirection: 'column',
+  display: "flex",
+  flexDirection: "column",
   flexGrow: 1,
-  width: '100%',
-  height: '100%',
-  overflow: 'auto' // Seems to work but this is a hack to get around mixing flex and height: 100%. See DX-8853
+  width: "100%",
+  height: "fit-content",
+  overflow: "auto", // Seems to work but this is a hack to get around mixing flex and height: 100%. See DX-8853
 };
 
 export const modalFooter = {
-  width: '100%',
-  borderTop: '1px solid rgba(0, 0, 0, 0.1)',
-  height: 48,
-  padding: 10,
-  textAlign: 'right',
-  flexShrink: 0
+  width: "100%",
+  borderTop: "1px solid rgba(0, 0, 0, 0.1)",
+  height: 56,
+  padding: "0 11px 0 16px",
+  textAlign: "right",
+  flexShrink: 0,
 };
 
 export const modalPadding = {
-  padding: '0 15px'
+  padding: "0 16px",
 };
 
 export const confirmBodyText = {
   ...modalPadding,
   fontSize: 14,
-  display: 'flex',
+  lineHeight: "20px",
+  display: "flex",
   flexGrow: 1,
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'left'
+  flexDirection: "column",
+  justifyContent: "center",
+  alignItems: "left",
 };

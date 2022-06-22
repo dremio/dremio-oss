@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
  */
 public class MutableParquetMetadata {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MutableParquetMetadata.class);
+  private final long[] accumulatedRowCount; // Accumulation of row counts by row groups.
   private ParquetMetadata footer;
   private String fileName;
   private boolean columnsTrimmed = false;
@@ -42,7 +43,18 @@ public class MutableParquetMetadata {
   public MutableParquetMetadata(ParquetMetadata footer, String fileName) {
     this.footer = footer;
     this.fileName = fileName;
-    logger.info("Created parquet meatdata with row group size {} for file {}", footer.getBlocks().size(), this.fileName);
+    // accumulatedRowCount has counts for each row group + a total count for the file in the last element
+    this.accumulatedRowCount = new long[footer.getBlocks().size() + 1];
+
+    // Initialize accumulated row counts
+    if (footer.getBlocks().size() > 0) {
+      // Accumulation of the row count for ith row group is the summary of row counts for all row groups before ith row group.
+      accumulatedRowCount[0] = 0;
+      for (int i = 0; i < footer.getBlocks().size();  i++) {
+        accumulatedRowCount[i + 1] = accumulatedRowCount[i] + footer.getBlocks().get(i).getRowCount();
+      }
+    }
+    logger.debug("Created parquet meatdata with row group size {} for file {}", footer.getBlocks().size(), this.fileName);
   }
 
   public List<BlockMetaData> getBlocks() {
@@ -59,7 +71,7 @@ public class MutableParquetMetadata {
 
     for(int i = 0; i < blocks.size(); i++) {
       if (!rowGroupsToRetain.contains(i)) {
-        logger.info("Removing row group index {} for file {}", i, this.fileName);
+        logger.debug("Removing row group index {} for file {}", i, this.fileName);
         blocks.set(i, null);
         numRowGroupsRemoved++;
       }
@@ -68,6 +80,16 @@ public class MutableParquetMetadata {
     // ParquetMetadata returns its intenal ArrayList as part of the call to getBlocks()
     // so, it is not required to create a new footer object here
     return numRowGroupsRemoved;
+  }
+
+  public Long getAccumulatedRowCount(int rowGroupIndex) {
+    Preconditions.checkArgument(rowGroupIndex < accumulatedRowCount.length - 1, "Row group index out of bounds");
+    return accumulatedRowCount[rowGroupIndex];
+  }
+
+  public long getEndRowPos(int rowGroupIndex) {
+    Preconditions.checkArgument(rowGroupIndex < accumulatedRowCount.length - 1, "Row group index out of bounds");
+    return accumulatedRowCount[rowGroupIndex + 1];
   }
 
   private BlockMetaData stripUnneededColumnInfo(BlockMetaData blockMetaData, Set<String> parquetColumnNamesToRetain) {
@@ -129,7 +151,7 @@ public class MutableParquetMetadata {
   }
 
   public void removeRowGroupInformation(int rowGroupIndex) {
-    logger.info("Removing row group index {} for file {}", rowGroupIndex, this.fileName);
+    logger.debug("Removing row group index {} for file {}", rowGroupIndex, this.fileName);
     List<BlockMetaData> blocks = getBlocks();
     blocks.set(rowGroupIndex, null);
 

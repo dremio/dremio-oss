@@ -17,24 +17,21 @@ package com.dremio.dac.service.datasets;
 
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
 import static com.dremio.dac.util.DatasetsUtil.isTemporaryPath;
+import static com.dremio.dac.util.DatasetsUtil.printVersionViewInfo;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetUI;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetVersion;
+import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ALLPARENTS;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MAX_VERSION;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MIN_VERSION;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.lang.String.format;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -42,6 +39,7 @@ import javax.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.dac.daemon.DACDaemonModule;
@@ -62,16 +60,32 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.ViewOptions;
+import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -84,12 +98,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 
 /**
  * For creating/updating/deleting of dataset and dataset versions.
  */
+@SuppressWarnings("checkstyle:VisibilityModifier")
 public class DatasetVersionMutator {
   private static final Logger logger = LoggerFactory.getLogger(DatasetVersionMutator.class);
 
@@ -153,6 +169,65 @@ public class DatasetVersionMutator {
     putVersion(ds);
   }
 
+  public void putWithVersionedSource(VirtualDatasetUI ds, DatasetPath path, String branchName,
+                                     String savedTag, NamespaceAttribute... attributes)
+    throws DatasetNotFoundException, IOException, NamespaceException {
+    DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
+    Preconditions.checkNotNull(path);
+    VersionContext versionContext = VersionContext.ofBranch(branchName);
+    Map<String, VersionContext> contextMap = ImmutableMap.of(path.getRoot().toString(), versionContext);
+    Catalog catalog = getCatalog().resolveCatalog(contextMap);
+    BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
+    View view = Views.fieldTypesToView(
+      Iterables.getLast(datasetConfig.getFullPathList()),
+      datasetConfig.getVirtualDataset().getSql(),
+      ViewFieldsHelper.getCalciteViewFields(datasetConfig),
+      datasetConfig.getVirtualDataset().getContextList(),
+      null
+    );
+    DremioTable exist = catalog.getTable(new NamespaceKey(path.toPathList()));
+    if (exist != null && !(exist instanceof ViewTable)) {
+      throw UserException.validationError().message("Expecting getting a view but returns a entity type of %s", exist.getClass()).buildSilently();
+    } else if (exist != null && savedTag == null){
+      throw UserException.validationError().message("SavedTag cannot be null when updating a view").buildSilently();
+    } else if (exist != null && !savedTag.equals(exist.getDatasetConfig().getTag())){
+      throw UserException.resourceError().message("Your dataset may not be the most updated, please refresh").buildSilently();
+    }
+    final boolean viewExists = (exist != null);
+
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, path.getRoot().getName(), versionContext);
+    ViewOptions viewOptions = new ViewOptions.ViewOptionsBuilder()
+      .version(resolvedVersionContext)
+      .batchSchema(schema)
+      .viewUpdate(viewExists)
+      .build();
+    if (viewExists) {
+      catalog.updateView(new NamespaceKey(path.toPathList()), view, viewOptions);
+    } else {
+      catalog.createView(new NamespaceKey(path.toPathList()), view, viewOptions);
+    }
+
+    catalog = getCatalog().resolveCatalog(contextMap);
+
+    DremioTable table = catalog.getTable(new NamespaceKey(path.toPathList()));
+
+    ds.setId(table.getDatasetConfig().getId().getId());
+    ds.setSavedTag(table.getDatasetConfig().getTag());
+    logger.debug("Putting VirtualDatasetUI {} in datasetVersions store for versioned view {}",
+      printVersionViewInfo(ds),
+      path.toUnescapedString());
+    putVersion(ds);
+  }
+
+  public Catalog getCatalog() {
+    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
+      .build()));
+  }
+
+  public boolean checkIfVersionedViewEnabled(){
+    return optionManager.getOption(VERSIONED_VIEW_ENABLED);
+  }
+
   private void validatePath(DatasetPath path) {
     if (path.getRoot().getRootType() == RootType.TEMP) {
       throw new IllegalArgumentException("can not save dataset in tmp space");
@@ -205,6 +280,11 @@ public class DatasetVersionMutator {
     }
   }
 
+  public VirtualDatasetUI getVersion(DatasetPath path, DatasetVersion version)
+  {
+    return getVersion(path, version, false);
+  }
+
   /**
    * For the given path and given version, get the entry from dataset versions store, and transform to
    * {@link VirtualDatasetUI}. If the entry is available in namespace, dataset id and saved version are also set in the
@@ -213,16 +293,27 @@ public class DatasetVersionMutator {
    *
    * @param path dataset path
    * @param version dataset version
+   * @param isVersionedSource
    * @return virtual dataset UI
    * @throws DatasetVersionNotFoundException if dataset is not found in namespace and dataset versions store
    * @throws DatasetNotFoundException if dataset is found in namespace, but not in dataset versions store
    */
-  public VirtualDatasetUI getVersion(DatasetPath path, DatasetVersion version)
-      throws DatasetVersionNotFoundException, DatasetNotFoundException {
-    VirtualDatasetUI virtualDatasetUI = toVirtualDatasetUI(datasetVersions.get(new VersionDatasetKey(path, version)));
 
+  public VirtualDatasetUI getVersion(DatasetPath path, DatasetVersion version, boolean isVersionedSource)
+      throws DatasetVersionNotFoundException, DatasetNotFoundException {
+    VirtualDatasetVersion datasetVersion = datasetVersions.get(new VersionDatasetKey(path, version));
+    VirtualDatasetUI virtualDatasetUI = toVirtualDatasetUI(datasetVersions.get(new VersionDatasetKey(path, version)));
     try {
-      final DatasetConfig datasetConfig = namespaceService.getDataset(path.toNamespaceKey());
+      DatasetConfig datasetConfig;
+      if(isVersionedSource){
+        datasetConfig = datasetVersion.getDataset();
+        logger.debug("For versioned view {} got datasetConfig {} from datasetVersion store",
+          path.toUnescapedString(),
+          datasetConfig);
+      } else {
+        datasetConfig = namespaceService.getDataset(path.toNamespaceKey());
+      }
+
       if (virtualDatasetUI == null) {
         // entry exists in namespace but not in dataset versions; very likely an invalid request
         throw new DatasetNotFoundException(path, String.format("version [%s]", version));
@@ -404,7 +495,6 @@ public class DatasetVersionMutator {
    * <ul>
    *   <li>if the dataset version is temporary, no Jobs are referencing the
    *   dataset version</li>
-   *   <li>if a named dataset is recreated with the same name</li>
    * </ul>
    *
    * @param optionManagerProvider   Jobs KVStore.
@@ -432,9 +522,6 @@ public class DatasetVersionMutator {
     // limited to be at least 30 days.
     long threshold = Math.max(maxJobAgeInDays, daysThreshold);
 
-    DatasetPath lastPath = null;
-    final Set<DatasetPath> visitedNamedDatasets = new HashSet<>();
-    final Set<VersionDatasetKey> namedVdsCandidatesToDelete = new HashSet<>();
     final long now = System.currentTimeMillis();
     long deleteCount = 0;
     for (Entry<VersionDatasetKey, VirtualDatasetVersion> virtualDataset : datasetStore.find()) {
@@ -447,63 +534,10 @@ public class DatasetVersionMutator {
       if (isTemporaryPath(datasetKey.getPath().toPathList())) {
         deleteDatasetVersion(datasetStore, datasetKey);
         ++deleteCount;
-      } else if (!visitedNamedDatasets.contains(datasetKey.getPath())) {
-        visitedNamedDatasets.add(datasetKey.getPath());
-
-        // Delete the candidates when the dataset path changes.
-        // This will prevent to have a huge collection in memory.
-        if (!datasetKey.getPath().equals(lastPath)) {
-          lastPath = datasetKey.getPath();
-          deleteCount += deleteAllOrphans(datasetStore, namedVdsCandidatesToDelete);
-          namedVdsCandidatesToDelete.clear();
-        }
-
-        VersionDatasetKey start = new VersionDatasetKey(datasetKey.getPath(), MIN_VERSION);
-        VersionDatasetKey end = new VersionDatasetKey(datasetKey.getPath(), MAX_VERSION);
-        LegacyFindByRange<VersionDatasetKey> range = new LegacyFindByRange<>(start, true, end, true);
-        List<Entry<VersionDatasetKey, VirtualDatasetVersion>> allVersionsForPath =
-          StreamSupport.stream(datasetStore.find(range).spliterator(), false)
-          .collect(Collectors.toList());
-        namedVdsCandidatesToDelete.addAll(collectNamedOrphans(allVersionsForPath));
       }
     }
 
-    // Remove the remaining candidates of the last dataset path
-    if (!namedVdsCandidatesToDelete.isEmpty()) {
-      deleteCount += deleteAllOrphans(datasetStore, namedVdsCandidatesToDelete);
-    }
-
     return deleteCount;
-  }
-
-  private static long deleteAllOrphans(LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetStore,
-    Set<VersionDatasetKey> namedVdsCandidatesToDelete) {
-    long deleteCount = 0;
-    for (VersionDatasetKey versionDatasetKey : namedVdsCandidatesToDelete) {
-      deleteDatasetVersion(datasetStore, versionDatasetKey.getPath().toPathList(), versionDatasetKey.getVersion().getVersion());
-      ++deleteCount;
-    }
-    return deleteCount;
-  }
-
-
-  private static Collection<VersionDatasetKey> collectNamedOrphans(List<Entry<VersionDatasetKey, VirtualDatasetVersion>> datasetSamePath) {
-    List<Entry<VersionDatasetKey, VirtualDatasetVersion>> vds = datasetSamePath.stream()
-      .sorted(Comparator.comparingLong(o -> -o.getValue().getDataset().getCreatedAt())).collect(Collectors.toList());
-
-    final Set<VersionDatasetKey> orphans = new HashSet<>(vds.size());
-    boolean latestRoot = false;
-    for (Entry<VersionDatasetKey, VirtualDatasetVersion> datasetEntry : vds) {
-      if (!latestRoot) {
-        if (datasetEntry.getValue().getPreviousVersion() == null) {
-          latestRoot = true;
-        }
-        continue;
-      }
-
-      orphans.add(datasetEntry.getKey());
-    }
-    return orphans;
   }
 
   private static boolean withinThreshold(long daysThreshold, long now,

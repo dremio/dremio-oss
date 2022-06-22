@@ -27,16 +27,19 @@ public class IcebergExtendedProp implements Serializable {
     private final ByteString partitionSpecs;
     private final byte[] icebergExpression;
     private final long snapshotId;
+    private final String icebergSchema;
 
     @JsonCreator
     public IcebergExtendedProp(
         @JsonProperty("partitionSpecs") ByteString partitionSpecs,
         @JsonProperty("icebergExpression") byte[] icebergExpression,
-        @JsonProperty(value = "snapshotId", defaultValue = "-1") long snapshotId
+        @JsonProperty(value = "snapshotId", defaultValue = "-1") long snapshotId,
+        @JsonProperty("icebergSchema") String icebergSchema
     ) {
         this.partitionSpecs = partitionSpecs;
         this.icebergExpression = icebergExpression;
         this.snapshotId = snapshotId;
+        this.icebergSchema = icebergSchema;
     }
 
     public ByteString getPartitionSpecs() {
@@ -49,5 +52,9 @@ public class IcebergExtendedProp implements Serializable {
 
     public long getSnapshotId() {
         return snapshotId;
+    }
+
+    public String getIcebergSchema() {
+        return icebergSchema;
     }
 }

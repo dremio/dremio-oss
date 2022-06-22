@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, createRef } from 'react';
-import ReactDOM from 'react-dom';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import { Component, createRef } from "react";
+import ReactDOM from "react-dom";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import MenuItemMaterial from '@material-ui/core/MenuItem';
-import Popper from '@material-ui/core/Popper';
-import Paper from '@material-ui/core/Paper';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
-import { MENU_SELECTED } from 'uiTheme/radium/colors';
+import MenuItemMaterial from "@material-ui/core/MenuItem";
+import Popper from "@material-ui/core/Popper";
+import Paper from "@material-ui/core/Paper";
+import ClickAwayListener from "@material-ui/core/ClickAwayListener";
+import { MENU_SELECTED } from "uiTheme/radium/colors";
 
-import './MenuItem.less';
+import "./MenuItem.less";
 
 const CLOSE_SUBMENU_DELAY = 100;
 
-@Radium
-export default class MenuItem extends Component {
+class MenuItem extends Component {
   static propTypes = {
     menuItems: PropTypes.array,
     rightIcon: PropTypes.object,
@@ -42,7 +40,7 @@ export default class MenuItem extends Component {
     selected: PropTypes.bool,
     style: PropTypes.object,
     isInformational: PropTypes.bool, // shouldn't look intereactive,
-    classname: PropTypes.string
+    classname: PropTypes.string,
   };
 
   constructor(props) {
@@ -50,13 +48,13 @@ export default class MenuItem extends Component {
     this.state = {
       open: false,
       anchorOrigin: {
-        horizontal: 'right',
-        vertical: 'top'
+        horizontal: "right",
+        vertical: "top",
       },
       targetOrigin: {
-        horizontal: 'left',
-        vertical: 'top'
-      }
+        horizontal: "left",
+        vertical: "top",
+      },
     };
     this.menuItemRef = createRef();
     this.subMenuRef = createRef();
@@ -70,8 +68,13 @@ export default class MenuItem extends Component {
     if (enteredElement === window) {
       return true; // have seen this case
     }
-    return (!this.subMenuRef.current || !ReactDOM.findDOMNode(this.subMenuRef.current).contains(enteredElement))
-      && !this.menuItemRef.current.contains(enteredElement);
+    return (
+      (!this.subMenuRef.current ||
+        !ReactDOM.findDOMNode(this.subMenuRef.current).contains(
+          enteredElement
+        )) &&
+      !this.menuItemRef.current.contains(enteredElement)
+    );
   }
 
   handleMouseOver = () => {
@@ -81,32 +84,52 @@ export default class MenuItem extends Component {
 
   handleMouseLeave = (evt) => {
     if (this.shouldClose(evt)) {
-      this.delayedCloseTimer = setTimeout(this.handleRequestClose, CLOSE_SUBMENU_DELAY);
+      this.delayedCloseTimer = setTimeout(
+        this.handleRequestClose,
+        CLOSE_SUBMENU_DELAY
+      );
     }
   };
 
   handleRequestOpen = () => {
     this.setState({
-      open: true
+      open: true,
     });
   };
 
   handleRequestClose = () => {
     this.setState({
-      open: false
+      open: false,
     });
   };
 
   render() {
-    const { menuItems, rightIcon, leftIcon, title, onClick, disabled, selected, isInformational, style, classname } = this.props;
-    const itemStyle = {...styles.menuItem, ...(isInformational && styles.informational), ...(selected && styles.selected), ...style};
-    const className = classNames({disabled}, 'menu-item-inner', classname);
+    const {
+      menuItems,
+      rightIcon,
+      leftIcon,
+      title,
+      onClick,
+      disabled,
+      selected,
+      isInformational,
+      style,
+      classname,
+    } = this.props;
+    const itemStyle = {
+      ...styles.menuItem,
+      ...(isInformational && styles.informational),
+      ...(selected && styles.selected),
+      ...style,
+    };
+    const className = classNames({ disabled }, "menu-item-inner", classname);
     return (
       <div>
         <MenuItemMaterial
           style={styles.resetStyle}
           onClick={onClick}
-          disabled={disabled}>
+          disabled={disabled}
+        >
           <div
             title={title}
             onMouseOver={this.handleMouseOver}
@@ -131,20 +154,27 @@ export default class MenuItem extends Component {
           //
           // but have to manually apply the theme zIndex because our package is a bit old
           // Can go away with DX-5368
-          menuItems
-            && this.state.open
-            && <Popper
-              placement='right-start'
-              style={{overflow: 'visible', zIndex: 1300 }}
+          menuItems && this.state.open && (
+            <Popper
+              placement="right-start"
+              style={{ overflow: "visible", zIndex: 1300 }}
               open={this.state.open}
               anchorEl={this.menuItemRef.current}
             >
-              <ClickAwayListener mouseEvent='onMouseDown' onClickAway={this.handleRequestClose}>
-                <Paper ref={this.subMenuRef} onMouseLeave={this.handleMouseLeave} onMouseOver={this.handleMouseOver}>
+              <ClickAwayListener
+                mouseEvent="onMouseDown"
+                onClickAway={this.handleRequestClose}
+              >
+                <Paper
+                  ref={this.subMenuRef}
+                  onMouseLeave={this.handleMouseLeave}
+                  onMouseOver={this.handleMouseOver}
+                >
                   {menuItems}
                 </Paper>
               </ClickAwayListener>
             </Popper>
+          )
         }
       </div>
     );
@@ -155,22 +185,23 @@ const styles = {
   resetStyle: {
     minHeight: 24,
     padding: 0,
-    margin: 0
+    margin: 0,
   },
   menuItem: {
-    fontSize: 12,
-    height: 36,
+    fontSize: 14,
+    height: 32,
     paddingLeft: 16,
     paddingRight: 16,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   informational: {
-    backgroundColor: '#fff',
-    cursor: 'default'
+    backgroundColor: "#fff",
+    cursor: "default",
   },
   selected: {
-    backgroundColor: MENU_SELECTED
-  }
+    backgroundColor: MENU_SELECTED,
+  },
 };
+export default MenuItem;

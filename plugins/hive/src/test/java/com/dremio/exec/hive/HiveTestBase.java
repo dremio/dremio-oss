@@ -42,7 +42,7 @@ public class HiveTestBase extends PlanTestBase {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
 
   protected static HiveTestDataGenerator dataGenerator;
 

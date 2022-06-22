@@ -145,4 +145,3 @@ public abstract class EntryNode implements Entry {
   }
 
 }
-

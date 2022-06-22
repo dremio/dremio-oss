@@ -13,51 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import Immutable from "immutable";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { formLabel, formDefault } from 'uiTheme/radium/typography';
-import { PALE_BLUE } from 'uiTheme/radium/colors';
-import SelectFrequentValues from 'components/Fields/SelectFrequentValues';
-import { SearchField } from 'components/Fields';
+import { formLabel, formDefault } from "uiTheme/radium/typography";
+import { PALE_BLUE } from "uiTheme/radium/colors";
+import SelectFrequentValues from "components/Fields/SelectFrequentValues";
+import { SearchField } from "components/Fields";
 
-import CardFooter from './../CardFooter';
+import CardFooter from "./../CardFooter";
 
 export const MIN_VALUES_TO_SHOW_SEARCH = 6;
 
 export const MAX_SUGGESTIONS = 100;
 
 // todo: loc
-
-@Radium
-export default class ReplaceValues extends PureComponent {
-
+class ReplaceValues extends PureComponent {
   static getFields() {
-    return ['replaceValues'];
+    return ["replaceValues"];
   }
 
   static propTypes = {
     fields: PropTypes.object.isRequired,
     sqlSize: PropTypes.number,
-    valueOptions: PropTypes.instanceOf(Immutable.Map)
+    valueOptions: PropTypes.instanceOf(Immutable.Map),
   };
 
   static defaultProps = {
-    valueOptions: Immutable.fromJS({ values: [] })
+    valueOptions: Immutable.fromJS({ values: [] }),
   };
 
   state = {
-    filter: ''
-  }
+    filter: "",
+  };
 
   handleFilter = (filter) => {
     this.setState({
-      filter
+      filter,
     });
-  }
+  };
 
   filterValuesList = (values) => {
     values = values.slice(0, MAX_SUGGESTIONS);
@@ -65,51 +61,64 @@ export default class ReplaceValues extends PureComponent {
     if (!filter) {
       return values;
     }
-    return values.filter((item) =>
-      // gaurd on value (we get no value for `null` cases): DX-6985
-      item.has('value') && item.get('value').toLowerCase().includes(filter.trim().toLowerCase())
+    return values.filter(
+      (item) =>
+        // gaurd on value (we get no value for `null` cases): DX-6985
+        item.has("value") &&
+        item.get("value").toLowerCase().includes(filter.trim().toLowerCase())
     );
-  }
+  };
 
   handleAllClick = (e) => {
     e.preventDefault();
     const { valueOptions, fields } = this.props;
-    const filteredValues = this.filterValuesList(valueOptions && valueOptions.get('values')).map((value) => value.get('value')).toJS();
+    const filteredValues = this.filterValuesList(
+      valueOptions && valueOptions.get("values")
+    )
+      .map((value) => value.get("value"))
+      .toJS();
     const valuesSet = new Set(fields.replaceValues.value);
     filteredValues.forEach(valuesSet.add, valuesSet);
     fields.replaceValues.onChange([...valuesSet]);
-  }
+  };
 
   handleNoneClick = (e) => {
     e.preventDefault();
     const { valueOptions, fields } = this.props;
-    const filteredValues = this.filterValuesList(valueOptions && valueOptions.get('values')).map((value) => value.get('value')).toJS();
+    const filteredValues = this.filterValuesList(
+      valueOptions && valueOptions.get("values")
+    )
+      .map((value) => value.get("value"))
+      .toJS();
     const valuesSet = new Set(fields.replaceValues.value);
     filteredValues.forEach(valuesSet.delete, valuesSet);
     fields.replaceValues.onChange([...valuesSet]);
-  }
+  };
 
   renderSearchField() {
     const { valueOptions } = this.props;
-    return valueOptions && valueOptions.get('values').size > MIN_VALUES_TO_SHOW_SEARCH
-      ? <SearchField
+    return valueOptions &&
+      valueOptions.get("values").size > MIN_VALUES_TO_SHOW_SEARCH ? (
+      <SearchField
         showCloseIcon
-        placeholder={la('Search values…')}
+        placeholder={la("Search values…")}
         value={this.state.filter}
         onChange={this.handleFilter}
       />
-      : null;
+    ) : null;
   }
 
   renderValuesList(values) {
     const { fields } = this.props;
-    return values.size
-      ? <SelectFrequentValues
+    return values.size ? (
+      <SelectFrequentValues
         options={values.toJS()}
         field={fields.replaceValues}
         style={styles.valuesList}
       />
-      : <div style={styles.notFound}>{la('Not found')}</div>;
+    ) : (
+      <div style={styles.notFound}>{la("Not found")}</div>
+    );
   }
 
   renderSelectedValuesCount() {
@@ -118,22 +127,34 @@ export default class ReplaceValues extends PureComponent {
       return;
     }
     const numSelected = fields.replaceValues.value.length;
-    const text = `${numSelected} of ${valueOptions.get('values').size} selected`; // todo: loc
+    const text = `${numSelected} of ${
+      valueOptions.get("values").size
+    } selected`; // todo: loc
     return <em style={styles.numSelected}>{text}</em>;
   }
 
   render() {
     const { valueOptions } = this.props;
-    const filteredValues = this.filterValuesList(valueOptions && valueOptions.get('values'));
-    const footerStyle = { width: styles.valuesWrap.width, backgroundColor: PALE_BLUE };
+    const filteredValues = this.filterValuesList(
+      valueOptions && valueOptions.get("values")
+    );
+    const footerStyle = {
+      width: styles.valuesWrap.width,
+      backgroundColor: PALE_BLUE,
+    };
     return (
       <div style={styles.base}>
         <div style={styles.header}>
-          {la('Available Values')}
-          <span style={styles.bulkActions}>Select:
+          {la("Available Values")}
+          <span style={styles.bulkActions}>
+            Select:
             <a style={styles.bulkAction} onClick={this.handleAllClick}>
-              {la('All')}
-            </a> | <a style={styles.bulkAction} onClick={this.handleNoneClick}>{la('None')}</a>
+              {la("All")}
+            </a>{" "}
+            |{" "}
+            <a style={styles.bulkAction} onClick={this.handleNoneClick}>
+              {la("None")}
+            </a>
           </span>
           {this.renderSelectedValuesCount()}
         </div>
@@ -141,7 +162,10 @@ export default class ReplaceValues extends PureComponent {
           {this.renderSearchField()}
           {this.renderValuesList(filteredValues)}
         </div>
-        <CardFooter card={valueOptions} style={[footerStyle, { padding: '5px 0' }]}/>
+        <CardFooter
+          card={valueOptions}
+          style={{ ...footerStyle, padding: "5px 0" }}
+        />
       </div>
     );
   }
@@ -150,43 +174,44 @@ export default class ReplaceValues extends PureComponent {
 const styles = {
   base: {
     minWidth: 800,
-    margin: '0 10px 10px',
-    position: 'relative'
+    margin: "0 10px 10px",
+    position: "relative",
   },
   header: {
     ...formLabel,
-    lineHeight: '24px',
-    display: 'flex',
-    width: 600
+    lineHeight: "24px",
+    display: "flex",
+    width: 600,
   },
   bulkActions: {
     ...formDefault,
-    marginLeft: 20
+    marginLeft: 20,
   },
   bulkAction: {
-    margin: '0 3px'
+    margin: "0 3px",
   },
   valuesWrap: {
-    display: 'flex',
-    flexDirection: 'column',
+    display: "flex",
+    flexDirection: "column",
     height: 160,
-    background: '#fff',
-    border: '1px solid rgba(0,0,0,0.1)',
+    background: "#fff",
+    border: "1px solid rgba(0,0,0,0.1)",
 
-    padding: '5px 10px',
-    width: 600
+    padding: "5px 10px",
+    width: 600,
   },
   valuesList: {
     flex: 1,
-    overflow: 'auto',
-    paddingRight: 10
+    overflow: "auto",
+    paddingRight: 10,
   },
   notFound: {
-    padding: '10px 10px'
+    padding: "10px 10px",
   },
   numSelected: {
     flex: 1,
-    textAlign: 'right',
-    color: '#333'
-  }
+    textAlign: "right",
+    color: "#333",
+  },
 };
+export default ReplaceValues;

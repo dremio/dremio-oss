@@ -129,7 +129,7 @@ public class DirListingRecordReader implements RecordReader {
     this.isRecursive = isRecursive;
     this.discoverPartitions = discoverPartitions;
     this.maxBatchSize = context.getTargetBatchSize();
-    this.footerReaderWidth = context.getMinorFragmentEndpoints().size();
+    this.footerReaderWidth = context.getMinorFragmentEndpoints() == null ? 1 : context.getMinorFragmentEndpoints().size();
     if(!discoverPartitions) {
       currPartitionInfo = IcebergSerDe.partitionValueToIcebergPartition(partitionValues, tableSchema);
     }

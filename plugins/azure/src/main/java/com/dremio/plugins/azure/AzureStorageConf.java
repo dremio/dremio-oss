@@ -22,6 +22,7 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -154,10 +155,20 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
   public int maxCacheSpacePct = 100;
 
+  @Tag(16)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
   @Override
   public AzureStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be provided.");
     return new AzureStoragePlugin(this, context, name, pluginIdProvider);
+  }
+
+  @Override
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
   }
 
   @Override

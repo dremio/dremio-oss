@@ -28,8 +28,6 @@ import java.util.function.LongSupplier;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -351,13 +349,7 @@ class SourceMetadataManager implements AutoCloseable {
     if (plugin instanceof SupportsIcebergRootPointer && DatasetHelper.isIcebergDataset(config)) {
       final Long lastMetadataValidityCheckTime = metadataValidityCheckTime.getIfPresent(key);
       SupportsIcebergRootPointer pluginForIceberg = (SupportsIcebergRootPointer) plugin;
-      Configuration conf = pluginForIceberg.getFsConfCopy();
-      final long metadataAggressiveExpiryTime = Long.parseLong(conf.get(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS.getOptionName(),
-        String.valueOf(optionManager.getOption(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS)))) * 1000;
-      final boolean metadataValidityCheckRequired = (lastMetadataValidityCheckTime == null ||
-        (lastMetadataValidityCheckTime + metadataAggressiveExpiryTime < currentTime)); // dataset metadata validity was checked too long ago (or never)
-
-      if (metadataValidityCheckRequired) {
+      if (!pluginForIceberg.isMetadataValidityCheckRecentEnough(lastMetadataValidityCheckTime, currentTime, optionManager)) {
         metadataValidityCheckTime.put(key, currentTime);
         if (!pluginForIceberg.isIcebergMetadataValid(config, key, userNamespaceService)) {
           return false;

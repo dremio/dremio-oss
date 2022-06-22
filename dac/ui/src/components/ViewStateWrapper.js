@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { Component } from "react";
+import { connect } from "react-redux";
+import Immutable from "immutable";
 
-import classNames from 'classnames';
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
-import ImmutablePropTypes from 'react-immutable-proptypes';
+import PropTypes from "prop-types";
+import ImmutablePropTypes from "react-immutable-proptypes";
 
-import LoadingOverlay from '@app/components/LoadingOverlay';
-import Message from 'components/Message';
-import { dismissViewStateError } from 'actions/resources';
+import LoadingOverlay from "@app/components/LoadingOverlay";
+import Message from "components/Message";
+import { dismissViewStateError } from "actions/resources";
 
 const TIME_TP_WAIT_BEFORE_SPINNER = 500;
 
@@ -34,20 +33,20 @@ export const viewStatePropType = ImmutablePropTypes.contains({
   isFailed: PropTypes.bool,
   isWarning: PropTypes.bool,
   error: PropTypes.shape({
-    message: PropTypes.node
+    message: PropTypes.node,
     //details,
     //id
     //dismissed: false
-  })
+  }),
 });
 
-@Radium
 export class ViewStateWrapper extends Component {
   static propTypes = {
     viewState: viewStatePropType,
     children: PropTypes.node,
     hideSpinner: PropTypes.bool,
     spinnerDelay: PropTypes.number,
+    spinnerStyle: PropTypes.object,
     hideChildrenWhenInProgress: PropTypes.bool,
     hideChildrenWhenFailed: PropTypes.bool,
     style: PropTypes.object,
@@ -61,7 +60,7 @@ export class ViewStateWrapper extends Component {
     className: PropTypes.string,
     // is used only for ExploreTable to not bock column headers on loading
     overlayStyle: PropTypes.object,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
   };
 
   static defaultProps = {
@@ -69,15 +68,15 @@ export class ViewStateWrapper extends Component {
     spinnerDelay: TIME_TP_WAIT_BEFORE_SPINNER,
     viewState: Immutable.fromJS({}),
     hideChildrenWhenFailed: true,
-    messageIsDismissable: true
+    messageIsDismissable: true,
   };
 
   constructor(props) {
     super(props);
     this.state = {
-      shouldWeSeeSpinner: false
+      shouldWeSeeSpinner: false,
     };
-    if (props.viewState.get('isInProgress')) {
+    if (props.viewState.get("isInProgress")) {
       this.checkTimer();
     }
   }
@@ -87,15 +86,15 @@ export class ViewStateWrapper extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    const inProgress = nextProps.viewState.get('isInProgress');
+    const inProgress = nextProps.viewState.get("isInProgress");
     if (inProgress) {
-      if (inProgress !== this.props.viewState.get('isInProgress')) {
+      if (inProgress !== this.props.viewState.get("isInProgress")) {
         this.checkTimer();
       }
     } else {
       clearTimeout(this.timer);
       this.setState({
-        shouldWeSeeSpinner: false
+        shouldWeSeeSpinner: false,
       });
     }
   }
@@ -104,15 +103,24 @@ export class ViewStateWrapper extends Component {
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.setState({
-        shouldWeSeeSpinner: true
+        shouldWeSeeSpinner: true,
       });
     }, this.props.spinnerDelay);
   }
 
   renderChildren() {
-    const {children, viewState, hideChildrenWhenInProgress, hideChildrenWhenFailed} = this.props;
-    if ((viewState.get('isAutoPeekFailed') || !viewState.get('isFailed') || !hideChildrenWhenFailed)
-      && (!viewState.get('isInProgress') || !hideChildrenWhenInProgress)) {
+    const {
+      children,
+      viewState,
+      hideChildrenWhenInProgress,
+      hideChildrenWhenFailed,
+    } = this.props;
+    if (
+      (viewState.get("isAutoPeekFailed") ||
+        !viewState.get("isFailed") ||
+        !hideChildrenWhenFailed) &&
+      (!viewState.get("isInProgress") || !hideChildrenWhenInProgress)
+    ) {
       return children;
     }
   }
@@ -127,55 +135,67 @@ export class ViewStateWrapper extends Component {
       messageStyle,
       messageClassName,
       overlayStyle,
+      spinnerStyle,
       dataQa,
-      multilineErrorMessage
+      multilineErrorMessage,
+      hideSpinner,
     } = this.props;
 
-    if (viewState.get('isInProgress') && !this.props.hideSpinner) {
+    if (viewState.get("isInProgress") && !hideSpinner) {
       return (
-        <LoadingOverlay style={overlayStyle} dataQa={dataQa}
-          showSpinner={Boolean(this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress)}
+        <LoadingOverlay
+          style={overlayStyle}
+          dataQa={dataQa}
+          spinnerStyle={spinnerStyle}
+          showSpinner={Boolean(
+            this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress
+          )}
         />
       );
     }
 
     const handleDismiss = () => {
-      this.props.dismissViewStateError(viewState.get('viewId'));
+      this.props.dismissViewStateError(viewState.get("viewId"));
       onDismissError && onDismissError();
     };
 
-    if ((viewState.get('isFailed') || viewState.get('isWarning')) && showMessage) {
-      const messageType = viewState.get('isWarning') ? 'warning' : 'error';
-      const message = viewState.getIn(['error', 'message']);
-      return <Message
-        onDismiss={handleDismiss}
-        dismissed={viewState.getIn(['error', 'dismissed'])}
-        messageId={viewState.getIn(['error', 'id'])}
-        message={message}
-        messageType={messageType}
-        multilineMessage={multilineErrorMessage}
-        isDismissable={this.props.messageIsDismissable}
-        inFlow={hideChildrenWhenFailed}
-        style={messageStyle}
-        className={messageClassName}
-      />;
+    if (
+      (viewState.get("isFailed") || viewState.get("isWarning")) &&
+      showMessage
+    ) {
+      const messageType = viewState.get("isWarning") ? "warning" : "error";
+      const message = viewState.getIn(["error", "message"]);
+      return (
+        <Message
+          onDismiss={handleDismiss}
+          dismissed={viewState.getIn(["error", "dismissed"])}
+          messageId={viewState.getIn(["error", "id"])}
+          message={message}
+          messageType={messageType}
+          multilineMessage={multilineErrorMessage}
+          isDismissable={this.props.messageIsDismissable}
+          inFlow={hideChildrenWhenFailed}
+          style={messageStyle}
+          className={messageClassName}
+        />
+      );
     }
   }
 
   render() {
-    const { style, className } = this.props;
+    const { style = {}, className } = this.props;
 
     return (
       <div
-        className={classNames(['view-state-wrapper', className])}
-        style={[styles.base, style]}>
+        className={classNames(["view-state-wrapper", className])}
+        style={{ ...styles.base, ...style }}
+      >
         {this.renderChildren()}
         {this.renderStatus()}
       </div>
     );
   }
 }
-
 export default connect(null, { dismissViewStateError })(ViewStateWrapper);
 
 /**
@@ -190,15 +210,20 @@ export const findFirstTruthyValue = (fieldName, ...immutableMaps) => {
   }, undefined);
 };
 export const mergeViewStates = (...viewStates) => {
-  return Immutable.fromJS(['isInProgress', 'isFailed', 'isWarning', 'error'].reduce((result, fieldName) => {
-    result[fieldName] = findFirstTruthyValue(fieldName, ...viewStates);
-    return result;
-  }, {}));
+  return Immutable.fromJS(
+    ["isInProgress", "isFailed", "isWarning", "error"].reduce(
+      (result, fieldName) => {
+        result[fieldName] = findFirstTruthyValue(fieldName, ...viewStates);
+        return result;
+      },
+      {}
+    )
+  );
 };
 
 const styles = {
   base: {
-    height: '100%',
-    position: 'relative'
-  }
+    height: "100%",
+    position: "relative",
+  },
 };

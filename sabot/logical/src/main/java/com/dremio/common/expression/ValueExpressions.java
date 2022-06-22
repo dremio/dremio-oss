@@ -199,9 +199,9 @@ public class ValueExpressions {
   /**
    *   This class represents all ConstantExpressions
     */
-  public static abstract class ConstantExpression extends LogicalExpressionBase{};
+  public abstract static class ConstantExpression extends LogicalExpressionBase{};
 
-  protected static abstract class ValueExpression<V> extends ConstantExpression {
+  protected abstract static class ValueExpression<V> extends ConstantExpression {
     public final V value;
 
     @SuppressWarnings("rawtypes")

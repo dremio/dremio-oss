@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.function.Function;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -82,6 +83,7 @@ import com.dremio.exec.store.ExpressionInputRewriter;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.google.common.collect.ImmutableList;
@@ -89,7 +91,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * DeltaLake dataset prel
  */
-public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinalizable {
+public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinalizable, RowCountEstimator {
   private final ParquetScanFilter filter;
   private final boolean arrowCachingEnabled;
   private final PruneFilterCondition pruneCondition;
@@ -262,10 +264,10 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
     // Parquet scan phase
     TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
-      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, false);
+      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, false, false, tableMetadata.getApproximateRecordCount());
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), table, parquetSplitsExchange, tableMetadata,
-      ImmutableList.copyOf(getProjectedColumns()), parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
+      parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
   }
 
   public static RelDataType getSplitRowType(RelOptCluster cluster) {
@@ -290,14 +292,6 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
   @Override
   public Iterator<Prel> iterator() {
     return Collections.emptyIterator();
-  }
-
-  @Override
-  public double estimateRowCount(RelMetadataQuery mq) {
-    if (tableMetadata.getReadDefinition().getManifestScanStats() != null) {
-      return tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount();
-    }
-    return tableMetadata.getSplitCount();
   }
 
   @Override
@@ -369,7 +363,6 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
             table,
             removedNonNullOrAddedVersionEqualRemoveVersion,
             tableMetadata,
-            ImmutableList.of(SchemaPath.getSimplePath(RecordReader.SPLIT_IDENTITY), SchemaPath.getSimplePath(RecordReader.SPLIT_INFORMATION), SchemaPath.getSimplePath(RecordReader.COL_IDS)),
             splitGenTableFunctionConfig,
             getSplitRowType(getCluster()),
             rm -> rm.getRowCount(removedNonNullOrAddedVersionEqualRemoveVersion));
@@ -388,7 +381,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     while (!queue.isEmpty()) {
       RelNode rel = queue.poll();
       if (rel instanceof DeltaLakeCommitLogScanPrel) {
-        return rel.estimateRowCount(rel.getCluster().getMetadataQuery());
+        return rel.getCluster().getMetadataQuery().getRowCount(rel);
       } else {
         queue.addAll(rel.getInputs());
       }
@@ -567,4 +560,13 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     return fieldPair;
   }
 
+  @Override
+  public Function<RelMetadataQuery, Double> getEstimateRowCountFn() {
+    return mq -> {
+      if (tableMetadata.getReadDefinition().getManifestScanStats() != null) {
+        return Double.valueOf(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount());
+      }
+      return (double) tableMetadata.getSplitCount();
+    };
+  }
 }

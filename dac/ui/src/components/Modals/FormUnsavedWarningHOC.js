@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
-import { clearDataBetweenTabs } from 'actions/modals/passDataBetweenTabs.js';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { showUnsavedChangesConfirmDialog } from "actions/confirmation";
+import { clearDataBetweenTabs } from "actions/modals/passDataBetweenTabs.js";
 
 /**
  * Returns specified Modal component wrapped into component which tracks and warn user about unsaved changes
@@ -34,18 +34,18 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
       hide: PropTypes.func,
       //connected
       showUnsavedChangesConfirmDialog: PropTypes.func,
-      clearDataBetweenTabs: PropTypes.func
-    }
+      clearDataBetweenTabs: PropTypes.func,
+    };
 
     state = {
-      isFormDirty: false
+      isFormDirty: false,
     };
 
     handleHide = (promiseResolver) => {
       this.props.hide();
       this.updateFormDirtyState(false);
       promiseResolver(true);
-    }
+    };
 
     /**
      * Hide modal with appropriate check for dirty state and show warning message regarding unsaved
@@ -70,28 +70,35 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
         if (this.state.isFormDirty && formSubmitted !== true) {
           this.props.showUnsavedChangesConfirmDialog({
             confirm: () => this.handleHide(resolve),
-            cancel: () => resolve(false)
+            cancel: () => resolve(false),
           });
         } else {
           this.handleHide(resolve);
         }
         this.props.clearDataBetweenTabs();
       });
-    }
+    };
 
     updateFormDirtyState = (isFormDirty) => {
-      this.setState({isFormDirty});
-    }
+      this.setState({ isFormDirty });
+    };
 
     render() {
-      return <Modal {...this.props}
-        updateFormDirtyState={this.updateFormDirtyState}
-        hide={this.hide}
-      />;
+      return (
+        <Modal
+          {...this.props}
+          updateFormDirtyState={this.updateFormDirtyState}
+          isFormDirty={this.state.isFormDirty}
+          hide={this.hide}
+        />
+      );
     }
   };
 }
 
 export default function FormUnsavedWarningHOC(Modal) {
-  return connect(null, { showUnsavedChangesConfirmDialog, clearDataBetweenTabs })(wrapUnsavedChangesWarningWithModal(Modal));
+  return connect(null, {
+    showUnsavedChangesConfirmDialog,
+    clearDataBetweenTabs,
+  })(wrapUnsavedChangesWarningWithModal(Modal));
 }

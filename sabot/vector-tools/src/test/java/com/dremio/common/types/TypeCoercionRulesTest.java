@@ -27,7 +27,6 @@ import static com.dremio.common.expression.CompleteType.STRUCT;
 import static com.dremio.common.expression.CompleteType.TIME;
 import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
-import static com.dremio.common.types.TypeCoercionRules.getResultantType;
 import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +43,7 @@ public class TypeCoercionRulesTest {
   private static final CompleteType DEC_18_18 = new CompleteType(createDecimal(18, 18, null));
   private static final CompleteType DEC_38_0 = new CompleteType(createDecimal(38, 0, null));
   private static final CompleteType DEC_100_50 = new CompleteType(createDecimal(100, 50, null));
+  private static final TypeCoercionRules coercionRules = new TypeCoercionRules();
 
   @Test
   public void testGetResultantType() {
@@ -93,41 +93,41 @@ public class TypeCoercionRulesTest {
 
   @Test
   public void testAsymmetryOfRules() {
-    assertThat(getResultantType(BIGINT, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(FLOAT, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DOUBLE, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DOUBLE, FLOAT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DOUBLE, BIGINT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DOUBLE, DECIMAL)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(FLOAT, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(BIGINT, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(FLOAT, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DOUBLE, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DOUBLE, FLOAT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DOUBLE, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DOUBLE, DECIMAL)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(FLOAT, BIGINT)).isEqualTo(Optional.empty());
 
-    assertThat(getResultantType(DECIMAL, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_10_5, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_18_18, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_38_0, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DECIMAL, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_10_5, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_18_18, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_38_0, INT)).isEqualTo(Optional.empty());
 
-    assertThat(getResultantType(DECIMAL, BIGINT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_10_5, BIGINT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_18_18, BIGINT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_38_0, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DECIMAL, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_10_5, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_18_18, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_38_0, BIGINT)).isEqualTo(Optional.empty());
 
-    assertThat(getResultantType(DECIMAL, FLOAT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_10_5, FLOAT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_18_18, FLOAT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(DEC_38_0, FLOAT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DECIMAL, FLOAT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_10_5, FLOAT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_18_18, FLOAT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(DEC_38_0, FLOAT)).isEqualTo(Optional.empty());
 
-    assertThat(getResultantType(VARCHAR, BIT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, BIGINT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, FLOAT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, DOUBLE)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, DATE)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, TIME)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, TIMESTAMP)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, BIT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, BIGINT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, FLOAT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, DOUBLE)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, DATE)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, TIME)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, TIMESTAMP)).isEqualTo(Optional.empty());
 
-    assertThat(getResultantType(VARCHAR, DECIMAL)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, DEC_10_5)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, DEC_18_18)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(VARCHAR, DEC_38_0)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, DECIMAL)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, DEC_10_5)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, DEC_18_18)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(VARCHAR, DEC_38_0)).isEqualTo(Optional.empty());
   }
 
   @Test
@@ -151,19 +151,19 @@ public class TypeCoercionRulesTest {
 
   @Test
   public void testErrorForComplexTypes() {
-    assertThat(getResultantType(LIST, STRUCT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(STRUCT, LIST)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(STRUCT, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(INT, STRUCT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(LIST, INT)).isEqualTo(Optional.empty());
-    assertThat(getResultantType(INT, LIST)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(LIST, STRUCT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(STRUCT, LIST)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(STRUCT, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(INT, STRUCT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(LIST, INT)).isEqualTo(Optional.empty());
+    assertThat(coercionRules.getResultantType(INT, LIST)).isEqualTo(Optional.empty());
   }
 
   @Test
   public void testUnsupportedDecimals() {
-    expectException(() -> getResultantType(DEC_10_5, DEC_100_50));
-    expectException(() -> getResultantType(DEC_100_50, DEC_10_5));
-    expectException(() -> getResultantType(DEC_100_50, DEC_100_50));
+    expectException(() -> coercionRules.getResultantType(DEC_10_5, DEC_100_50));
+    expectException(() -> coercionRules.getResultantType(DEC_100_50, DEC_10_5));
+    expectException(() -> coercionRules.getResultantType(DEC_100_50, DEC_100_50));
   }
 
   private void expectException(Supplier<Optional<CompleteType>> supplier) {
@@ -173,6 +173,6 @@ public class TypeCoercionRulesTest {
   }
 
   private CompleteType getType(CompleteType fileType, CompleteType tableType) {
-    return getResultantType(fileType, tableType).get();
+    return coercionRules.getResultantType(fileType, tableType).get();
   }
 }

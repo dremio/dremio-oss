@@ -27,7 +27,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.fn.impl.MappifyUtility;
 
 public class MapUtility {
-  private final static String TYPE_MISMATCH_ERROR = "Mappify/kvgen does not support heterogeneous value types. All values in the input map must be of the same type. The field [%s] has a differing type [%s].";
+  private static final String TYPE_MISMATCH_ERROR = "Mappify/kvgen does not support heterogeneous value types. All values in the input map must be of the same type. The field [%s] has a differing type [%s].";
 
   /*
    * Function to read a value from the field reader, detect the type, construct the appropriate value holder

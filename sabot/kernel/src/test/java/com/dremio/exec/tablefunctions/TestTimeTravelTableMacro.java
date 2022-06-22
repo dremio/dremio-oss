@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.tablefunctions;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.util.List;
 
 import org.junit.Assert;
@@ -51,10 +53,10 @@ public class TestTimeTravelTableMacro {
 
   @Test
   public void testSplitTableIdentifierWithInvalidIdentifier() {
-    Assert.assertThrows(IllegalArgumentException.class,
-      () -> TimeTravelTableMacro.splitTableIdentifier("table1..table2"));
+    assertThatThrownBy(() -> TimeTravelTableMacro.splitTableIdentifier("table1..table2"))
+      .isInstanceOf(IllegalArgumentException.class);
 
-    Assert.assertThrows(IllegalArgumentException.class,
-      () -> TimeTravelTableMacro.splitTableIdentifier("\"tab\"le1..table2"));
+    assertThatThrownBy(() -> TimeTravelTableMacro.splitTableIdentifier("\"tab\"le1..table2"))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 }

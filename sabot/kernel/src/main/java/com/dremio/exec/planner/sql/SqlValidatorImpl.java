@@ -15,30 +15,44 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.DynamicRecordType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.runtime.CalciteContextException;
+import org.apache.calcite.sql.JoinConditionType;
+import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlDelete;
+import org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlInsert;
+import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlJdbcFunctionCall;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlMerge;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.SqlUpdate;
+import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.SqlWindow;
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction;
 import org.apache.calcite.sql.fun.SqlNtileAggFunction;
@@ -46,7 +60,10 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.validate.DremioEmptyScope;
+import org.apache.calcite.sql.validate.DremioParameterScope;
+import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.ProcedureNamespace;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlScopedShuttle;
@@ -55,13 +72,21 @@ import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
+import org.apache.calcite.sql.validate.SqlValidatorTable;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Util;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
+import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
+import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
+import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
+import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
+import com.google.common.base.Preconditions;
 
 public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl {
   private final FlattenOpCounter flattenCount;
@@ -81,8 +106,8 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
   @Override
   public SqlNode validate(SqlNode topNode) {
-    checkForFeatureSpecificSyntax(topNode);
-    final SqlValidatorScope scope = DremioEmptyScope.createBaseScope(this);
+    checkForFeatureSpecificSyntax(topNode, optionResolver);
+    final SqlValidatorScope scope = createBaseScope(topNode);
     final SqlNode topNode2 = validateScopedExpression(topNode, scope);
     final RelDataType type = getValidatedNodeType(topNode2);
     Util.discard(type);
@@ -91,7 +116,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
   @Override
   protected SqlNode performUnconditionalRewrites(SqlNode node, boolean underFrom) {
-    if(node instanceof SqlBasicCall
+    if (node instanceof SqlBasicCall
         && ((SqlBasicCall)node).getOperator() instanceof SqlJdbcFunctionCall) {
       //Check for operator overrides in DremioSqlOperatorTable
       SqlBasicCall call = (SqlBasicCall) node;
@@ -106,6 +131,10 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       } else if(functionName.equalsIgnoreCase(DremioSqlOperatorTable.TRUNCATE.getName())) {
         call.setOperator(DremioSqlOperatorTable.TRUNCATE);
       }
+    } else if (node instanceof SqlMergeIntoTable) {
+      SqlMergeIntoTable merge = (SqlMergeIntoTable) node;
+      rewriteMerge(merge);
+      return node;
     }
     return super.performUnconditionalRewrites(node, underFrom);
   }
@@ -126,6 +155,23 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     }
 
     super.registerNamespace(usingScope, alias, ns, forceNullable);
+  }
+
+  @Override
+  public SqlNode validateParameterizedExpression(
+    SqlNode topNode,
+    final Map<String, RelDataType> nameToTypeMap) {
+    SqlValidatorScope scope = new DremioParameterScope(this, nameToTypeMap);
+    return validateScopedExpression(topNode, scope);
+  }
+
+  @Override
+  public SqlValidatorNamespace getNamespace(SqlNode node) {
+    // Add Extend to super's fall-through cases
+    if (node.getKind() == SqlKind.EXTEND) {
+      return getNamespace(((SqlCall) node).operand(0));
+    }
+    return super.getNamespace(node);
   }
 
   @Override
@@ -166,6 +212,85 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
     int nextFlattenIndex(){
       return value++;
+    }
+  }
+
+  private SqlValidatorScope createBaseScope(SqlNode sqlNode) {
+    return DremioEmptyScope.createBaseScope(this);
+  }
+
+
+  /**
+   * Based on Calcite's validateUpdate:
+   * Skip following validations
+   *         1. constraint check
+   *         2. Access Control check (we have our own AC control).
+   *
+   * Add "condition" validation
+   */
+  @Override
+  public void validateUpdate(SqlUpdate call) {
+    Preconditions.checkState(call instanceof SqlUpdateTable, "only SqlUpdateTable is expected here");
+
+    final SqlValidatorNamespace targetNamespace = getNamespace(call);
+    validateNamespace(targetNamespace, unknownType);
+    final RelOptTable relOptTable = SqlValidatorUtil.getRelOptTable(
+      targetNamespace, getCatalogReader().unwrap(Prepare.CatalogReader.class), null, null);
+    final SqlValidatorTable table = relOptTable == null
+      ? targetNamespace.getTable()
+      : relOptTable.unwrap(SqlValidatorTable.class);
+    final RelDataType targetRowType =
+      createTargetRowType(
+        table,
+        call.getTargetColumnList(),
+        true);
+
+    final SqlSelect select = call.getSourceSelect();
+    validateSelect(select, targetRowType);
+
+    // validate "condition".
+    // "condition" is one of the operators of SqlUpdate. replaceSubQueries in convertUpdate needs check all operators for In clause.
+    // We need validate "condition" and register it to namespace.
+    if (call.getCondition() != null) {
+      validateScopedExpression(call.getCondition(), getWhereScope(select));
+    }
+
+    final RelDataType sourceRowType = getNamespace(call).getRowType();
+    checkTypeAssignment(sourceRowType, targetRowType, call);
+  }
+
+  /**
+   * Simplified version of Calcite's validateMerge:
+   * Skip some unecessary validation
+   *          For example, Access Control check (we have our own AC control).
+   * Calcite's validateMerge uses either updateCall's or insertCall's targetRowType as sourceSelect's targetRowType,
+   *          which does not work with Dremio's extended tables. User unknownType here instead
+   *
+   * validation list:
+   * 1. source select
+   * 2. update call
+   * 3. insert call
+   */
+  @Override
+  public void validateMerge(SqlMerge call) {
+    // Apply customized validate to Dremio's SqlMergeTable only
+    if (!(call instanceof SqlMergeIntoTable)) {
+      super.validate(call);
+      return;
+    }
+
+    IdentifierNamespace targetNamespace =
+      (IdentifierNamespace) getNamespace(call.getTargetTable());
+    validateNamespace(targetNamespace, unknownType);
+
+    SqlSelect sqlSelect = call.getSourceSelect();
+    validateSelect(sqlSelect, unknownType);
+
+    if (call.getUpdateCall() != null) {
+      validateUpdate(call.getUpdateCall());
+    }
+    if (call.getInsertCall() != null) {
+      validateInsert(call.getInsertCall());
     }
   }
 
@@ -215,8 +340,9 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
   @Override
   public SqlNode expand(SqlNode expr, SqlValidatorScope scope) {
+    Preconditions.checkNotNull(scope);
     Expander expander = new Expander(this, scope);
-    SqlNode newExpr = (SqlNode)expr.accept(expander);
+    SqlNode newExpr = expr.accept(expander);
     if (expr != newExpr) {
       this.setOriginal(newExpr, expr);
     }
@@ -274,6 +400,192 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
               RESOURCE.rolledUpNotAllowed(deriveAlias(id, 0), context));
         }
       }
+    }
+  }
+
+  private static SqlNodeList getExtendedColumns(SqlNode node) {
+    Preconditions.checkState(SqlDmlOperator.class.isAssignableFrom(node.getClass()));
+
+    SqlDmlOperator sqlDmlOperator = (SqlDmlOperator)node;
+    if (!sqlDmlOperator.isTableExtended()) {
+      return null;
+    }
+
+    SqlBasicCall extendCall = (SqlBasicCall)sqlDmlOperator.getTargetTable();
+    SqlNode[]  operands = extendCall.getOperands();
+    final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
+    SqlNodeList extendedColumns = (SqlNodeList)operands[1];
+    // extract column identity only
+    for (int i = 0; i < extendedColumns.size(); i = i + 2) {
+      selectList.add(extendedColumns.get(i));
+    }
+
+    return selectList;
+  }
+
+  /**
+   * Special treatment for SqlUpdateTable .
+   * SqlUpdateTable is used by DML Update query to represent updated rows
+   * With copy-on-write DML framework,  updated rows are joined with original data
+   * so that we could get a "copy" of original data with update values.
+   * Since original data already contain user columns, there is no need for update rows to
+   * carry duplicated user columns. Instead, only filePath and rowIndex are kept since they are join columns.
+   * Updated value columns are also kept.
+   * Todo:  merge-on-read version of DML implementation requires full user columns. We would revisit this approach by then
+   */
+  @Override
+  protected SqlSelect createSourceSelectForUpdate(SqlUpdate call) {
+    SqlSelect select = super.createSourceSelectForUpdate(call);
+    if (!(call instanceof SqlUpdateTable)) {
+      return select;
+    }
+
+    // only keep filePath and rowIndex system columns
+    final SqlNodeList selectList = getExtendedColumns(call);
+
+    if (selectList == null) {
+      return select;
+    }
+
+    // Add updated columns to the list
+    int ordinal = 0;
+    for (SqlNode exp : call.getSourceExpressionList()) {
+      // Force unique aliases to avoid a duplicate for Y with
+      // SET X=Y
+      String alias = SqlUtil.deriveAliasFromOrdinal(ordinal);
+      selectList.add(SqlValidatorUtil.addAlias(exp, alias));
+      ++ordinal;
+    }
+
+    return new SqlSelect(
+      SqlParserPos.ZERO,
+      null,
+      selectList,
+      select.getFrom(),
+      select.getWhere(),
+      select.getGroup(),
+      select.getHaving(),
+      select.getWindowList(),
+      select.getOrderList(),
+      select.getOffset(),
+      select.getFetch(),
+      select.getHints()
+    );
+  }
+
+  /**
+   * Special treatment for SqlDeleteFromTable .
+   * SqlDeleteFromTable is used by DML Delete query to represent deleted rows
+   * With copy-on-write DML framework,  deleted rows are joined with original data
+   * so that we could get a "copy" of original data minus deleted values.
+   * Since original data already contain user columns, there is no need for deleted rows to
+   * carry duplicated user columns. Instead, only filePath and rowIndex are kept since they are join columns.
+   * Todo:  merge-on-read version of DML implementation requires full user columns. We would revisit this approach by then
+   */
+  @Override
+  protected SqlSelect createSourceSelectForDelete(SqlDelete call) {
+    SqlSelect select = super.createSourceSelectForDelete(call);
+    if (!(call instanceof SqlDeleteFromTable)) {
+      return select;
+    }
+    // only keep filePath and rowIndex system columns
+    final SqlNodeList selectList = getExtendedColumns(call);
+    if (selectList == null) {
+      return select;
+    }
+
+    return new SqlSelect(
+      SqlParserPos.ZERO,
+      null,
+      selectList,
+      select.getFrom(),
+      select.getWhere(),
+      select.getGroup(),
+      select.getHaving(),
+      select.getWindowList(),
+      select.getOrderList(),
+      select.getOffset(),
+      select.getFetch(),
+      select.getHints()
+    );
+  }
+
+  private void rewriteUpdate(SqlUpdate call) {
+    SqlSelect select = createSourceSelectForUpdate(call);
+    call.setSourceSelect(select);
+  }
+
+  /**
+   * Implementation of rewriteMerge based on Calcite's, with changes to ensure no nodes are reused between
+   * SqlMerge and it's child SqlUpdate/SqlInsert nodes.  Having a single node such as a SqlSelect in multiple
+   * places in the parse tree leads to problems with SelectNamespace lookups due to the SqlNode -> Namespace map.
+   */
+  private void rewriteMerge(SqlMerge call) {
+    SqlNodeList selectList;
+    SqlUpdate updateStmt = call.getUpdateCall();
+    if (updateStmt != null) {
+      // Rewrite the update first, to ensure we have a source select created for it
+      rewriteUpdate(updateStmt);
+
+      // if we have an update statement, just clone the select list
+      // from the update statement's source since it's the same as
+      // what we want for the select list of the merge source -- '*'
+      // followed by the update set expressions
+      selectList = (SqlNodeList) DeepCopier.copy(updateStmt.getSourceSelect().getSelectList());
+    } else {
+      // otherwise, just use select *
+      selectList = new SqlNodeList(SqlParserPos.ZERO);
+      selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+    }
+    SqlNode targetTable = call.getTargetTable();
+    if (call.getAlias() != null) {
+      targetTable =
+          SqlValidatorUtil.addAlias(
+              targetTable,
+              call.getAlias().getSimple());
+    }
+
+    // Provided there is an insert substatement, the source select for
+    // the merge is a left outer join between the source in the USING
+    // clause and the target table; otherwise, the join is just an
+    // inner join.  Need to clone the source table reference in order
+    // for validation to work
+    SqlNode sourceTableRef = call.getSourceTableRef();
+    SqlInsert insertCall = call.getInsertCall();
+    JoinType joinType = (insertCall == null) ? JoinType.INNER : JoinType.LEFT;
+
+    final SqlNode leftJoinTerm = DeepCopier.copy(sourceTableRef);
+    SqlNode outerJoin =
+        new SqlJoin(SqlParserPos.ZERO,
+            leftJoinTerm,
+            SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
+            joinType.symbol(SqlParserPos.ZERO),
+            targetTable,
+            JoinConditionType.ON.symbol(SqlParserPos.ZERO),
+            call.getCondition());
+    SqlSelect select =
+        new SqlSelect(SqlParserPos.ZERO, null, selectList, outerJoin, null,
+            null, null, null, null, null, null, null);
+    call.setSourceSelect(select);
+
+    // Source for the insert call is a select of the source table
+    // reference with the select list being the value expressions;
+    // note that the values clause has already been converted to a
+    // select on the values row constructor; so we need to extract
+    // that via the from clause on the select
+    if (insertCall != null) {
+      SqlCall valuesCall = (SqlCall) insertCall.getSource();
+      SqlCall rowCall = valuesCall.operand(0);
+      selectList =
+          new SqlNodeList(
+              rowCall.getOperandList(),
+              SqlParserPos.ZERO);
+
+      final SqlNode insertSource = DeepCopier.copy(sourceTableRef);
+      select =
+          new SqlSelect(SqlParserPos.ZERO, null, selectList, insertSource, null,
+              null, null, null, null, null, null, null);
+      insertCall.setSource(select);
     }
   }
 
@@ -398,7 +710,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     }
   }
 
-  private void checkForFeatureSpecificSyntax(SqlNode sqlNode) {
+  public static void checkForFeatureSpecificSyntax(SqlNode sqlNode, OptionResolver optionResolver) {
     sqlNode.accept(new CheckFeatureSpecificSyntaxEnabled(optionResolver));
   }
 
@@ -418,6 +730,10 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     public Void visit(SqlCall call) {
       if (call instanceof SqlVersionedTableMacroCall) {
         checkFeatureEnabled(ENABLE_ICEBERG_TIME_TRAVEL, "Time travel queries are not supported.");
+      } else if (call instanceof SqlPartitionTransform) {
+        if (!((SqlPartitionTransform) call).isIdentityTransform()) {
+          checkFeatureEnabled(ENABLE_ICEBERG_PARTITION_TRANSFORMS, "Table partition transforms are not supported.");
+        }
       }
 
       return super.visit(call);
@@ -427,6 +743,52 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       if (optionResolver != null && !optionResolver.getOption(validator)) {
         throw UserException.unsupportedError().message(message).buildSilently();
       }
+    }
+  }
+
+  /**
+   * Deep copy implementation for SqlNodes.
+   */
+  public static class DeepCopier extends SqlShuttle {
+
+    public static SqlNode copy(SqlNode node) {
+      return node.accept(new DeepCopier());
+    }
+
+    public SqlNode visit(SqlNodeList list) {
+      SqlNodeList copy = new SqlNodeList(list.getParserPosition());
+      for (SqlNode node : list) {
+        copy.add(node.accept(this));
+      }
+      return copy;
+    }
+
+    // Override to copy all arguments regardless of whether visitor changes
+    // them.
+    public SqlNode visit(SqlCall call) {
+      ArgHandler<SqlNode> argHandler = new CallCopyingArgHandler(call, true);
+      call.getOperator().acceptCall(this, call, false, argHandler);
+      return argHandler.result();
+    }
+
+    public SqlNode visit(SqlLiteral literal) {
+      return SqlNode.clone(literal);
+    }
+
+    public SqlNode visit(SqlIdentifier id) {
+      return SqlNode.clone(id);
+    }
+
+    public SqlNode visit(SqlDataTypeSpec type) {
+      return SqlNode.clone(type);
+    }
+
+    public SqlNode visit(SqlDynamicParam param) {
+      return SqlNode.clone(param);
+    }
+
+    public SqlNode visit(SqlIntervalQualifier intervalQualifier) {
+      return SqlNode.clone(intervalQualifier);
     }
   }
 }

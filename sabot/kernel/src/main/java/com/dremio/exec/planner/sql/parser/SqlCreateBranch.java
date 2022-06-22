@@ -102,7 +102,7 @@ public final class SqlCreateBranch extends SqlCreateVersionBase {
 
     branchName.unparse(writer, leftPrec, rightPrec);
 
-    unparseRef(writer, leftPrec, rightPrec);
+    unparseRef(writer, leftPrec, rightPrec, "AT");
     unparseSourceName(writer, leftPrec, rightPrec);
   }
 

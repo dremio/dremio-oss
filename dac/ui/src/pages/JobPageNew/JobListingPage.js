@@ -13,42 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useRef, useEffect } from 'react';
-import { connect } from 'react-redux';
-import { compose } from 'redux';
-import { withRouter } from 'react-router';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import { flexElementAuto } from '@app/uiTheme/less/layout.less';
-import { getClusterInfo } from '@app/utils/infoUtils';
-import { getSupport } from '@app/utils/supportUtils';
+import { useState, useEffect } from "react";
+import { connect } from "react-redux";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import { flexElementAuto } from "@app/uiTheme/less/layout.less";
+import { getClusterInfo } from "@app/utils/infoUtils";
+import { getSupport } from "@app/utils/supportUtils";
+import { usePrevious } from "@app/utils/jobsUtils";
+import { getExploreState } from "@app/selectors/explore";
 
-import { updateQueryState, setClusterType } from 'actions/jobs/jobs';
+import { updateQueryState, setClusterType } from "actions/jobs/jobs";
 import {
   fetchJobsList,
   loadItemsForFilter,
   loadNextJobs,
-  JOB_PAGE_NEW_VIEW_ID
-} from 'actions/joblist/jobList';
-import { getJobList, getDataWithItemsForFilters } from 'selectors/jobs';
-import { getViewState } from 'selectors/resources';
-import { isEqual, isEmpty } from 'lodash';
+  JOB_PAGE_NEW_VIEW_ID,
+} from "actions/joblist/jobList";
+import { getJobList, getDataWithItemsForFilters } from "selectors/jobs";
+import { getViewState } from "selectors/resources";
+import { isEqual, isEmpty } from "lodash";
 
-import { parseQueryState } from 'utils/jobsQueryState';
+import { parseQueryState } from "utils/jobsQueryState";
 
-import JobsContent from './components/JobsContent';
-import './JobPageNew.less';
+import JobsContent from "./components/JobsContent";
+import "./JobPageNew.less";
 
 const JobListingPage = (props) => {
-  const usePrevious = (value) => {
-    const ref = useRef();
-    useEffect(() => {
-      ref.current = value;
-    });
-    return ref.current;
-  };
-
   const {
     queryState,
     viewState,
@@ -64,58 +58,65 @@ const JobListingPage = (props) => {
     dispatchFetchJobsList,
     dispatchUpdateQueryState,
     dispatchLoadItemsForFilter,
-    dispatchSetClusterType
+    dispatchSetClusterType,
+    showSideNavAndTopNav,
+    jobsColumns,
+    isFromExplorePage,
+    renderButtons,
+    handleTabChange,
+    jobIdList,
+    queryFilter,
   } = props;
-  const {
-    state: {
-      isFromJobListing
-    } = {}
-  } = location || {};
-  const [lastLoaded, setLastLoaded] = useState('');
-  const [previousJobId, setPreviousJobId] = useState('');
+  const { state: { isFromJobListing } = {} } = location || {};
+  const [lastLoaded, setLastLoaded] = useState("");
+  const [previousJobId, setPreviousJobId] = useState("");
   const prevQueryState = usePrevious(queryState);
 
   useEffect(() => {
     handleCluster();
   }, []);
   useEffect(() => {
-    if ((!isEmpty(location.query)) && !isEqual(queryState, prevQueryState)) {
-      dispatchFetchJobsList(queryState, JOB_PAGE_NEW_VIEW_ID);
+    if (!isEmpty(location.query) && !isEqual(queryState, prevQueryState)) {
+      if (!isFromExplorePage)
+        dispatchFetchJobsList(queryState, JOB_PAGE_NEW_VIEW_ID);
     }
   }, [queryState]);
 
   useEffect(() => {
-    if (isEmpty(location.query) && location.pathname === '/jobs') {
+    if (isEmpty(location.query) && location.pathname === "/jobs") {
       if (!queryState.equals(prevQueryState)) {
-        dispatchUpdateQueryState(queryState.setIn(['filters', 'qt'], ['UI', 'EXTERNAL']));
+        dispatchUpdateQueryState(
+          queryState.setIn(["filters", "qt"], ["UI", "EXTERNAL"])
+        );
       }
     }
   }, [location]);
 
   const handleCluster = async () => {
     const clusterInfo = await getClusterInfo();
-    const supportInfo = getSupport(admin) !== undefined ? getSupport(admin) : false;
+    const supportInfo =
+      getSupport(admin) !== undefined ? getSupport(admin) : false;
     const data = {
       clusterType: clusterInfo.clusterType,
-      isSupport: supportInfo
+      isSupport: supportInfo,
     };
-    clusterInfo.clusterType !== undefined ? dispatchSetClusterType(data) : dispatchSetClusterType('NP');
+    clusterInfo.clusterType !== undefined
+      ? dispatchSetClusterType(data)
+      : dispatchSetClusterType("NP");
   };
 
   const changePages = (data) => {
-    const {
-      state: locationState
-    } = location;
+    const { state: locationState } = location;
     const currentJobId = data && data.rowData.data.job.value;
-    const selectedJob = jobList.find((job) => job.get('id') === currentJobId);
-    const attempts = selectedJob ? selectedJob.get('totalAttempts') : 1;
+    const selectedJob = jobList.find((job) => job.get("id") === currentJobId);
+    const attempts = selectedJob ? selectedJob.get("totalAttempts") : 1;
     if (data !== null && location.pathname !== `/job/${currentJobId}`) {
       router.push({
         ...location,
         pathname: `/job/${currentJobId}`,
         search: null,
         query: {
-          attempts
+          attempts,
         },
         hash: null,
         state: {
@@ -123,9 +124,9 @@ const JobListingPage = (props) => {
           selectedJobId: currentJobId,
           isFromJobListing: true,
           history: {
-            ...location
-          }
-        }
+            ...location,
+          },
+        },
       });
       return;
     }
@@ -136,18 +137,27 @@ const JobListingPage = (props) => {
         ...location,
         state: {
           ...locationState,
-          selectedJobId: null
-        }
+          selectedJobId: null,
+        },
       });
     }
   };
 
-  let recentJobId = '';
+  let recentJobId = "";
   const tableRowRenderer = (index) => {
     const lastJob = jobList.get(index);
-    const lastJobId = lastJob && lastJob.get('id');
-    if (index + 1 === jobList.size && next &&
-      lastLoaded !== next && recentJobId !== lastJobId) {
+    const lastJobId = lastJob && lastJob.get("id");
+    const parsedNextAPI = next && next.split("/");
+    const oldAPIOnNewJobsPage =
+      (parsedNextAPI && parsedNextAPI[1] === "jobs") || isFromExplorePage;
+
+    if (
+      index + 1 === jobList.size &&
+      next &&
+      lastLoaded !== next &&
+      recentJobId !== lastJobId &&
+      !oldAPIOnNewJobsPage
+    ) {
       loadNextJobsList(next, JOB_PAGE_NEW_VIEW_ID);
       setLastLoaded(next);
       lastJob && setPreviousJobId(lastJobId);
@@ -156,7 +166,7 @@ const JobListingPage = (props) => {
   };
 
   return (
-    <div className='jobPageNew'>
+    <div className={"jobPageNew"}>
       <JobsContent
         className={flexElementAuto} // Page object adds flex in style
         loadNextJobs={tableRowRenderer}
@@ -173,6 +183,14 @@ const JobListingPage = (props) => {
         dataFromUserFilter={dataFromUserFilter}
         dataWithItemsForFilters={dataWithItemsForFilters}
         changePages={changePages}
+        showSideNavAndTopNav={showSideNavAndTopNav}
+        jobsColumns={jobsColumns}
+        isFromExplorePage={isFromExplorePage}
+        renderButtons={renderButtons}
+        handleTabChange={handleTabChange}
+        router={router}
+        exploreJobIdList={jobIdList}
+        queryFilter={queryFilter}
       />
     </div>
   );
@@ -182,7 +200,8 @@ JobListingPage.propTypes = {
   router: PropTypes.object.isRequired,
   location: PropTypes.object.isRequired,
   jobId: PropTypes.string,
-  jobList: PropTypes.instanceOf(Immutable.List).isRequired,
+  jobList: PropTypes.instanceOf(Immutable.List),
+  explorePageJobsPending: PropTypes.instanceOf(Immutable.List),
   queryState: PropTypes.instanceOf(Immutable.Map).isRequired,
   next: PropTypes.string,
   viewState: PropTypes.instanceOf(Immutable.Map),
@@ -191,7 +210,7 @@ JobListingPage.propTypes = {
   dataWithItemsForFilters: PropTypes.object,
   clusterType: PropTypes.string,
   admin: PropTypes.bool,
-
+  queryFilter: PropTypes.string,
 
   //actions
   dispatchUpdateQueryState: PropTypes.func.isRequired,
@@ -200,25 +219,33 @@ JobListingPage.propTypes = {
   loadNextJobsList: PropTypes.func,
   style: PropTypes.object,
   intl: PropTypes.object.isRequired,
-  dispatchSetClusterType: PropTypes.func
+  dispatchSetClusterType: PropTypes.func,
+  handleTabChange: PropTypes.func,
+  jobIdList: PropTypes.array,
+  renderButtons: PropTypes.func,
+  isFromExplorePage: PropTypes.bool,
+  jobsColumns: PropTypes.array,
+  showSideNavAndTopNav: PropTypes.bool,
 };
 
 function mapStateToProps(state, ownProps) {
   const { location } = ownProps;
   const jobId = location.hash && location.hash.slice(1);
-  const users = getDataWithItemsForFilters(state).get('users');
+  const users = getDataWithItemsForFilters(state).get("users");
+  const exploreState = getExploreState(state);
 
   return {
     jobId,
     jobList: getJobList(state, ownProps),
     queryState: parseQueryState(location.query),
-    next: state.jobs.jobs.get('next'),
-    isNextJobsInProgress: state.jobs.jobs.get('isNextJobsInProgress'),
+    next: state.jobs.jobs.get("next"),
+    isNextJobsInProgress: state.jobs.jobs.get("isNextJobsInProgress"),
     dataFromUserFilter: users,
     dataWithItemsForFilters: getDataWithItemsForFilters(state),
     viewState: getViewState(state, JOB_PAGE_NEW_VIEW_ID),
-    clusterType: state.jobs.jobs.get('clusterType'),
-    admin: state.account.get('user').get('admin')
+    clusterType: state.jobs.jobs.get("clusterType"),
+    admin: state.account.get("user").get("admin"),
+    queryFilter: exploreState && exploreState.view.queryFilter,
   };
 }
 
@@ -227,7 +254,7 @@ const mapDispatchToProps = {
   dispatchFetchJobsList: fetchJobsList,
   dispatchLoadItemsForFilter: loadItemsForFilter,
   loadNextJobsList: loadNextJobs,
-  dispatchSetClusterType: setClusterType
+  dispatchSetClusterType: setClusterType,
 };
 
 export default compose(

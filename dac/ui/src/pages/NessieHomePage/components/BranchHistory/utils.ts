@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePromise } from 'react-smart-promise';
+import { useCallback, useEffect, useState } from "react";
+import { usePromise } from "react-smart-promise";
 
 import {
   DefaultApi,
   FetchOption,
   LogResponse,
-  Reference
-} from '@app/services/nessie/client';
+  Reference,
+} from "@app/services/nessie/client";
 
 export type BranchHistoryContextType = {
   currentRef: Reference;
@@ -70,6 +70,6 @@ export function useBranchHistoryContext(
     defaultRef,
     setDefaultRef,
     commitHistoryErr,
-    commitHistoryStatus
+    commitHistoryStatus,
   };
 }

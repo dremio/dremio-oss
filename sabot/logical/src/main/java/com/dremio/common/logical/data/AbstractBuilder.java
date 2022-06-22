@@ -15,10 +15,7 @@
  */
 package com.dremio.common.logical.data;
 
-import java.util.List;
 
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.LogicalExpression;
 
 public abstract class AbstractBuilder<T extends LogicalOperator> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractBuilder.class);

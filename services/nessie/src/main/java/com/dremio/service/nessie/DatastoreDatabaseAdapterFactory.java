@@ -15,44 +15,24 @@
  */
 package com.dremio.service.nessie;
 
+import org.projectnessie.versioned.StoreWorker;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.adapter.DatabaseAdapterFactory;
+import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
+import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterFactory;
 
-public class DatastoreDatabaseAdapterFactory
-    implements DatabaseAdapterFactory<NessieDatabaseAdapterConfig, NessieDatabaseAdapterConfig, NessieDatastoreInstance> {
+public class DatastoreDatabaseAdapterFactory extends NonTransactionalDatabaseAdapterFactory<NessieDatastoreInstance> {
 
   public static final String NAME = "DATASTORE";
 
-  protected DatabaseAdapter create(NessieDatabaseAdapterConfig config, NessieDatastoreInstance connector) {
-    return new DatastoreDatabaseAdapter(config, connector);
+  @Override
+  protected DatabaseAdapter create(NonTransactionalDatabaseAdapterConfig config,
+                                   NessieDatastoreInstance datastore,
+                                   StoreWorker<?, ?, ?> storeWorker) {
+    return new DatastoreDatabaseAdapter(config, datastore, storeWorker);
   }
 
   @Override
   public String getName() {
     return NAME;
-  }
-
-  @Override
-  public Builder<NessieDatabaseAdapterConfig, NessieDatabaseAdapterConfig, NessieDatastoreInstance>
-      newBuilder() {
-    return new DatastoreDatabaseAdapterBuilder();
-  }
-
-  private class DatastoreDatabaseAdapterBuilder
-      extends Builder<NessieDatabaseAdapterConfig, NessieDatabaseAdapterConfig, NessieDatastoreInstance> {
-    @Override
-    protected NessieDatabaseAdapterConfig getDefaultConfig() {
-      return new ImmutableNessieDatabaseAdapterConfig.Builder().build();
-    }
-
-    @Override
-    protected NessieDatabaseAdapterConfig adjustableConfig(NessieDatabaseAdapterConfig config) {
-      return new ImmutableNessieDatabaseAdapterConfig.Builder().from(config).build();
-    }
-
-    @Override
-    public DatabaseAdapter build() {
-      return create(getConfig(), getConnector());
-    }
   }
 }

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import metrics from './metrics';
-import './vendor/gtm';
+import metrics from "./metrics";
+import "./vendor/gtm";
 
 const setupMetrics = () => {
   window.DremioMetrics = metrics;

@@ -14,14 +14,34 @@
  * limitations under the License.
  */
 
-import ColumnCell from './components/ColumnCell';
+import ColumnCell from "./components/ColumnCell";
 
 export const additionalColumns = [
-  { key: 'qn', id: 'qn', label: 'Queue', disableSort: false, isSelected: true, width: 95, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth:false, isDraggable: true, headerClassName: '' }
+  {
+    key: "qn",
+    id: "qn",
+    label: "Queue",
+    disableSort: false,
+    isSelected: true,
+    width: 95,
+    height: 40,
+    flexGrow: "0",
+    flexShrink: "0",
+    isFixedWidth: false,
+    isDraggable: true,
+    headerClassName: "",
+  },
 ];
 
-const renderColumn = (data, isNumeric) => <ColumnCell data={data} isNumeric={isNumeric} />;
+const renderColumn = (data, isNumeric) => (
+  <ColumnCell data={data} isNumeric={isNumeric} />
+);
 
 export const additionalColumnName = (job) => [
-  { qn: { node: () => renderColumn(job.get('wlmQueue')), value: job.get('wlmQueue') } }
+  {
+    qn: {
+      node: () => renderColumn(job.get("wlmQueue")),
+      value: job.get("wlmQueue"),
+    },
+  },
 ];

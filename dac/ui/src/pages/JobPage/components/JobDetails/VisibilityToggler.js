@@ -13,43 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
+import { injectIntl } from "react-intl";
 
-import Art from 'components/Art';
+import Art from "components/Art";
 
-@injectIntl
-@Radium
 class VisibilityToggler extends PureComponent {
   static propTypes = {
     title: PropTypes.object.isRequired,
     children: PropTypes.node.isRequired,
     isOpen: PropTypes.bool,
     style: PropTypes.object,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   constructor(props) {
     super(props);
     this.toggleVisible = this.toggleVisible.bind(this);
     this.state = {
-      isOpen: props.isOpen || false
+      isOpen: props.isOpen || false,
     };
   }
 
   toggleVisible() {
     this.setState({
-      isOpen: !this.state.isOpen
+      isOpen: !this.state.isOpen,
     });
   }
 
   render() {
     const { title, style, intl } = this.props;
     const { isOpen } = this.state;
-    const iconType = isOpen ? 'TriangleDown.svg' : 'TriangleRight.svg';
-    const iconAlt = intl.formatMessage({ id: `Common.${isOpen ? 'Undisclosed' : 'Disclosed'}` });
+    const iconType = isOpen ? "TriangleDown.svg" : "TriangleRight.svg";
+    const iconAlt = intl.formatMessage({
+      id: `Common.${isOpen ? "Undisclosed" : "Disclosed"}`,
+    });
 
     return (
       <div style={style}>
@@ -63,17 +63,17 @@ class VisibilityToggler extends PureComponent {
   }
 }
 
-export default VisibilityToggler;
+export default injectIntl(Radium(VisibilityToggler));
 
 const styles = {
   title: {
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer',
-    padding: '2px 0'
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
+    padding: "2px 0",
   },
   triangle: {
     width: 20,
-    height: 20
-  }
+    height: 20,
+  },
 };

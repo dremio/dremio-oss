@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { getFilteredEngines } from './EngineFilterHelper';
+import Immutable from "immutable";
+import { getFilteredEngines } from "./EngineFilterHelper";
 
-describe('EngineFilterHelper', () => {
+describe("EngineFilterHelper", () => {
   const emptyEngines = Immutable.fromJS([]);
-  const e1 = {currentState: 'RUNNING', dynamicConfig: {containerCount: 4}};
-  const e2 = {currentState: 'STOPPED', dynamicConfig: {containerCount: 2}};
+  const e1 = { currentState: "RUNNING", dynamicConfig: { containerCount: 4 } };
+  const e2 = { currentState: "STOPPED", dynamicConfig: { containerCount: 2 } };
   const engines = Immutable.fromJS([e1, e2]);
 
-  it('should handle no filters', () => {
+  it("should handle no filters", () => {
     expect(getFilteredEngines(emptyEngines, {})).to.eql(emptyEngines);
     expect(getFilteredEngines(engines)).to.eql(engines);
     expect(getFilteredEngines(engines, {})).to.eql(engines);
   });
 
-  it('should filter by status', () => {
-    const result = getFilteredEngines(engines, {st: ['RUNNING']});
+  it("should filter by status", () => {
+    const result = getFilteredEngines(engines, { st: ["RUNNING"] });
     expect(result.size).to.eql(1);
     expect(result.get(0).toJS()).to.eql(e1);
   });
-  it('should filter by size', () => {
-    const result = getFilteredEngines(engines, {sz: ['SMALL']});
+  it("should filter by size", () => {
+    const result = getFilteredEngines(engines, { sz: ["SMALL"] });
     expect(result.size).to.eql(1);
     expect(result.get(0).toJS()).to.eql(e2);
   });

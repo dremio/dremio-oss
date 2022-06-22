@@ -43,7 +43,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -51,6 +53,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
@@ -61,11 +64,7 @@ import com.google.common.io.Resources;
 public final class GoldenFileTestBuilder<I, O> {
   private static final Logger LOGGER = LoggerFactory.getLogger(GoldenFileTestBuilder.class);
   private static final Path LICENSE_HEADER_PATH = Paths.get(Resources.getResource("goldenfiles/header.txt").getPath());
-  private static final ObjectMapper objectMapper = new ObjectMapper(
-      new YAMLFactory()
-          .disable(YAMLGenerator.Feature.SPLIT_LINES)
-          .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-          .enable(YAMLGenerator.Feature.INDENT_ARRAYS));
+  private static final ObjectMapper objectMapper = getObjectMapper();
 
   private final ThrowingFunction<I, O> executeTestFunction;
   private final List<DescriptionAndInput<I>> descriptionAndInputs;
@@ -104,15 +103,15 @@ public final class GoldenFileTestBuilder<I, O> {
               descriptionAndInput.description,
               descriptionAndInput.input,
               this.executeTestFunction.apply(descriptionAndInput.input));
-        } catch (Exception ex) {
+        } catch (Throwable t) {
           if (this.allowExceptions) {
             inputAndOutput = InputAndOutput.createFailure(
                 descriptionAndInput.description,
                 descriptionAndInput.input,
-                ex,
+                t,
                 this.showFullStackTrace);
           } else {
-            throw new RuntimeException(ex);
+            throw new RuntimeException(t);
           }
         }
 
@@ -296,21 +295,21 @@ public final class GoldenFileTestBuilder<I, O> {
       return new InputAndOutput(description, input, output, null);
     }
 
-    public static <I, O> InputAndOutput createFailure(String description, I input, Exception exception, boolean showFullStackTrace) {
+    public static <I, O> InputAndOutput createFailure(String description, I input, Throwable throwable, boolean showFullStackTrace) {
       String exceptionMessage;
       if (showFullStackTrace) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
-        exception.printStackTrace(pw);
+        throwable.printStackTrace(pw);
 
         exceptionMessage = sw.toString().replace("\t", "");
       } else {
-        exceptionMessage = exception.getMessage();
+        exceptionMessage = throwable.getMessage();
 
       }
 
       if(exceptionMessage == null) {
-        exceptionMessage = exception.toString();
+        exceptionMessage = throwable.toString();
       }
 
       return new InputAndOutput(description, input, null, exceptionMessage);
@@ -440,6 +439,21 @@ public final class GoldenFileTestBuilder<I, O> {
         jgen.writeArray(value.lines, 0, value.lines.length);
       }
     }
+  }
+
+  private static ObjectMapper getObjectMapper(){
+    ObjectMapper objectMapper = new ObjectMapper(
+      new YAMLFactory()
+        .disable(YAMLGenerator.Feature.SPLIT_LINES)
+        .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
+        .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
+      .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+      .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY);
+
+    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    objectMapper.registerModule(new JavaTimeModule());
+
+    return objectMapper;
   }
 
   private static final class MultiLineStringDeserializer extends StdDeserializer<MultiLineString> {

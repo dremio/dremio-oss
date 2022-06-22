@@ -146,7 +146,7 @@ public class TestIcebergManifests extends BaseTestQuery {
       SchemaConverter schemaConverter = new SchemaConverter(tableName);
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
         icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
-        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null);
+        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null, null);
       committer.commit();
 
       committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()), operatorStats);

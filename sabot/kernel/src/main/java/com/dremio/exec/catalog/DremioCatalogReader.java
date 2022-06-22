@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -262,15 +263,28 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
                                       SqlSyntax paramSqlSyntax,
                                       List<SqlOperator> paramList,
                                       SqlNameMatcher nameMatcher) {
-    if(paramSqlFunctionCategory != SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION) {
+    if(null == paramSqlFunctionCategory
+        || null == paramSqlIdentifier) {
       return;
     }
-
-    catalog.getFunctions(new NamespaceKey(paramSqlIdentifier.names)).stream()
+    findFunctions(new NamespaceKey(paramSqlIdentifier.names), paramSqlFunctionCategory).stream()
       .map(input -> toOp(paramSqlIdentifier, input))
       .forEach(paramList::add);
+
   }
 
+  private Collection<Function> findFunctions(
+    NamespaceKey namespaceKey,
+    SqlFunctionCategory paramSqlFunctionCategory) {
+    switch (paramSqlFunctionCategory) {
+      case USER_DEFINED_FUNCTION:
+        return catalog.getFunctions(namespaceKey, SimpleCatalog.FunctionType.SCALAR);
+      case USER_DEFINED_TABLE_FUNCTION:
+        return catalog.getFunctions(namespaceKey, SimpleCatalog.FunctionType.TABLE);
+      default:
+        return ImmutableList.of();
+    }
+  }
 
   /**
    * Rest of class is utility functions taken directly from CalciteCatalogReader. This is because that class consider these utilities to be private concerns.

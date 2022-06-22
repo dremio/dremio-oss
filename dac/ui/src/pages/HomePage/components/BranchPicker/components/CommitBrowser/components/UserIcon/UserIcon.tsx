@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import getIconColor from '@app/utils/getIconColor';
-import './UserIcon.less';
+import getIconColor from "@app/utils/getIconColor";
+import "./UserIcon.less";
 
 function UserIcon({ user }: { user: string }) {
   return (
-    <span className='commitEntry-userIconWrapper' style={{
-      backgroundColor: getIconColor(user).backgroundColor
-    }}>
+    <span
+      className="commitEntry-userIconWrapper"
+      style={{
+        backgroundColor: getIconColor(user).backgroundColor,
+      }}
+    >
       {user[0].toUpperCase()}
     </span>
   );

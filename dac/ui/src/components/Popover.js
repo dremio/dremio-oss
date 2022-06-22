@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { get } from 'lodash/object';
-import Popover from '@material-ui/core/Popover';
-import Popper from '@material-ui/core/Popper';
-import Paper from '@material-ui/core/Paper';
-import ClickAwayListener from '@material-ui/core/ClickAwayListener';
-import { generateEnumFromList } from '@app/utils/enumUtils';
-import { popper as popperCls, popperPaper as popperPaperCls } from './Popover.less';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { get } from "lodash/object";
+import Popover from "@material-ui/core/Popover";
+import Popper from "@material-ui/core/Popper";
+import Paper from "@material-ui/core/Paper";
+import ClickAwayListener from "@material-ui/core/ClickAwayListener";
+import { generateEnumFromList } from "@app/utils/enumUtils";
+import {
+  popper as popperCls,
+  popperPaper as popperPaperCls,
+} from "./Popover.less";
 
-const supportedMouseEvents = ['onClick', 'onMouseDown', 'onMouseUp'];
+const supportedMouseEvents = ["onClick", "onMouseDown", "onMouseUp"];
 /**
  * Click away mouse event type, which is applied to {@see}
  */
@@ -51,25 +54,21 @@ class DremioPopoverAdapter extends PureComponent {
     /** Applies to {@see Popper} instance if {@see useLayerForClickAway} = {@see true}*/
     clickAwayMouseEvent: PropTypes.oneOf(supportedMouseEvents),
     popoverFilters: PropTypes.string,
-    classes: PropTypes.object
+    classes: PropTypes.object,
   };
 
   static defaultProps = {
-    mouseEvent: MouseEvents.onClick
-  }
+    mouseEvent: MouseEvents.onClick,
+  };
 
   getListStyle = () => {
-    const {
-      listStyle,
-      listWidthSameAsAnchorEl,
-      anchorEl
-    } = this.props;
+    const { listStyle, listWidthSameAsAnchorEl, anchorEl } = this.props;
 
     if (listWidthSameAsAnchorEl) {
-      return { ...listStyle, width: get(anchorEl, 'offsetWidth') };
+      return { ...listStyle, width: get(anchorEl, "offsetWidth") };
     }
     return listStyle;
-  }
+  };
 
   render() {
     const {
@@ -84,14 +83,13 @@ class DremioPopoverAdapter extends PureComponent {
       classes,
       // popper specific props
       clickAwayMouseEvent,
-      popoverFilters
-
+      popoverFilters,
     } = this.props;
 
     const commonProps = {
       open: Boolean(anchorEl),
       anchorEl,
-      'data-qa': dataQa
+      "data-qa": dataQa,
     };
 
     // style = undefined in the commonProps breaks a layout. So we need to set style property only
@@ -100,44 +98,54 @@ class DremioPopoverAdapter extends PureComponent {
       commonProps.style = style;
     }
 
-    return useLayerForClickAway ?
+    return useLayerForClickAway ? (
       <Popover
         className={popoverFilters}
-        anchorOrigin={{ horizontal: listRightAligned ? 'right' : 'left', vertical: 'bottom' }}
-        transformOrigin={{ horizontal: listRightAligned ? 'right' : 'left', vertical: 'top' }}
+        anchorOrigin={{
+          horizontal: listRightAligned ? "right" : "left",
+          vertical: "bottom",
+        }}
+        transformOrigin={{
+          horizontal: listRightAligned ? "right" : "left",
+          vertical: "top",
+        }}
         onClose={onClose}
         transitionDuration={0}
-        PaperProps={{ style: this.getListStyle(), classes: { root: listClass } }}
+        PaperProps={{
+          style: this.getListStyle(),
+          classes: { root: listClass },
+        }}
         classes={{
-          root: classes && classes.root
+          root: classes && classes.root,
         }}
         {...commonProps}
       >
         {children}
-      </Popover> :
+      </Popover>
+    ) : (
       <Popper
         className={popperCls}
-        placement={listRightAligned ? 'bottom-end' : 'bottom-start'}
+        placement={listRightAligned ? "bottom-end" : "bottom-start"}
         classes={{
-          root: classes && classes.root
+          root: classes && classes.root,
         }}
         {...commonProps}
       >
-        <ClickAwayListener mouseEvent={clickAwayMouseEvent} onClickAway={onClose}>
+        <ClickAwayListener
+          mouseEvent={clickAwayMouseEvent}
+          onClickAway={onClose}
+        >
           <Paper
             className={classNames(listClass, popperPaperCls)}
-            style={{ position: 'relative', ...this.getListStyle() }}
+            style={{ position: "relative", ...this.getListStyle() }}
           >
             {/* TODO <EventListener target='window' onResize={this.handleResize} /> */}
             {children}
           </Paper>
         </ClickAwayListener>
-      </Popper>;
+      </Popper>
+    );
   }
 }
 
-
-
-export {
-  DremioPopoverAdapter as Popover
-};
+export { DremioPopoverAdapter as Popover };

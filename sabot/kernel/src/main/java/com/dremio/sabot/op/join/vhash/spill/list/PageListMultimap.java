@@ -357,15 +357,15 @@ public class PageListMultimap implements AutoCloseable {
   }
 
   /**
-   * Iterator for all the elements in the list.
-   * @return stream of values
+   * Array view for all the elements in the list.
+   * @return array view
    */
   @VisibleForTesting
-  public Stream<KeyAndCarryAlongId> findAll() {
+  public ArrayOfEntriesView findAll() {
     Preconditions.checkArgument(state != State.CLOSED,
       "Must be in BUILD/READ state to iterate. Currently in a %s state.", state);
 
-    return StreamSupport.stream(Spliterators.spliterator(new FindAllIterator(), 5, 0), false);
+    return new FindAllEntriesView();
   }
 
   private class FindIterator implements PrimitiveIterator.OfLong {
@@ -405,22 +405,33 @@ public class PageListMultimap implements AutoCloseable {
 
   }
 
-  private class FindAllIterator implements Iterator<KeyAndCarryAlongId> {
-    private int current = BASE_ELEMENT_INDEX;
-
+  private class FindAllEntriesView implements ArrayOfEntriesView {
     @Override
-    public boolean hasNext() {
-      return current < totalListSize;
+    public int getFirstValidIndex() {
+      return BASE_ELEMENT_INDEX;
     }
 
     @Override
-    public KeyAndCarryAlongId next() {
-      Preconditions.checkArgument(current >= BASE_ELEMENT_INDEX && current < totalListSize);
-      final long address = elementAddresses[current >> elementShift] + ELEMENT_SIZE * (current & elementMask);
-      final long val = PlatformDependent.getLong(address);
-      final int key = PlatformDependent.getInt(address + KEY_OFFSET);
-      ++current;
-      return new KeyAndCarryAlongId(key, val);
+    public int size() {
+      return totalListSize;
+    }
+
+    @Override
+    public int getKey(int index) {
+      Preconditions.checkArgument(isIndexValid(index));
+      final long address = elementAddresses[index >> elementShift] + ELEMENT_SIZE * (index & elementMask);
+      return PlatformDependent.getInt(address + KEY_OFFSET);
+    }
+
+    @Override
+    public long getCarryAlongId(int index) {
+      Preconditions.checkArgument(isIndexValid(index));
+      final long address = elementAddresses[index >> elementShift] + ELEMENT_SIZE * (index & elementMask);
+      return PlatformDependent.getLong(address);
+    }
+
+    private boolean isIndexValid(int index) {
+      return index >= BASE_ELEMENT_INDEX && index < totalListSize;
     }
   }
 

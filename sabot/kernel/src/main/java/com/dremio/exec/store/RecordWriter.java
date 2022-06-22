@@ -45,6 +45,7 @@ public interface RecordWriter extends AutoCloseable {
   String ICEBERG_METADATA_COLUMN = "IcebergMetadata";
   String FILE_SCHEMA_COLUMN = "fileschema";
   String PARTITION_DATA_COLUMN = "PartitionData";
+  String OPERATION_TYPE_COLUMN = "OperationType";
 
   BatchSchema SCHEMA = BatchSchema.newBuilder()
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
@@ -57,6 +58,7 @@ public interface RecordWriter extends AutoCloseable {
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA_COLUMN, Types.optional(MinorType.VARBINARY)))
       .addField(new Field(PARTITION_DATA_COLUMN, FieldType.nullable(CompleteType.LIST.getType()), Collections.singletonList(
         Field.nullable("$data$", CompleteType.VARBINARY.getType()))))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(OPERATION_TYPE_COLUMN, Types.optional(MinorType.INT)))
       .setSelectionVectorMode(SelectionVectorMode.NONE)
       .build();
 
@@ -69,6 +71,7 @@ public interface RecordWriter extends AutoCloseable {
   Field ICEBERG_METADATA = SCHEMA.getColumn(6);
   Field FILE_SCHEMA = SCHEMA.getColumn(7);
   Field PARTITION_DATA = SCHEMA.getColumn(8);
+  Field OPERATION_TYPE = SCHEMA.getColumn(9);
 
   /**
    *
@@ -110,7 +113,7 @@ public interface RecordWriter extends AutoCloseable {
    */
   interface OutputEntryListener {
     void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber,
-                        byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partition);
+                        byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partition, Integer operationType);
   }
 
   /**

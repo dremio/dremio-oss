@@ -19,16 +19,6 @@ import static com.dremio.TestBuilder.mapOf;
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 
-import com.dremio.context.RequestContext;
-import com.dremio.context.TenantContext;
-import com.dremio.context.UserContext;
-import com.dremio.service.DirectProvider;
-import com.dremio.service.grpc.GrpcChannelBuilderFactory;
-import com.dremio.service.grpc.SingleTenantGrpcChannelBuilderFactory;
-import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
-import com.dremio.service.jobtelemetry.JobTelemetryClient;
-import com.dremio.telemetry.utils.TracerFacade;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -50,6 +40,9 @@ import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.context.RequestContext;
+import com.dremio.context.TenantContext;
+import com.dremio.context.UserContext;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
@@ -67,8 +60,15 @@ import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.service.DirectProvider;
+import com.dremio.service.grpc.GrpcChannelBuilderFactory;
+import com.dremio.service.grpc.SingleTenantGrpcChannelBuilderFactory;
+import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
+import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 
 public class ITTestLimit extends ElasticBaseTestQuery {
   private final GrpcChannelBuilderFactory grpcChannelBuilderFactory =
@@ -81,7 +81,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
   private JobTelemetryClient jobTelemetryClient;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void loadTable() throws IOException, ParseException, InterruptedException {

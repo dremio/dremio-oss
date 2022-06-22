@@ -31,6 +31,7 @@ import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.types.Types;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -122,6 +123,7 @@ public class TestCreateTable extends PlanTestBase {
   }
 
   @Test
+  @Ignore("DX-50441")
   public void createTableAndSelect() throws Exception {
     final String newTblName = "createEmptyTable";
 
@@ -260,7 +262,7 @@ public class TestCreateTable extends PlanTestBase {
   }
 
   @Test
-  public void testReadingFromRootPointerWithAutomaticRefresh() throws Exception{
+  public void testReadingFromRootPointer() throws Exception{
     String table1 = "root_pointer";
     try {
       File table1Folder = new File(getDfsTestTmpSchemaLocation(), table1);
@@ -288,15 +290,25 @@ public class TestCreateTable extends PlanTestBase {
       Thread.sleep(1001);
       addFileToTable(table, spec, testWorkingPath, "f2.parquet");
 
-      // Automatic refresh should happen and should show the newly added records.
       testBuilder()
-              .sqlQuery("select * from dfs_test_hadoop.root_pointer")
-              .unOrdered()
-              .baselineColumns("col1", "col2")
-              .baselineValues(1, 2)
-              .baselineValues(1, 2)
-              .build()
-              .run();
+        .sqlQuery("select * from dfs_test_hadoop.root_pointer")
+        .unOrdered()
+        .baselineColumns("col1", "col2")
+        .baselineValues(1, 2)
+        .build()
+        .run();
+
+      String refreshMetadata = "alter table dfs_test_hadoop.root_pointer refresh metadata";
+      test(refreshMetadata);
+
+      testBuilder()
+        .sqlQuery("select * from dfs_test_hadoop.root_pointer")
+        .unOrdered()
+        .baselineColumns("col1", "col2")
+        .baselineValues(1, 2)
+        .baselineValues(1, 2)
+        .build()
+        .run();
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
@@ -309,11 +321,83 @@ public class TestCreateTable extends PlanTestBase {
     try {
       final String ctasQuery =
         String.format("create table %s.%s (point ROW(x INT , y  DECIMAL(38,3)), list ARRAY(BIGINT), listoflist ARRAY(ARRAY(DECIMAL(34,4))), listofstruct ARRAY(ROW(x BIGINT))," +
-            "structofstruct ROW(x ROW(z INT)), structoflist ROW(x ARRAY(INT)))",
+            "structofstruct ROW(x ROW(z INT)), structoflist ROW(x ARRAY(INT)), point2 STRUCT<x : INT,y: INT>, list2 LIST<BIGINT>,listoflist2 LIST<LIST<DECIMAL(34,4)>>,listofstruct2 LIST<STRUCT<x: BIGINT>>," +
+            "structofstruct2 STRUCT<x :ROW(z INT)>,  structofstruct3 STRUCT<x :STRUCT<z :INT>>)",
           TEMP_SCHEMA, newTblName);
       test(ctasQuery);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
+
+  @Test
+  public void createTableIfNotExists() throws Exception{
+    final String newTblName = "createTableIfNotExists";
+
+    try {
+      final String createQuery =
+        String.format("CREATE TABLE IF NOT EXISTS %s.%s (id int, name varchar)", TEMP_SCHEMA, newTblName);
+
+      testBuilder()
+        .sqlQuery(createQuery)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true,"Table created")
+        .build()
+        .run();
+
+      testBuilder()
+        .sqlQuery(createQuery)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true,String.format("Table [%s.%s] already exists.", TEMP_SCHEMA, newTblName))
+        .build()
+        .run();
+    }
+    finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
+
+  @Test
+  public void ctasIfNotExists() throws Exception{
+    final String newTblName1 = "ctasTable1";
+    final String newTblName2 = "ctasTable2";
+    final String newTblName3 = "ctasTable3";
+
+    try {
+      final String ctasQuery1 =
+        String.format("CREATE TABLE IF NOT EXISTS %s.%s (id int, name varchar)", TEMP_SCHEMA, newTblName1);
+      final String ctasQuery2 =
+        String.format("CREATE TABLE IF NOT EXISTS %s.%s (id int, name varchar)", TEMP_SCHEMA, newTblName2);
+      final String ctasQuery3 =
+        String.format("CREATE TABLE IF NOT EXISTS %s.%s AS SELECT * FROM %s.%s ", TEMP_SCHEMA, newTblName2,TEMP_SCHEMA, newTblName1);
+      final String ctasQuery4 =
+        String.format("CREATE TABLE IF NOT EXISTS %s.%s AS SELECT * FROM %s.%s ", TEMP_SCHEMA, newTblName3,TEMP_SCHEMA, newTblName1);
+
+      test(ctasQuery1);
+      test(ctasQuery2);
+
+      testBuilder()
+        .sqlQuery(ctasQuery3)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true,String.format("Table [%s.%s] already exists.", TEMP_SCHEMA, newTblName2))
+        .build()
+        .run();
+
+      testBuilder()
+        .sqlQuery(ctasQuery4)
+        .unOrdered()
+        .baselineColumns("Fragment","Records","Path","Metadata","Partition","FileSize","IcebergMetadata","fileschema","PartitionData","OperationType")
+        .expectsEmptyResultSet()
+        .build()
+        .run();
+    }
+    finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName1));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName2));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName3));
     }
   }
 }

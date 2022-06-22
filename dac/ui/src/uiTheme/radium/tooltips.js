@@ -13,22 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PRIMARY_600, linen } from '@app/uiTheme/less/color-schema.less';
-import { PALE_NAVY, NAVY } from 'uiTheme/radium/colors';
-import { bodyWhite } from 'uiTheme/radium/typography';
+import { PRIMARY_600, linen } from "@app/uiTheme/less/color-schema.less";
+import { PALE_NAVY, NAVY } from "uiTheme/radium/colors";
+import { bodyWhite } from "uiTheme/radium/typography";
 
-export const arrowWidth = '5px';
+export const arrowWidth = "5px";
 
 const typeToColor = {
   error: linen,
   info: PALE_NAVY,
   status: NAVY,
-  custom: PRIMARY_600
+  custom: PRIMARY_600,
 };
 
-
 const baseToolTipStyle = {
-  position: 'relative'
+  position: "relative",
 };
 
 export default function getTooltipStyles(type) {
@@ -42,30 +41,30 @@ export default function getTooltipStyles(type) {
       // Note: multiple tooltips in the same context will still respect DOM order
       // e.g. problematic for persistent tooltips like errors
       // (DX-9150 Tooltip appears behind other text)
-      zIndex: 10
+      zIndex: 10,
     },
 
     inner: {
-      textAlign: 'left',
+      textAlign: "left",
       backgroundColor: bgColor,
-      boxShadow: '0 0 8px 0 rgba(0,0,0,0.1)',
+      boxShadow: "0 0 8px 0 rgba(0,0,0,0.1)",
       width: 180,
       borderRadius: 5,
-      padding: '9px 10px',
-      ...(type === 'status' ? bodyWhite : null),
-      height: 'auto',
-      maxHeight: '800px',
-      overflowY: 'auto',
-      ...(type === 'status' ? bodyWhite : null)
+      padding: "9px 10px",
+      ...(type === "status" ? bodyWhite : null),
+      height: "auto",
+      maxHeight: "800px",
+      overflowY: "auto",
+      ...(type === "status" ? bodyWhite : null),
     },
 
     arrow: {
-      position: 'absolute',
+      position: "absolute",
       width: 0,
       height: 0,
-      borderColor: 'transparent',
-      color: 'transparent',
-      borderStyle: 'solid'
+      borderColor: "transparent",
+      color: "transparent",
+      borderStyle: "solid",
     },
     placement: {
       top: {
@@ -73,33 +72,33 @@ export default function getTooltipStyles(type) {
         arrow: {
           bottom: 0,
           borderWidth: `${arrowWidth} ${arrowWidth} 0`,
-          borderTopColor: bgColor
-        }
+          borderTopColor: bgColor,
+        },
       },
       right: {
         tooltip: { ...baseToolTipStyle, paddingLeft: arrowWidth },
         arrow: {
           left: 0,
           borderWidth: `${arrowWidth} ${arrowWidth} ${arrowWidth} 0`,
-          borderRightColor: bgColor
-        }
+          borderRightColor: bgColor,
+        },
       },
       bottom: {
         tooltip: { ...baseToolTipStyle, paddingTop: arrowWidth },
         arrow: {
           top: 0,
           borderWidth: `0 ${arrowWidth} ${arrowWidth}`,
-          borderBottomColor: bgColor
-        }
+          borderBottomColor: bgColor,
+        },
       },
       left: {
         tooltip: { ...baseToolTipStyle, paddingRight: arrowWidth },
         arrow: {
           right: 0,
           borderWidth: `${arrowWidth} 0 ${arrowWidth} ${arrowWidth}`,
-          borderLeftColor: bgColor
-        }
-      }
-    }
+          borderLeftColor: bgColor,
+        },
+      },
+    },
   };
 }

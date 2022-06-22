@@ -13,40 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import AdvancedOptionsExpandable from './AdvancedOptionsExpandable';
+import AdvancedOptionsExpandable from "./AdvancedOptionsExpandable";
 
-describe('AdvancedOptionsExpandable', () => {
-
+describe("AdvancedOptionsExpandable", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      children: 'children '
+      children: "children ",
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AdvancedOptionsExpandable {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AdvancedOptionsExpandable {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
   it('should render "show" link and hide children', () => {
-    const wrapper = shallow(<AdvancedOptionsExpandable {...commonProps}/>);
-    expect(wrapper.text()).to.contain('Show');
-    expect(wrapper.find('div').at(1).props().style.maxHeight).to.equal(0);
+    const wrapper = shallow(<AdvancedOptionsExpandable {...commonProps} />);
+    expect(wrapper.text()).to.contain("Show");
+    expect(wrapper.find("div").at(1).props().style.maxHeight).to.equal(0);
   });
 
-  it('should hide show and show children after clicking', () => {
-    const wrapper = shallow(<AdvancedOptionsExpandable {...commonProps}/>);
+  it("should hide show and show children after clicking", () => {
+    const wrapper = shallow(<AdvancedOptionsExpandable {...commonProps} />);
     wrapper.instance().handleClick();
     expect(wrapper.state().expanded).to.be.true;
     wrapper.update();
-    expect(wrapper.text()).to.not.contain('Show');
-    expect(wrapper.find('div').at(1).props().style.maxHeight).to.not.equal(0);
+    expect(wrapper.text()).to.not.contain("Show");
+    expect(wrapper.find("div").at(1).props().style.maxHeight).to.not.equal(0);
   });
 });

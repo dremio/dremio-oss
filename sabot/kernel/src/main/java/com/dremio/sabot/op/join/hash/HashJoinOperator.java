@@ -50,6 +50,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.PowerOfTwoLongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
@@ -76,6 +77,8 @@ public class HashJoinOperator implements DualInputOperator {
 
   public static final BooleanValidator ENABLE_SPILL = new BooleanValidator("exec.op.join.spill", false);
   public static final PowerOfTwoLongValidator NUM_PARTITIONS = new PowerOfTwoLongValidator("exec.op.join.spill.num_partitions", 16, 8);
+  // For unit tests, always use with DEBUG flag only.
+  public static final StringValidator TEST_SPILL_MODE = new StringValidator("exec.op.join.spill.test_spill_mode", "none");
 
   private long outputRecords;
 

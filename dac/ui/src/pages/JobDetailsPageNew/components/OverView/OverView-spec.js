@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import OverView from './OverView';
+import { shallow } from "enzyme";
+import OverView from "./OverView";
 
-describe('OverView', () => {
-
+describe("OverView", () => {
   const minimalProps = {
     scansForFilter: [],
     jobSummary: [],
@@ -26,30 +25,30 @@ describe('OverView', () => {
     queriedDataSet: [],
     duration: {
       value: {
-        isAcceleration: false
-      }
+        isAcceleration: false,
+      },
     },
     location: {},
     jobDetails: Immutable.fromJS({
-      queryText: 'SELECT * FROM nation',
+      queryText: "SELECT * FROM nation",
       durationDetails: [],
-      id: 'test id',
+      id: "test id",
       duration: 45,
       accelerated: false,
-      queryType: 'Preview',
+      queryType: "Preview",
       startTime: 1622102233268,
-      queryUser: 'dremio',
-      wlmQueue: 'queue',
+      queryUser: "dremio",
+      wlmQueue: "queue",
       queriedDatasets: [],
       scannedDatasets: [],
-      inputBytes: '20',
-      outputBytes: '20',
-      inputRecords: '25',
-      outputRecords: '20'
-    })
+      inputBytes: "20",
+      outputBytes: "20",
+      inputRecords: "25",
+      outputRecords: "20",
+    }),
   };
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<OverView {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });

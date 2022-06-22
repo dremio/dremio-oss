@@ -57,6 +57,11 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
   }
 
   @Override
+  public void startBatch(int records) {
+    outgoing.allocateNew();
+  }
+
+  @Override
   public void startRow(int row) throws Exception {
     ManifestFile manifestFile = getManifestFile(row);
     manifestFileProcessor.setupManifestFile(manifestFile);

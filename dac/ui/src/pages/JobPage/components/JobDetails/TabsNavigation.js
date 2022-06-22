@@ -13,35 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 
-import TabsNavigationItem from './TabsNavigationItem';
+import { TabsNavigationItem } from "dremio-ui-lib";
 
-@injectIntl
-@Radium
-export default class TabsNavigation extends PureComponent {
+class TabsNavigation extends PureComponent {
   static propTypes = {
     activeTab: PropTypes.string.isRequired,
     changeTab: PropTypes.func,
     style: PropTypes.object,
     attemptDetails: PropTypes.instanceOf(Immutable.List),
     showJobProfile: PropTypes.func,
-    intl: PropTypes.object.isRequired
-  }
+    intl: PropTypes.object.isRequired,
+  };
 
   constructor(props) {
     super(props);
 
     this.tabHash = Immutable.fromJS([
-      {name: 'overview', label: props.intl.formatMessage({ id: 'Common.Overview' })},
-      {name: 'details', label: props.intl.formatMessage({ id: 'Common.Details' })},
-      {name: 'acceleration', label: props.intl.formatMessage({ id: 'Acceleration.Acceleration' })},
-      {name: 'profiles', label: props.intl.formatMessage({ id: 'Job.Profiles' })},
-      {name: 'profile', label: props.intl.formatMessage({ id: 'Job.Profile' })}
+      {
+        name: "overview",
+        label: props.intl.formatMessage({ id: "Common.Overview" }),
+      },
+      {
+        name: "details",
+        label: props.intl.formatMessage({ id: "Common.Details" }),
+      },
+      {
+        name: "acceleration",
+        label: props.intl.formatMessage({ id: "Acceleration.Acceleration" }),
+      },
+      {
+        name: "profiles",
+        label: props.intl.formatMessage({ id: "Job.Profiles" }),
+      },
+      {
+        name: "profile",
+        label: props.intl.formatMessage({ id: "Job.Profile" }),
+      },
     ]);
   }
 
@@ -49,37 +61,39 @@ export default class TabsNavigation extends PureComponent {
     const { activeTab, style, attemptDetails } = this.props;
     const isHaveSingleProfile = attemptDetails && attemptDetails.size < 2;
     const tabs = this.tabHash.map((item) => {
-      const name = item.get('name');
-      if (isHaveSingleProfile && name === 'profile') {
-        const profileUrl = attemptDetails.getIn([0, 'profileUrl']);
+      const name = item.get("name");
+      if (isHaveSingleProfile && name === "profile") {
+        const profileUrl = attemptDetails.getIn([0, "profileUrl"]);
         return (
           <TabsNavigationItem
             key={name}
-            item={item}
+            name={name}
             activeTab={activeTab}
-            onClick={() => this.props.showJobProfile(profileUrl)}>
-
-            {item.get('label')}
+            onClick={() => this.props.showJobProfile(profileUrl)}
+          >
+            {item.get("label")}
           </TabsNavigationItem>
         );
       }
-      if (isHaveSingleProfile && name === 'profiles'
-          || !isHaveSingleProfile && name === 'profile') {
+      if (
+        (isHaveSingleProfile && name === "profiles") ||
+        (!isHaveSingleProfile && name === "profile")
+      ) {
         return null;
       }
       return (
         <TabsNavigationItem
           key={name}
-          item={item}
+          name={name}
           activeTab={activeTab}
-          onClick={() => this.props.changeTab(name)}>
-
-          {item.get('label')}
+          onClick={() => this.props.changeTab(name)}
+        >
+          {item.get("label")}
         </TabsNavigationItem>
       );
     });
     return (
-      <div className='tabs-holder' style={[styles.base, style]}>
+      <div className="tabs-holder" style={{ ...styles.base, ...(style || {}) }}>
         {tabs}
       </div>
     );
@@ -89,7 +103,8 @@ export default class TabsNavigation extends PureComponent {
 const styles = {
   base: {
     height: 38,
-    borderBottom: '1px solid #f3f3f3',
-    display: 'flex'
-  }
+    borderBottom: "1px solid #f3f3f3",
+    display: "flex",
+  },
 };
+export default injectIntl(TabsNavigation);

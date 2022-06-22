@@ -53,4 +53,3 @@ public final class FlightRpcUtils{
     return Optional.empty();
   }
 }
-

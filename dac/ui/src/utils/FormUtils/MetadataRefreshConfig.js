@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import MetadataRefresh from 'components/Forms/MetadataRefresh';
-import MetadataRefreshWrapper from 'components/Forms/Wrappers/MetadataRefreshWrapper';
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import MetadataRefresh from "components/Forms/MetadataRefresh";
+import MetadataRefreshWrapper from "components/Forms/Wrappers/MetadataRefreshWrapper";
 
 export default class MetadataRefreshConfig extends FormElementConfig {
-
   constructor(props) {
     super(props);
     this._renderer = MetadataRefreshWrapper;
@@ -36,7 +35,7 @@ export default class MetadataRefreshConfig extends FormElementConfig {
     //merge metadataPolicy defaults
     initValues.metadataPolicy = {
       ...initValues.metadataPolicy, // could be empty if source is not a file system
-      ...MetadataRefresh.defaultFormValues().metadataPolicy
+      ...MetadataRefresh.defaultFormValues().metadataPolicy,
     };
     return initValues;
   }
@@ -45,5 +44,4 @@ export default class MetadataRefreshConfig extends FormElementConfig {
     validations.functions.push(MetadataRefresh.validate);
     return validations;
   }
-
 }

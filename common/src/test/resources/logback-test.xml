@@ -18,6 +18,19 @@
 -->
 <configuration>
 
+  <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
+    <defaultLogLevelThreshold>trace</defaultLogLevelThreshold>
+    <!---->
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A,warn</packageLogLevel>
+    <!--Exceptions to above -->
+    <exceptionPackageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A.First,error</exceptionPackageLogLevel>
+    <exceptionPackageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A.Second,error</exceptionPackageLogLevel>
+    <!---->
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B,info</packageLogLevel>
+    <!--Exceptions to above-->
+    <exceptionPackageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B.Second,error</exceptionPackageLogLevel>
+  </turboFilter>
+
   <appender name="SOCKET" class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">
     <Compressing>true</Compressing>
     <ReconnectionDelay>10000</ReconnectionDelay>

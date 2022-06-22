@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { domUtils } from '@app/utils/domUtils';
-import { getSidebarSize } from '@app/selectors/home';
-import { MIN_SIDEBAR_WIDTH, setSidebarSize } from '@app/actions/home';
-import { gridMinWidth } from '@app/pages/HomePage/components/Columns.less';
-import { slider as sliderCls} from './BrowseTable.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { domUtils } from "@app/utils/domUtils";
+import { getSidebarSize } from "@app/selectors/home";
+import { MIN_SIDEBAR_WIDTH, setSidebarSize } from "@app/actions/home";
+import { gridMinWidth } from "@app/pages/HomePage/components/Columns.less";
+import { slider as sliderCls } from "./BrowseTable.less";
 
 const GRID_MIN_WIDTH = parseInt(gridMinWidth, 10);
 
-const mapStateToProps = state => ({
-  position: getSidebarSize(state)
+const mapStateToProps = (state) => ({
+  position: getSidebarSize(state),
 });
 const mapDispatchToProps = {
-  resizeSidebar: setSidebarSize
+  resizeSidebar: setSidebarSize,
 };
 
 @connect(mapStateToProps, mapDispatchToProps)
@@ -36,21 +36,22 @@ export class BrowseTableResizer extends Component {
   static propTypes = {
     position: PropTypes.number,
     resizeSidebar: PropTypes.func.isRequired, // (int sideBarSize) => void
-    anchorElementGetter: PropTypes.func.isRequired // () => dom element
+    anchorElementGetter: PropTypes.func.isRequired, // () => dom element
   };
 
   state = {
     sliderPoistion: null,
-    isResizeInProgress: false
+    isResizeInProgress: false,
   };
 
   sliderNode = null;
 
-  onSliderRef = slider => {
-    const eventName = 'mousedown'; // pointerdown is not supported by safari
+  onSliderRef = (slider) => {
+    const eventName = "mousedown"; // pointerdown is not supported by safari
     if (slider) {
       slider.addEventListener(eventName, this.startResize);
-    } else if (this.sliderNode) { // slider is unmounted => check that previous reference exists
+    } else if (this.sliderNode) {
+      // slider is unmounted => check that previous reference exists
       this.sliderNode.removeEventListener(eventName, this.startResize);
     }
     this.sliderNode = slider;
@@ -58,22 +59,21 @@ export class BrowseTableResizer extends Component {
 
   startResize = () => {
     domUtils.disableSelection();
-    domUtils.setCursor('col-resize');
+    domUtils.setCursor("col-resize");
     domUtils.captureMouseEvents(this.onMouseMove, this.stopResize);
     this.setState({
       sliderPoistion: this.props.position,
-      isResizeInProgress: true
+      isResizeInProgress: true,
     });
   };
 
-  onMouseMove = e => {
+  onMouseMove = (e) => {
     if (this.state.isResizeInProgress) {
       const { anchorElementGetter } = this.props;
       const anchorElement = anchorElementGetter();
-      const {
-        left,
-        right
-      } =  anchorElement ? anchorElement.getBoundingClientRect() : { left: 0, right: 0};
+      const { left, right } = anchorElement
+        ? anchorElement.getBoundingClientRect()
+        : { left: 0, right: 0 };
 
       let sliderPoistion;
       // we have following structure
@@ -84,7 +84,7 @@ export class BrowseTableResizer extends Component {
         sliderPoistion = Math.max(right - e.clientX, MIN_SIDEBAR_WIDTH);
       }
       this.setState({
-        sliderPoistion
+        sliderPoistion,
       });
     }
   };
@@ -94,7 +94,7 @@ export class BrowseTableResizer extends Component {
     this.props.resizeSidebar(this.state.sliderPoistion);
     this.setState({
       sliderPoistion: null,
-      isResizeInProgress: false
+      isResizeInProgress: false,
     });
     domUtils.enableSelection();
     domUtils.resetCursor();
@@ -102,12 +102,12 @@ export class BrowseTableResizer extends Component {
 
   render() {
     const { isResizeInProgress, sliderPoistion } = this.state;
-    const sliderStyle = isResizeInProgress ? { opacity: 1, right: sliderPoistion} : null;
+    const sliderStyle = isResizeInProgress
+      ? { opacity: 1, right: sliderPoistion }
+      : null;
 
-    return <div
-      ref={this.onSliderRef}
-      className={sliderCls}
-      style={sliderStyle}
-    />;
+    return (
+      <div ref={this.onSliderRef} className={sliderCls} style={sliderStyle} />
+    );
   }
 }

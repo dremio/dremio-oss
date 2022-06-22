@@ -724,7 +724,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     String tblName = "emptyIcebergTable";
     try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags();
          AutoCloseable c2 = enableIcebergTables() /* to create iceberg tables with ctas */) {
-      final String createTableQuery = String.format("CREATE TABLE %s.%s(id int, code int)", "dfs_test", tblName);
+      final String createTableQuery = String.format("CREATE TABLE %s.%s(id int, code int)", "dfs_test_hadoop", tblName);
       test(createTableQuery);
       java.nio.file.Path metadataFolder = Paths.get(getDfsTestTmpSchemaLocation(), tblName, "metadata");
       Assert.assertTrue(metadataFolder.toFile().exists());
@@ -738,7 +738,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     String tblName = "newIcebergTable";
     try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags();
          AutoCloseable c2 = enableIcebergTables() /* to create iceberg tables with ctas */) {
-      final String createTableQuery = String.format("create table %s.%s(id, code) as values(10, 30)", "dfs_test", tblName);
+      final String createTableQuery = String.format("create table %s.%s(id, code) as values(cast(10 as int), cast(30 as int))", "dfs_test_hadoop", tblName);
       test(createTableQuery);
 
       java.nio.file.Path metadataFolder = Paths.get(getDfsTestTmpSchemaLocation(), tblName, "metadata");
@@ -747,27 +747,13 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       Thread.sleep(1001L);
 
       testBuilder()
-        .sqlQuery(String.format("select * from %s.%s", "dfs_test", tblName))
+        .sqlQuery(String.format("select * from %s.%s", "dfs_test_hadoop", tblName))
         .unOrdered()
         .baselineColumns("id", "code")
-        .baselineValues(10L, 30L)
+        .baselineValues(10, 30)
         .build()
         .run();
 
-    } finally {
-      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
-    }
-  }
-
-  @Test
-  public void testCreateEmptyNonIcebergTable() throws Exception {
-    String tblName = "emptyTable";
-    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
-      final String createTableQuery = String.format("CREATE TABLE %s.%s(id int, code int)", "dfs_test", tblName);
-
-      assertThatThrownBy(() -> test(createTableQuery))
-        .isInstanceOf(UserRemoteException.class)
-        .hasMessageContaining("does not support CREATE TABLE");
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
     }
@@ -789,7 +775,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
         .sqlQuery(String.format("select * from %s.%s", "dfs_test", tblName))
         .unOrdered()
         .baselineColumns("id", "code")
-        .baselineValues(10L, 30L)
+        .baselineValues(10, 30)
         .build()
         .run();
 

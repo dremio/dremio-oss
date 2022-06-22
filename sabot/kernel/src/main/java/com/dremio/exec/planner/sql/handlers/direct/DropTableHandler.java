@@ -33,6 +33,7 @@ import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.parser.SqlDropTable;
+import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
@@ -67,6 +68,7 @@ public class DropTableHandler extends SimpleDirectHandler {
     checkNotNull(userSession);
     final SqlDropTable dropTableNode = SqlNodeUtil.unwrap(sqlNode, SqlDropTable.class);
     final NamespaceKey path = catalog.resolveSingle(dropTableNode.getPath());
+    catalog.validatePrivilege(path, Privilege.DROP);
     final String sourceName = path.getRoot();
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
 

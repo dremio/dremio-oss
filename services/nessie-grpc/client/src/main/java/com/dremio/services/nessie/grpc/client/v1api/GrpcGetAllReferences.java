@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.projectnessie.api.params.FetchOption;
 import org.projectnessie.api.params.ReferencesParams;
+import org.projectnessie.api.params.ReferencesParamsBuilder;
 import org.projectnessie.client.api.GetAllReferencesBuilder;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferencesResponse;
@@ -30,7 +31,7 @@ import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingSt
 final class GrpcGetAllReferences implements GetAllReferencesBuilder {
 
   private final TreeServiceBlockingStub stub;
-  private final ReferencesParams.Builder params = ReferencesParams.builder();
+  private final ReferencesParamsBuilder params = ReferencesParams.builder();
 
   public GrpcGetAllReferences(TreeServiceBlockingStub stub) {
     this.stub = stub;
@@ -49,7 +50,7 @@ final class GrpcGetAllReferences implements GetAllReferencesBuilder {
   }
 
   public GetAllReferencesBuilder fetch(FetchOption fetchOption) {
-    params.fetch(fetchOption);
+    params.fetchOption(fetchOption);
     return this;
   }
 

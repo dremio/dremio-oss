@@ -13,44 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
+import { RSAA } from "redux-api-middleware";
+import { API_URL_V2 } from "@app/constants/Api";
 
-import * as Actions from './run';
+import * as Actions from "./run";
 
-const viewId = 'viewId';
+const viewId = "viewId";
 
 const dataset = Immutable.fromJS({
-  datasetVersion: '123',
-  tipVersion: 'tip123',
+  datasetVersion: "123",
+  tipVersion: "tip123",
   apiLinks: {
-    self: '/dataset/foo/version/123'
-  }
+    self: "/dataset/foo/version/123",
+  },
 });
 
-describe('dataset/run', () => {
-  describe('runDataset', () => {
-    it('should return RSAA', () => {
-      const result = Actions.runDataset(dataset, viewId)(obj => obj)[RSAA];
-      expect(result.types[0].meta).to.eql({dataset, viewId});
-      expect(result.method).to.eql('GET');
-      expect(result.endpoint.toString()).to.eql(`${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/run/?tipVersion=tip123`);
-    });
-
-  });
-
-  describe('transformAndRunDataset', () => {
-    it('should return RSAA', () => {
-      const sql = 'select * from foo';
-      const transformData = {type: 'updateSQL', sql};
-      const result = Actions.transformAndRunDataset(dataset, transformData, viewId)(obj => obj)[RSAA];
-      expect(result.types[0].meta).to.eql({entity: dataset, viewId});
-      expect(result.method).to.eql('POST');
-      expect(result.body).to.eql(JSON.stringify(transformData));
-      expect(result.endpoint.toString()).to.startWith(
-        `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/transformAndRun/?newVersion=`
+describe("dataset/run", () => {
+  describe("runDataset", () => {
+    it("should return RSAA", () => {
+      const result = Actions.runDataset(dataset, viewId)((obj) => obj)[RSAA];
+      expect(result.types[0].meta).to.eql({ dataset, viewId });
+      expect(result.method).to.eql("GET");
+      expect(result.endpoint.toString()).to.eql(
+        `${API_URL_V2}${dataset.getIn([
+          "apiLinks",
+          "self",
+        ])}/run/?tipVersion=tip123`
       );
     });
   });
 
+  describe("transformAndRunDataset", () => {
+    it("should return RSAA", () => {
+      const sql = "select * from foo";
+      const transformData = { type: "updateSQL", sql };
+      const result = Actions.transformAndRunDataset(
+        dataset,
+        transformData,
+        viewId
+      )((obj) => obj)[RSAA];
+      expect(result.types[0].meta).to.eql({ entity: dataset, viewId });
+      expect(result.method).to.eql("POST");
+      expect(result.body).to.eql(JSON.stringify(transformData));
+      expect(result.endpoint.toString()).to.startWith(
+        `${API_URL_V2}${dataset.getIn([
+          "apiLinks",
+          "self",
+        ])}/transformAndRun/?newVersion=`
+      );
+    });
+  });
 });

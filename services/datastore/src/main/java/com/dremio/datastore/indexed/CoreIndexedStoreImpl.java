@@ -312,7 +312,7 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   private Document toDoc(KVStoreTuple<K> key, KVStoreTuple<V> value){
     final Document doc = new Document();
     final SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
-    converter.convert(documentWriter, key.getObject(), value.getObject());
+    converter.doConvert(documentWriter, key.getObject(), value.getObject());
 
     if (doc.getFields().isEmpty()) {
       return null;

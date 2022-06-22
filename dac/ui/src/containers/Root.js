@@ -13,19 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
+import { useEffect } from "react";
+import PropTypes from "prop-types";
 
-import { RawIntlProvider } from 'react-intl';
-import { Provider } from 'react-redux';
+import { RawIntlProvider } from "react-intl";
+import { Provider } from "react-redux";
 
-import { Router, browserHistory } from 'react-router';
-import { syncHistoryWithStore } from 'react-router-redux';
-import { useProjectContext } from '@inject/utils/storageUtils/localStorageUtils';
-import routes from 'routes';
+import { Router, browserHistory } from "react-router";
+import { syncHistoryWithStore } from "react-router-redux";
+import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
+import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
+import routes from "routes";
 
-import { intl } from '@app/utils/intl';
-import intercomUtils from 'utils/intercomUtils';
-import { oc } from 'ts-optchain';
+import useLoadLocale from "utils/locale/useLoadLocale";
+import { add } from "utils/storageUtils/localStorageListener";
+import { setUserState } from "@app/actions/account";
+import { intl } from "@app/utils/intl";
+import intercomUtils from "utils/intercomUtils";
 
 function Root({ store }) {
   const history = syncHistoryWithStore(browserHistory, store);
@@ -34,17 +38,36 @@ function Root({ store }) {
   });
   const projectContext = useProjectContext();
   //Re-render routes when project context changes
-  const renderKey = oc(projectContext).id('root');
+  const renderKey = projectContext?.id || "root";
 
-  return <RawIntlProvider value={intl}>
-    <Provider store={store}>
-      <div style={{height: '100%'}}>
-        <Router key={renderKey} history={history}>{routes(store.dispatch, projectContext)}</Router>
-      </div>
-    </Provider>
-  </RawIntlProvider>;
+  //DX-45764 - Synchronize user object in redux when another tab has logged in
+  useEffect(
+    () =>
+      add((event) => {
+        const val = event.newValue;
+        if (store != null && event.key === "user" && val != null) {
+          store.dispatch(setUserState(JSON.parse(val)));
+        }
+      }),
+    [store]
+  );
+
+  const localeLoading = useLoadLocale();
+  if (localeLoading) return null;
+
+  return (
+    <RawIntlProvider value={intl}>
+      <Provider store={store}>
+        <div style={{ height: "100%" }}>
+          <Router key={renderKey} history={history}>
+            {routes(store.dispatch, projectContext, isDataPlaneEnabled)}
+          </Router>
+        </div>
+      </Provider>
+    </RawIntlProvider>
+  );
 }
 Root.propTypes = {
-  store: PropTypes.object.isRequired
+  store: PropTypes.object.isRequired,
 };
 export default Root;

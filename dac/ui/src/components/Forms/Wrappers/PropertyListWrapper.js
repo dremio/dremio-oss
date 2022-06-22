@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import FieldWithError from 'components/Fields/FieldWithError';
-import SourceProperties from 'components/Forms/SourceProperties';
+import { Component } from "react";
+import FieldWithError from "components/Fields/FieldWithError";
+import SourceProperties from "components/Forms/SourceProperties";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class PropertyListWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
     fields: PropTypes.object,
-    field: PropTypes.array
+    field: PropTypes.array,
   };
 
   render() {
-    const {elementConfig, fields, field} = this.props;
+    const { elementConfig, fields, field } = this.props;
     const elementConfigJson = elementConfig.getConfig();
     return (
       <FieldWithError {...field}>

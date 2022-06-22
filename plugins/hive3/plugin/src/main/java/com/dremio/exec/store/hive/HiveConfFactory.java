@@ -38,7 +38,6 @@ public class HiveConfFactory {
   public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE = "hive.cache.enabledForS3AndADLSG2";
   public static final String HIVE_ENABLE_CACHE_FOR_HDFS = "hive.cache.enabledForHDFS";
   public static final String HIVE_MAX_HIVE_CACHE_SPACE = "hive.cache.maxspace";
-  public static final String DEFAULT_WAREHOUSE_LOCATION = "default_warehouse_location";
   // Config is only used in tests and should not be set to true in production.
   public static final String ENABLE_DML_TESTS_WITHOUT_LOCKING = "enable.dml.tests.without.locking";
 
@@ -56,6 +55,9 @@ public class HiveConfFactory {
   private static final String FS_S3_MAX_THREADS = "fs.s3a.threads.max";
   private static final String FS_S3_MULTIPART_SIZE = "fs.s3a.multipart.size";
   private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
+
+  //Advanced option to set default ctas format
+  public static final String HIVE_DEFAULT_CTAS_FORMAT = "hive.default.ctas.format";
 
   // ADL Hadoop file system implementation
   private static final ImmutableMap<String, String> ADL_PROPS = ImmutableMap.of(
@@ -100,6 +102,13 @@ public class HiveConfFactory {
     return hiveConf;
   }
 
+  private void disableFileSystemCache(HiveConf hiveConf) {
+    setConf(hiveConf, "fs.dremioS3.impl.disable.cache", true);
+    setConf(hiveConf, "fs.dremiogcs.impl.disable.cache", true);
+    setConf(hiveConf, "fs.dremioAzureStorage.impl.disable.cache", true);
+    setConf(hiveConf, "fs.dremioAdl.impl.disable.cache", true);
+  }
+
   protected HiveConf createBaseHiveConf(BaseHiveStoragePluginConfig<?,?> config) {
     // Note: HiveConf tries to use the context classloader first, then uses the classloader that it itself
     // is in. If the context classloader is non-null, it will prevnt using the PF4J classloader.
@@ -122,11 +131,14 @@ public class HiveConfFactory {
         setConf(hiveConf, HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL, config.kerberosPrincipal);
       }
     }
+    disableFileSystemCache(hiveConf);
 
     setConf(hiveConf, HIVE_ENABLE_ASYNC, config.enableAsync);
     setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, config.isCachingEnabledForS3AndAzureStorage);
     setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_HDFS, config.isCachingEnabledForHDFS);
     setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
+    setConf(hiveConf, HIVE_DEFAULT_CTAS_FORMAT, config.getDefaultCtasFormat());
+    setConf(hiveConf, HiveFsUtils.USE_HIVE_PLUGIN_FS_CACHE, "True");
 
     addS3Properties(hiveConf);
     addUserProperties(hiveConf, config);
@@ -185,7 +197,7 @@ public class HiveConfFactory {
       if (useZeroCopy) {
         logger.warn("ORC zero-copy feature has been manually enabled. This is not recommended.");
       } else {
-        logger.error("ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
+        logger.warn("ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
       }
     }
 

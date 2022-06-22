@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import { typeToIconType } from '@app/constants/DataTypes';
-import Art from 'components/Art';
-import Select from './Select';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import { typeToIconType } from "@app/constants/DataTypes";
+import Art from "components/Art";
+import Select from "./Select";
 
 @injectIntl
 export default class FieldSelect extends Component {
@@ -26,40 +26,46 @@ export default class FieldSelect extends Component {
     formField: PropTypes.object,
     items: PropTypes.array,
     style: PropTypes.object,
-    intl: PropTypes.object.isRequired
-  }
+    intl: PropTypes.object.isRequired,
+  };
   mapFieldsToOptions(items) {
-    return items.map(item => ({
+    return items.map((item) => ({
       label: (
         <div style={styles.wrap}>
           <Art
             src={`types/${typeToIconType[item.type]}.svg`}
-            alt={this.props.intl.formatMessage({id: 'Common.FieldType'})}
+            alt={this.props.intl.formatMessage({ id: "Common.FieldType" })}
             style={styles.icon}
           />
           <span style={styles.name}>{item.name}</span>
         </div>
       ),
-      option: item.name
+      option: item.name,
     }));
   }
   render() {
     const { items, formField, style } = this.props;
-    return <Select {...formField} style={style} items={this.mapFieldsToOptions(items)} />;
+    return (
+      <Select
+        {...formField}
+        style={style}
+        items={this.mapFieldsToOptions(items)}
+      />
+    );
   }
 }
 
 const styles = {
   wrap: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-    alignItems: 'center'
+    display: "flex",
+    justifyContent: "flex-start",
+    alignItems: "center",
   },
   icon: {
     width: 24,
-    height: 20
+    height: 20,
   },
   name: {
-    marginLeft: 5
-  }
+    marginLeft: 5,
+  },
 };

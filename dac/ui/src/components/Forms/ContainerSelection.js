@@ -13,47 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormSection from 'components/Forms/FormSection';
-import FormElement from 'components/Forms/FormElement';
-import Radio from 'components/Fields/Radio';
-import FieldWithError from 'components/Fields/FieldWithError';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormSection from "components/Forms/FormSection";
+import FormElement from "components/Forms/FormElement";
+import Radio from "components/Fields/Radio";
+import FieldWithError from "components/Fields/FieldWithError";
 
-import Select from '@app/components/Fields/Select';
-import {selectWrapper, selectBody, selectFieldWithError} from '@app/components/Forms/Wrappers/FormWrappers.less';
-import { rowOfInputsSpacing, rowOfRadio } from '@app/uiTheme/less/forms.less';
-import './ContainerSelection.less';
+import Select from "@app/components/Fields/Select";
+import {
+  selectWrapper,
+  selectBody,
+  selectFieldWithError,
+} from "@app/components/Forms/Wrappers/FormWrappers.less";
+import { rowOfInputsSpacing, rowOfRadio } from "@app/uiTheme/less/forms.less";
+import "./ContainerSelection.less";
 
 export default class ContainerSelection extends Component {
   static propTypes = {
     fields: PropTypes.object,
     elementConfig: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
   };
 
   renderRadioSelector = (elementConfig, selectedValue, radioProps) => {
     const label = elementConfig.getConfig().label;
     const layout = elementConfig.getConfig().layout;
-    const layoutType = layout || 'row';
+    const layoutType = layout || "row";
     const className = classNames(
       rowOfRadio,
       rowOfInputsSpacing,
-      'containerSelection',
-      {'--horizontal': layoutType === 'row'});
+      "containerSelection",
+      { "--horizontal": layoutType === "row" }
+    );
     return (
       <>
-        {label && <div className='topLabel'>{label}</div>}
+        {label && <div className="topLabel">{label}</div>}
         <div className={className}>
           {elementConfig.getOptions().map((option, index) => {
             return (
-              <Radio radioValue={option.value}
+              <Radio
+                radioValue={option.value}
                 value={selectedValue}
                 key={index}
                 label={option.label || option.value}
-                {...radioProps}/>
+                {...radioProps}
+              />
             );
           })}
         </div>
@@ -65,50 +72,66 @@ export default class ContainerSelection extends Component {
     const elementConfigJson = elementConfig.getConfig();
     const tooltip = elementConfigJson.tooltip;
     const label = elementConfigJson.label;
-    const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
-    const isDisabled = (elementConfigJson.disabled || this.props.disabled) ?
-      {disabled: true} : null;
+    const hoverHelpText = tooltip ? { hoverHelpText: tooltip } : null;
+    const isDisabled =
+      elementConfigJson.disabled || this.props.disabled
+        ? { disabled: true }
+        : null;
     const size = elementConfigJson.size;
-    const isFixedSize = typeof size === 'number' && size > 0;
-    const style = (isFixedSize) ? {width: size} : {};
+    const isFixedSize = typeof size === "number" && size > 0;
+    const style = isFixedSize ? { width: size } : {};
 
-    const selectWrapperClass = classNames(selectWrapper, 'full-width');
-    const selectClass = classNames(selectBody, 'full-width');
-    const labelClass = classNames(selectFieldWithError, 'full-width', 'gutter-bottom--full');
+    const selectWrapperClass = classNames(selectWrapper, "full-width");
+    const selectClass = classNames(selectBody, "full-width");
+    const labelClass = classNames(
+      selectFieldWithError,
+      "full-width",
+      "gutter-bottom--full"
+    );
 
-    return <div style={{marginTop: 6, marginBottom: 12}}>
-      <FieldWithError errorPlacement='top'
-        {...hoverHelpText}
-        label={label}
-        labelClass={labelClass} >
-        <div className={selectWrapperClass}>
-          <Select
-            {...isDisabled}
-            items={elementConfig.getConfig().options}
-            className={selectClass}
-            style={style}
-            valueField='value'
-            value={selectedValue}
-            {...radioProps}
-          />
-        </div>
-      </FieldWithError>
-    </div>;
+    return (
+      <div style={{ marginTop: 6, marginBottom: 12 }}>
+        <FieldWithError
+          errorPlacement="top"
+          {...hoverHelpText}
+          label={label}
+          labelClass={labelClass}
+        >
+          <div className={selectWrapperClass}>
+            <Select
+              {...isDisabled}
+              items={elementConfig.getConfig().options}
+              className={selectClass}
+              style={style}
+              valueField="value"
+              value={selectedValue}
+              {...radioProps}
+            />
+          </div>
+        </FieldWithError>
+      </div>
+    );
   };
 
   findSelectedOption = (elementConfig, value) => {
-    return elementConfig.getOptions().find(option => option.value === value);
+    return elementConfig.getOptions().find((option) => option.value === value);
   };
 
   render() {
-    const {fields, elementConfig} = this.props;
-    const radioField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
+    const { fields, elementConfig } = this.props;
+    const radioField = FormUtils.getFieldByComplexPropName(
+      fields,
+      elementConfig.getPropName()
+    );
 
     const { value, ...radioProps } = radioField;
     const firstValue = elementConfig.getOptions()[0].value;
     // radioField usually has a value. If not, use 1st option value
     let selectedValue = value || firstValue;
-    let selectedOptionObj = this.findSelectedOption(elementConfig, selectedValue);
+    let selectedOptionObj = this.findSelectedOption(
+      elementConfig,
+      selectedValue
+    );
 
     if (!selectedOptionObj) {
       // the value is not in the options -> default to the 1st option
@@ -121,15 +144,18 @@ export default class ContainerSelection extends Component {
     const selectorType = elementConfig.getConfig().selectorType;
 
     return (
-      <div className='componentContainer'>
-        {selectorType === 'select' && this.renderSelectSelector(elementConfig, selectedValue, radioProps)}
-        {(!selectorType || selectorType === 'radio') && this.renderRadioSelector(elementConfig, selectedValue, radioProps)}
-        {container.getPropName &&
-        <FormElement fields={fields} elementConfig={container}/>
-        }
-        {container.getAllElements && (!!container.getAllElements().length || containerHelp) &&
-        <FormSection fields={fields} sectionConfig={container}/>
-        }
+      <div className="componentContainer">
+        {selectorType === "select" &&
+          this.renderSelectSelector(elementConfig, selectedValue, radioProps)}
+        {(!selectorType || selectorType === "radio") &&
+          this.renderRadioSelector(elementConfig, selectedValue, radioProps)}
+        {container.getPropName && (
+          <FormElement fields={fields} elementConfig={container} />
+        )}
+        {container.getAllElements &&
+          (!!container.getAllElements().length || containerHelp) && (
+            <FormSection fields={fields} sectionConfig={container} />
+          )}
       </div>
     );
   }

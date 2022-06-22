@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { select, put, take, race, call, takeEvery } from 'redux-saga/effects';
+import { select, put, take, race, call, takeEvery } from "redux-saga/effects";
 
-import { TRANSFORM_HISTORY_CHECK } from 'actions/explore/dataset/transform';
-import { showConfirmationDialog} from 'actions/confirmation';
-import { getHistoryItems } from 'selectors/explore';
-import { getLocation } from 'selectors/routing';
+import { TRANSFORM_HISTORY_CHECK } from "actions/explore/dataset/transform";
+import { showConfirmationDialog } from "actions/confirmation";
+import { getHistoryItems } from "selectors/explore";
+import { getLocation } from "selectors/routing";
 
-import { getLocationChangePredicate } from './utils';
+import { getLocationChangePredicate } from "./utils";
 
 /**
  * Saga that confirms with user that they want to abandon history.
@@ -32,7 +32,9 @@ export default function* watchTransformHistoryCheck() {
 }
 
 export function* handleTransformHistoryCheck(action) {
-  const {meta: {dataset, continueCallback, cancelCallback}} = action;
+  const {
+    meta: { dataset, continueCallback, cancelCallback },
+  } = action;
   const confirmed = yield call(transformHistoryCheck, dataset);
   if (confirmed && continueCallback) {
     yield call(continueCallback);
@@ -41,8 +43,8 @@ export function* handleTransformHistoryCheck(action) {
   }
 }
 
-export function *transformHistoryCheck(dataset) {
-  const historyItems = yield select(getHistoryItems, dataset.get('tipVersion'));
+export function* transformHistoryCheck(dataset) {
+  const historyItems = yield select(getHistoryItems, dataset.get("tipVersion"));
 
   const showModal = yield call(shouldShowWarningModal, historyItems, dataset);
   if (showModal) {
@@ -56,7 +58,9 @@ export function *transformHistoryCheck(dataset) {
  */
 
 export const shouldShowWarningModal = (historyItems, dataset) => {
-  const index = historyItems.findIndex(item => item.get('datasetVersion') === dataset.get('datasetVersion'));
+  const index = historyItems.findIndex(
+    (item) => item.get("datasetVersion") === dataset.get("datasetVersion")
+  );
   return index !== 0 && index !== -1;
 };
 
@@ -64,24 +68,24 @@ export function* confirmTransform() {
   let action;
   const confirmPromise = new Promise((resolve, reject) => {
     action = showConfirmationDialog({
-      title: la('History Warning'),
+      title: la("History Warning"),
       text: [
-        la('Performing this action will cause you to lose history.'),
-        la('Are you sure you want to continue?')
+        la("Performing this action will cause you to lose history."),
+        la("Are you sure you want to continue?"),
       ],
-      confirmText: la('Continue'),
-      cancelText: la('Cancel'),
+      confirmText: la("Continue"),
+      cancelText: la("Cancel"),
       confirm: () => resolve(true), // resolves to true so that confirm below has a truthy value
-      cancel: reject
+      cancel: reject,
     });
   });
   yield put(action);
 
   const location = yield select(getLocation);
   try {
-    const {confirm} = yield race({
+    const { confirm } = yield race({
       confirm: confirmPromise,
-      locationChange: take(getLocationChangePredicate(location))
+      locationChange: take(getLocationChangePredicate(location)),
     });
 
     if (confirm) {

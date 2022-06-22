@@ -53,7 +53,7 @@ public class TestMaestroResiliency extends BaseTestQuery {
     org.slf4j.LoggerFactory.getLogger(TestMaestroResiliency.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(60, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(60, TimeUnit.SECONDS);
 
   private static final int QUEUE_LIMIT = 2;
   private static final int NUM_NODES = 3;

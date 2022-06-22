@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 0C0.671573 0 0 0.671573 0 1.5V2.5C0 3.32843 0.671573 4 1.5 4H8.5C9.32843 4 10 3.32843 10 2.5V1.5C10 0.671573 9.32843 0 8.5 0H1.5ZM8.5 1.5H1.5L1.5 2.5H8.5V1.5Z" fill="#505862"/>
+<path d="M13.1667 2C13.1667 1.58579 13.5025 1.25 13.9167 1.25H19.25C19.6642 1.25 20 1.58579 20 2C20 2.41421 19.6642 2.75 19.25 2.75H13.9167C13.5025 2.75 13.1667 2.41421 13.1667 2Z" fill="#505862"/>
+<path d="M0.75 6.5C0.335787 6.5 0 6.83579 0 7.25C0 7.66421 0.335787 8 0.75 8H12.9167C13.3309 8 13.6667 7.66421 13.6667 7.25C13.6667 6.83579 13.3309 6.5 12.9167 6.5H0.75Z" fill="#505862"/>
+<path d="M0 11.25C0 10.8358 0.335787 10.5 0.75 10.5H6.91667C7.33088 10.5 7.66667 10.8358 7.66667 11.25C7.66667 11.6642 7.33088 12 6.91667 12H0.75C0.335786 12 0 11.6642 0 11.25Z" fill="#505862"/>
+<path d="M13.25 10.5C12.8358 10.5 12.5 10.8358 12.5 11.25C12.5 11.6642 12.8358 12 13.25 12H19.25C19.6642 12 20 11.6642 20 11.25C20 10.8358 19.6642 10.5 19.25 10.5H13.25Z" fill="#505862"/>
+<path d="M15.1667 7.25C15.1667 6.83579 15.5025 6.5 15.9167 6.5H17.5833C17.9975 6.5 18.3333 6.83579 18.3333 7.25C18.3333 7.66421 17.9975 8 17.5833 8H15.9167C15.5025 8 15.1667 7.66421 15.1667 7.25Z" fill="#505862"/>
+<path d="M0.75 14.5C0.335787 14.5 0 14.8358 0 15.25C0 15.6642 0.335787 16 0.75 16H15.9167C16.3309 16 16.6667 15.6642 16.6667 15.25C16.6667 14.8358 16.3309 14.5 15.9167 14.5H0.75Z" fill="#505862"/>
+</svg>

@@ -46,7 +46,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   protected List<QueryDataBatch> queryBatch;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public final void loadTable() throws Exception {
@@ -253,7 +253,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String cond2 = "_id = '" + ids[2] + "'";
     final String cond3 = "_id = '" + ids[4] + "'";
     final String sqlQuery = "select _id from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
-    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -271,6 +270,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -285,6 +285,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -299,12 +300,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -330,7 +331,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String cond2 = "_id = '" + ids[2] + "' and _id is not null";
     final String cond3 = "_id = '" + ids[4] + "' and _id is not null";
     final String sqlQuery = "select _id from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
-    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -348,6 +348,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -362,6 +363,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -376,12 +378,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -427,6 +429,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -441,13 +444,11 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "                }\n" +
         "              }\n" +
         "            ],\n" +
-        "      \"disable_coord\" : false,\n" +
         "            \"adjust_pure_negative\" : true,\n" +
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -492,6 +493,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -506,6 +508,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -520,12 +523,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        "      \"disable_coord\" : false,\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -550,7 +553,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   public final void testFilterIndexAndType() throws Exception {
     final String cond1 = "_index = '" + schema + "' OR _type = '" + table + "'";
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
-    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -568,6 +570,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -582,12 +585,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -615,7 +618,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
   public final void testFilterTypeOrIsNull() throws Exception {
     final String cond1 = "_type = '" + table + "' or _type is null";
     final String sqlQuery = "select _index, _type, _id from " + TABLENAME + " where " + cond1;
-    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -633,6 +635,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -647,13 +650,11 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "                }\n" +
         "              }\n" +
         "            ],\n" +
-        disableCoordOrBlank +
         "            \"adjust_pure_negative\" : true,\n" +
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -727,6 +728,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "        \"fuzzy_transpositions\" : false,\n" +
         "        \"lenient\" : false,\n" +
         "        \"zero_terms_query\" : \"NONE\",\n" +
+        "        \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "        \"boost\" : 1.0\n" +
         "      }\n" +
         "    }\n" +
@@ -768,6 +770,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "        \"fuzzy_transpositions\" : false,\n" +
         "        \"lenient\" : false,\n" +
         "        \"zero_terms_query\" : \"NONE\",\n" +
+        "        \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "        \"boost\" : 1.0\n" +
         "      }\n" +
         "    }\n" +
@@ -799,7 +802,6 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
     final String cond3 = field +" = '" + uids[4] + "' and " + field + " is not null";
     final String fieldAlias = getFieldWithAlias();
     final String sqlQuery = "select " + fieldAlias + " from " + TABLENAME + " where ( " + cond1 + " OR " + cond2 + ") OR (" + cond3 + " OR " + cond1 + ")";
-    final String disableCoordOrBlank = getDisableCoord();
     final String[] expectedJson = new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -817,6 +819,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -831,6 +834,7 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -845,12 +849,12 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\" : true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
         "      ],\n" +
-        disableCoordOrBlank +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -986,10 +990,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "    \"query_string\" : {\n" +
           "      \"query\" : \"_id : \\\"" + ids[1] + "\\\"\",\n" +
           "      \"fields\" : [ ],\n" +
-          "      \"use_dis_max\" : true,\n" +
-          "      \"tie_breaker\" : 0.0,\n" +
+          "      \"type\": \"best_fields\",\n" +
           "      \"default_operator\" : \"or\",\n" +
-          "      \"auto_generate_phrase_queries\" : false,\n" +
           "      \"max_determinized_states\" : 10000,\n" +
           "      \"enable_position_increments\" : true,\n" +
           "      \"fuzziness\" : \"AUTO\",\n" +
@@ -997,7 +999,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "      \"fuzzy_max_expansions\" : 50,\n" +
           "      \"phrase_slop\" : 0,\n" +
           "      \"escape\" : false,\n" +
-          "      \"split_on_whitespace\" : true,\n" +
+          "      \"auto_generate_synonyms_phrase_query\": true,\n" +
+          "      \"fuzzy_transpositions\" : true,\n" +
           "      \"boost\" : 1.0\n" +
           "    }\n" +
           "  },\n" +
@@ -1032,10 +1035,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "    \"query_string\" : {\n" +
           "      \"query\" : \"_uid : \\\"" + uids[1] + "\\\"\",\n" +
           "      \"fields\" : [ ],\n" +
-          "      \"use_dis_max\" : true,\n" +
-          "      \"tie_breaker\" : 0.0,\n" +
+          "      \"type\": \"best_fields\",\n" +
           "      \"default_operator\" : \"or\",\n" +
-          "      \"auto_generate_phrase_queries\" : false,\n" +
           "      \"max_determinized_states\" : 10000,\n" +
           "      \"enable_position_increments\" : true,\n" +
           "      \"fuzziness\" : \"AUTO\",\n" +
@@ -1043,7 +1044,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "      \"fuzzy_max_expansions\" : 50,\n" +
           "      \"phrase_slop\" : 0,\n" +
           "      \"escape\" : false,\n" +
-          "      \"split_on_whitespace\" : true,\n" +
+          "      \"auto_generate_synonyms_phrase_query\": true,\n" +
+          "      \"fuzzy_transpositions\": true,\n" +
           "      \"boost\" : 1.0\n" +
           "    }\n" +
           "  },\n" +
@@ -1078,10 +1080,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "    \"query_string\" : {\n" +
           "      \"query\" : \"_index : "+ schema +",  _type : "+ table +"\",\n" +
           "      \"fields\" : [ ],\n" +
-          "      \"use_dis_max\" : true,\n" +
-          "      \"tie_breaker\" : 0.0,\n" +
+          "      \"type\": \"best_fields\",\n" +
           "      \"default_operator\" : \"or\",\n" +
-          "      \"auto_generate_phrase_queries\" : false,\n" +
           "      \"max_determinized_states\" : 10000,\n" +
           "      \"enable_position_increments\" : true,\n" +
           "      \"fuzziness\" : \"AUTO\",\n" +
@@ -1089,7 +1089,8 @@ public class ITTestMetadataColumns extends ElasticBaseTestQuery {
           "      \"fuzzy_max_expansions\" : 50,\n" +
           "      \"phrase_slop\" : 0,\n" +
           "      \"escape\" : false,\n" +
-          "      \"split_on_whitespace\" : true,\n" +
+          "      \"auto_generate_synonyms_phrase_query\": true,\n" +
+          "      \"fuzzy_transpositions\" : true,\n" +
           "      \"boost\" : 1.0\n" +
           "    }\n" +
           "  },\n" +

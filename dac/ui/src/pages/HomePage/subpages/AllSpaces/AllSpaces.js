@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
-import DocumentTitle from 'react-document-title';
-import { injectIntl } from 'react-intl';
+import PropTypes from "prop-types";
+import DocumentTitle from "react-document-title";
+import { injectIntl } from "react-intl";
 
-import HomePage from 'pages/HomePage/HomePage';
+import HomePage from "pages/HomePage/HomePage";
 
-import AllSpacesView from './AllSpacesView.js';
+import AllSpacesView from "./AllSpacesView.js";
 
 @injectIntl
 export class AllSpaces extends PureComponent {
   static propTypes = {
     location: PropTypes.object.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
     const { location, intl } = this.props;
     return (
       <HomePage location={location}>
-        <DocumentTitle title={intl.formatMessage({ id: 'Space.AllSpaces' })} />
+        <DocumentTitle title={intl.formatMessage({ id: "Space.AllSpaces" })} />
         <AllSpacesView />
       </HomePage>
     );

@@ -31,13 +31,17 @@ public class DremioEmptyScope extends EmptyScope {
   @Override public void resolveTable(List<String> names,
       SqlNameMatcher nameMatcher,
       Path path, Resolved resolved) {
-    SqlValidatorTable table = validator.catalogReader.getTable(names);
+    SqlValidatorTable table = resolveTable(validator.catalogReader, names);
     if (null == table) {
       super.resolveTable(names, nameMatcher, path, resolved);
     } else {
       TableNamespace tableNamespace = new TableNamespace(validator, table);
       resolved.found(tableNamespace, false, null, path, ImmutableList.of());
     }
+  }
+
+  protected SqlValidatorTable resolveTable(SqlValidatorCatalogReader catalogReader, List<String> names){
+    return catalogReader.getTable(names);
   }
 
   public static SqlValidatorScope createBaseScope(SqlValidatorImpl sqlValidator) {

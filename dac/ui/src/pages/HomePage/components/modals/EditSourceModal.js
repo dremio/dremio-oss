@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
 
-import Modal from 'components/Modals/Modal';
-import EditSourceView from './EditSourceView';
+import Modal from "components/Modals/Modal";
+import EditSourceView from "./EditSourceView";
 
 @injectIntl
 export class EditSourceModal extends PureComponent {
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   static propTypes = {
@@ -32,28 +32,30 @@ export class EditSourceModal extends PureComponent {
     hide: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
     query: PropTypes.object,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   hide = () => {
     this.props.hide();
-  }
+  };
 
   render() {
     const { isOpen, query, hide, updateFormDirtyState, intl } = this.props;
     return (
       <Modal
-        size='large'
-        title={intl.formatMessage({ id: 'Source.EditSource' })}
+        size="large"
+        title={intl.formatMessage({ id: "Source.EditSource" })}
         isOpen={isOpen}
-        hide={hide}>
-        { query.name &&
+        hide={hide}
+      >
+        {query.name && (
           <EditSourceView
             updateFormDirtyState={updateFormDirtyState}
             hide={this.hide}
             sourceName={query.name}
-            sourceType={query.type}/>
-        }
+            sourceType={query.type}
+          />
+        )}
       </Modal>
     );
   }

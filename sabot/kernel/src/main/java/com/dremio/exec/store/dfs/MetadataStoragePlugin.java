@@ -76,7 +76,7 @@ public class MetadataStoragePlugin extends MayBeDistFileSystemPlugin<MetadataSto
       final Path fsPath = PathUtils.toFSPath(path);
       super.deleteIcebergTableRootPointer(schemaConfig.getUserName(), fsPath);
     } catch (Exception e) {
-      logger.debug("Couldn't delete internal iceberg metadata table {}", e);
+      logger.debug("Couldn't delete internal iceberg metadata table", e);
     }
   }
 

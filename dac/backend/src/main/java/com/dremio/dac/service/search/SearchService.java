@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.service.search;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.dremio.service.Service;
@@ -48,7 +49,6 @@ public interface SearchService extends Service {
 
     @Override
     public void start() throws Exception {
-
     }
 
     @Override
@@ -59,6 +59,25 @@ public interface SearchService extends Service {
     @Override
     public void wakeupManager(String reason) {
       throw new UnsupportedOperationException("non-master coordinators or executors do not support Search");
+    }
+  };
+
+  SearchService NOOP = new SearchService() {
+    @Override
+    public void close() throws Exception {
+    }
+
+    @Override
+    public void start() throws Exception {
+    }
+
+    @Override
+    public List<SearchContainer> search(String query, String username) throws NamespaceException {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public void wakeupManager(String reason) {
     }
   };
 }

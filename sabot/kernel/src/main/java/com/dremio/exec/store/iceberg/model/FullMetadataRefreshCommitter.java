@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableProperties;
 
@@ -33,6 +34,7 @@ import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogRequestBuilder;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
@@ -53,6 +55,7 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
   private final String tableLocation;
   private final List<String> datasetPath;
   private final MutablePlugin plugin;
+
   private static final Map<String, String> internalIcebergTableParameter = Stream.of(new String[][] {
           { TableProperties.COMMIT_NUM_RETRIES, "0" }}).collect(Collectors.toMap(d->d[0], d->d[1]));
 
@@ -60,8 +63,9 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
                                       String tableUuid, BatchSchema batchSchema,
                                       Configuration configuration, List<String> partitionColumnNames,
                                       IcebergCommand icebergCommand, DatasetCatalogGrpcClient client,
-                                      DatasetConfig datasetConfig, OperatorStats operatorStats, MutablePlugin plugin) {
-    super(tableName, batchSchema, partitionColumnNames, icebergCommand, internalIcebergTableParameter, operatorStats); // Full MetadataRefresh is a only way to create internal iceberg table
+                                      DatasetConfig datasetConfig, OperatorStats operatorStats, PartitionSpec partitionSpec,
+                                      MutablePlugin plugin) {
+    super(tableName, batchSchema, partitionColumnNames, icebergCommand, internalIcebergTableParameter, operatorStats, partitionSpec); // Full MetadataRefresh is a only way to create internal iceberg table
 
     Preconditions.checkNotNull(client, "Metadata requires DatasetCatalog service client");
     this.client = client;
@@ -87,21 +91,26 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
     long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin);
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin, getCurrentSchema());
 
     try {
-      client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
+      addOrUpdateDataSet();
     } catch (StatusRuntimeException sre) {
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        String message = "Metadata refresh failed. Dataset: "
-                + Arrays.toString(datasetPath.toArray())
-                + " TableLocation: " + tableLocation;
-        logger.error(message);
-        throw UserException.concurrentModificationError(sre).message(message).build(logger);
+        logger.error("Metadata refresh failed. Dataset: " + Arrays.toString(datasetPath.toArray())
+          + " TableLocation: " + tableLocation, sre);
+        throw UserException.concurrentModificationError(sre)
+          .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
+          .buildSilently();
       }
       throw sre;
     }
     return snapshot;
+  }
+
+  @VisibleForTesting
+  public void addOrUpdateDataSet() {
+    client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
   }
 
   @Override

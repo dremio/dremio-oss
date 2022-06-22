@@ -340,7 +340,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
         .expectsEmptyResultSet().go();
       fail("expected exception on invalid date format was not thrown.");
     } catch (RpcException ex) {
-      assertTrue("Failed to match exception message", ex.getMessage().contains("Input text cannot be formatted to date"));
+      assertTrue("Failed to match exception message", ex.getMessage().contains("Input text cannot be formatted to time"));
     }
   }
 

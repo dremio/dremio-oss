@@ -24,10 +24,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+
 import com.dremio.exec.planner.common.MoreRelOptUtil.SubsetRemover;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchFilter;
-import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
+import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
 
 /**
@@ -40,15 +41,15 @@ public abstract class ElasticRuleRelVisitor extends RelVisitor {
   protected RelNode child = null;
   protected List<ElasticsearchPrel> parents = new ArrayList<>();
   protected boolean continueToChildren = true;
-  final protected RelNode input;
+  protected final RelNode input;
 
   public ElasticRuleRelVisitor(RelNode input) {
     this.input = input;
   }
 
-  abstract public void processFilter(ElasticsearchFilter filter);
-  abstract public void processProject(ElasticsearchProject project);
-  abstract public void processSample(ElasticsearchSample node);
+  public abstract void processFilter(ElasticsearchFilter filter);
+  public abstract void processProject(ElasticsearchProject project);
+  public abstract void processSample(ElasticsearchSample node);
 
   public ElasticRuleRelVisitor go() {
     go(input.accept(new SubsetRemover(false)));

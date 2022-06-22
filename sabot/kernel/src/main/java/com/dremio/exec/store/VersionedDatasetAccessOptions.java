@@ -21,48 +21,26 @@ import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.ResolvedVersionContext;
 
 public class VersionedDatasetAccessOptions implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
-  private final String versionedTableKeyPath;
-  private final VersionContext versionContext;
-
-  public static final VersionedDatasetAccessOptions DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS = new Builder()
-      .setVersionedTableKeyPath("")
-      .setVersionContext(VersionContext.NOT_SPECIFIED)
-      .build();
+  private final ResolvedVersionContext versionContext;
 
   private VersionedDatasetAccessOptions(Builder builder) {
-    this.versionedTableKeyPath = builder.versionedTableKeyPath;
     this.versionContext = builder.versionContext;
   }
 
-  public VersionedDatasetAccessOptions getDefault() {
-    return DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS;
-  }
-
-  // TODO: Note, this is unused, revisit
-  public String getVersionedTableKey() {
-    return versionedTableKeyPath;
-  }
-
-  public VersionContext getVersionContext() {
+  public ResolvedVersionContext getVersionContext() {
     return versionContext;
   }
 
   public static class Builder {
-    private String versionedTableKeyPath;
-    private VersionContext versionContext;
+    private ResolvedVersionContext versionContext;
 
     public Builder() {
     }
 
-    public Builder setVersionedTableKeyPath(String versionedTableKeyPath) {
-      this.versionedTableKeyPath = versionedTableKeyPath;
-      return this;
-    }
-
-    public Builder setVersionContext(VersionContext versionContext) {
+    public Builder setVersionContext(ResolvedVersionContext versionContext) {
       this.versionContext = versionContext;
       return this;
     }
@@ -76,4 +54,3 @@ public class VersionedDatasetAccessOptions implements GetDatasetOption, GetMetad
     return (VersionedDatasetAccessOptions) Stream.of(options).filter(o -> o instanceof VersionedDatasetAccessOptions).findFirst().orElse(null);
   }
 }
-

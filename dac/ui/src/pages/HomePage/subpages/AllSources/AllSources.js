@@ -13,29 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect }   from 'react-redux';
-import Immutable from 'immutable';
-import shallowEqual from 'shallowequal';
-import PropTypes from 'prop-types';
-import DocumentTitle from 'react-document-title';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import shallowEqual from "shallowequal";
+import PropTypes from "prop-types";
+import DocumentTitle from "react-document-title";
+import { injectIntl } from "react-intl";
 
-import HomePage from 'pages/HomePage/HomePage';
-import { loadSourceListData } from 'actions/resources/sources';
-import { getSources } from 'selectors/home';
+import HomePage from "pages/HomePage/HomePage";
+import { loadSourceListData } from "actions/resources/sources";
+import { getSources } from "selectors/home";
 
-import { isExternalSourceType, isDataPlaneSourceType } from '@app/constants/sourceTypes';
-import AllSourcesView from './AllSourcesView.js';
+import {
+  isExternalSourceType,
+  isDataLakeSourceType,
+  isDataPlaneSourceType,
+} from "@app/constants/sourceTypes";
+import AllSourcesView from "./AllSourcesView.js";
 
 @injectIntl
 export class AllSources extends PureComponent {
-
   static propTypes = {
     location: PropTypes.object.isRequired,
     sources: PropTypes.instanceOf(Immutable.List),
     loadSourceListData: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   componentWillReceiveProps(nextProps) {
@@ -46,22 +49,34 @@ export class AllSources extends PureComponent {
 
   render() {
     const { location, sources, intl } = this.props;
-    const isExternalSource = location.pathname === '/sources/external/list';
-    const isDataPlaneSource = location.pathname === '/sources/dataplane/list';
-    const isDataLakeSource = location.pathname === '/sources/datalake/list';
+    const isExternalSource = location.pathname === "/sources/external/list";
+    const isDataPlaneSource = location.pathname === "/sources/dataplane/list";
+    const isDataLakeSource = location.pathname === "/sources/datalake/list";
 
     /*eslint no-nested-ternary: "off"*/
-    const headerId = isExternalSource ? 'Source.AllExternalSources' :
-      isDataLakeSource ? 'Source.AllDataLakes' : 'Source.AllDataPlanes';
+    const headerId = isExternalSource
+      ? "Source.AllExternalSources"
+      : isDataLakeSource
+      ? "Source.AllDataLakes"
+      : "Source.AllDataPlanes";
 
     const title = intl.formatMessage({ id: headerId });
-    const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')));
-    const externalSources = sources.filter(source => isExternalSourceType(source.get('type')));
-    const dataPlaneSources = sources.filter(source => isDataPlaneSourceType(source.get('type')));
+    const dataLakeSources = sources.filter((source) =>
+      isDataLakeSourceType(source.get("type"))
+    );
+    const externalSources = sources.filter((source) =>
+      isExternalSourceType(source.get("type"))
+    );
+    const dataPlaneSources = sources.filter((source) =>
+      isDataPlaneSourceType(source.get("type"))
+    );
 
     /*eslint no-nested-ternary: "off"*/
-    const filteredSources = isExternalSource ? externalSources :
-      isDataLakeSource ? dataLakeSources : dataPlaneSources;
+    const filteredSources = isExternalSource
+      ? externalSources
+      : isDataLakeSource
+      ? dataLakeSources
+      : dataPlaneSources;
 
     return (
       <HomePage location={location}>
@@ -80,10 +95,10 @@ export class AllSources extends PureComponent {
 
 function mapStateToProps(state) {
   return {
-    sources: getSources(state)
+    sources: getSources(state),
   };
 }
 
 export default connect(mapStateToProps, {
-  loadSourceListData
+  loadSourceListData,
 })(AllSources);

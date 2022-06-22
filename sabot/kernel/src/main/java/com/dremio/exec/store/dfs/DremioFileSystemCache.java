@@ -61,28 +61,20 @@ public class DremioFileSystemCache {
 
     final String disableCacheName = String.format("fs.%s.impl.disable.cache", uri.getScheme());
 
-
-    /**
-     * Use Hadoop's FileSystem.get() if cache is explicitly disabled or there are no connection unique parameters
-     * specified.
-     */
-    final boolean disableCache = conf.getBoolean(disableCacheName, false);
-
-    /**
-     * Check if user does not want to cache in Dremio cache
-     */
-    final boolean disableDremioCache = conf.getBoolean(disableDremioCacheName, false);
-    if (disableDremioCache || key.uniqueConnectionPropValues == null || key.uniqueConnectionPropValues.isEmpty()) {
-      return FileSystem.get(uri, conf);
-    }
-
     // Clone the conf and set cache to disable, so that a new instance is created rather than returning an existing
     // one in Hadoop's FileSystem cache. TODO: worry if cloning conf blows up heap memory. We could use the existing
     // conf object but it is shared by muliple threads
     final Configuration cloneConf = new Configuration(conf);
     cloneConf.set(disableCacheName, "true");
     fs = FileSystem.get(uri, cloneConf);
-    cloneConf.setBoolean(disableCacheName, disableCache); // set old value
+
+    /**
+     * Check if user does not want to cache in Dremio cache
+     */
+    final boolean disableDremioCache = conf.getBoolean(disableDremioCacheName, false);
+    if (disableDremioCache || key.uniqueConnectionPropValues == null || key.uniqueConnectionPropValues.isEmpty()) {
+      return fs;
+    }
 
     synchronized (this) { // refetch the lock again
       FileSystem oldfs = map.get(key);

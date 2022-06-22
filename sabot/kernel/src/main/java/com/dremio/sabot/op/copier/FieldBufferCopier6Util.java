@@ -42,7 +42,7 @@ public final class FieldBufferCopier6Util {
 
   private FieldBufferCopier6Util(){};
 
-  static abstract class FixedWidthCopier implements FieldBufferCopier {
+  abstract static class FixedWidthCopier implements FieldBufferCopier {
     protected final FieldVector[] source;
     protected final FieldVector target;
     protected final FixedWidthVector targetAlt;

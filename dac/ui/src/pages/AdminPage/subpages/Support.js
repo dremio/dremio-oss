@@ -13,51 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { compose } from 'redux';
-import { connect } from 'react-redux';
+import { compose } from "redux";
+import { connect } from "react-redux";
 
-import authorize from '@inject/containers/authorize';
+import authorize from "@inject/containers/authorize";
 
-import settingActions, { getDefinedSettings } from 'actions/resources/setting';
-import { addNotification } from 'actions/notification';
+import settingActions, { getDefinedSettings } from "actions/resources/setting";
+import { addNotification } from "actions/notification";
 
-import { getViewState } from 'selectors/resources';
-import Immutable from 'immutable';
-import { getErrorMessage } from '@app/reducers/resources/view';
+import { getViewState } from "selectors/resources";
+import Immutable from "immutable";
+import { getErrorMessage } from "@app/reducers/resources/view";
 
-import { description } from 'uiTheme/radium/forms';
-import { formContext } from 'uiTheme/radium/typography';
+import { description } from "uiTheme/radium/forms";
+import { formContext } from "uiTheme/radium/typography";
 
-import SettingHeader from '@app/components/SettingHeader';
-import ViewStateWrapper from '@app/components/ViewStateWrapper';
-import SimpleButton from '@app/components/Buttons/SimpleButton';
-import TextField from '@app/components/Fields/TextField';
-import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import SupportAccess, { RESERVED as SUPPORT_ACCESS_RESERVED } from '@inject/pages/AdminPage/subpages/SupportAccess';
-import FormUnsavedRouteLeave from '@app/components/Forms/FormUnsavedRouteLeave';
-import AnalyzeTools, { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
+import SettingHeader from "@app/components/SettingHeader";
+import ViewStateWrapper from "@app/components/ViewStateWrapper";
+import SimpleButton from "@app/components/Buttons/SimpleButton";
+import TextField from "@app/components/Fields/TextField";
+import ApiUtils from "@app/utils/apiUtils/apiUtils";
+import SupportAccess, {
+  RESERVED as SUPPORT_ACCESS_RESERVED,
+} from "@inject/pages/AdminPage/subpages/SupportAccess";
+import FormUnsavedRouteLeave from "@app/components/Forms/FormUnsavedRouteLeave";
 
-import config from '@inject/utils/config';
+import SettingsMicroForm from "./SettingsMicroForm";
+import { LABELS, LABELS_IN_SECTIONS } from "./settingsConfig";
+import InternalSupportEmail, {
+  RESERVED as INTERNAL_SUPPORT_RESERVED,
+} from "./InternalSupportEmail";
 
-import SettingsMicroForm from './SettingsMicroForm';
-import { LABELS, LABELS_IN_SECTIONS } from './settingsConfig';
-import InternalSupportEmail, { RESERVED as INTERNAL_SUPPORT_RESERVED } from './InternalSupportEmail';
+import "./Support.less";
 
-import './Support.less';
+export const VIEW_ID = "SUPPORT_SETTINGS_VIEW_ID";
 
-export const VIEW_ID = 'SUPPORT_SETTINGS_VIEW_ID';
-
-export const RESERVED = new Set(
-  [
-    ...(SUPPORT_ACCESS_RESERVED || []),
-    ...INTERNAL_SUPPORT_RESERVED,
-    ...ANALYZE_TOOLS_RESERVED
-  ]
-);
+export const RESERVED = new Set([
+  ...(SUPPORT_ACCESS_RESERVED || []),
+  ...INTERNAL_SUPPORT_RESERVED,
+]);
 
 export class Support extends PureComponent {
   static propTypes = {
@@ -67,47 +65,66 @@ export class Support extends PureComponent {
     viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     settings: PropTypes.instanceOf(Immutable.Map).isRequired,
     setChildDirtyState: PropTypes.func,
-    getSetting: PropTypes.func
+    getSetting: PropTypes.func,
   };
 
   componentWillMount() {
-    this.props.getDefinedSettings([...RESERVED, ...Object.keys(LABELS_IN_SECTIONS)], true, VIEW_ID);
+    this.props.getDefinedSettings(
+      [...RESERVED, ...Object.keys(LABELS_IN_SECTIONS)],
+      true,
+      VIEW_ID
+    );
   }
 
   state = {
     getSettingInProgress: false,
-    tempShown: new Immutable.OrderedSet()
+    tempShown: new Immutable.OrderedSet(),
   };
 
   renderSettingsMicroForm = (settingId, props) => {
-    const formKey = 'settings-' + settingId;
-    return <SettingsMicroForm
-      updateFormDirtyState={this.props.setChildDirtyState(formKey)}
-      form={formKey}
-      key={formKey}
-      settingId={settingId}
-      viewId={VIEW_ID}
-      style={{margin: '5px 0'}}
-      {...props} />;
+    const formKey = "settings-" + settingId;
+    return (
+      <SettingsMicroForm
+        updateFormDirtyState={this.props.setChildDirtyState(formKey)}
+        form={formKey}
+        key={formKey}
+        settingId={settingId}
+        viewId={VIEW_ID}
+        style={{ margin: "5px 0" }}
+        {...props}
+      />
+    );
   };
 
-
   settingExists(id) {
-    return this.props.settings && this.props.settings.some(setting => setting.get('id') === id);
+    return (
+      this.props.settings &&
+      this.props.settings.some((setting) => setting.get("id") === id)
+    );
   }
 
-  getShownSettings({includeSections = true} = {}) {
-    const ret = !this.props.settings ? [] : this.props.settings.toList().toJS().filter(setting => {
-      const id = setting.id;
-      if (!includeSections && LABELS_IN_SECTIONS.hasOwnProperty(id)) return false;
-      if (RESERVED.has(id)) return false;
-      return true;
-    });
+  getShownSettings({ includeSections = true } = {}) {
+    const ret = !this.props.settings
+      ? []
+      : this.props.settings
+          .toList()
+          .toJS()
+          .filter((setting) => {
+            const id = setting.id;
+            if (
+              !includeSections &&
+              Object.prototype.hasOwnProperty.call(LABELS_IN_SECTIONS, id)
+            )
+              return false;
+            if (RESERVED.has(id)) return false;
+            return true;
+          });
 
     return ret;
   }
 
-  addAdvanced = async (evt) => { // todo: replace with generic `prompt` modal
+  addAdvanced = async (evt) => {
+    // todo: replace with generic `prompt` modal
     evt.preventDefault();
 
     const value = evt.target.children[0].value;
@@ -115,63 +132,70 @@ export class Support extends PureComponent {
       return;
     }
 
-    const valueEle = <span style={{wordBreak: 'break-all'}}>{value}</span>;
+    const valueEle = <span style={{ wordBreak: "break-all" }}>{value}</span>;
 
-    if (this.getShownSettings().some(e => e.id === value)) {
+    if (this.getShownSettings().some((e) => e.id === value)) {
       this.props.addNotification(
         <span>Setting “{valueEle}” already shown.</span>, // todo: loc substitution engine
-        'info'
+        "info"
       );
       return;
     }
 
     evt.persist(); // need to save an event as it used in async operation
     this.setState({
-      getSettingInProgress: true
+      getSettingInProgress: true,
     });
     const reduxAction = await this.props.getSetting(value);
     const payload = reduxAction.payload;
     if (ApiUtils.isApiError(payload)) {
       this.props.addNotification(
-        payload.status === 404 ? <span>No setting “{valueEle}”.</span> : // todo: loc substitution engine
-          getErrorMessage(reduxAction).errorMessage,
-        'error'
+        payload.status === 404 ? (
+          <span>No setting “{valueEle}”.</span> // todo: loc substitution engine
+        ) : (
+          getErrorMessage(reduxAction).errorMessage
+        ),
+        "error"
       );
     } else {
-      this.setState(function(state) {
+      this.setState(function (state) {
         return {
-          tempShown: state.tempShown.add(value)
+          tempShown: state.tempShown.add(value),
         };
       });
       evt.target.reset();
     }
 
     this.setState({
-      getSettingInProgress: false
+      getSettingInProgress: false,
     });
   };
 
   resetSetting(settingId) {
     return this.props.resetSetting(settingId).then(() => {
       // need to remove the setting from our state
-      this.setState(function(state) {
+      this.setState(function (state) {
         return {
-          tempShown: state.tempShown.delete(settingId)
+          tempShown: state.tempShown.delete(settingId),
         };
       });
+      return null;
     });
   }
 
   renderMicroForm(settingId, allowReset) {
-    const formKey = 'settings-' + settingId;
-    return <SettingsMicroForm
-      updateFormDirtyState={this.props.setChildDirtyState(formKey)}
-      style={{marginTop: LABELS[settingId] !== '' ? 15 : 0}}
-      form={formKey}
-      key={formKey}
-      settingId={settingId}
-      resetSetting={allowReset && this.resetSetting.bind(this, settingId)}
-      viewId={VIEW_ID} />;
+    const formKey = "settings-" + settingId;
+    return (
+      <SettingsMicroForm
+        updateFormDirtyState={this.props.setChildDirtyState(formKey)}
+        style={{ marginTop: LABELS[settingId] !== "" ? 15 : 0 }}
+        form={formKey}
+        key={formKey}
+        settingId={settingId}
+        resetSetting={allowReset && this.resetSetting.bind(this, settingId)}
+        viewId={VIEW_ID}
+      />
+    );
   }
 
   sortSettings(settings) {
@@ -187,10 +211,11 @@ export class Support extends PureComponent {
         return 1;
       }
 
-      if (LABELS.hasOwnProperty(a.id)) {
-        if (LABELS.hasOwnProperty(b.id)) return LABELS[a.id] < LABELS[b.id] ? -1 : 1;
+      if (Object.prototype.hasOwnProperty.call(LABELS, a.id)) {
+        if (Object.prototype.hasOwnProperty.call(LABELS, b.id))
+          return LABELS[a.id] < LABELS[b.id] ? -1 : 1;
         return -1;
-      } else if (LABELS.hasOwnProperty(b.id)) {
+      } else if (Object.prototype.hasOwnProperty.call(LABELS, b.id)) {
         return 1;
       }
 
@@ -199,75 +224,87 @@ export class Support extends PureComponent {
   }
 
   renderOtherSettings() {
-    const settings = this.getShownSettings({includeSections: false});
+    const settings = this.getShownSettings({ includeSections: false });
     this.sortSettings(settings);
-    return settings.map(setting => this.renderMicroForm(setting.id, true));
+    return settings.map((setting) => this.renderMicroForm(setting.id, true));
   }
 
   render() {
     // SettingsMicroForm has a logic for error display. We should not duplicate it in the viewState
-    const viewStateWithoutError = this.props.viewState.set('isFailed', false);
-    const advancedForm = <form style={{flex: '0 0 auto'}} onSubmit={this.addAdvanced}>
-      <TextField placeholder={la('Support Key')} data-qa='support-key-search'/>
-      <SimpleButton buttonStyle='secondary' data-qa='support-key-search-btn' submitting={this.state.getSettingInProgress}
-        style={{display: 'inline-block', marginLeft: '6px'}}>
-        {la('Show')}
-      </SimpleButton>
-    </form>;
+    const viewStateWithoutError = this.props.viewState.set("isFailed", false);
+    const advancedForm = (
+      <form style={{ flex: "0 0 auto" }} onSubmit={this.addAdvanced}>
+        <TextField
+          placeholder={la("Support Key")}
+          data-qa="support-key-search"
+        />
+        <SimpleButton
+          buttonStyle="secondary"
+          data-qa="support-key-search-btn"
+          submitting={this.state.getSettingInProgress}
+          style={{ display: "inline-block", marginLeft: "6px" }}
+        >
+          {la("Show")}
+        </SimpleButton>
+      </form>
+    );
 
-    return <div className='support-settings'>
-      <SettingHeader>{la('Support Settings')}</SettingHeader>
+    return (
+      <div className="support-settings">
+        <SettingHeader icon="SubNavSupport.svg">
+          {la("Support Settings")}
+        </SettingHeader>
 
-      <ViewStateWrapper
-        viewState={viewStateWithoutError}
-        hideChildrenWhenFailed={false}
-        style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}
-      >
-        {!this.props.settings.size ? null : <div>
-          {SupportAccess && <SupportAccess
-            renderSettings={this.renderSettingsMicroForm}
-            descriptionStyle={styles.description}
-          />}
-          {config.showAnalyticsTools && <AnalyzeTools
-            renderSettings={this.renderSettingsMicroForm}
-            descriptionStyle={styles.description}
-            settings={this.props.settings}
-          />}
-          <InternalSupportEmail
-            renderSettings={this.renderSettingsMicroForm}
-            descriptionStyle={styles.description}
-          />
-        </div>}
-        <div style={{padding: '10px 0'}}>
-          <div style={{display: 'flex', alignItems: 'center'}}>
-            <h3 style={{flex: '1 1 auto'}}>{la('Support Keys')}</h3>
-            {advancedForm}
+        <ViewStateWrapper
+          viewState={viewStateWithoutError}
+          hideChildrenWhenFailed={false}
+          style={{ overflow: "auto", height: "100%", flex: "1 1 auto" }}
+        >
+          {!this.props.settings.size ? null : (
+            <div>
+              {SupportAccess && (
+                <SupportAccess
+                  renderSettings={this.renderSettingsMicroForm}
+                  descriptionStyle={styles.description}
+                />
+              )}
+              <InternalSupportEmail
+                renderSettings={this.renderSettingsMicroForm}
+                descriptionStyle={styles.description}
+              />
+            </div>
+          )}
+          <div style={{ padding: "10px 0" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <h3 style={{ flex: "1 1 auto" }}>{la("Support Keys")}</h3>
+              {advancedForm}
+            </div>
+            <div style={{ ...formContext }}>
+              {la("Advanced settings provided by Dremio Support.")}
+            </div>
+            {this.renderOtherSettings()}
           </div>
-          <div style={{...formContext}}>
-            {la('Advanced settings provided by Dremio Support.')}
-          </div>
-          {this.renderOtherSettings()}
-        </div>
-      </ViewStateWrapper>
-    </div>;
+        </ViewStateWrapper>
+      </div>
+    );
   }
-
 }
 
 function mapStateToProps(state) {
   return {
     viewState: getViewState(state, VIEW_ID),
-    settings: state.resources.entities.get('setting')
+    settings: state.resources.entities.get("setting"),
   };
 }
 
 export default compose(
-  authorize('Support'),
-  connect(mapStateToProps, { // todo: find way to auto-inject PropTypes for actions
+  authorize("Support"),
+  connect(mapStateToProps, {
+    // todo: find way to auto-inject PropTypes for actions
     resetSetting: settingActions.delete.dispatch,
     getSetting: settingActions.get.dispatch,
     getDefinedSettings,
-    addNotification
+    addNotification,
   }),
   FormUnsavedRouteLeave
 )(Support);
@@ -275,6 +312,6 @@ export default compose(
 const styles = {
   description: {
     ...description,
-    margin: '5px 0'
-  }
+    margin: "5px 0",
+  },
 };

@@ -79,6 +79,7 @@ import com.google.common.collect.Lists;
  */
 public class SchemaConverter {
 
+  private static final String VOID  = "void";
   private final String tableName;
 
   public SchemaConverter(String tableName) {
@@ -104,6 +105,7 @@ public class SchemaConverter {
       .spec()
       .fields()
       .stream()
+      .filter(partitionField -> !partitionField.transform().toString().equals(VOID))
       .map(PartitionField::sourceId)
       .map(table.schema()::findColumnName) // column name from schema
       .distinct()

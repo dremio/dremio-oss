@@ -19,36 +19,38 @@ export function checkIfUserShouldGetDeadLink() {
 }
 
 export function getHref(entity, context) {
-  const fileType = entity.get('fileType');
-  if (entity.get('fileType') === 'file') {
-    if (entity.get('queryable')) {
-      return entity.getIn(['links', 'query']);
+  const fileType = entity.get("fileType");
+  if (entity.get("fileType") === "file") {
+    if (entity.get("queryable")) {
+      return entity.getIn(["links", "query"]);
     }
     return {
       ...context.location,
       state: {
-        modal: 'DatasetSettingsModal',
-        tab: 'format',
-        entityType: entity.get('entityType'),
-        entityId: entity.get('id'),
-        fullPath: entity.get('filePath'),
-        query: {then: 'query'},
-        isHomePage: true
-      }
+        modal: "DatasetSettingsModal",
+        tab: "format",
+        entityType: entity.get("entityType"),
+        entityId: entity.get("id"),
+        fullPath: entity.get("filePath"),
+        query: { then: "query" },
+        isHomePage: true,
+      },
     };
   }
-  if (fileType === 'folder') {
-    if (entity.get('queryable')) {
-      return entity.getIn(['links', 'query']);
+  if (fileType === "folder") {
+    if (entity.get("queryable")) {
+      return entity.getIn(["links", "query"]);
     }
-    return entity.getIn(['links', 'self']);
+    return entity.getIn(["links", "self"]);
   }
   return {
     ...context.location,
     state: {
       ...context.location.state,
-      originalDatasetVersion: entity.get('datasetConfig') && entity.getIn(['datasetConfig', 'version'])
+      originalDatasetVersion:
+        entity.get("datasetConfig") &&
+        entity.getIn(["datasetConfig", "version"]),
     },
-    pathname: entity.getIn(['links', 'query'])
+    pathname: entity.getIn(["links", "query"]),
   };
 }

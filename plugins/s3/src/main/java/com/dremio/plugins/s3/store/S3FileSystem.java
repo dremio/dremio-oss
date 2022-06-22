@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.exec.ExecConstants.ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK;
 import static com.dremio.exec.ExecConstants.S3_NATIVE_ASYNC_CLIENT;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
@@ -339,11 +340,13 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     boolean ssecUsed = isSsecUsed();
     String sseCustomerKey = getCustomerSSEKey(ssecUsed);
     if ("false".equals(options.get(S3_NATIVE_ASYNC_CLIENT.getOptionName()))) {
+      // default value of ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK is true
       return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr,
-              version, isRequesterPays(), ssecUsed, sseCustomerKey);
+              version, isRequesterPays(), ssecUsed, sseCustomerKey, "true".equals(options.get(ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK.getOptionName())));
     }
+    // default value of ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK is true
     return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr,
-            version, isRequesterPays(), ssecUsed, sseCustomerKey);
+            version, isRequesterPays(), ssecUsed, sseCustomerKey, "true".equals(options.get(ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK.getOptionName())));
   }
 
   private CloseableRef<S3Client> getSyncClient(String bucket) throws IOException {
@@ -657,7 +660,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private boolean isSsecUsed() {
     String ssecAlgorithm = getConf().get("fs.s3a.server-side-encryption-algorithm", "");
-    return ssecAlgorithm.equalsIgnoreCase("sse-c");
+    return "sse-c".equalsIgnoreCase(ssecAlgorithm);
   }
 
   private String getCustomerSSEKey(boolean ssecUsed) {

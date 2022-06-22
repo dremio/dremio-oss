@@ -13,19 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import dataset from './dataset';
+import dataset from "./dataset";
 
-const resourcePath = '/dataset/myspace.folder.ds1';
+const resourcePath = "/dataset/myspace.folder.ds1";
 const homeResourcePath = '/dataset/"@test_user".folder.ds1';
 
-describe('dataset resourcePath util', () => {
-  it('should convert to fullPath', () => {
-    expect(dataset.toFullPath(resourcePath)).to.eql('myspace.folder.ds1');
-    expect(dataset.toFullPath(homeResourcePath)).to.eql('"@test_user".folder.ds1');
+describe("dataset resourcePath util", () => {
+  it("should convert to fullPath", () => {
+    expect(dataset.toFullPath(resourcePath)).to.eql("myspace.folder.ds1");
+    expect(dataset.toFullPath(homeResourcePath)).to.eql(
+      '"@test_user".folder.ds1'
+    );
   });
 
-  it('should convert to href', () => {
-    expect(dataset.toHref(resourcePath)).to.eql('/space/myspace.folder/ds1');
-    expect(dataset.toHref(homeResourcePath)).to.eql('/space/"@test_user".folder/ds1');
+  it("should convert to href", () => {
+    expect(dataset.toHref(resourcePath)).to.eql("/space/myspace.folder/ds1");
+    expect(dataset.toHref(homeResourcePath)).to.eql(
+      '/space/"@test_user".folder/ds1'
+    );
   });
 });

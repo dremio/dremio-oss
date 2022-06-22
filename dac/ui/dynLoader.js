@@ -14,19 +14,25 @@
  * limitations under the License.
  */
 /*eslint no-sync: 0*/
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
-exports.path = path.resolve(__dirname, process.env.DREMIO_DYN_LOADER_PATH || './src');
+exports.path = path.resolve(
+  __dirname,
+  process.env.DREMIO_DYN_LOADER_PATH || "./src"
+);
 
 // make the dyn-load module actually resolve, dynamically for mocha/node
 // Note: this will not work with `require.resolve()`, but we generally use `import` anyway
 exports.applyNodeResolver = () => {
-  const Module = require('module');
+  const Module = require("module");
   const originalRequire = Module.prototype.require;
-  Module.prototype.require = function(module) {
+  Module.prototype.require = function (module) {
     if (module.match(/^dyn-load($|\/)/)) {
-      return originalRequire.call(this, module.replace(/^dyn-load/, exports.path));
+      return originalRequire.call(
+        this,
+        module.replace(/^dyn-load/, exports.path)
+      );
     }
     return originalRequire.apply(this, arguments);
   };
@@ -38,14 +44,12 @@ exports.applyNodeResolver = () => {
 
 // used by webpack/babel to resolve the babel plugins
 exports.applyNodeModulesResolver = () => {
-  require('app-module-path').addPath(path.resolve(__dirname, 'node_modules'));
+  require("app-module-path").addPath(path.resolve(__dirname, "node_modules"));
 };
-
 
 exports.applyTSConfig = () => {
-  const tsconfigPathToCopy = path.resolve(exports.path, '../tsconfig.dev.json');
+  const tsconfigPathToCopy = path.resolve(exports.path, "../tsconfig.dev.json");
   // apply tsconfig for dynamic modules
-  console.info(`Typescript config is applied: '${tsconfigPathToCopy}'`);
-  fs.copyFileSync(tsconfigPathToCopy, path.resolve(__dirname, 'tsconfig.json'));
+  // console.info(`Typescript config is applied: '${tsconfigPathToCopy}'`);
+  fs.copyFileSync(tsconfigPathToCopy, path.resolve(__dirname, "tsconfig.json"));
 };
-

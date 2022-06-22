@@ -113,7 +113,7 @@ public class ConstantColumnPopulators {
 
   private static final class ${minor.class}Populator implements Populator, AutoCloseable {
     // This should be a multiple of 8 to allow copying validity buffers one after the other
-    final static int NUM_PRE_FILLED_RECORDS = 4096; // pre-fill the value in these many records
+    static final int NUM_PRE_FILLED_RECORDS = 4096; // pre-fill the value in these many records
     private NameValuePair pair;
     private ${minor.class}Vector vector;
     private ${minor.class}Vector tmpVector;

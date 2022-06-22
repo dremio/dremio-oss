@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-export default function(object, functions) {
+export default function (object, functions) {
   Object.entries(functions).forEach(([key, value]) => {
     const symbol = Symbol(key);
     Object.defineProperty(object, symbol, {
       writable: true,
       enumerable: false,
       configurable: true,
-      value: null
+      value: null,
     });
     Object.defineProperty(object, key, {
       enumerable: false,
       configurable: true,
       get() {
-        return this[symbol] = (this[symbol] || value.bind(this));
+        return (this[symbol] = this[symbol] || value.bind(this));
       },
       set(newValue) {
-        return this[symbol] = newValue;
-      }
+        return (this[symbol] = newValue);
+      },
     });
   });
 }

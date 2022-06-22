@@ -13,29 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import AccessControlListSection from 'dyn-load/components/Forms/AccessControlListSection';
-import { connect } from 'react-redux';
+import { Component } from "react";
+import AccessControlListSection from "dyn-load/components/Forms/AccessControlListSection";
+import { connect } from "react-redux";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 class SharingWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
     fields: PropTypes.object,
     isFileSystemSource: PropTypes.bool,
-    isExternalQueryAllowed: PropTypes.bool
+    isExternalQueryAllowed: PropTypes.bool,
+    isHive: PropTypes.bool,
+    isGlue: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, fields, isFileSystemSource, isExternalQueryAllowed} = this.props;
+    const {
+      elementConfig,
+      fields,
+      isFileSystemSource,
+      isHive,
+      isGlue,
+      isExternalQueryAllowed,
+    } = this.props;
     let source;
-    if (isFileSystemSource === true) {
-      source = 'FS_SOURCE';
+    if (isFileSystemSource || isHive || isGlue) {
+      source = "MUTABLE_SOURCE";
     } else if (isExternalQueryAllowed === true) {
-      source = 'ARP_SOURCE';
+      source = "ARP_SOURCE";
     } else {
-      source = 'source';
+      source = "source";
     }
 
     return (
@@ -43,7 +52,8 @@ class SharingWrapper extends Component {
         fields={fields}
         EntityType={source}
         isTopLevelEntity
-        elementConfig={elementConfig.getConfig()}/>
+        elementConfig={elementConfig.getConfig()}
+      />
     );
   }
 }
@@ -51,7 +61,10 @@ class SharingWrapper extends Component {
 const mapStateToProps = (state) => {
   return {
     isFileSystemSource: state.passDataBetweenModalTabs.isFileSystemSource,
-    isExternalQueryAllowed: state.passDataBetweenModalTabs.isExternalQueryAllowed
+    isExternalQueryAllowed:
+      state.passDataBetweenModalTabs.isExternalQueryAllowed,
+    isHive: state.passDataBetweenModalTabs.isHive,
+    isGlue: state.passDataBetweenModalTabs.isGlue,
   };
 };
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import java.util.Objects;
+
 public class SimpleCommandResult {
 
   public boolean ok;
@@ -32,5 +34,24 @@ public class SimpleCommandResult {
 
   public static SimpleCommandResult successful(String msg) {
     return new SimpleCommandResult(true, msg);
+  }
+
+  public static SimpleCommandResult fail(String msg, Object...objects) {
+    return new SimpleCommandResult(false, String.format(msg, objects));
+  }
+
+  @Override public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SimpleCommandResult that = (SimpleCommandResult) o;
+    return ok == that.ok && summary.equals(that.summary);
+  }
+
+  @Override public int hashCode() {
+    return Objects.hash(ok, summary);
   }
 }

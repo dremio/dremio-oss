@@ -13,133 +13,140 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { Radio, PrevalidatedTextField, DateInput } from 'components/Fields';
-import { isDateType } from '@app/constants/DataTypes';
-import { formContext } from 'uiTheme/radium/typography';
-import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
+import { Radio, PrevalidatedTextField, DateInput } from "components/Fields";
+import { isDateType } from "@app/constants/DataTypes";
+import { formContext } from "uiTheme/radium/typography";
+import { LINE_START_CENTER } from "uiTheme/radium/flexStyle";
 
-@Radium
-export default class TransformRangeBound extends Component {
-
+export class TransformRangeBound extends Component {
   static propTypes = {
     defaultValue: PropTypes.string,
     columnType: PropTypes.string,
     noneLabel: PropTypes.string,
     field: PropTypes.object,
     fieldName: PropTypes.string,
-    style: PropTypes.array,
-    validate: PropTypes.func
+    style: PropTypes.object,
+    validate: PropTypes.func,
+    className: PropTypes.string,
   };
 
   constructor(props) {
     super(props);
 
-    const { field: { value }} = props;
+    const {
+      field: { value },
+    } = props;
     this.state = {
-      customValue: value || ''
+      customValue: value || "",
     };
   }
 
   componentWillReceiveProps(nextProps) {
-    const { field: { value }} = nextProps;
-    if (value !== '') {
+    const {
+      field: { value },
+    } = nextProps;
+    if (value !== "") {
       this.setState({ customValue: value });
     }
   }
 
   handleRadioChange = (event) => {
     const { field, defaultValue } = this.props;
-    if (event.target.value === 'none') {
-      field.onChange('');
+    if (event.target.value === "none") {
+      field.onChange("");
     } else {
       field.onChange(this.state.customValue || defaultValue);
     }
-  }
+  };
 
   handleValueChange = (newValue) => {
-    const { field: { value }} = this.props;
+    const {
+      field: { value },
+    } = this.props;
 
     if (value === newValue) {
       return;
     }
 
-    if (newValue === '') {
-      this.setState({ customValue: '' });
+    if (newValue === "") {
+      this.setState({ customValue: "" });
     } else {
       this.props.field.onChange(newValue);
     }
-  }
+  };
 
   renderInput() {
     const { columnType } = this.props;
-    return isDateType(columnType)
-      ? (
-        <DateInput
-          type={columnType}
-          style={styles.dateInput}
-          value={this.state.customValue}
-          onChange={this.handleValueChange}
-        />
-      )
-      : <PrevalidatedTextField
+    return isDateType(columnType) ? (
+      <DateInput
+        type={columnType}
+        style={styles.dateInput}
+        value={this.state.customValue}
+        onChange={this.handleValueChange}
+      />
+    ) : (
+      <PrevalidatedTextField
         style={styles.input}
         value={this.state.customValue}
         onChange={this.handleValueChange}
         validate={this.props.validate}
-      />;
+      />
+    );
   }
 
   render() {
-    const { style, noneLabel, field, fieldName } = this.props;
+    const { style, noneLabel, field, fieldName, className } = this.props;
 
-    const hasBound = field.value !== '';
-    return <div data-qa={fieldName} style={style}>
-      <Radio
-        onChange={this.handleRadioChange}
-        style={styles.radio}
-        label={noneLabel}
-        name={fieldName}
-        radioValue='none'
-        checked={!hasBound}
-      />
-      <Radio
-        onChange={this.handleRadioChange}
-        style={styles.radioBottom}
-        label={this.renderInput()}
-        name='upper'
-        radioValue='custom'
-        checked={hasBound}
-      />
-      <span style={[formContext, { marginLeft: 20 }]}>
-        {fieldName === 'lower' ? la('inclusive') : la('exclusive')}
-      </span>
-    </div>;
+    const hasBound = field.value !== "";
+    return (
+      <div data-qa={fieldName} style={style} className={className}>
+        <Radio
+          onChange={this.handleRadioChange}
+          style={styles.radio}
+          label={noneLabel}
+          name={fieldName}
+          radioValue="none"
+          checked={!hasBound}
+        />
+        <Radio
+          onChange={this.handleRadioChange}
+          style={styles.radioBottom}
+          label={this.renderInput()}
+          name="upper"
+          radioValue="custom"
+          checked={hasBound}
+        />
+        <span style={{ ...formContext, marginLeft: 20 }}>
+          {fieldName === "lower" ? la("inclusive") : la("exclusive")}
+        </span>
+      </div>
+    );
   }
 }
 
 const styles = {
   dateInput: {
     width: 195,
-    marginLeft: 0
+    marginLeft: 0,
   },
   radio: {
-    ...LINE_START_CENTER
+    ...LINE_START_CENTER,
   },
   radioBottom: {
-    ...LINE_START_CENTER
+    ...LINE_START_CENTER,
   },
   input: {
     width: 100,
     height: 22,
-    outline: 'none',
-    position: 'relative',
+    outline: "none",
+    position: "relative",
     marginTop: 0,
-    border: '1px solid rgba(0,0,0,0.10)',
-    borderRadius: 2
-  }
+    border: "1px solid rgba(0,0,0,0.10)",
+    borderRadius: 2,
+  },
 };
+export default TransformRangeBound;

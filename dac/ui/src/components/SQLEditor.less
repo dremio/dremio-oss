@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '~@app/uiTheme/less/color-schema.less';
- @import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
 :global {
   .react-monaco-editor-container .monaco-editor .view-overlays .current-line {
@@ -39,8 +39,8 @@
       color: @monaco-orange;
     }
     .margin {
-     margin: 0px !important;
-      }
+      margin: 0px !important;
+    }
 
     .dremio-error-line {
       display: flex;
@@ -49,52 +49,226 @@
 
       //circle
       &:before {
-        content: '';
+        content: "";
         display: block;
         width: 2px;
         height: 100%;
         background: @monaco-error;
       }
     }
-  }
-   //autocomplete styles ------------------------------
 
-  .monaco-editor .suggest-widget {
+    .find-widget .monaco-checkbox .label {
+      margin: 0 !important;
+    }
+  }
+
+  //autocomplete styles ------------------------------
+  .react-monaco-editor-container .monaco-editor .suggest-widget {
+    z-index: 150;
+
     .font-basic();
 
-    & > .tree {
-      background: @PALE_GREY !important;
-      border-color: @SECONDARY_BORDER !important;
-      border-radius: 2px;
+    & > .tree,
+    & > .message {
+      background-color: @WHITE !important;
+      border: none !important;
+      border-radius: 4px;
+      box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15);
+      padding: 8px;
+      min-height: 49px;
     }
 
     .main {
-      .font-basic() !important;
+      color: @DARK_900 !important;
+      font-family: "Inter var", sans-serif !important;
+      font-weight: 400 !important;
+      display: flex;
+      flex-direction: column;
+      padding-left: 3px;
+
+      > .type-label {
+        white-space: pre-wrap;
+        text-overflow: inherit;
+      }
+    }
+
+    .monaco-list-rows {
+      transform: inherit !important;
+      display: flex;
+      flex-direction: column;
+      top: 0 !important;
+      min-height: 32px;
     }
 
     .monaco-list .monaco-list-row {
-      padding: 0 13px; // should be > 10px (vertical scrollbar size)
-       //hide suggestion type icon
+      border-radius: 4px;
+      height: auto !important;
+      padding: 5px 10px;
+      position: relative;
+      transition: 300ms ease all;
+      top: 0 !important;
+
+      //hide suggestion type icon
       .icon {
-        display: none;
+        &.color {
+          background-image: url(../components/Icon/icons/Home.svg) !important;
+        }
+        
+        &.file {
+          background-image: url(../components/Icon/icons/File-Empty.svg) !important;
+          background-size: cover!important;
+          background-position: 2px 0;
+        }
+
+        &.module {
+          background-image: url(../components/Icon/icons/Space.svg) !important;
+          background-size: cover;
+        }
+
+        &.folder {
+          background-image: url(../components/Icon/icons/Folder.svg) !important;
+          background-size: cover;
+        }
+
+        &.function {
+          background-image: url(../components/Icon/icons/Function.svg) !important;
+        }
+
+        &.constructor {
+          background-image: url(../components/Icon/icons/VirtualDataset.svg) !important;
+        }
+
+        &.snippet {
+          background-image: url(../components/Icon/icons/PhysicalDataset.svg) !important;
+          background-size: 70%;
+        }
+
+        &.keyword,
+        &.property {
+          background-image: url(../components/Icon/icons/Keyword.svg) !important;
+        }
+
+        &.operator {
+          background-image: url(../components/Icon/icons/Boolean.svg) !important;
+        }
+
+        &.method {
+          background-image: url(../components/Icon/icons/VarBinary.svg) !important;
+        }
+
+        &.class {
+          background-image: url(../components/Icon/icons/DateType.svg) !important;
+        }
+
+        &.interface {
+          background-image: url(../components/Icon/icons/Struct.svg) !important;
+        }
+
+        &.text {
+          background-image: url(../components/Icon/icons/Varchar.svg) !important;
+        }
+
+        &.references {
+          background-image: url(../components/Icon/icons/NumDouble.svg) !important;
+        }
+
+        &.unit {
+          background-image: url(../components/Icon/icons/Num.svg) !important;
+        }
+
+        &.variable {
+          background-image: url(../components/Icon/icons/Type-List.svg) !important;
+        }
       }
 
       &.focused {
-        background: @PALE_ORANGE;
+        background-color: @polar;
+
+        &:hover {
+          background-color: @polar !important;
+        }
+
         //hide 'i' icon
         > .contents > .main > .readMore {
           display: none;
         }
+
+        > .contents > .main > .type-label {
+          text-align: left;
+          margin: 0;
+        }
       }
 
-      //show type lables for all items, not only for selected
-      > .contents > .main > .type-label {
-        display: inline;
+      &:hover {
+        background-color: transparent !important;
       }
+
       .highlight {
-        .font-basic() !important;
+        font-size: 12px !important;
+        font-family: "Inter var", sans-serif !important;
         font-weight: 500 !important;
       }
     }
-  } //------------------------------------------------------
+
+    &.docs-side > .details {
+      background: none;
+      border: none;
+      float: none;
+    }
+
+    .details > .monaco-scrollable-element > .body > .header > .close {
+      display: none;
+    }
+
+    .monaco-scrollable-element > .scrollbar > .slider {
+      height: 20px !important;
+    }
+  }
+
+  // Dark mode for autocomplete
+  .vs-dark {
+    .react-monaco-editor-container .monaco-editor .suggest-widget > .tree,
+    .react-monaco-editor-container .monaco-editor .suggest-widget > .message {
+      background-color: @DARK_900 !important;
+      color: @WHITE !important;
+    }
+
+    .react-monaco-editor-container .monaco-editor .suggest-widget .main {
+      color: @DARK_050 !important;
+    }
+
+    .react-monaco-editor-container
+      .monaco-editor
+      .suggest-widget
+      .monaco-list
+      .monaco-list-row.focused {
+      background-color: @FIGMA_NEUTRAL_700 !important;
+
+      &:hover {
+        background-color: @FIGMA_NEUTRAL_600 !important;
+      }
+    }
+
+    .suggest-widget .monaco-list {
+      .monaco-scrollable-element {
+        min-height: 39px;
+      }
+      .monaco-list-row .icon {
+        &.color,
+        &.unit,
+        &.references,
+        &.text,
+        &.interface,
+        &.class,
+        &.method,
+        &.operator,
+        &.property,
+        &.function,
+        &.keyword {
+          filter: grayscale(1) brightness(1.8);
+        }
+      }
+    }
+  }
+  //------------------------------------------------------
 }

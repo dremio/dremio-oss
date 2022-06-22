@@ -2,7 +2,5 @@
   "compilerOptions": {
     "experimentalDecorators": true
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }

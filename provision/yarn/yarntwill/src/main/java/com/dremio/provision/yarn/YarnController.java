@@ -307,4 +307,3 @@ public class YarnController {
       return LogEntry.Level.INFO;
     }
 }
-

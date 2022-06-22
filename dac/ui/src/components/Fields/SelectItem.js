@@ -13,11 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import { itemWrapper, selected as selectedCls, disabled as disabledCls } from './Select.less';
+import {
+  itemWrapper,
+  selected as selectedCls,
+  disabled as disabledCls,
+} from "./Select.less";
 
 export default class SelectItem extends PureComponent {
   static propTypes = {
@@ -28,8 +32,8 @@ export default class SelectItem extends PureComponent {
     disabled: PropTypes.bool,
     onClick: PropTypes.func,
     selected: PropTypes.bool,
-    className: PropTypes.string
-  }
+    className: PropTypes.string,
+  };
 
   handleTouchTap = (event) => {
     event.preventDefault();
@@ -37,7 +41,7 @@ export default class SelectItem extends PureComponent {
     if (this.props.onClick) {
       this.props.onClick(event, this.props.value);
     }
-  }
+  };
 
   render() {
     const { disabled, style, label, selected, dataQa, className } = this.props;
@@ -49,9 +53,10 @@ export default class SelectItem extends PureComponent {
           [itemWrapper]: true,
           [className]: !!className,
           [selectedCls]: selected,
-          [disabledCls]: disabled
+          [disabledCls]: disabled,
         })}
-        data-qa={dataQa || label}>
+        data-qa={dataQa || label}
+      >
         {label}
       </div>
     );

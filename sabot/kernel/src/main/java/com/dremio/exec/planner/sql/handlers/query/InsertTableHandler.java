@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -26,6 +27,7 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
@@ -40,6 +42,8 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
       final SqlInsertTable sqlInsertTable = SqlNodeUtil.unwrap(sqlNode, SqlInsertTable.class);
       final Catalog catalog = config.getContext().getCatalog();
       final NamespaceKey path = catalog.resolveSingle(sqlInsertTable.getPath());
+      validateDmlRequest(catalog, path, SqlKind.INSERT);
+      catalog.validatePrivilege(path, Privilege.INSERT);
 
       // TODO: fix parser to disallow this
       if (sqlInsertTable.isSingleWriter() &&
@@ -49,13 +53,22 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
           .build(logger);
       }
       if (CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)) {
-        return doVersionedInsert(catalog, config, path, sql, sqlNode, sqlInsertTable);
+        return doVersionedInsert(catalog, config, path, sql, sqlInsertTable);
       } else {
-        return doInsert(catalog, config, path, sql, sqlNode, sqlInsertTable);
+        return doInsert(catalog, config, path, sql, sqlInsertTable);
       }
     }
     catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
+    }
+  }
+
+  @VisibleForTesting
+  public static void validateDmlRequest(Catalog catalog, NamespaceKey path, SqlKind sqlKind) {
+    if (!IcebergUtils.validatePluginSupportForIceberg(catalog, path)) {
+      throw UserException.unsupportedError()
+        .message(String.format("%s clause is not supported in the query for this source", sqlKind))
+        .buildSilently();
     }
   }
 
@@ -65,20 +78,24 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
   }
 
-  private PhysicalPlan doInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlNode sqlNode, SqlInsertTable sqlInsertTable) throws Exception {
+  private PhysicalPlan doInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlInsertTable sqlInsertTable) throws Exception {
     validateInsertTableFormatOptions(catalog, config, path);
     PhysicalPlan plan = super.getPlan(catalog, path, config, sql, sqlInsertTable, null);
     super.validateIcebergSchemaForInsertCommand(sqlInsertTable.getFieldNames());
     return plan;
   }
 
-  private PhysicalPlan doVersionedInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlNode sqlNode, SqlInsertTable sqlInsertTable) throws Exception {
+  private PhysicalPlan doVersionedInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlInsertTable sqlInsertTable) throws Exception {
     final String sourceName = path.getRoot();
     final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
     final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     try {
-      validateVersionedTableFormatOptions(catalog, path, config.getContext().getOptions());
+      validateVersionedTableFormatOptions(catalog, path);
       checkExistenceValidity(path, getDremioTable(catalog, path));
+      logger.debug("Insert into versioned table '{}' at version '{}' resolved version '{}' ",
+        path,
+        sessionVersion,
+        version);
       return super.getPlan(catalog, path, config, sql, sqlInsertTable, version);
     } catch (Exception e) {
       throw SqlExceptionHelper.coerceException(logger, sql, e, true);

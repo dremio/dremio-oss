@@ -38,11 +38,12 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
@@ -127,6 +128,8 @@ import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import com.google.inject.AbstractModule;
 import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 
 public class BaseTestQuery extends ExecTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestQuery.class);
@@ -134,7 +137,7 @@ public class BaseTestQuery extends ExecTest {
   protected static final String TEMP_SCHEMA = "dfs_test";
   protected static final String TEMP_SCHEMA_HADOOP = "dfs_test_hadoop";
 
-  protected static final Set<String> SCHEMAS_FOR_TEST = Sets.newHashSet(TEMP_SCHEMA, TEMP_SCHEMA_HADOOP);
+  protected static final Set<String> SCHEMAS_FOR_TEST = Sets.newHashSet(TEMP_SCHEMA_HADOOP);
 
   protected static final int MAX_WIDTH_PER_NODE = 2;
   private static final Random random = new Random();
@@ -172,6 +175,7 @@ public class BaseTestQuery extends ExecTest {
           @Override
           public SabotNode apply(SabotProviderConfig input) {
             try {
+              List<Module> modules = Collections.singletonList(SABOT_NODE_RULE.getModules());
               return new SabotNode(config, clusterCoordinator, CLASSPATH_SCAN_RESULT, input.allRoles(), modules);
             } catch (Exception e) {
               throw Throwables.propagate(e);
@@ -181,12 +185,12 @@ public class BaseTestQuery extends ExecTest {
 
     private Function<SabotProviderConfig, SabotNode> provider = DEFAULT_PROVIDER;
 
-    private static final List<AbstractModule> modules = new ArrayList<>();
+    private Module module = null;
 
     @Override
     protected void before() throws Throwable {
       provider = DEFAULT_PROVIDER;
-      modules.clear();
+      module = null;
     }
 
     SabotNode newSabotNode(SabotProviderConfig config) {
@@ -200,12 +204,12 @@ public class BaseTestQuery extends ExecTest {
       return previous;
     }
 
-    public void register(AbstractModule module) {
-      modules.add(module);
+    public void register(Module module) {
+      this.module = module;
     }
 
-    public List<AbstractModule> getModules() {
-      return modules;
+    public Module getModules() {
+      return module;
     }
   }
 
@@ -231,9 +235,7 @@ public class BaseTestQuery extends ExecTest {
 
   private int[] columnWidths = new int[] { 8 };
 
-  @BeforeClass
-  public static void setupDefaultTestCluster() throws Exception {
-    config = SabotConfig.create(TEST_CONFIGURATIONS);
+  private static AbstractModule getDefaultModule() {
 
     SimpleJobRunner internalRefreshQueryRunner = (query, userName, queryType) -> {
       try {
@@ -243,12 +245,22 @@ public class BaseTestQuery extends ExecTest {
       }
     };
 
-    SABOT_NODE_RULE.register(new AbstractModule() {
+    return new AbstractModule() {
       @Override
       protected void configure() {
         bind(SimpleJobRunner.class).toInstance(internalRefreshQueryRunner);
       }
-    });
+    };
+  }
+
+  @BeforeClass
+  public static void setupDefaultTestCluster() throws Exception {
+    config = SabotConfig.create(TEST_CONFIGURATIONS);
+
+    Module module = Optional.ofNullable(SABOT_NODE_RULE.module)
+      .map(m -> Modules.combine(m, getDefaultModule())).orElse(getDefaultModule());
+
+    SABOT_NODE_RULE.register(module);
 
     openClient();
     localFs = HadoopFileSystem.getLocal(new Configuration());
@@ -767,14 +779,23 @@ public class BaseTestQuery extends ExecTest {
                     ExecConstants.ENABLE_HIVE_ASYNC.getDefault().getBoolVal().toString());
   }
 
-  protected static AutoCloseable enableIcebergTables() {
+  public static AutoCloseable enableIcebergTables() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
     setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
     return () -> {
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG,
         ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS,
+        ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL,
+        ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML,
+        ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
     };
   }
 
@@ -1169,7 +1190,7 @@ public class BaseTestQuery extends ExecTest {
   }
 
   protected static IcebergModel getIcebergModel(File tableRoot, IcebergCatalogType catalogType) {
-    FileSystemPlugin fileSystemPlugin = getMockedFileSystemPlugin();
+    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     IcebergModel icebergModel = null;
     switch (catalogType) {
       case UNKNOWN:
@@ -1182,6 +1203,7 @@ public class BaseTestQuery extends ExecTest {
         when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
         break;
       case HADOOP:
+
         icebergModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
         when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
         break;
@@ -1196,6 +1218,11 @@ public class BaseTestQuery extends ExecTest {
 
   public static Table getIcebergTable(File tableRoot) {
     return getIcebergTable(tableRoot, IcebergCatalogType.NESSIE);
+  }
+
+  protected static String getDfsTestTmpDefaultCtasFormat(String pluginName) {
+    final FileSystemPlugin plugin = getSabotContext().getCatalogService().getSource(pluginName);
+    return plugin.getDefaultCtasFormat();
   }
 
   public static FileSystemPlugin getMockedFileSystemPlugin() {
@@ -1233,5 +1260,40 @@ public class BaseTestQuery extends ExecTest {
         throw new RuntimeException();
       }
     };
+  }
+
+  public static boolean areAzureStorageG1CredentialsNull(){
+    if (System.getenv("AZURE_STORAGE_G1_CLIENT_ID") == null || System.getenv("AZURE_STORAGE_G1_TENANT_ID") == null || System.getenv("AZURE_STORAGE_G1_CLIENT_SECRET") == null){
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean areAzureStorageG2CredentialsNull(){
+    if (System.getenv("AZURE_STORAGE_G2_CLIENT_ID") == null || System.getenv("AZURE_STORAGE_G2_TENANT_ID") == null || System.getenv("AZURE_STORAGE_G2_CLIENT_SECRET") == null){
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean areAzureStorageG2V1CredentialsNull(){
+    if(System.getenv("AZURE_STORAGE_G2_V1_ACCOUNT_NAME") == null || System.getenv("AZURE_STORAGE_G2_V1_ACCOUNT_KEY") == null){
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean areAzureStorageG2V2CredentialsNull(){
+    if(System.getenv("AZURE_STORAGE_G2_V2_ACCOUNT_NAME") == null || System.getenv("AZURE_STORAGE_G2_V2_ACCOUNT_KEY") == null){
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean areAzureStorageG2V2NonHierCredentialsNull(){
+    if(System.getenv("AZURE_STORAGE_G2_V2_NON_HIER_ACCOUNT_NAME") == null || System.getenv("AZURE_STORAGE_G2_V2_NON_HIER_ACCOUNT_KEY") == null){
+      return true;
+    }
+    return false;
   }
 }

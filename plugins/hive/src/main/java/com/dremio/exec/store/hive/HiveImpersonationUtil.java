@@ -29,9 +29,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
-// import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
-//import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;

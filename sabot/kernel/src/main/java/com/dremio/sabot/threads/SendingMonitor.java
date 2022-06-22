@@ -21,7 +21,6 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.threads.sharedres.SharedResource;
-import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.ByteBuf;
 
@@ -32,20 +31,21 @@ import io.netty.buffer.ByteBuf;
  * execution should be blocked.
  */
 public class SendingMonitor {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SendingMonitor.class);
 
-  @VisibleForTesting
-  public static final int LIMIT = 3;
-
-  private static final int RESTART = LIMIT - 1;
+  private final int LIMIT;
+  private final int RESTART;
   private final AtomicInteger outstandingMessages = new AtomicInteger(0);
   private final SharedResource resource;
   private final SendingAccountor accountor;
 
-  public SendingMonitor(SharedResource resource, SendingAccountor accountor) {
+  public SendingMonitor(SharedResource resource, SendingAccountor accountor, int outStandingRPCsPerTunnel) {
     super();
     this.resource = resource;
     this.accountor = accountor;
     resource.markAvailable();
+    LIMIT = outStandingRPCsPerTunnel;
+    RESTART = LIMIT - 1;
   }
 
   public void increment(){

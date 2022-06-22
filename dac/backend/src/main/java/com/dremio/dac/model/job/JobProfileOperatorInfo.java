@@ -16,6 +16,7 @@
 package com.dremio.dac.model.job;
 
 import static com.dremio.exec.ops.OperatorMetricRegistry.getMetricById;
+import static java.lang.String.format;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import javax.ws.rs.NotFoundException;
 
 import org.apache.commons.text.WordUtils;
 
@@ -143,7 +146,7 @@ public class JobProfileOperatorInfo {
       this.operatorMetricsMap = operatorMetricMap;
       this.operatorSpecificDetails = opsDetails;
     } else {
-      throw  new IndexOutOfBoundsException("Profile Fragment is Empty");
+      throw new NotFoundException(format("Profile Fragment is not available"));
     }
   }
 
@@ -257,7 +260,7 @@ public class JobProfileOperatorInfo {
       String[] nodeValues = getOperatorSpecificMetrics(operatorType);
       List<String> validMetricsList = Arrays.asList(nodeValues).stream().map(n -> n.toLowerCase()).collect(Collectors.toList());
       String listString = validMetricsList.stream().map(Object::toString).collect(Collectors.joining(", "));
-      if (containsName(validMetricsList, metricName.toLowerCase()) || listString.isEmpty() || listString.equals("")) {
+      if (containsName(validMetricsList, metricName.toLowerCase()) || listString.isEmpty()) {
         metricValue = metricValueList.stream().collect(Collectors.summarizingLong(metricsValue -> metricsValue.getLongValue())).getSum();
         tempMetricsList.add(new MetricValue(id, WordUtils.capitalizeFully(metricName, '_'), metricValue));
       }

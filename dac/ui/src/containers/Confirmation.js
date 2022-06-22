@@ -13,34 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { connect } from 'react-redux';
-import { hideConfirmationDialog } from 'actions/confirmation';
+import { connect } from "react-redux";
+import { hideConfirmationDialog } from "actions/confirmation";
 
-import ConfirmModal from 'components/Modals/ConfirmModal';
+import ConfirmModal from "components/Modals/ConfirmModal";
 
 export class ConfirmationContainer extends Component {
   static propTypes = {
     confirmation: PropTypes.object,
-    hideConfirmationDialog: PropTypes.func
-  }
+    hideConfirmationDialog: PropTypes.func,
+  };
 
   onConfirm = (promptValue) => {
     this.props.hideConfirmationDialog();
     const { confirm } = this.props.confirmation;
-    if (confirm && typeof confirm === 'function') {
+    if (confirm && typeof confirm === "function") {
       confirm(promptValue);
     }
-  }
+  };
 
   onCancel = () => {
     this.props.hideConfirmationDialog();
     const { cancel } = this.props.confirmation;
     cancel && cancel();
-  }
+  };
 
   render() {
     const {
@@ -63,7 +63,8 @@ export class ConfirmationContainer extends Component {
       isCentered,
       closeButtonType,
       className,
-      headerIcon
+      headerIcon,
+      size,
     } = this.props.confirmation;
     if (!isOpen) {
       return null;
@@ -92,6 +93,7 @@ export class ConfirmationContainer extends Component {
         closeButtonType={closeButtonType}
         className={className}
         headerIcon={headerIcon}
+        size={size}
       />
     );
   }
@@ -99,8 +101,10 @@ export class ConfirmationContainer extends Component {
 
 function mapStateToProps(state) {
   return {
-    confirmation: state.confirmation
+    confirmation: state.confirmation,
   };
 }
 
-export default connect(mapStateToProps, {hideConfirmationDialog})(ConfirmationContainer);
+export default connect(mapStateToProps, { hideConfirmationDialog })(
+  ConfirmationContainer
+);

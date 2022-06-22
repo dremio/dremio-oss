@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import * as IntervalTypes from './IntervalTypes';
-import RightPanelView from './RightPanelView';
+import * as IntervalTypes from "./IntervalTypes";
+import RightPanelView from "./RightPanelView";
 
-@Radium
-export default class RightPanel extends PureComponent {
+class RightPanel extends PureComponent {
   static propTypes = {
     handleChange: PropTypes.func.isRequired,
-    options: PropTypes.object.isRequired
+    options: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -35,30 +34,35 @@ export default class RightPanel extends PureComponent {
   }
 
   onChangeInInput(type, date) {
-    const nextRange = type === 'startDate'
-      ? [ date, this.props.options.getIn(['range', 'endMoment']) ]
-      : [ this.props.options.getIn(['range', 'startMoment']), date ];
-    this.props.handleChange(IntervalTypes.CUSTOM_INTERVAL, Immutable.fromJS(nextRange));
+    const nextRange =
+      type === "startDate"
+        ? [date, this.props.options.getIn(["range", "endMoment"])]
+        : [this.props.options.getIn(["range", "startMoment"]), date];
+    this.props.handleChange(
+      IntervalTypes.CUSTOM_INTERVAL,
+      Immutable.fromJS(nextRange)
+    );
   }
 
   handleChange(date, isInit) {
-    const endMoment = this.props.options.getIn(['range', 'endMoment']);
-    const startMoment = this.props.options.getIn(['range', 'startMoment']);
-    const isDateChanged = endMoment.unix() !== date.endDate.unix() || startMoment.unix() !== date.startDate.unix();
+    const endMoment = this.props.options.getIn(["range", "endMoment"]);
+    const startMoment = this.props.options.getIn(["range", "startMoment"]);
+    const isDateChanged =
+      endMoment.unix() !== date.endDate.unix() ||
+      startMoment.unix() !== date.startDate.unix();
     const isRange = date.endDate.unix() !== date.startDate.unix();
     if (!isInit && isDateChanged && isRange) {
-      this.props.handleChange(IntervalTypes.CUSTOM_INTERVAL, Immutable.fromJS([
-        date.startDate,
-        date.endDate
-      ]));
+      this.props.handleChange(
+        IntervalTypes.CUSTOM_INTERVAL,
+        Immutable.fromJS([date.startDate, date.endDate])
+      );
     }
   }
 
   render() {
     const { options } = this.props;
-    const range = options.get('range');
-    const startMoment = range.get('startMoment');
-    const endMoment = range.get('endMoment');
+    const startMoment = options.getIn(["range", "startMoment"]);
+    const endMoment = options.getIn(["range", "endMoment"]);
     return (
       <RightPanelView
         startMoment={startMoment}
@@ -69,3 +73,4 @@ export default class RightPanel extends PureComponent {
     );
   }
 }
+export default Radium(RightPanel);

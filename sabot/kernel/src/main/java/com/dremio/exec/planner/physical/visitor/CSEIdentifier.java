@@ -426,7 +426,7 @@ public class CSEIdentifier {
 
   private static class StrictSubsetRemover
     extends BasePrelVisitor<List<Long>, Set<Integer>, RuntimeException> {
-    final private Map<Long, List<Prel>> candidates;
+    private final Map<Long, List<Prel>> candidates;
 
     public StrictSubsetRemover(Map<Long, List<Prel>> candidates) {
       this.candidates = candidates;

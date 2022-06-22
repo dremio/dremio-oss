@@ -25,7 +25,6 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.google.protobuf.Empty;
 
-
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 

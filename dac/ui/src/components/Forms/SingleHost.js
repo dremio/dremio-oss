@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import FormUtils from '@app/utils/FormUtils/FormUtils';
-import Host from './Host';
+import { Component } from "react";
+import FormUtils from "@app/utils/FormUtils/FormUtils";
+import Host from "./Host";
 
 const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;
 
@@ -28,12 +28,15 @@ export default class SingleHost extends Component {
 
   static validate(values) {
     return {
-      [CONFIG_PROP_NAME]: Host.validate(values[CONFIG_PROP_NAME])
+      [CONFIG_PROP_NAME]: Host.validate(values[CONFIG_PROP_NAME]),
     };
   }
 
   render() {
-    const {fields: { [CONFIG_PROP_NAME]: configFields }, ...otherProps} = this.props;
+    const {
+      fields: { [CONFIG_PROP_NAME]: configFields },
+      ...otherProps
+    } = this.props;
     return <Host fields={configFields} {...otherProps} />;
   }
 }

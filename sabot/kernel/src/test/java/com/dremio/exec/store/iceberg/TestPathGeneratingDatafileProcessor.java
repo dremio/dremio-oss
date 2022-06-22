@@ -22,12 +22,15 @@ import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getDatafileWit
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getVecByName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.iceberg.DremioManifestReaderUtils;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.junit.After;
@@ -36,6 +39,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
@@ -50,7 +54,7 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
   private VectorContainer outgoing;
   private VarCharVector dataFileVec;
   private VarBinaryVector partitionDataVec;
-  private PathGeneratingDatafileProcessor datafileProcessor;
+  private DataFileContentReader datafileProcessor;
 
   private PartitionSpec partitionSpec;
   private Schema icebergSchema;
@@ -59,11 +63,14 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
   @Before
   public void initialisePathGenDatafileProcessor() throws Exception {
     outgoing = getOperatorContext().createOutputVectorContainer();
+    OperatorContext operatorContext = getOperatorContext();
+    TableFunctionContext tableFunctionContext = mock(TableFunctionContext.class);
+    when(tableFunctionContext.getFullSchema()).thenReturn(MetadataRefreshExecConstants.PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.BATCH_SCHEMA);
     outgoing.addSchema(getBatchSchema(DataProcessorTestUtil.DataProcessorType.DATAFILE_PATH_GEN));
     outgoing.buildSchema();
     dataFileVec = (VarCharVector) getVecByName(outgoing, MetadataRefreshExecConstants.PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.DATAFILE_PATH);
     partitionDataVec = (VarBinaryVector) getVecByName(outgoing, MetadataRefreshExecConstants.PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.PARTITION_DATA_PATH);
-    datafileProcessor = new PathGeneratingDatafileProcessor();
+    datafileProcessor = new DataFileContentReader(operatorContext, tableFunctionContext);
     datafileProcessor.setup(null, outgoing);
     setupPartitionData();
     datafileProcessor.initialise(partitionSpec);
@@ -84,14 +91,16 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
     int totalRecords = 0, outputRecords;
     for (String datafilePath : dataFilePaths) {
+      DremioManifestReaderUtils.ManifestEntryWrapper<?> entry = new DremioManifestReaderUtils.ManifestEntryWrapper<>(
+          getDatafileWithPartitions(datafilePath, 1024L, partitionSpec, partitionData), 0);
 
-      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
+      outputRecords = datafileProcessor.processManifestEntry(entry, startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
 
-      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
+      outputRecords = datafileProcessor.processManifestEntry(entry, startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
       assertEquals(0, outputRecords); // Zero indicates: We are done with current file. ready for processing next
-      datafileProcessor.closeDatafile();
+      datafileProcessor.closeManifestEntry();
     }
 
     String datafile0 = extractDataFilePath(dataFileVec, 0);
@@ -113,12 +122,15 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
     int totalRecords = 0, outputRecords;
     for (String datafilePath : datafilePaths) {
-      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
+      DremioManifestReaderUtils.ManifestEntryWrapper<?> entry = new DremioManifestReaderUtils.ManifestEntryWrapper<>(
+          getDatafileWithPartitions(datafilePath, 1024L, partitionSpec, partitionData), 0);
+
+      outputRecords = datafileProcessor.processManifestEntry(entry, startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
-      outputRecords = datafileProcessor.processDatafile(getDatafileWithPartitions(datafilePath, 1024l, partitionSpec, partitionData), startIndex + totalRecords, maxOutputCount - totalRecords);
+      outputRecords = datafileProcessor.processManifestEntry(entry, startIndex + totalRecords, maxOutputCount - totalRecords);
       totalRecords += outputRecords;
       assertEquals(0, outputRecords); // Zero indicates: We are done with current file. ready for processing next
-      datafileProcessor.closeDatafile();
+      datafileProcessor.closeManifestEntry();
     }
 
     assertEquals(3, totalRecords);

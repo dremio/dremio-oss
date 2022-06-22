@@ -15,7 +15,8 @@
  */
 @import "~@app/uiTheme/less/variables.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   #home-page {
     .homePageBody {
@@ -37,8 +38,8 @@
     .home-container {
       margin: 5px 0;
     }
-    .h-item{
-      &.active{
+    .h-item {
+      &.active {
         background: #fff5dc;
       }
     }
@@ -48,17 +49,25 @@
       overflow: hidden;
       height: 100%;
       flex: 1;
-      .table{
+      .table {
         flex-shrink: 0;
         flex-grow: 0;
       }
-      .home-table-viewer{
-        transition: width .25s linear;
-        &.home-table-viewer-full{
-          width:~"calc(100% + @{pull-out-right-tree-width})";
+      .home-table-viewer {
+        transition: width 0.25s linear;
+        &.home-table-viewer-full {
+          width: ~"calc(100% + @{pull-out-right-tree-width})";
         }
-        &.home-table-viewer-short{
+        &.home-table-viewer-short {
           width: 100%;
+        }
+      }
+
+      .datasetItemLabel {
+        .TextHighlight {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
     }

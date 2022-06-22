@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 //assume that we have a base url 'http =//localhost:3005/home/%40dremio/all_types_dremio'. Values below shows what we should we add to a path
 export enum PageTypes {
-  default = 'default', //TODO switch to empty string, when all components will use PropTypes enum | // we should not add any element into a path.
-  graph = 'graph',
-  details = 'details', // deTails, do not miss with deFaults. When both these values stands together, at first glance they look like duplicates. Graph was put between them intentionaly.
-  wiki = 'wiki',
-  reflections = 'reflections'
+  default = "default", //TODO switch to empty string, when all components will use PropTypes enum | // we should not add any element into a path.
+  graph = "graph",
+  details = "details", // deTails, do not miss with deFaults. When both these values stands together, at first glance they look like duplicates. Graph was put between them intentionaly.
+  wiki = "wiki",
+  reflections = "reflections",
 }
 
 const values = Object.values(PageTypes);

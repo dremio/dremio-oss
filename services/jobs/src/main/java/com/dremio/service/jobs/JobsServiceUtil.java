@@ -472,6 +472,10 @@ public final class JobsServiceUtil {
       .setRecordCount(job.getRecordCount())
       .setJobCompleted(job.isCompleted());
 
+    if (job.getSessionId() != null) {
+      jobSummaryBuilder.setSessionId(JobsProtoUtil.toBuf(job.getSessionId()));
+    }
+
     if(lastJobAttemptInfo.getParentsList() != null && lastJobAttemptInfo.getParentsList().size() > 0) {
       jobSummaryBuilder.addAllParents(parentsList);
     }
@@ -748,6 +752,10 @@ public final class JobsServiceUtil {
       .setJobId(JobsProtoUtil.toBuf(job.getJobId()))
       .setCompleted(job.isCompleted());
 
+    if (job.getSessionId() != null) {
+      jobDetailsBuilder.setSessionId(JobsProtoUtil.toBuf(job.getSessionId()));
+    }
+
     if (provideResultInfo && job.getJobAttempt().getState() == JobState.COMPLETED) {
       final boolean hasResults = job.hasResults();
       jobDetailsBuilder.setHasResults(hasResults);
@@ -774,6 +782,10 @@ public final class JobsServiceUtil {
       return JobTypeStats.Types.DOWNLOAD;
     case INTERNAL:
       return JobTypeStats.Types.INTERNAL;
+    case DAILY_JOBS:
+      return JobTypeStats.Types.DAILY_JOBS;
+    case USER_JOBS:
+      return JobTypeStats.Types.USER_JOBS;
     default:
     case UNRECOGNIZED:
       throw new IllegalArgumentException();

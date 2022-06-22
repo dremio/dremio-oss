@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { label } from 'uiTheme/radium/forms';
-import { formDefault } from 'uiTheme/radium/typography';
-import { Select } from 'components/Fields';
-import HoverHelp from 'components/HoverHelp';
-import DurationField from 'components/Fields/DurationField';
-import FieldWithError from 'components/Fields/FieldWithError';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { label } from "uiTheme/radium/forms";
+import { formDefault } from "uiTheme/radium/typography";
+import { Select } from "components/Fields";
+import HoverHelp from "components/HoverHelp";
+import DurationField from "components/Fields/DurationField";
+import FieldWithError from "components/Fields/FieldWithError";
 
 // todo wrap in la
-const DISCOVERY_TOOLTIP = 'Refresh interval for top-level source object names such as names of DBs and tables. '
-  + 'This is a lightweight operation.';
-const DETAILS_TOOLTIP =
-`Metadata Dremio needs for query planning such as information on fields, types, shards, statistics and locality.
+const DISCOVERY_TOOLTIP =
+  "Refresh interval for top-level source object names such as names of DBs and tables. " +
+  "This is a lightweight operation.";
+const DETAILS_TOOLTIP = `Metadata Dremio needs for query planning such as information on fields, types, shards, statistics and locality.
 
 Fetch Modes:
 
@@ -37,7 +37,7 @@ All Datasets (deprecated):
 Dremio updates details for all datasets in a source. This mode increases query performance as less work needs to be done at query time.`;
 
 const AUTHORIZATION_TOOLTIP =
-  'When impersonation is enabled, maximum amount of time Dremio will cache authorization information.';
+  "When impersonation is enabled, maximum amount of time Dremio will cache authorization information.";
 const DEFAULT_DURATION_ONE_HOUR = 3600000;
 const DEFAULT_DURATION_THREE_HOUR = DEFAULT_DURATION_ONE_HOUR * 3;
 const DEFAULT_DURATION_ONE_DAY = DEFAULT_DURATION_ONE_HOUR * 24;
@@ -45,11 +45,10 @@ const DEFAULT_DURATION_ONE_DAY = DEFAULT_DURATION_ONE_HOUR * 24;
 const MIN_TIME = 60 * 1000; // when changed, must update validation error text
 
 export default class MetadataRefresh extends Component {
-
   static propTypes = {
     fields: PropTypes.object,
     showDatasetDiscovery: PropTypes.bool,
-    showAuthorization: PropTypes.bool
+    showAuthorization: PropTypes.bool,
   };
 
   static defaultFormValues() {
@@ -59,40 +58,53 @@ export default class MetadataRefresh extends Component {
         datasetDefinitionRefreshAfterMillis: DEFAULT_DURATION_ONE_HOUR,
         datasetDefinitionExpireAfterMillis: DEFAULT_DURATION_THREE_HOUR,
         authTTLMillis: DEFAULT_DURATION_ONE_DAY,
-        updateMode: 'PREFETCH_QUERIED'
-      }
+        updateMode: "PREFETCH_QUERIED",
+      },
     };
   }
 
   static getFields() {
     return [
-      'metadataPolicy.namesRefreshMillis',
-      'metadataPolicy.datasetDefinitionRefreshAfterMillis',
-      'metadataPolicy.datasetDefinitionExpireAfterMillis',
-      'metadataPolicy.authTTLMillis',
-      'metadataPolicy.updateMode'
+      "metadataPolicy.namesRefreshMillis",
+      "metadataPolicy.datasetDefinitionRefreshAfterMillis",
+      "metadataPolicy.datasetDefinitionExpireAfterMillis",
+      "metadataPolicy.authTTLMillis",
+      "metadataPolicy.updateMode",
     ];
   }
 
   static validate(values) {
-    const errors = {metadataPolicy: {}};
+    const errors = { metadataPolicy: {} };
 
     if (values.metadataPolicy.namesRefreshMillis < MIN_TIME) {
-      errors.metadataPolicy.namesRefreshMillis = la('Dataset discovery fetch must be at least 1 minute.');
+      errors.metadataPolicy.namesRefreshMillis = la(
+        "Dataset discovery fetch must be at least 1 minute."
+      );
     }
 
     if (values.metadataPolicy.datasetDefinitionRefreshAfterMillis < MIN_TIME) {
-      errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = la('Dataset details fetch must be at least 1 minute.');
+      errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = la(
+        "Dataset details fetch must be at least 1 minute."
+      );
     }
 
     if (values.metadataPolicy.datasetDefinitionExpireAfterMillis < MIN_TIME) {
-      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la('Dataset details expiry must be at least 1 minute.');
-    } else if (values.metadataPolicy.datasetDefinitionRefreshAfterMillis > values.metadataPolicy.datasetDefinitionExpireAfterMillis) {
-      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la('Dataset details cannot be configured to expire faster than they fetch.');
+      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la(
+        "Dataset details expiry must be at least 1 minute."
+      );
+    } else if (
+      values.metadataPolicy.datasetDefinitionRefreshAfterMillis >
+      values.metadataPolicy.datasetDefinitionExpireAfterMillis
+    ) {
+      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la(
+        "Dataset details cannot be configured to expire faster than they fetch."
+      );
     }
 
     if (values.metadataPolicy.authTTLMillis < MIN_TIME) {
-      errors.metadataPolicy.authTTLMillis = la('Authorization expiry must be at least 1 minute.');
+      errors.metadataPolicy.authTTLMillis = la(
+        "Authorization expiry must be at least 1 minute."
+      );
     }
 
     return errors;
@@ -100,90 +112,124 @@ export default class MetadataRefresh extends Component {
 
   static mapToFormFields(source) {
     const defaultValues = MetadataRefresh.defaultFormValues();
-    const metadataPolicy = source && source.toJS().metadataPolicy || {};
+    const metadataPolicy = (source && source.toJS().metadataPolicy) || {};
     return {
       ...defaultValues.metadataPolicy,
-      ...metadataPolicy
+      ...metadataPolicy,
     };
   }
 
   refreshModeOptions = [
-    { label: la('Only Queried Datasets'), option: 'PREFETCH_QUERIED' },
-    { label: la('All Datasets (deprecated)'), option: 'PREFETCH' }
+    { label: la("Only Queried Datasets"), option: "PREFETCH_QUERIED" },
+    { label: la("All Datasets (deprecated)"), option: "PREFETCH" },
   ];
 
   render() {
     const {
       fields: { metadataPolicy },
       showDatasetDiscovery,
-      showAuthorization
+      showAuthorization,
     } = this.props;
 
     return (
-      <div className='metadata-refresh'>
-        {showDatasetDiscovery && <div style={styles.subSection}>
-          <span style={styles.label}>
-            {la('Dataset Discovery')}
-            <HoverHelp content={la(DISCOVERY_TOOLTIP)} />
-          </span>
-          <div style={styles.formSubRow}>
-            <FieldWithError {...metadataPolicy.namesRefreshMillis} label={la('Fetch every')} labelStyle={styles.inputLabel} errorPlacement='right'>
-              <DurationField
+      <div className="metadata-refresh">
+        {showDatasetDiscovery && (
+          <div style={styles.subSection}>
+            <span style={styles.label}>
+              {la("Dataset Discovery")}
+              <HoverHelp content={la(DISCOVERY_TOOLTIP)} />
+            </span>
+            <div style={styles.formSubRow}>
+              <FieldWithError
                 {...metadataPolicy.namesRefreshMillis}
-                min={MIN_TIME}
-                style={styles.durationField}/>
-            </FieldWithError>
+                label={la("Fetch every")}
+                labelStyle={styles.inputLabel}
+                errorPlacement="right"
+              >
+                <DurationField
+                  {...metadataPolicy.namesRefreshMillis}
+                  min={MIN_TIME}
+                  style={styles.durationField}
+                />
+              </FieldWithError>
+            </div>
           </div>
-        </div>}
+        )}
         <div style={styles.subSection}>
           <span style={styles.label}>
-            {la('Dataset Details')}
+            {la("Dataset Details")}
             <HoverHelp content={la(DETAILS_TOOLTIP)} />
           </span>
 
           <div style={styles.formSubRow}>
-            <FieldWithError {...metadataPolicy.updateMode} label={la('Fetch mode')} labelStyle={styles.inputLabel} errorPlacement='right'>
-              <div style={{display: 'inline-block', verticalAlign: 'middle'}}>
+            <FieldWithError
+              {...metadataPolicy.updateMode}
+              label={la("Fetch mode")}
+              labelStyle={styles.inputLabel}
+              errorPlacement="right"
+            >
+              <div style={{ display: "inline-block", verticalAlign: "middle" }}>
                 <Select
                   {...metadataPolicy.updateMode}
                   items={this.refreshModeOptions}
-                  style={styles.inRowSelect}/>
+                  style={styles.inRowSelect}
+                />
               </div>
             </FieldWithError>
           </div>
 
           <div style={styles.formSubRow}>
-            <FieldWithError {...metadataPolicy.datasetDefinitionRefreshAfterMillis} label={la('Fetch every')} labelStyle={styles.inputLabel} errorPlacement='right'>
+            <FieldWithError
+              {...metadataPolicy.datasetDefinitionRefreshAfterMillis}
+              label={la("Fetch every")}
+              labelStyle={styles.inputLabel}
+              errorPlacement="right"
+            >
               <DurationField
                 {...metadataPolicy.datasetDefinitionRefreshAfterMillis}
                 min={MIN_TIME}
-                style={styles.durationField}/>
+                style={styles.durationField}
+              />
             </FieldWithError>
           </div>
 
           <div style={styles.formSubRow}>
-            <FieldWithError {...metadataPolicy.datasetDefinitionExpireAfterMillis} label={la('Expire after')} labelStyle={styles.inputLabel} errorPlacement='right'>
+            <FieldWithError
+              {...metadataPolicy.datasetDefinitionExpireAfterMillis}
+              label={la("Expire after")}
+              labelStyle={styles.inputLabel}
+              errorPlacement="right"
+            >
               <DurationField
                 {...metadataPolicy.datasetDefinitionExpireAfterMillis}
                 min={MIN_TIME}
-                style={styles.durationField}/>
+                style={styles.durationField}
+              />
             </FieldWithError>
           </div>
         </div>
-        {showAuthorization && <div style={styles.subSection}>
-          <span style={styles.label}>
-            {la('Authorization')}
-            <HoverHelp content={la(AUTHORIZATION_TOOLTIP)}/>
-          </span>
-          <div style={styles.formSubRow}>
-            <FieldWithError {...metadataPolicy.authTTLMillis} label={la('Expire after')} labelStyle={styles.inputLabel} errorPlacement='right'>
-              <DurationField
+        {showAuthorization && (
+          <div style={styles.subSection}>
+            <span style={styles.label}>
+              {la("Authorization")}
+              <HoverHelp content={la(AUTHORIZATION_TOOLTIP)} />
+            </span>
+            <div style={styles.formSubRow}>
+              <FieldWithError
                 {...metadataPolicy.authTTLMillis}
-                min={MIN_TIME}
-                style={styles.durationField}/>
-            </FieldWithError>
+                label={la("Expire after")}
+                labelStyle={styles.inputLabel}
+                errorPlacement="right"
+              >
+                <DurationField
+                  {...metadataPolicy.authTTLMillis}
+                  min={MIN_TIME}
+                  style={styles.durationField}
+                />
+              </FieldWithError>
+            </div>
           </div>
-        </div>}
+        )}
       </div>
     );
   }
@@ -191,35 +237,35 @@ export default class MetadataRefresh extends Component {
 
 const styles = {
   subSection: {
-    marginBottom: 15
+    marginBottom: 15,
   },
   numberInput: {
-    width: 42
+    width: 42,
   },
   inRowSelect: {
     width: 250,
-    textAlign: 'left'
+    textAlign: "left",
   },
   label: {
     ...label,
-    display: 'inline-flex',
-    alignItems: 'center',
-    marginBottom: 4
+    display: "inline-flex",
+    alignItems: "center",
+    marginBottom: 4,
   },
   inputLabel: {
     ...formDefault,
     marginLeft: 10,
     marginRight: 10,
-    display: 'inline-flex',
-    minWidth: 85
+    display: "inline-flex",
+    minWidth: 85,
   },
   formSubRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
   },
   durationField: {
-    width: 250
-  }
+    width: 250,
+  },
 };

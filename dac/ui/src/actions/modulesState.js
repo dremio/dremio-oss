@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const ADD_MODULE_STATE = 'ADD_MODULE_STATE';
-export const RESET_MODULE_STATE = 'RESET_MODULE_STATE';
+export const ADD_MODULE_STATE = "ADD_MODULE_STATE";
+export const RESET_MODULE_STATE = "RESET_MODULE_STATE";
 
 export const initModuleState = (moduleKey, reducer) => ({
   type: ADD_MODULE_STATE,
   moduleKey,
-  reducer
+  reducer,
 });
 export const resetModuleState = (moduleKey) => ({
   type: RESET_MODULE_STATE,
-  moduleKey
+  moduleKey,
 });

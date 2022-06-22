@@ -304,7 +304,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     This is a new change in Arrow. Earlier it was considered as ZeroVector. Also created a task to remove usage of
     ZeroVector for such scenarios*/
     //TODO DX-34589 Use NullVector instead of ZeroVector for empty lists.
-    return !(clazz.equals("ZeroVector") && vectorClass.equals("NullVector"));
+    return !("ZeroVector".equals(clazz) && "NullVector".equals(vectorClass));
   }
 
   private VectorWrapper<?> getValueAccessorById(int... fieldIds) {

@@ -130,4 +130,3 @@ public class Hash64WithSeedAsDouble {
   }
 
 }
-

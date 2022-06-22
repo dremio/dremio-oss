@@ -13,14 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const CUSTOM = 'CUSTOM';
-export const NEXT = 'NEXT';
-export const BACK = 'BACK';
-export const CANCEL = 'CANCEL';
-export const PRIMARY = 'PRIMARY';
-export const SECONDARY = 'SECONDARY';
-export const OUTLINED = 'outlined';
+export const CUSTOM = "CUSTOM";
+export const NEXT = "NEXT";
+export const BACK = "BACK";
+export const CANCEL = "CANCEL";
+export const PRIMARY = "PRIMARY";
+export const SECONDARY = "SECONDARY";
+export const OUTLINED = "outlined";
 /**
  * @const - this constant define available types for Button component
  */
-export const TYPES_ARRAY = [CUSTOM, NEXT, BACK, CANCEL, PRIMARY, SECONDARY, OUTLINED];
+export const TYPES_ARRAY = [
+  CUSTOM,
+  NEXT,
+  BACK,
+  CANCEL,
+  PRIMARY,
+  SECONDARY,
+  OUTLINED,
+];

@@ -58,7 +58,7 @@ import com.google.common.collect.ImmutableSet;
 public class ScanBuilder {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanBuilder.class);
 
-  private final static ImmutableSet<Class<?>> CONSUMEABLE_RELS = ImmutableSet.<Class<?>>of(ElasticsearchSample.class, ElasticsearchLimit.class, ElasticsearchFilter.class, ElasticIntermediateScanPrel.class);
+  private static final ImmutableSet<Class<?>> CONSUMEABLE_RELS = ImmutableSet.<Class<?>>of(ElasticsearchSample.class, ElasticsearchLimit.class, ElasticsearchFilter.class, ElasticIntermediateScanPrel.class);
 
   private ElasticsearchScanSpec spec;
   private ElasticIntermediateScanPrel scan;

@@ -27,6 +27,7 @@ import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -116,7 +117,8 @@ public class FileSystemFullRefreshPlanBuilder extends AbstractRefreshPlanBuilder
 
     refreshExecTableMetadata = new RefreshExecTableMetadata(storagePluginId, datasetConfig, userName, splitsPointer, tableSchema);
     final NamespaceTable nsTable = new NamespaceTable(refreshExecTableMetadata, true);
-    final DremioCatalogReader catalogReader = config.getConverter().getCatalogReader();
+    SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(config.getConverter()).build();
+    final DremioCatalogReader catalogReader = sqlValidatorAndToRelContext.getDremioCatalogReader();
     this.table = new DremioPrepareTable(catalogReader, JavaTypeFactoryImpl.INSTANCE, nsTable);
   }
 

@@ -15,20 +15,19 @@
  */
 package com.dremio.service.autocomplete.columns;
 
-import org.apache.arrow.util.Preconditions;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.type.SqlTypeName;
+import java.util.Objects;
 
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import org.apache.arrow.util.Preconditions;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Column datatype.
  */
 public final class Column {
   private final String name;
-  private final RelDataType type;
+  private final SqlTypeName type;
 
-  public Column(String name, RelDataType type) {
+  private Column(String name, SqlTypeName type) {
     Preconditions.checkNotNull(name);
     Preconditions.checkNotNull(type);
 
@@ -36,15 +35,46 @@ public final class Column {
     this.type = type;
   }
 
+  public static Column typedColumn(String name, SqlTypeName type) {
+    return new Column(name, type);
+  }
+
+  public static Column anyTypeColumn(String name) {
+    return new Column(name, SqlTypeName.ANY);
+  }
+
   public String getName() {
     return name;
   }
 
-  public RelDataType getType() {
+  public SqlTypeName getType() {
     return type;
   }
 
-  public static Column create(String name, SqlTypeName sqlTypeName) {
-    return new Column(name, JavaTypeFactoryImpl.INSTANCE.createSqlType(sqlTypeName));
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    Column column = (Column) o;
+    return name.equals(column.name) && type == column.type;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, type);
+  }
+
+  @Override
+  public String toString() {
+    return "Column{" +
+      "name='" + name + '\'' +
+      ", type=" + type +
+      '}';
   }
 }

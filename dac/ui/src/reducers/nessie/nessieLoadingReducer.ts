@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import createLoadingReducer from '../createLoadingReducer';
-import { getNessieRequestActions } from './utils';
+import createLoadingReducer from "../createLoadingReducer";
+import { getNessieRequestActions } from "./utils";
 
 const nessieLoadingReducer = createLoadingReducer(getNessieRequestActions());
 

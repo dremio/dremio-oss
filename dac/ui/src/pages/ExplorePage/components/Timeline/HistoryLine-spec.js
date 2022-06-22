@@ -13,31 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import TimeDot from 'pages/ExplorePage/components/Timeline/TimeDot';
+import TimeDot from "pages/ExplorePage/components/Timeline/TimeDot";
 
-import HistoryLine from './HistoryLine';
+import HistoryLine from "./HistoryLine";
 
-describe('HistoryLine', () => {
-
+describe("HistoryLine", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      tipVersion: 'abcde',
-      activeVersion: '12345',
+      tipVersion: "abcde",
+      activeVersion: "12345",
       location: {},
-      datasetPathname: 'Prod-Sample.ds1',
+      datasetPathname: "Prod-Sample.ds1",
       historyItems: Immutable.fromJS([
-        {datasetVersion: '12345'}, {datasetVersion: 'abcde'}
+        { datasetVersion: "12345" },
+        { datasetVersion: "abcde" },
       ]),
       onTimeDotClick: sinon.spy(),
-      pageType: 'default'
+      pageType: "default",
     };
   });
 
-  it('renders TimeDots', () => {
-    const wrapper = shallow(<HistoryLine {...commonProps}/>);
+  it("renders TimeDots", () => {
+    const wrapper = shallow(<HistoryLine {...commonProps} />);
     const timeDots = wrapper.find(TimeDot);
     expect(timeDots).to.have.length(commonProps.historyItems.size);
 

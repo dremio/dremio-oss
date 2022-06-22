@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect }   from 'react-redux';
-import Immutable  from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
 
-import { loadSourceListData } from 'actions/resources/sources';
-import { loadSearchData } from 'actions/search';
+import { loadSourceListData } from "actions/resources/sources";
+import { loadSearchData } from "actions/search";
 
-import SearchDatasets from 'components/DatasetList/SearchDatasets';
-import TabControl from 'components/Tabs/TabControl';
-import ResourceTreeController from 'components/Tree/ResourceTreeController';
-import { getSearchResult, getViewState } from 'selectors/resources';
+import SearchDatasets from "components/DatasetList/SearchDatasets";
+import TabControl from "components/Tabs/TabControl";
+import { getSearchResult, getViewState } from "selectors/resources";
 
-import './ExistingForm.less';
+import ResourceTreeContainer from "../Tree/ResourceTreeContainer";
+
+import "./ExistingForm.less";
 
 export class ExistingForm extends Component {
   static propTypes = {
@@ -41,11 +42,11 @@ export class ExistingForm extends Component {
     isInProgressSearch: PropTypes.instanceOf(Immutable.Map).isRequired,
     children: PropTypes.node,
     nameDataset: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   static defaultProps = {
-    sourceList: {}
+    sourceList: {},
   };
 
   constructor(props) {
@@ -54,14 +55,14 @@ export class ExistingForm extends Component {
     this.updateName = this.updateName.bind(this);
     this.state = {
       // TODO: Use not hardcoded value
-      activeItemId: 'spaces',
-      inputError: null
+      activeItemId: "spaces",
+      inputError: null,
     };
   }
 
   componentWillMount() {
     this.props.loadSourceListData();
-    this.props.loadSearchData('');
+    this.props.loadSearchData("");
   }
 
   search(text) {
@@ -71,45 +72,46 @@ export class ExistingForm extends Component {
   updateName(e) {
     this.props.updateName(e.target.value);
     if (e.target.value) {
-      this.setState({inputError: null});
+      this.setState({ inputError: null });
     } else {
-      this.setState({inputError: 'Add Spend'});
+      this.setState({ inputError: "Add Spend" });
     }
   }
 
   render() {
-    const tabs =  Immutable.Map({
+    const tabs = Immutable.Map({
       Browse: (
-        <ResourceTreeController
+        <ResourceTreeContainer
           onChange={this.props.changeSelectedNode}
+          stopAtDatasets
           showFolders
           showDataSets
           showSources
-          style={{flex: 1, minHeight: 0}}
+          style={{ flex: 1, minHeight: 0, height: 210 }}
         />
       ),
       Search: (
         <SearchDatasets
           searchData={this.props.search}
           changeSelectedNode={this.props.changeSelectedNode}
-          isInProgress={this.props.isInProgressSearch.get('isInProgress')}
+          isInProgress={this.props.isInProgressSearch.get("isInProgress")}
           handleSearch={this.search}
-          style={{flex: 1}}
+          style={{ flex: 1 }}
         />
-      )
+      ),
     });
-    return <TabControl tabs={tabs} style={this.props.style}/>;
+    return <TabControl tabs={tabs} style={this.props.style} />;
   }
 }
 
 function mapStateToProps(state) {
   return {
     search: getSearchResult(state) || Immutable.List(),
-    isInProgressSearch: getViewState(state, 'searchDatasets')
+    isInProgressSearch: getViewState(state, "searchDatasets"),
   };
 }
 
 export default connect(mapStateToProps, {
   loadSourceListData,
-  loadSearchData
+  loadSearchData,
 })(ExistingForm);

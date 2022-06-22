@@ -16,18 +16,23 @@
 package com.dremio.plugins;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.view.ViewVersionMetadata;
+import org.projectnessie.model.IcebergView;
 
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.ReferenceTypeConflictException;
 
 /**
  * Client interface to communicate with Nessie.
@@ -39,17 +44,21 @@ public interface NessieClient {
    *
    * @throws NoDefaultBranchException If there is no default branch on the source
    */
-  ResolvedVersionContext getDefaultBranch() throws NoDefaultBranchException;
+  ResolvedVersionContext getDefaultBranch();
 
   /**
    * Resolves a version context with the underlying versioned catalog server.
    *
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
-   * @throws ReferenceConflictException If the requested version does not match the server
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
-  ResolvedVersionContext resolveVersionContext(VersionContext versionContext)
-    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+  ResolvedVersionContext resolveVersionContext(VersionContext versionContext);
+
+  /**
+   * Checks that a commit hash exists in Nessie.
+   */
+  boolean commitExists(String commitHash);
 
   /**
    * List all branches.
@@ -68,22 +77,46 @@ public interface NessieClient {
    *
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
-   * @throws ReferenceConflictException If the requested version does not match the server
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
-  Stream<ChangeInfo> listChanges(VersionContext version)
-    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+  Stream<ChangeInfo> listChanges(VersionContext version);
 
   /**
-   * List entries under a given path for the given version.
+   * List only entries under the given path for the given version.
    *
-   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists)
+   * @param catalogPath Acts as the namespace filter. It will scope entries to this namespace.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
    *
-   * @throws ReferenceNotFoundException If the given reference cannot be found
-   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
-   * @throws ReferenceConflictException If the requested version does not match the server
+   * @throws ReferenceNotFoundException If the given reference cannot be found.
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
+   * @throws ReferenceTypeConflictException If the requested version does not match the server.
    */
-  List<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version)
-    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+  Stream<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version);
+
+  /**
+   * List all entries under the given path and subpaths for the given version.
+   *
+   * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   *
+   * @throws ReferenceNotFoundException If the given reference cannot be found.
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
+   * @throws ReferenceTypeConflictException If the requested version does not match the server.
+   */
+  Stream<ExternalNamespaceEntry> listEntriesIncludeNested(List<String> catalogPath, VersionContext version);
+
+  /**
+   * Create a namespace by the given path for the given version.
+   *
+   * @param namespacePath the namespace we are going to create.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   *
+   * @throws NessieNamespaceAlreadyExistsException If the namespace already exists.
+   * @throws ReferenceNotFoundException If the given source reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   */
+  void createNamespace(String namespacePath, VersionContext version);
 
   /**
    * Create a branch from the given source reference.
@@ -93,11 +126,9 @@ public interface NessieClient {
    * @throws ReferenceAlreadyExistsException If the reference already exists.
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
-   * @throws ReferenceConflictException If the requested version does not match the server
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
-  void createBranch(String branchName, VersionContext sourceVersion)
-    throws ReferenceAlreadyExistsException, ReferenceNotFoundException,
-      NoDefaultBranchException, ReferenceConflictException;
+  void createBranch(String branchName, VersionContext sourceVersion);
 
   /**
    * Create a tag from the given source reference.
@@ -107,11 +138,9 @@ public interface NessieClient {
    * @throws ReferenceAlreadyExistsException If the reference already exists
    * @throws ReferenceNotFoundException If the given source reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
-   * @throws ReferenceConflictException If the requested version does not match the server
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
    */
-  void createTag(String tagName, VersionContext sourceVersion)
-    throws ReferenceAlreadyExistsException, ReferenceNotFoundException,
-      NoDefaultBranchException, ReferenceConflictException;
+  void createTag(String tagName, VersionContext sourceVersion);
 
   /**
    * Drop the given branch.
@@ -119,8 +148,7 @@ public interface NessieClient {
    * @throws ReferenceConflictException If the drop has conflict on the given branch
    * @throws ReferenceNotFoundException If the given branch cannot be found
    */
-  void dropBranch(String branchName, String branchHash)
-      throws ReferenceConflictException, ReferenceNotFoundException;
+  void dropBranch(String branchName, String branchHash);
 
   /**
    * Drop the given tag.
@@ -128,8 +156,7 @@ public interface NessieClient {
    * @throws ReferenceConflictException If the drop has conflict on the given tag
    * @throws ReferenceNotFoundException If the given tag cannot be found
    */
-  void dropTag(String tagName, String tagHash)
-      throws ReferenceConflictException, ReferenceNotFoundException;
+  void dropTag(String tagName, String tagHash);
 
   /**
    * Merge the source branch into target branch.
@@ -139,34 +166,60 @@ public interface NessieClient {
    * @throws ReferenceConflictException If the target branch hash changes during merging
    * @throws ReferenceNotFoundException If the source/target branch cannot be found
    */
-  void mergeBranch(String sourceBranchName, String targetBranchName)
-      throws ReferenceConflictException, ReferenceNotFoundException;
+  void mergeBranch(String sourceBranchName, String targetBranchName);
 
   /**
    * Update the reference for the given branch.
    *
    * @param branchName The branch we want to update the reference
-   * @param sourceReferenceName The source reference name
+   * @param sourceVersion The source reference name
    * @throws ReferenceConflictException If the branch hash or source reference hash changes during update
    * @throws ReferenceNotFoundException If the given branch or source reference cannot be found
    */
-  void assignBranch(String branchName, String sourceReferenceName)
-      throws ReferenceConflictException, ReferenceNotFoundException;
+  void assignBranch(String branchName, VersionContext sourceVersion);
 
   /**
    * Update the reference for the given tag.
    *
    * @param tagName The tag we want to update the reference
-   * @param sourceReferenceName The source reference name
+   * @param sourceVersion The source reference name
    * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
    * @throws ReferenceNotFoundException If the given tag or source reference cannot be found
    */
-  void assignTag(String tagName, String sourceReferenceName)
-      throws ReferenceConflictException, ReferenceNotFoundException;
+  void assignTag(String tagName, VersionContext sourceVersion);
 
   String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version);
 
-  void commitOperation(List<String> catalogKey, String newMetadataLocation, TableMetadata metadata, ResolvedVersionContext version);
+  /**
+   * Return the dialect for the given view.
+   *
+   * @param catalogKey The path for the given view
+   * @param version The resolved version used as a reference
+   * @return Optional<String> containing the dialect if the view's dialect is not null
+   */
+  Optional<String> getViewDialect(List<String> catalogKey, ResolvedVersionContext version);
+
+  void commitTable(
+      List<String> catalogKey,
+      String newMetadataLocation,
+      TableMetadata metadata,
+      ResolvedVersionContext version);
+
+  void commitView(
+      List<String> catalogKey,
+      String newMetadataLocation,
+      IcebergView icebergView,
+      ViewVersionMetadata metadata,
+      String dialect,
+      ResolvedVersionContext version);
 
   void deleteCatalogEntry(List<String> catalogKey, ResolvedVersionContext version);
+
+  /**
+   *
+   * @param tableKey
+   * @param version
+   * @return Optional<IcebergTable>
+   */
+  VersionedPlugin.EntityType getVersionedEntityType(List<String> tableKey, ResolvedVersionContext version);
 }

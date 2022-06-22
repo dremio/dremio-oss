@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-import jobsUtils from '@app/utils/jobsUtils.js';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import JobPage from '../JobPage/JobPage';
-import JobPageNew from '../JobPageNew/JobListingPage';
+import jobsUtils from "@app/utils/jobsUtils.js";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import JobPage from "../JobPage/JobPage";
+import JobPageNew from "../JobPageNew/JobListingPage";
 
 const QVJobPage = (props) => {
-
   const isDremioJobNewUI = jobsUtils.isNewJobsPage();
   localStorageUtils.setIsQVJobs(isDremioJobNewUI);
   const ViewJobPage = isDremioJobNewUI ? JobPageNew : JobPage;
-  return (
-    <ViewJobPage {...props} />
-  );
+  return <ViewJobPage {...props} />;
 };
 
 export default QVJobPage;

@@ -41,7 +41,7 @@ public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
   private static final String NEW_NESTED_COLUMN_2 = "/json/nested/new_nested_column/file2.json";
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void enableReattempts() throws Exception {

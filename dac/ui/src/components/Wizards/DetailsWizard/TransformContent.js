@@ -13,23 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Transform from 'pages/ExplorePage/components/Transform/Transform';
+import Transform from "pages/ExplorePage/components/Transform/Transform";
 
-@Radium
 class TransformContent extends PureComponent {
-
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     changeFormType: PropTypes.func.isRequired,
     submit: PropTypes.func.isRequired,
     cancel: PropTypes.func.isRequired,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -38,25 +35,26 @@ class TransformContent extends PureComponent {
 
   render() {
     return (
-      <div style={[style.base]} className='transform-content'>
+      <div style={style.base} className="transform-content">
         <Transform
           dataset={this.props.dataset}
           submit={this.props.submit}
           cancel={this.props.cancel}
           changeFormType={this.props.changeFormType}
           handleModelChange={this.handleModelChange}
-          location={this.props.location}/>
+          location={this.props.location}
+        />
       </div>
     );
   }
 }
 
 const style = {
-  'base': {
-    'height': '100%',
-    'position': 'relative',
-    backgroundColor: '#F5FCFF'
-  }
+  base: {
+    height: "100%",
+    position: "relative",
+    backgroundColor: "#F5FCFF",
+  },
 };
 
 export default TransformContent;

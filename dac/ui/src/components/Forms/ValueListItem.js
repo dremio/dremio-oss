@@ -13,31 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-import FieldWithError from 'components/Fields/FieldWithError';
-import TextField from 'components/Fields/TextField';
-import {RemoveButton, RemoveButtonStyles } from 'components/Fields/FieldList';
-import { flexContainer, flexAuto } from 'uiTheme/less/layout.less';
-
+import FieldWithError from "components/Fields/FieldWithError";
+import TextField from "components/Fields/TextField";
+import { RemoveButton } from "components/Fields/FieldList";
+import { flexAuto } from "uiTheme/less/layout.less";
+import * as classes from "./ValueListItem.less";
+import classNames from "classnames";
 
 export default class ValueListItem extends Component {
   static propTypes = {
     field: PropTypes.object,
-    onRemove: PropTypes.func
+    onRemove: PropTypes.func,
   };
 
   render() {
-    const {onRemove, field} = this.props;
-    const textInputStyle = { width: '100%' };
+    const { onRemove, field } = this.props;
 
     return (
-      <div className={flexContainer}>
-        <FieldWithError {...field} className={flexAuto} errorPlacement='top'>
-          <TextField {...field} style={textInputStyle}/>
+      <div className={classes["value-list__item"]}>
+        <FieldWithError
+          {...field}
+          className={classNames(flexAuto, classes["value-list__field"])}
+          errorPlacement="top"
+        >
+          <TextField {...field} />
         </FieldWithError>
-        {onRemove && <RemoveButton onClick={onRemove} style={RemoveButtonStyles.inline}/>}
+        {onRemove && (
+          <RemoveButton
+            onClick={onRemove}
+            className={classes["value-list__remove-button"]}
+          />
+        )}
       </div>
     );
   }

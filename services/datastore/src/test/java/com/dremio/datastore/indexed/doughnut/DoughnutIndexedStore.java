@@ -24,10 +24,11 @@ import com.dremio.datastore.format.Format;
  * DoughnutStore for IndexedStore tests.
  */
 public class DoughnutIndexedStore implements IndexedStoreCreationFunction<String, Doughnut> {
+  public static final String DOUGHNUT_COLLECTION_NAME = "test-doughnut-indexed-store";
   @Override
   public IndexedStore<String, Doughnut> build(StoreBuildingFactory factory) {
     return factory.<String, Doughnut>newStore()
-      .name("test-doughnut-indexed-store")
+      .name(DOUGHNUT_COLLECTION_NAME)
       .keyFormat(Format.ofString())
       .valueFormat(Format.wrapped(Doughnut.class, new DoughnutConverter(), Format.ofBytes()))
       .buildIndexed(new DoughnutDocumentConverter());

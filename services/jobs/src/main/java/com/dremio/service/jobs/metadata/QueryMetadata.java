@@ -41,6 +41,7 @@ import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.tablefunctions.ExternalQueryRelBase;
@@ -94,13 +95,25 @@ public class QueryMetadata {
   private final String querySql;
   private final List<String> queryContext;
   private final List<String> sourceNames;
+  private final List<String> sinkPath;
 
-  QueryMetadata(List<SqlIdentifier> ancestors,
-                       List<FieldOrigin> fieldOrigins, List<JoinInfo> joins, List<ParentDatasetInfo> parents,
-                       SqlNode sqlNode, RelDataType rowType,
-                       List<ParentDataset> grandParents, final RelOptCost cost, final PlanningSet planningSet,
-                       BatchSchema batchSchema,
-                       List<ScanPath> scanPaths, String querySql, List<String> queryContext, List<String> sourceNames) {
+  QueryMetadata(
+      List<SqlIdentifier> ancestors,
+      List<FieldOrigin> fieldOrigins,
+      List<JoinInfo> joins,
+      List<ParentDatasetInfo> parents,
+      SqlNode sqlNode,
+      RelDataType rowType,
+      List<ParentDataset> grandParents,
+      final RelOptCost cost,
+      final PlanningSet planningSet,
+      BatchSchema batchSchema,
+      List<ScanPath> scanPaths,
+      String querySql,
+      List<String> queryContext,
+      List<String> sourceNames,
+      List<String> sinkPath
+  ) {
     this.rowType = rowType;
 
     this.ancestors = Optional.fromNullable(ancestors);
@@ -116,6 +129,7 @@ public class QueryMetadata {
     this.querySql = querySql;
     this.queryContext = queryContext;
     this.sourceNames = sourceNames;
+    this.sinkPath = sinkPath;
   }
 
   @VisibleForTesting
@@ -189,15 +203,26 @@ public class QueryMetadata {
     return queryContext;
   }
 
-  public List<String> getSourceNames() { return sourceNames; }
+  public List<String> getSourceNames() {
+    return sourceNames;
+  }
+
+  public List<String> getSinkPath() {
+    return sinkPath;
+  }
 
   /**
    * Create a builder for QueryMetadata.
+   *
    * @param namespace A namespace service. If provided, ParentDatasetInfo will be extracted, otherwise it won't.
    * @return The builder.
    */
-  public static Builder builder(NamespaceService namespace){
-    return new Builder(namespace);
+  public static Builder builder(NamespaceService namespace) {
+    return new Builder(namespace, null);
+  }
+
+  public static Builder builder(NamespaceService namespace, String jobResultsSourceName) {
+    return new Builder(namespace, jobResultsSourceName);
   }
 
   /**
@@ -208,9 +233,12 @@ public class QueryMetadata {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Builder.class);
 
     private final NamespaceService namespace;
+    private final String jobResultsSourceName;
+
     private RelDataType rowType;
     private RelNode logicalBefore;
     private RelNode logicalAfter;
+    private RelNode physicalBefore;
     private RelNode prejoin;
     private RelNode expanded;
     private SqlNode sql;
@@ -221,8 +249,9 @@ public class QueryMetadata {
     private List<String> queryContext;
     private List<String> externalQuerySourceInfo;
 
-    Builder(NamespaceService namespace){
+    Builder(NamespaceService namespace, String jobResultsSourceName) {
       this.namespace = namespace;
+      this.jobResultsSourceName = jobResultsSourceName;
     }
 
     public Builder addQuerySql(String sql) {
@@ -235,7 +264,7 @@ public class QueryMetadata {
       return this;
     }
 
-    public Builder addRowType(RelDataType rowType){
+    public Builder addRowType(RelDataType rowType) {
       this.rowType = rowType;
       return this;
     }
@@ -243,6 +272,11 @@ public class QueryMetadata {
     public Builder addLogicalPlan(RelNode before, RelNode after) {
       this.logicalBefore = before;
       this.logicalAfter = after;
+      return this;
+    }
+
+    public Builder addPhysicalPlan(RelNode before) {
+      this.physicalBefore = before;
       return this;
     }
 
@@ -332,32 +366,38 @@ public class QueryMetadata {
       List<ScanPath> scanPaths = null;
       if (logicalAfter != null) {
         scanPaths = FluentIterable.from(getScans(logicalAfter))
-          .transform(new Function<List<String>, ScanPath>() {
-            @Override
-            public ScanPath apply(List<String> path) {
-              return new ScanPath().setPathList(path);
-            }
-          })
-          .toList();
+            .transform(new Function<List<String>, ScanPath>() {
+              @Override
+              public ScanPath apply(List<String> path) {
+                return new ScanPath().setPathList(path);
+              }
+            })
+            .toList();
 
         externalQuerySourceInfo = getExternalQuerySources(logicalAfter);
       }
 
+      List<String> sinkPath = null;
+      if (physicalBefore != null && jobResultsSourceName != null) {
+        sinkPath = getSinkPath(physicalBefore, jobResultsSourceName);
+      }
+
       return new QueryMetadata(
-        ancestors, // list of parents
-        fieldOrigins,
-        null,
-        getParentsFromSql(ancestors), // convert parent to ParentDatasetInfo
-        sql,
-        rowType,
-        getGrandParents(ancestors), // list of all parents to be stored with dataset
-        cost, // query cost past logical
-        planningSet,
-        batchSchema,
-        scanPaths,
-        querySql,
-        queryContext,
-        externalQuerySourceInfo
+          ancestors, // list of parents
+          fieldOrigins,
+          null,
+          getParentsFromSql(ancestors), // convert parent to ParentDatasetInfo
+          sql,
+          rowType,
+          getGrandParents(ancestors), // list of all parents to be stored with dataset
+          cost, // query cost past logical
+          planningSet,
+          batchSchema,
+          scanPaths,
+          querySql,
+          queryContext,
+          externalQuerySourceInfo,
+          sinkPath
       );
     }
 
@@ -583,7 +623,7 @@ public class QueryMetadata {
       @Override
       public RelNode visit(RelNode other) {
         if (other instanceof ContainerRel) {
-          ContainerRel containerRel = (ContainerRel)other;
+          ContainerRel containerRel = (ContainerRel) other;
           containerRel.getSubTree().accept(this);
         }
         return super.visit(other);
@@ -592,13 +632,35 @@ public class QueryMetadata {
     return builder.build();
   }
 
+  public static List<String> getSinkPath(RelNode logicalPlan, String jobResultsSourceName) {
+    final class SinkFinder extends StatelessRelShuttleImpl {
+      private List<String> sinkPath = null;
+
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof WriterRel) {
+          final NamespaceKey namespaceKey = ((WriterRel) other).getCreateTableEntry().getDatasetPath();
+          final String sourceName = namespaceKey.getRoot();
+          if (!sourceName.equals(jobResultsSourceName)) {
+            sinkPath = namespaceKey.getPathComponents();
+          }
+        }
+        return super.visit(other);
+      }
+    }
+
+    final SinkFinder sinkFinder = new SinkFinder();
+    logicalPlan.accept(sinkFinder);
+    return sinkFinder.sinkPath;
+  }
+
   /*
    * extracting external query source name, plus the sql string for
    * reflection dependency
    */
   public static List<String> getExternalQuerySources(RelNode logicalAfter) {
     final ImmutableList.Builder<String> builder = ImmutableList.builder();
-    logicalAfter.accept(new StatelessRelShuttleImpl(){
+    logicalAfter.accept(new StatelessRelShuttleImpl() {
       @Override
       public RelNode visit(RelNode other) {
         if (other instanceof ExternalQueryScanDrel) {

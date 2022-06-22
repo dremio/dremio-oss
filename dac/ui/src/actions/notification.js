@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const ADD_NOTIFICATION = 'ADD_NOTIFICATION';
-export const REMOVE_NOTIFICATION = 'REMOVE_NOTIFICATION';
+export const ADD_NOTIFICATION = "ADD_NOTIFICATION";
+export const REMOVE_NOTIFICATION = "REMOVE_NOTIFICATION";
 
 export function addNotification(message, level, autoDismiss = 0) {
   return {
     type: ADD_NOTIFICATION,
     message,
     level,
-    autoDismiss
+    autoDismiss,
   };
 }
 
 export function removeNotification(messageType) {
   return {
     type: REMOVE_NOTIFICATION,
-    messageType
+    messageType,
   };
 }

@@ -20,6 +20,7 @@ import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieNotFoundEx;
 
 import org.projectnessie.api.params.DiffParams;
+import org.projectnessie.api.params.DiffParamsBuilder;
 import org.projectnessie.client.api.GetDiffBuilder;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.DiffResponse;
@@ -32,7 +33,7 @@ import com.dremio.services.nessie.grpc.api.DiffServiceGrpc.DiffServiceBlockingSt
 public class GrpcGetDiff implements GetDiffBuilder {
 
   private final DiffServiceBlockingStub stub;
-  private final DiffParams.Builder builder = DiffParams.builder();
+  private final DiffParamsBuilder builder = DiffParams.builder();
 
   public GrpcGetDiff(DiffServiceBlockingStub stub) {
     this.stub = stub;

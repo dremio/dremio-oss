@@ -15,6 +15,7 @@
  */
 package com.dremio.service.jobs;
 
+
 import static com.dremio.dac.server.JobsServiceTestUtils.toSubmitJobRequest;
 import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 import static com.dremio.exec.testing.ExecutionControls.DEFAULT_CONTROLS;
@@ -44,7 +45,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.Response;
+
 import org.apache.arrow.memory.BufferAllocator;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -69,7 +74,9 @@ import com.dremio.dac.model.job.ResultOrder;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.resource.NotificationResponse;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.JobsServiceTestUtils;
+import com.dremio.dac.service.datasets.DatasetVersionCleanupHelper;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -109,7 +116,7 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
-import com.dremio.service.jobs.LocalJobsService.OnlineProfileCleaner;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -118,6 +125,7 @@ import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * Tests for job service.
@@ -162,7 +170,8 @@ public class TestJobService extends BaseTestServer {
     final JobRequest request = JobRequest.newBuilder()
       .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
       .build();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener));
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener))
+      .getJobId();
     jobSubmittedListener.await();
 
     // sleep until query reaches starting state and then cancel query below.
@@ -181,6 +190,34 @@ public class TestJobService extends BaseTestServer {
     assertEquals(NotificationResponse.ResponseType.OK, response.getType());
   }
 
+  @Test
+  public void testErrorOnCancellingACompletedJob() throws Exception {
+    final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
+    final CompletionListener completionListener = new CompletionListener();
+    final String testKey = TestingFunctionHelper.newKey(() -> {});
+
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener))
+      .getJobId();
+    jobSubmittedListener.await();
+
+    // sleep until query reaches starting state and then cancel query below.
+    sleepUntilQueryState(jobId, AttemptEvent.State.COMPLETED);
+
+    final Invocation invocation =  getBuilder(
+      getAPIv2()
+        .path("job")
+        .path(jobId.getId())
+        .path("cancel")
+    ).buildPost(entity(null, JSON));
+    final Response response = invocation.invoke();
+    final GenericErrorMessage message = response.readEntity(GenericErrorMessage.class);
+    System.out.println(message);
+    Assert.assertEquals(String.format("Job %s may have completed and cannot be canceled.",jobId.getId()),message.getErrorMessage());
+    Assert.assertEquals(response.getStatus(),409);
+  }
   // Sleep until query state reaches given state
   private void sleepUntilQueryState(JobId jobId, AttemptEvent.State state) throws Exception {
     while (true) {
@@ -327,7 +364,8 @@ public class TestJobService extends BaseTestServer {
       .setSqlQuery(sqlQuery)
       .build();
     final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request),
-      new MultiJobStatusListener(completionListener, jobSubmittedListener));
+      new MultiJobStatusListener(completionListener, jobSubmittedListener))
+      .getJobId();
     UserBitShared.ExternalId externalId = ExternalIdHelper.toExternal(QueryIdHelper.getQueryIdFromString(jobId.getId()));
 
     GetJobRequest getJobRequest = GetJobRequest.newBuilder()
@@ -379,7 +417,8 @@ public class TestJobService extends BaseTestServer {
       .setSqlQuery(sqlQuery)
       .build();
     final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request),
-      new MultiJobStatusListener(completionListener, jobSubmittedListener));
+      new MultiJobStatusListener(completionListener, jobSubmittedListener))
+      .getJobId();
     UserBitShared.ExternalId externalId = ExternalIdHelper.toExternal(QueryIdHelper.getQueryIdFromString(jobId.getId()));
 
     GetJobRequest getJobRequest = GetJobRequest.newBuilder()
@@ -766,7 +805,7 @@ public class TestJobService extends BaseTestServer {
         .setState(state)
         .setInfo(jobInfo);
 
-    return new Job(jobId, jobAttempt);
+    return new Job(jobId, jobAttempt, new SessionId());
   }
 
   @Test
@@ -1200,11 +1239,11 @@ public class TestJobService extends BaseTestServer {
   public void testCTASAndDropTable() throws Exception {
     // Create a table
     SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select * from cp.\"json/users.json\" LIMIT 1");
-    submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(ctas)
-        .setQueryType(QueryType.UI_RUN)
-        .build()
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+            .setSqlQuery(ctas)
+            .setQueryType(QueryType.UI_RUN)
+            .build()
     );
 
     FileSystemPlugin plugin = (FileSystemPlugin) getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class).getSource("$scratch");
@@ -1214,13 +1253,23 @@ public class TestJobService extends BaseTestServer {
     assertTrue(ctasTableDir.exists());
     assertTrue(ctasTableDir.list().length >= 1);
 
+    final com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .build());
+
+    final List<String> sinkPath = jobDetails.getAttempts(0)
+        .getInfo()
+        .getSinkPathList();
+    assertNotNull(sinkPath);
+    assertEquals(Lists.newArrayList("$scratch", "ctas"), sinkPath);
+
     // Now drop the table
     SqlQuery dropTable = getQueryFromSQL("DROP TABLE \"$scratch\".\"ctas\"");
     submitJobAndWaitUntilCompletion(
-      JobRequest.newBuilder()
-        .setSqlQuery(dropTable)
-        .setQueryType(QueryType.ACCELERATOR_DROP)
-        .build()
+        JobRequest.newBuilder()
+            .setSqlQuery(dropTable)
+            .setQueryType(QueryType.ACCELERATOR_DROP)
+            .build()
     );
 
     // Make sure the table data directory is deleted
@@ -1293,13 +1342,17 @@ public class TestJobService extends BaseTestServer {
 
     LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
 
-    final OnlineProfileCleaner onlineProfileCleanup = l(LocalJobsService.class).new OnlineProfileCleaner();
+    final ExternalCleaner datasetVersionCleaner = DatasetVersionCleanupHelper.datasetVersionCleaner(provider);
+    final List<ExternalCleaner> externalCleaners = Arrays.asList(
+      l(LocalJobsService.class).new OnlineProfileCleaner(),
+      datasetVersionCleaner);
     String report =
-      LocalJobsService.deleteOldJobsAndDependencies(Collections.singletonList(onlineProfileCleanup), provider , diffBeforeJob2);
+      LocalJobsService.deleteOldJobsAndDependencies(externalCleaners, provider , diffBeforeJob2);
     String expectedReport = ""
       + "Completed. Deleted 2 jobs."
       + System.lineSeparator() + "\tJobAttempts: 2, Attempts with failure: 0"
       + System.lineSeparator() + "\t" + LocalJobsService.OnlineProfileCleaner.class.getSimpleName() + " executions: 2, failures: 0"
+      + System.lineSeparator() + "\t" + datasetVersionCleaner.getName() + " executions: 2, failures: 0"
       + System.lineSeparator();
     assertEquals(expectedReport, report);
 
@@ -1529,7 +1582,8 @@ public class TestJobService extends BaseTestServer {
     final JobRequest request = JobRequest.newBuilder()
       .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
       .build();
-    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener));
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener))
+      .getJobId();
     jobSubmittedListener.await();
 
     // Try to get job data while job is still running. The getJobData call implicitly waits for the Job to complete.
@@ -1577,8 +1631,8 @@ public class TestJobService extends BaseTestServer {
       .addPause(DremioHepPlanner.class, INJECTOR_DURING_PLANNING_PAUSE)
       .build();
     injectPauses(controls);
-    UserBitShared.ExternalId externalId[] = new UserBitShared.ExternalId[4];
-    JobId jobID[] = new JobId[4];
+    UserBitShared.ExternalId[] externalId = new UserBitShared.ExternalId[4];
+    JobId[] jobID = new JobId[4];
     for (int i = 0; i < 4; i++) {
       final String query = "Select 1";
       jobID[i] = submitAndWaitUntilSubmitted(

@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-@import '../../../styles/constants/index.scss';
+@import "../../../styles/constants/index.scss";
 
 .modalFormActionContainer__root {
+  min-height: 56px;
   display: flex;
-  padding: map-get($map: $gutter-sizes, $key: full);
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 16px;
   border-top: 1px solid $border-color;
 
   .modalFormActionContainer__container {

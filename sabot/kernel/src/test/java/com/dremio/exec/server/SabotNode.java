@@ -81,6 +81,7 @@ import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionListManager;
 import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenTool;
@@ -202,7 +203,7 @@ public class SabotNode implements AutoCloseable {
 
   private ShutdownThread shutdownHook;
   private GuiceServiceModule guiceSingletonHandler;
-  private List<AbstractModule> overrideModules;
+  private List<? extends Module> overrideModules;
 
   public SabotNode(
           final SabotConfig config,
@@ -225,7 +226,7 @@ public class SabotNode implements AutoCloseable {
           final ClusterCoordinator clusterCoordinator,
           final ScanResult classpathScan,
           boolean allRoles,
-          List<AbstractModule> overrideModules) throws Exception {
+          List<? extends Module> overrideModules) throws Exception {
     init(registry, config, Preconditions.checkNotNull(clusterCoordinator), classpathScan, allRoles, overrideModules);
   }
 
@@ -235,7 +236,7 @@ public class SabotNode implements AutoCloseable {
           ClusterCoordinator clusterCoordinator,
           ScanResult classpathScan,
           boolean allRoles,
-          List<AbstractModule> overrideModules) throws Exception {
+          List<? extends Module> overrideModules) throws Exception {
     this.overrideModules = overrideModules;
     DremioConfig dremioConfig = DremioConfig.create(null, config);
     dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
@@ -262,7 +263,7 @@ public class SabotNode implements AutoCloseable {
     return Guice.createInjector(guiceSingletonHandler, mainModule);
   }
 
-  protected List<AbstractModule> getOverrideModules() {
+  protected List<? extends Module> getOverrideModules() {
     return overrideModules;
   }
 
@@ -320,7 +321,7 @@ public class SabotNode implements AutoCloseable {
    * occur during closure, as well as the location the node was started from.
    */
   private static class ShutdownThread extends Thread {
-    private final static AtomicInteger idCounter = new AtomicInteger(0);
+    private static final AtomicInteger idCounter = new AtomicInteger(0);
     private final SabotNode node;
     private final StackTrace stackTrace;
 
@@ -516,8 +517,8 @@ public class SabotNode implements AutoCloseable {
         final NessieService nessieService = new NessieService(
           registry.provider(KVStoreProvider.class),
           registry.provider(OptionManager.class),
+          registry.provider(SchedulerService.class),
           config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN),
-          config.getLong(DremioConfig.NESSIE_SERVICE_KVSTORE_COMMIT_TIMEOUT_MS),
           () -> getContext().isMaster()
         );
         nessieService.getGrpcServices().forEach(conduitServiceRegistry::registerService);
@@ -617,10 +618,11 @@ public class SabotNode implements AutoCloseable {
 
         bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
         bind(RuleBasedEngineSelector.class).toInstance(RuleBasedEngineSelector.NO_OP);
-        bind(StatisticsService.class).toInstance(StatisticsService.NO_OP);
-        bind(StatisticsAdministrationService.Factory.class).toInstance((context) -> StatisticsService.NO_OP);
+        bind(StatisticsService.class).toInstance(StatisticsService.MOCK_STATISTICS_SERVICE);
+        bind(StatisticsAdministrationService.Factory.class).toInstance((context) -> StatisticsService.MOCK_STATISTICS_SERVICE);
         bind(StatisticsListManager.class).toProvider(Providers.of(null));
-        bind(RelMetadataQuerySupplier.class).toInstance(DremioRelMetadataQuery.QUERY_SUPPLIER);
+        bind(UserDefinedFunctionListManager.class).toProvider(Providers.of(null));
+        bind(RelMetadataQuerySupplier.class).toInstance(DremioRelMetadataQuery.getSupplier(StatisticsService.MOCK_STATISTICS_SERVICE));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -672,6 +674,7 @@ public class SabotNode implements AutoCloseable {
     ) {
       return new FragmentWorkManager(
         bootstrap,
+        config.getSabotConfig(),
         nodeEndpoint,
         sabotContext,
         fabricService,
@@ -720,6 +723,7 @@ public class SabotNode implements AutoCloseable {
             Provider<StatisticsService> statisticsService,
             Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
             Provider<StatisticsListManager> statisticsListManagerProvider,
+            Provider<UserDefinedFunctionListManager> userDefinedFunctionListManagerProvider,
             Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier,
             Provider<SimpleJobRunner> jobsRunnerProvider,
             Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
@@ -764,6 +768,7 @@ public class SabotNode implements AutoCloseable {
               statisticsService,
               statisticsAdministrationServiceFactory,
               statisticsListManagerProvider,
+              userDefinedFunctionListManagerProvider,
               relMetadataQuerySupplier,
               jobsRunnerProvider,
               datasetCatalogStub,
@@ -835,6 +840,7 @@ public class SabotNode implements AutoCloseable {
             Provider<MaestroForwarder> forwarderProvider,
             Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider
     ) {
+      final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
       return new ForemenWorkManager(
               fabricService,
               sabotContext,
@@ -843,7 +849,8 @@ public class SabotNode implements AutoCloseable {
               jobTelemetryClient,
               forwarderProvider,
               TracerFacade.INSTANCE,
-              ruleBasedEngineSelectorProvider
+              ruleBasedEngineSelectorProvider,
+              jobResultsAllocator
       );
     }
 

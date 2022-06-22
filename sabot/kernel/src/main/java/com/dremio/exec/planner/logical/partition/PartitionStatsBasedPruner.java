@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
-import static com.dremio.exec.planner.logical.partition.PartitionStatsBasedPruner.TestCounters.incrementEvaluatedWithEvalCounter;
-import static com.dremio.exec.planner.logical.partition.PartitionStatsBasedPruner.TestCounters.incrementEvaluatedWithSargCounter;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
+import static com.dremio.exec.store.iceberg.IcebergUtils.getUsedIndices;
 import static org.apache.calcite.sql.SqlKind.AND;
 import static org.apache.calcite.sql.SqlKind.EQUALS;
 import static org.apache.calcite.sql.SqlKind.GREATER_THAN;
@@ -31,8 +31,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -52,16 +54,22 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsEntry;
 import org.apache.iceberg.PartitionStatsReader;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.io.InputFile;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
@@ -69,13 +77,21 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.FindSimpleFilters.StateHolder;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FileSystemRulesFactory;
+import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.service.Pointer;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
 /**
@@ -89,16 +105,18 @@ public class PartitionStatsBasedPruner extends RecordPruner {
   private final CloseableIterator<PartitionStatsEntry> statsEntryIterator;
   private Map<Integer, Integer> partitionColIdToSpecColIdMap; // partition col ID to col ID in Iceberg partition spec
   private Map<String, Integer> partitionColNameToSpecColIdMap; // col name to col ID in Iceberg partition spec
+  private String fileLocation;
 
-  public PartitionStatsBasedPruner(PartitionStatsReader partitionStatsReader, OptimizerRulesContext rulesContext,
+  public PartitionStatsBasedPruner(String fileLocation, PartitionStatsReader partitionStatsReader, OptimizerRulesContext rulesContext,
                                    PartitionSpec partitionSpec) {
     super(rulesContext);
     this.statsEntryIterator = partitionStatsReader.iterator();
     this.partitionSpec = partitionSpec;
+    this.fileLocation = fileLocation;
   }
 
   @Override
-  public long prune(
+  public Pair<Long, Long> prune(
     Map<Integer, String> inUseColIdToNameMap,
     Map<String, Integer> partitionColToIdMap,
     Function<RexNode, List<Integer>> usedIndexes,
@@ -119,13 +137,16 @@ public class PartitionStatsBasedPruner extends RecordPruner {
       rexConditions = holder.getConditions();
     }
 
-    long qualifiedCount = 0;
+    long qualifiedRecordCount = 0, qualifiedFileCount = 0;
     ConditionsByColumn conditionsByColumn = buildSargPrunableConditions(usedIndexes, projectedColumns, rexVisitor, rexConditions);
     if (canPruneWhollyWithSarg(holder, conditionsByColumn)) {
-      qualifiedCount = evaluateWithSarg(conditionsByColumn, tableMetadata);
+      Pair<Long, Long> counts = evaluateWithSarg(conditionsByColumn, tableMetadata);
+      qualifiedFileCount = counts.getRight();
+      qualifiedRecordCount = counts.getLeft();
     } else {
       int batchIndex = 0;
       long[] recordCounts = null;
+      long[] fileCounts = null;
       LogicalExpression materializedExpr = null;
       boolean countOverflowFound = false;
       while (!countOverflowFound && statsEntryIterator.hasNext()) {
@@ -140,34 +161,40 @@ public class PartitionStatsBasedPruner extends RecordPruner {
           setupVectors(inUseColIdToNameMap, partitionColToIdMap, batchSize);
           materializedExpr = materializePruneExpr(pruneCondition, rowType, cluster);
           recordCounts = new long[batchSize];
+          fileCounts = new long[batchSize];
         }
-
-        populateVectors(batchIndex, recordCounts, entriesInBatch);
+        populateVectors(batchIndex, recordCounts, fileCounts, entriesInBatch);
         evaluateExpr(materializedExpr, batchSize);
 
         // Count the number of records in the splits that survived the expression evaluation
         for (int i = 0; i < batchSize; ++i) {
           if (!outputVector.isNull(i) && outputVector.get(i) == 1) {
-            qualifiedCount += recordCounts[i];
-            if (recordCounts[i] < 0 || qualifiedCount < 0) {
-              qualifiedCount = tableMetadata.getApproximateRecordCount();;
+            qualifiedRecordCount += recordCounts[i];
+            qualifiedFileCount += fileCounts[i];
+
+            if (recordCounts[i] < 0 || qualifiedRecordCount < 0 || fileCounts[i] < 0 || qualifiedFileCount < 0) {
+              qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
+              qualifiedFileCount = tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount();
               countOverflowFound = true;
+              logger.info("Record count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}", this.fileLocation, materializedExpr.toString());
               break;
             }
           }
         }
 
-        logger.debug("Within batch: {}, qualified records: {}", batchIndex, qualifiedCount);
+        logger.debug("Within batch: {}, qualified records: {}, qualified files: {}", batchIndex, qualifiedRecordCount, qualifiedFileCount);
         batchIndex++;
       }
 
       if (countOverflowFound) {
-        qualifiedCount = tableMetadata.getApproximateRecordCount();;
+        qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
+        qualifiedFileCount = tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount();
       }
     }
+    qualifiedRecordCount = ( qualifiedRecordCount < 0 ) ? tableMetadata.getApproximateRecordCount() : qualifiedRecordCount;
+    qualifiedFileCount = (qualifiedFileCount < 0) ? tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount() : qualifiedFileCount;
     updateCounters(holder);
-    qualifiedCount = ( qualifiedCount < 0 ) ? tableMetadata.getApproximateRecordCount() : qualifiedCount;
-    return qualifiedCount;
+    return Pair.of(qualifiedRecordCount, qualifiedFileCount * optimizerContext.getPlannerSettings().getNoOfSplitsPerFile());
   }
 
   @Override
@@ -175,38 +202,49 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     AutoCloseables.close(RuntimeException.class, statsEntryIterator, super::close);
   }
 
-  private void updateCounters(StateHolder holder) {
+  protected void updateCounters(StateHolder holder) {
     // Update test counters only when assertions are enabled, which is the case for test flow
     if (VM.areAssertsEnabled()) {
       boolean hasDecimalCols = hasDecimalCols(holder);
       if (holder.hasConditions() && !hasDecimalCols) {
-        incrementEvaluatedWithSargCounter(); // expression was partly or wholly evaluated with sarg
+        TestCounters.incrementRecordCountEvaluatedWithSargCounter(); // expression was partly or wholly evaluated with sarg
       }
 
       if (holder.hasRemainingExpression() || hasDecimalCols) {
-        incrementEvaluatedWithEvalCounter();
+        TestCounters.incrementRecordCountEvaluatedWithEvalCounter();
       }
     }
   }
 
-  private long evaluateWithSarg(ConditionsByColumn conditionsByColumn, TableMetadata tableMetadata) {
+  private Pair<Long, Long> evaluateWithSarg(ConditionsByColumn conditionsByColumn, TableMetadata tableMetadata) {
     timer.start();
-    long qualifiedCount = 0;
+    long qualifiedCount = 0, qualifiedFileCount = 0;
     while (statsEntryIterator.hasNext()) {
       PartitionStatsEntry statsEntry = statsEntryIterator.next();
       StructLike partitionData = statsEntry.getPartition();
       if (isRecordMatch(conditionsByColumn, partitionData)) {
-        long statsEntryReocrdCount = statsEntry.getRecordCount();
-        qualifiedCount += statsEntryReocrdCount;
+       long statsEntryReocrdCount = statsEntry.getRecordCount();
+       long statsEntryFileCount = statsEntry.getFileCount();
+       qualifiedCount += statsEntryReocrdCount;
+       qualifiedFileCount += statsEntryFileCount;
+
         if (statsEntryReocrdCount < 0 || qualifiedCount < 0) {
-          qualifiedCount = tableMetadata.getApproximateRecordCount();;
+          qualifiedCount = tableMetadata.getApproximateRecordCount();
+          logger.info("Record count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}", this.fileLocation, conditionsByColumn.toString());
+          break;
+        }
+
+        if (statsEntryFileCount < 0 || qualifiedFileCount < 0) {
+          qualifiedFileCount = tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount();
+          logger.info("File count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}", this.fileLocation, conditionsByColumn.toString());
           break;
         }
       }
     }
     logger.debug("Elapsed time to find surviving records: {}ms", timer.elapsed(TimeUnit.MILLISECONDS));
     timer.reset();
-    return qualifiedCount;
+
+    return Pair.of(qualifiedCount, qualifiedFileCount);
   }
 
   private List<PartitionStatsEntry> createRecordBatch(ConditionsByColumn conditionsByColumn, int batchIndex) {
@@ -226,13 +264,14 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     return entriesInBatch;
   }
 
-  private void populateVectors(int batchIndex, long[] recordCounts, List<PartitionStatsEntry> entriesInBatch) {
+  private void populateVectors(int batchIndex, long[] recordCounts, long[] fileCounts, List<PartitionStatsEntry> entriesInBatch) {
     timer.start();
     // Loop over partition stats and populate record count, vectors etc.
     for (int i = 0; i < entriesInBatch.size(); i++) {
       PartitionStatsEntry statsEntry = entriesInBatch.get(i);
       StructLike partitionData = statsEntry.getPartition();
       recordCounts[i] = statsEntry.getRecordCount();
+      fileCounts[i] = statsEntry.getFileCount();
       writePartitionValues(i, partitionData);
     }
     logger.debug("Elapsed time to populate partition column vectors: {}ms within batchIndex: {}",
@@ -288,7 +327,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     return true;
   }
 
-  private boolean hasDecimalCols(StateHolder holder) {
+  protected boolean hasDecimalCols(StateHolder holder) {
     Pointer<Boolean> hasDecimalCols = new Pointer<>(false);
     holder.getConditions().forEach(condition -> condition.getOperands().forEach(
       operand -> {
@@ -470,33 +509,113 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     }
   }
 
+  public static Optional<Pair<Long, Long>> prune(OptimizerRulesContext context, ScanRelBase scan, PruneFilterCondition pruneCondition) {
+    final TableMetadata tableMetadata = scan.getTableMetadata();
+    final RelDataType rowType = scan.getRowType();
+    final List<SchemaPath> projectedColumns = scan.getProjectedColumns();
+    boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
+    BatchSchema batchSchema = tableMetadata.getSchema();
+    List<String> partitionColumns = tableMetadata.getReadDefinition().getPartitionColumnsList();
+    String partitionStatsFile = FileSystemRulesFactory.getPartitionStatsFile(scan);
+    Optional<Pair<Long, Long>> survivingRecords = Optional.empty();
+    if (shouldPrune(pruneCondition, partitionColumns, partitionStatsFile, projectedColumns, specEvolTransEnabled)) {
+      /*
+       * Build a mapping between partition column name and partition column ID.
+       * The partition columns can have special columns added by Dremio. The ID is artificial,
+       * i.e. it has nothing to do with the column ID or order of the column in the table.
+       */
+      Map<String, Integer> partitionColToIdMap = Maps.newHashMap();
+      int index = 0;
+      for (String column : partitionColumns) {
+        partitionColToIdMap.put(column, index++);
+      }
+
+      /*
+       * Build a mapping between partition column ID and the partition columns which are used
+       * in the query. For example, for
+       * partitionColToIdMap = {col2 -> 0, col4 -> 1, $_dremio_ -> 2, col6 -> 3}, and
+       * getRowType().getFieldNames() = [col1, col3, col4, col6]
+       * inUseColIdToNameMap would be {1 -> col4, 3 -> col6}
+       */
+      Map<Integer, String> inUseColIdToNameMap = Maps.newHashMap();
+      for (String col : rowType.getFieldNames()) {
+        Integer partitionIndex = partitionColToIdMap.get(col);
+        if (partitionIndex != null) {
+          inUseColIdToNameMap.put(partitionIndex, col);
+        }
+      }
+
+      SupportsIcebergRootPointer icebergRootPointerPlugin = context.getCatalogService().getSource(tableMetadata.getStoragePluginId());
+      PartitionSpec spec = IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns, null);
+      InputFile inputFile = new DremioFileIO(icebergRootPointerPlugin.getFsConfCopy(), (MutablePlugin) icebergRootPointerPlugin).newInputFile(partitionStatsFile);
+      PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
+      try(RecordPruner pruner = new PartitionStatsBasedPruner(inputFile.location(), partitionStatsReader, context, spec)) {
+        RexNode finalPruneCondition = pruneCondition.getPartitionExpression();
+        if (specEvolTransEnabled && pruneCondition.getPartitionRange() != null) {
+          finalPruneCondition = finalPruneCondition == null ? pruneCondition.getPartitionRange()
+            : scan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.AND, pruneCondition.getPartitionRange(), finalPruneCondition);
+        }
+        survivingRecords = Optional.of(pruner.prune(inUseColIdToNameMap, partitionColToIdMap, getUsedIndices, projectedColumns,
+          tableMetadata, finalPruneCondition, batchSchema, rowType, scan.getCluster()));
+
+      } catch (RuntimeException e) {
+        logger.error("Encountered exception during row count estimation: ", e);
+      }
+    }
+
+    return survivingRecords;
+  }
+
+  private static boolean shouldPrune(PruneFilterCondition pruneCondition, List<String> partitionColumns, String partitionStatsFile, List<SchemaPath> projectedColumns, boolean specEvolTransEnabled) {
+    boolean pruneConditionExists = pruneCondition != null && (pruneCondition.getPartitionExpression() != null
+      || specEvolTransEnabled && pruneCondition.getPartitionRange() != null);
+
+    return pruneConditionExists && partitionColumns != null && StringUtils.isNotEmpty(partitionStatsFile) && !isConditionOnImplicitCol(pruneCondition, projectedColumns);
+  }
+
+  private static boolean isConditionOnImplicitCol(PruneFilterCondition pruneCondition, List<SchemaPath> projectedColumns) {
+    if (pruneCondition.getPartitionExpression() == null) {
+      return false;
+    }
+
+    int updateColIndex = projectedColumns.indexOf(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
+    final AtomicBoolean isImplicit = new AtomicBoolean(false);
+    pruneCondition.getPartitionExpression().accept(new RexVisitorImpl<Void>(true) {
+      public Void visitInputRef(RexInputRef inputRef) {
+        isImplicit.set(updateColIndex==inputRef.getIndex());
+        return null;
+      }
+    });
+    return isImplicit.get();
+  }
+
   /**
    * Maintains counters which tests can use to verify the behavior
    */
   @com.google.common.annotations.VisibleForTesting
   public static class TestCounters {
-    private static final AtomicLong evaluatedWithSarg = new AtomicLong(0);
-    private static final AtomicLong evaluatedWithEval = new AtomicLong(0);
+    private static final AtomicLong evaluatedRecordWithSarg = new AtomicLong(0);
+    private static final AtomicLong evaluatedRecordWithEval = new AtomicLong(0);
 
-    public static void incrementEvaluatedWithSargCounter() {
-      evaluatedWithSarg.incrementAndGet();
+    public static void incrementRecordCountEvaluatedWithSargCounter() {
+      evaluatedRecordWithSarg.incrementAndGet();
     }
 
-    public static void incrementEvaluatedWithEvalCounter() {
-      evaluatedWithEval.incrementAndGet();
+    public static void incrementRecordCountEvaluatedWithEvalCounter() {
+      evaluatedRecordWithEval.incrementAndGet();
     }
 
-    public static long getEvaluatedWithSargCounter() {
-      return evaluatedWithSarg.get();
+    public static long getEvaluatedRecordCountWithSargCounter() {
+      return evaluatedRecordWithSarg.get();
     }
 
-    public static long getEvaluatedWithEvalCounter() {
-      return evaluatedWithEval.get();
+    public static long getEvaluatedRecordCountWithEvalCounter() {
+      return evaluatedRecordWithEval.get();
     }
 
     public static void resetCounters() {
-      evaluatedWithSarg.set(0);
-      evaluatedWithEval.set(0);
+      evaluatedRecordWithSarg.set(0);
+      evaluatedRecordWithEval.set(0);
     }
   }
 

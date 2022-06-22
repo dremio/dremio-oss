@@ -1316,10 +1316,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
           } else if (config.getType() == DatasetType.VIRTUAL_DATASET && config.getVirtualDataset().getParentsList() != null) {
             for (ParentDataset parent : config.getVirtualDataset().getParentsList()){
               try {
-                int size = parent.getDatasetPathList().size();
-                if( !(size > 1 && parent.getDatasetPathList().get(size-1).equalsIgnoreCase("external_query"))) {
-                  configQueue.add(context.getNamespaceService(SYSTEM_USERNAME).getDataset(new NamespaceKey(parent.getDatasetPathList())));
-                }
+                configQueue.add(context.getNamespaceService(SYSTEM_USERNAME).getDataset(new NamespaceKey(parent.getDatasetPathList())));
               } catch (NamespaceException ex) {
                 throw Throwables.propagate(ex);
               }

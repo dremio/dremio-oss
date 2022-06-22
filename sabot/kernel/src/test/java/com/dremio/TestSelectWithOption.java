@@ -330,6 +330,7 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   @Test
   public void testUse() throws Exception {
+    final String schema = getValueInFirstRecord("select current_schema", "current_schema");
     File f = genCSVFile("testUse",
         "{\"columns\": [\"f\",\"g\"]}");
     String jsonTableName = format("\"${WORKING_PATH}/%s\"", f.getPath());
@@ -346,7 +347,10 @@ public class TestSelectWithOption extends BaseTestQuery {
 
       testWithResult(format("select length(columns[0]) as columns from table(%s ('JSON'))", jsonTableName), 1);
     } finally {
-      test("use sys");
+      //setting the schema back
+      if(!schema.isEmpty()) {
+        test(format("use %s", schema));
+      }
     }
   }
 

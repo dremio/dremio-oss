@@ -13,46 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Component } from 'react';
+import { shallow } from "enzyme";
+import { Component } from "react";
 
-import prefixSection from './prefixSection';
+import prefixSection from "./prefixSection";
 
 class FormSection extends Component {
   static getFields() {
-    return ['foo'];
+    return ["foo"];
   }
 
   static validate(values) {
-    return Object.keys(values).reduce((errors, key) => ({...errors, [key]: 'required'}), {});
+    return Object.keys(values).reduce(
+      (errors, key) => ({ ...errors, [key]: "required" }),
+      {}
+    );
   }
 
-  static something = 'something';
+  static something = "something";
 }
 
-describe('SectionPrefix', () => {
-  it('Prefixes getFields without changing original', () => {
-    const PrefixedSection = prefixSection('prefix')(FormSection);
-    expect(PrefixedSection.getFields()).to.eql(['prefix.foo']);
-    expect(FormSection.getFields()).to.eql(['foo']);
+describe("SectionPrefix", () => {
+  it("Prefixes getFields without changing original", () => {
+    const PrefixedSection = prefixSection("prefix")(FormSection);
+    expect(PrefixedSection.getFields()).to.eql(["prefix.foo"]);
+    expect(FormSection.getFields()).to.eql(["foo"]);
   });
 
-  it('Prefixes validate without changing original', () => {
-    const PrefixedSection = prefixSection('prefix')(FormSection);
-    expect(PrefixedSection.validate({foo: 1})).to.eql({'prefix.foo': 'required'});
-    expect(FormSection.validate({foo: 1})).to.eql({foo: 'required'});
+  it("Prefixes validate without changing original", () => {
+    const PrefixedSection = prefixSection("prefix")(FormSection);
+    expect(PrefixedSection.validate({ foo: 1 })).to.eql({
+      "prefix.foo": "required",
+    });
+    expect(FormSection.validate({ foo: 1 })).to.eql({ foo: "required" });
   });
 
-  it('can still access other statics', () => {
-    const PrefixedSection = prefixSection('prefix')(FormSection);
+  it("can still access other statics", () => {
+    const PrefixedSection = prefixSection("prefix")(FormSection);
     expect(PrefixedSection.something).to.eql(FormSection.something);
   });
 
-  it('should unprefix fields passed as props', () => {
-    const PrefixedSection = prefixSection('prefix')(FormSection);
+  it("should unprefix fields passed as props", () => {
+    const PrefixedSection = prefixSection("prefix")(FormSection);
 
-    const wrapper = shallow(<PrefixedSection fields={{prefix: {foo: 'foo'}}}/>);
-    expect(wrapper.find('FormSection').props().fields).to.eql({foo: 'foo'});
+    const wrapper = shallow(
+      <PrefixedSection fields={{ prefix: { foo: "foo" } }} />
+    );
+    expect(wrapper.find("FormSection").props().fields).to.eql({ foo: "foo" });
   });
-
 });

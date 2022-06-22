@@ -22,15 +22,22 @@
 
   .jobsPageBody {
     display: flex;
-    width: 100%;
     height: 100%;
 
     .jobPageContentDiv {
       display: flex;
       flex-direction: column;
-      width: 100%;
-      overflow: auto;
     }
   }
 
+  @media (min-width: 1430px) {
+    .jobsPageBody {
+      width: 100%;
+
+      .jobPageContentDiv {
+        width: 100%;
+        overflow: auto;
+      }
+    }
+  }
 }

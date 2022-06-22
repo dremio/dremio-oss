@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getIconByType, getUrlByType } from './utils';
+import { getIconByType, getUrlByType } from "./utils";
 
-describe('NessieHomePage - utils', () => {
-  it('Returns the correct URL', () => {
-    expect(getUrlByType('UNKNOWN', 'a.b.c')).to.equal('/namespace/a.b.c');
-    expect(getUrlByType(null, 'a.b.c')).to.equal('/namespace/a.b.c');
-    expect(getUrlByType(null, '')).to.equal('/namespace/');
-    expect(getUrlByType('ICEBERG_TABLE', 'a.b.c')).to.equal('/table/a.b.c');
-    expect(getUrlByType('ICEBERG_TABLE', '')).to.equal('/table/');
+describe("NessieHomePage - utils", () => {
+  it("Returns the correct URL", () => {
+    expect(getUrlByType("UNKNOWN", "a.b.c")).to.equal("/namespace/a.b.c");
+    expect(getUrlByType(null, "a.b.c")).to.equal("/namespace/a.b.c");
+    expect(getUrlByType(null, "")).to.equal("/namespace/");
+    expect(getUrlByType("ICEBERG_TABLE", "a.b.c")).to.equal("/table/a.b.c");
+    expect(getUrlByType("ICEBERG_TABLE", "")).to.equal("/table/");
   });
 
-  it('Returns the correct icon', () => {
-    const namespace = { type: 'Space', id: 'Nessie.Namespace' };
-    const iceberg = { type: 'PhysicalDataset', id: 'Nessie.ICEBERG_TABLE' };
-    expect(getIconByType('ICEBERG_TABLE')).to.deep.equal(iceberg);
-    expect(getIconByType('UNKNOWN')).to.deep.equal(namespace);
-    expect(getIconByType('')).to.deep.equal(namespace);
+  it("Returns the correct icon", () => {
+    const namespace = { type: "Space", id: "Nessie.Namespace" };
+    const iceberg = { type: "PhysicalDataset", id: "Nessie.ICEBERG_TABLE" };
+    expect(getIconByType("ICEBERG_TABLE")).to.deep.equal(iceberg);
+    expect(getIconByType("UNKNOWN")).to.deep.equal(namespace);
+    expect(getIconByType("")).to.deep.equal(namespace);
     expect(getIconByType(null)).to.deep.equal(namespace);
     expect(getIconByType()).to.deep.equal(namespace);
   });

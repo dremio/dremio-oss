@@ -386,6 +386,157 @@ public abstract class AbstractTestLegacyIndexedStore {
     verifyDoughnutsRetrieved(ImmutableList.of(), toListOfDoughnuts(store.find(condition)));
   }
 
+  @Test
+  public void testWildCardMatch() {
+    final LegacyIndexedStore<String, Doughnut> store = getStore();
+    final int totalDocs = 20;
+    final String pattern = "*rigi*";
+    final String nameToUse = "original";
+
+    // populate documents
+    for (int i = 0; i < totalDocs; ++i) {
+      String dname = nameToUse;
+      if (i % 2 != 0) {
+        dname = "random_name_" + Integer.toString(i);
+      }
+      final Doughnut d = new Doughnut(dname,
+        nameToUse + "_" + Integer.toString(i),
+        1.5 * i);
+      store.put(Integer.toString(i), d);
+    }
+
+    final SearchTypes.SearchQuery query = SearchQueryUtils.or(
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.NAME.getIndexFieldName(), pattern),
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.FLAVOR.getIndexFieldName(), pattern));
+    final LegacyIndexedStore.LegacyFindByCondition condition = new LegacyIndexedStore.LegacyFindByCondition().setCondition(query);
+
+    final Iterable<Map.Entry<String, Doughnut>> items = store.find(condition);
+
+    // either 'name' or 'flavor' should have matched
+    Assert.assertEquals(totalDocs, Iterables.size(items));
+  }
+
+  @Test
+  public void testWildCardWithSomeMatches() {
+    final LegacyIndexedStore<String, Doughnut> store = getStore();
+    final int totalDocs = 10;
+    final int totalNonMatchDocs = 10;
+    final String pattern = "*rigi*";
+    final String nameToUse = "original";
+
+    // populate documents that would be matched
+    for (int i = 0; i < totalDocs; ++i) {
+      final Doughnut d = new Doughnut(nameToUse,
+        nameToUse + "_" + Integer.toString(i),
+        1.5 * i);
+      store.put(Integer.toString(i), d);
+    }
+
+    // populate documents that would not-be matched
+    for (int i = totalDocs; i < totalNonMatchDocs + totalDocs; ++i) {
+      final Doughnut d = new Doughnut("random",
+        nameToUse + "_" + Integer.toString(i),
+        1.5 * i);
+      store.put(Integer.toString(i), d);
+    }
+
+    final SearchTypes.SearchQuery query = SearchQueryUtils.and(
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.NAME.getIndexFieldName(), pattern),
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.FLAVOR.getIndexFieldName(), pattern));
+    final LegacyIndexedStore.LegacyFindByCondition condition = new LegacyIndexedStore.LegacyFindByCondition().setCondition(query);
+
+    // we should see all the documents in the store
+    final Iterable<Map.Entry<String, Doughnut>> allItems = store.find();
+    Assert.assertEquals((totalDocs + totalNonMatchDocs), Iterables.size(allItems));
+
+    final Iterable<Map.Entry<String, Doughnut>> items = store.find(condition);
+
+    // either 'name' or 'flavor' should have matched
+    Assert.assertEquals(totalDocs, Iterables.size(items));
+  }
+
+  @Test
+  public void testWildCardNoMatch() {
+    final LegacyIndexedStore<String, Doughnut> store = getStore();
+    final int totalDocs = 20;
+    final String nameToUse = "original";
+    final String pattern = "testWildCardNoMatch";
+
+    // populate documents
+    for (int i = 0; i < totalDocs; ++i) {
+      String dname = nameToUse;
+      if (i % 2 != 0) {
+        dname = "random_name_" + Integer.toString(i);
+      }
+      final Doughnut d = new Doughnut(dname,
+        nameToUse + "_" + Integer.toString(i),
+        1.5 * i);
+      store.put(Integer.toString(i), d);
+    }
+
+    final SearchTypes.SearchQuery query = SearchQueryUtils.or(
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.NAME.getIndexFieldName(), pattern),
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.FLAVOR.getIndexFieldName(), pattern));
+    final LegacyIndexedStore.LegacyFindByCondition condition = new LegacyIndexedStore.LegacyFindByCondition().setCondition(query);
+
+    final Iterable<Map.Entry<String, Doughnut>> items = store.find(condition);
+
+    // no documents should have matched
+    Assert.assertEquals(0, Iterables.size(items));
+  }
+
+  @Test
+  public void testWildCardSpecialChars() {
+    final LegacyIndexedStore<String, Doughnut> store = getStore();
+    final int totalDocs = 20;
+    final String pattern = "*r\\*igi*";
+    final String nameToUse = "or*iginal";
+
+    // populate documents
+    for (int i = 0; i < totalDocs; ++i) {
+      String dname = nameToUse;
+      if (i % 2 != 0) {
+        dname = "random_name_" + Integer.toString(i);
+      }
+      final Doughnut d = new Doughnut(dname,
+        nameToUse + "_" + Integer.toString(i),
+        1.5 * i);
+      store.put(Integer.toString(i), d);
+    }
+
+    final SearchTypes.SearchQuery query = SearchQueryUtils.or(
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.NAME.getIndexFieldName(), pattern),
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.FLAVOR.getIndexFieldName(), pattern));
+    final LegacyIndexedStore.LegacyFindByCondition condition = new LegacyIndexedStore.LegacyFindByCondition().setCondition(query);
+
+    final Iterable<Map.Entry<String, Doughnut>> items = store.find(condition);
+
+    // either 'name' or 'flavor' should have matched
+    Assert.assertEquals(totalDocs, Iterables.size(items));
+  }
+
+  @Test
+  public void testWildCardCustomPattern() {
+    final LegacyIndexedStore<String, Doughnut> store = getStore();
+    final int totalDocs = 5;
+
+    // populate documents
+    for (int i = 0; i < totalDocs; ++i) {
+      final Doughnut d = new Doughnut("best_dougnout", "best_vanilla", 1.5 * i);
+      store.put(Integer.toString(i), d);
+    }
+
+    final String pattern = "*best*d*";
+
+    final SearchTypes.SearchQuery query = SearchQueryUtils.or(
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.NAME.getIndexFieldName(), pattern),
+      SearchQueryUtils.newWildcardQuery(DoughnutIndexKeys.FLAVOR.getIndexFieldName(), pattern));
+    final LegacyIndexedStore.LegacyFindByCondition condition = new LegacyIndexedStore.LegacyFindByCondition().setCondition(query);
+
+    final Iterable<Map.Entry<String, Doughnut>> items = store.find(condition);
+    Assert.assertEquals(5, Iterables.size(items));
+  }
+
   private void addData(int numDoughnuts) {
     for (int i = 0; i < numDoughnuts; i++) {
       final String name = Integer.toString(i);
@@ -437,4 +588,5 @@ public abstract class AbstractTestLegacyIndexedStore {
 
     return Lists.newArrayList(KVUtil.values(iter));
   }
+
 }

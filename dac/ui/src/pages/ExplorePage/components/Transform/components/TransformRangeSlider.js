@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import PropTypes from "prop-types";
 
-export const POSITION_LEFT = 'left';
-export const POSITION_RIGHT = 'right';
+export const POSITION_LEFT = "left";
+export const POSITION_RIGHT = "right";
 
 export default class TransformRangeSlider extends Component {
-
   static propTypes = {
     blockStyle: PropTypes.object,
     offset: PropTypes.number,
@@ -28,7 +27,7 @@ export default class TransformRangeSlider extends Component {
     activeSlider: PropTypes.string,
     clientX: PropTypes.number,
     setActiveSlider: PropTypes.func,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
   };
 
   isActive(props) {
@@ -37,7 +36,7 @@ export default class TransformRangeSlider extends Component {
 
   onRef = (el) => {
     if (el) {
-      el.addEventListener('pointerdown', this.startSlide);
+      el.addEventListener("pointerdown", this.startSlide);
     }
     this.slider = el;
   };
@@ -57,51 +56,55 @@ export default class TransformRangeSlider extends Component {
     const style = {
       ...styles.block,
       ...blockStyle,
-      cursor: this.isActive(this.props) ? 'col-resize' : 'default',
-      [position === POSITION_RIGHT ? 'left' : 'width']: this.props.offset
+      cursor: this.isActive(this.props) ? "col-resize" : "default",
+      [position === POSITION_RIGHT ? "left" : "width"]: this.props.offset,
     };
     const sliderStyle = {
       ...styles.slider,
       // move slidebar center to a middle of edge
-      [position === POSITION_RIGHT ? 'left' : 'right']: -(styles.slider.width / 2)
+      [position === POSITION_RIGHT ? "left" : "right"]: -(
+        styles.slider.width / 2
+      ),
     };
 
     const pointerStyle = {
       ...styles.pointer,
-      [position === POSITION_RIGHT ? 'left' : 'right']: -3.5
+      [position === POSITION_RIGHT ? "left" : "right"]: -3.5,
     };
 
-    return <div style={style}>
-      <div style={pointerStyle}></div>
-      <div style={sliderStyle} data-qa={dataQa} ref={this.onRef}></div>
-    </div>;
+    return (
+      <div style={style}>
+        <div style={pointerStyle}></div>
+        <div style={sliderStyle} data-qa={dataQa} ref={this.onRef}></div>
+      </div>
+    );
   }
 }
 
 const styles = {
   pointer: {
-    position: 'absolute',
+    position: "absolute",
     top: -10,
     width: 6,
-    borderTop: '9px solid black',
-    borderLeft: '3px solid transparent',
-    borderRight: '3px solid transparent'
+    borderTop: "9px solid black",
+    borderLeft: "3px solid transparent",
+    borderRight: "3px solid transparent",
   },
   block: {
     left: 0,
-    position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.10)',
+    position: "absolute",
+    backgroundColor: "rgba(0,0,0,0.10)",
     top: 0,
     right: 0,
-    height: 79
+    height: 79,
   },
   slider: {
-    float: 'right',
-    display: 'inline-block',
-    cursor: 'col-resize',
-    position: 'absolute',
-    height: '100%',
+    float: "right",
+    display: "inline-block",
+    cursor: "col-resize",
+    position: "absolute",
+    height: "100%",
     width: 20,
-    borderRadius: 10
-  }
+    borderRadius: 10,
+  },
 };

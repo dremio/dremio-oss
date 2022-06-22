@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import { Component } from "react";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
 
-import { Radio } from 'components/Fields';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import TransformForm, {formWrapperProps} from '@app/pages/ExplorePage/components/forms/TransformForm';
-import { transformProps } from '@app/pages/ExplorePage/components/forms/TransformationPropTypes';
-import { radioStacked } from '@app/uiTheme/less/forms.less';
-import { sectionMargin } from '@app/uiTheme/less/layout.less';
+import { Radio } from "components/Fields";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import TransformForm, {
+  formWrapperProps,
+} from "@app/pages/ExplorePage/components/forms/TransformForm";
+import { transformProps } from "@app/pages/ExplorePage/components/forms/TransformationPropTypes";
+import { radioStacked } from "@app/uiTheme/less/forms.less";
+import { sectionMargin } from "@app/uiTheme/less/layout.less";
 
 const SECTIONS = [NewFieldSection];
 
@@ -33,9 +35,9 @@ export class DateToNumberForm extends Component {
   }
 
   render() {
-    const {fields, submit} = this.props;
+    const { fields, submit } = this.props;
     // radio button has much free space on top. To align radio label with top edge of a container, we have to add this negative margin
-    const radiosAlignmentStyle = { marginTop: -7};
+    const radiosAlignmentStyle = { marginTop: -7 };
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
@@ -43,11 +45,27 @@ export class DateToNumberForm extends Component {
         style={{ minHeight: 0 }}
       >
         <div style={radiosAlignmentStyle}>
-          <Radio {...fields.format} className={radioStacked} label='Epoch' style={{ marginTop: 0 }} radioValue='EPOCH'/>
-          <Radio {...fields.format} className={radioStacked} label='Excel' radioValue='EXCEL'/>
-          <Radio {...fields.format} className={radioStacked} label='Julian' radioValue='JULIAN'/>
+          <Radio
+            {...fields.format}
+            className={radioStacked}
+            label="Epoch"
+            style={{ marginTop: 0 }}
+            radioValue="EPOCH"
+          />
+          <Radio
+            {...fields.format}
+            className={radioStacked}
+            label="Excel"
+            radioValue="EXCEL"
+          />
+          <Radio
+            {...fields.format}
+            className={radioStacked}
+            label="Julian"
+            radioValue="JULIAN"
+          />
         </div>
-        <NewFieldSection fields={fields} className={sectionMargin}/>
+        <NewFieldSection fields={fields} className={sectionMargin} />
       </TransformForm>
     );
   }
@@ -57,14 +75,19 @@ function mapStateToProps(state, props) {
   const { format, dropSourceField } = props.initialValues;
   return {
     initialValues: {
-      format: format || 'EPOCH',
+      format: format || "EPOCH",
       newFieldName: props.columnName,
-      dropSourceField: dropSourceField !== undefined ? dropSourceField : true
-    }
+      dropSourceField: dropSourceField !== undefined ? dropSourceField : true,
+    },
   };
 }
 
-export default connectComplexForm({
-  fields: ['format'],
-  overwriteOnInitialValuesChange: false
-}, SECTIONS, mapStateToProps, null)(DateToNumberForm);
+export default connectComplexForm(
+  {
+    fields: ["format"],
+    overwriteOnInitialValuesChange: false,
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(DateToNumberForm);

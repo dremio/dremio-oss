@@ -13,39 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { MAP } from '@app/constants/DataTypes';
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
-import SqlGroup from './SqlGroup';
+import { MAP } from "@app/constants/DataTypes";
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
+import SqlGroup from "./SqlGroup";
 
-describe('SqlGroup', () => {
+describe("SqlGroup", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       makeTransform: sinon.spy(),
-      isAvailable: sinon.spy()
+      isAvailable: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SqlGroup {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SqlGroup {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should hide divider when column type is MAP', () => {
-    const wrapper = shallow(<SqlGroup {...commonProps} columnType={MAP}/>);
-    expect(wrapper.find('Divider')).to.have.length(0);
+  it("should hide divider when column type is MAP", () => {
+    const wrapper = shallow(<SqlGroup {...commonProps} columnType={MAP} />);
+    expect(wrapper.find("Divider")).to.have.length(0);
   });
 
-  it('should include Calculated Field item when column type is MAP', () => {
-    const wrapper = shallow(<SqlGroup {...commonProps} columnType={MAP}/>);
-    expect(wrapper.containsMatchingElement(
-      <ColumnMenuItem title='Calculated Field…'/>
-    )).to.be.true;
+  it("should include Calculated Field item when column type is MAP", () => {
+    const wrapper = shallow(<SqlGroup {...commonProps} columnType={MAP} />);
+    expect(
+      wrapper.containsMatchingElement(
+        <ColumnMenuItem title="Calculated Field…" />
+      )
+    ).to.be.true;
   });
 });

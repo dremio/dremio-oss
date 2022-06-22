@@ -18,7 +18,7 @@ package com.dremio;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +29,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -48,13 +49,11 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.DateString;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchQueryUtils;
@@ -98,7 +97,6 @@ import com.google.protobuf.ByteString;
  * Test for index based pruning in {@code PruneScanRuleBase}.
  * This test uses custom splits pointer that verifies if expected search query is passed.
  */
-@RunWith(Parameterized.class)
 public class TestIndexBasedPruning extends DremioTest {
 
   private static final ImmutableList<SchemaPath> PROJECTED_COLUMNS = ImmutableList.of(SchemaPath.getSimplePath("date_col"), SchemaPath.getSimplePath("int_col"));
@@ -134,7 +132,7 @@ public class TestIndexBasedPruning extends DremioTest {
 
     @Override
     public SplitsPointer prune(SearchTypes.SearchQuery partitionFilterQuery) {
-      assertTrue("Given search query is not expected", partitionFilterQuery.equals(expected));
+      assertTrue(partitionFilterQuery.equals(expected), "Given search query is not expected");
       indexPruned = true;
       //return an empty pointer after pruning
       return MaterializedSplitsPointer.of(0,Arrays.asList(),0);
@@ -266,8 +264,7 @@ public class TestIndexBasedPruning extends DremioTest {
   private boolean indexPruned;
   private PlannerSettings plannerSettings;
 
-  @Parameterized.Parameters(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
-  public static Iterable<Object[]> getTestCases() {
+  private static Stream<Arguments> getTestCases() {
     RexInputRef dateCol = REX_BUILDER.makeInputRef(TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(SqlTypeName.DATE), true),0);
     RexNode dateLiteral = REX_BUILDER.makeDateLiteral(new DateString("2010-01-01"));
     RexInputRef intCol = REX_BUILDER.makeInputRef(TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(SqlTypeName.INTEGER), true),1);
@@ -295,20 +292,14 @@ public class TestIndexBasedPruning extends DremioTest {
     // equivalent to where $0 = CAST(1 as DATE) and $0 > CAST(1 as DATE) => none of them can be index pruned
     RexNode testCondition3 = REX_BUILDER.makeCall(AND, cond3, cond4);
 
-    return ImmutableList.<Object[]>builder()
-        .add(new Object[] { testCondition1, SearchQueryUtils.and(ImmutableList.of(q2, q1)) })
-        .add(new Object[] { testCondition2, SearchQueryUtils.and(ImmutableList.of(q2)) })
-        .add(new Object[] { testCondition3, null })
-        .build();
+    return Stream.of(
+        Arguments.of( testCondition1, SearchQueryUtils.and(ImmutableList.of(q2, q1)) ),
+        Arguments.of( testCondition2, SearchQueryUtils.and(ImmutableList.of(q2)) ),
+        Arguments.of( testCondition3, null )
+    );
   }
 
-  public TestIndexBasedPruning(RexNode rexNode, SearchTypes.SearchQuery expected) {
-    this.rexNode = rexNode;
-    this.expected = expected;
-  }
-
-  @Before
-  public void setUp() {
+  public void setUp(RexNode rexNode, SearchTypes.SearchQuery expected) {
     MockitoAnnotations.initMocks(this);
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(
         new OptionResolverSpec()
@@ -330,7 +321,10 @@ public class TestIndexBasedPruning extends DremioTest {
     when(newType.value()).thenReturn("TestSource");
     when(pluginId.getType()).thenReturn(newType);
 
+    this.rexNode = rexNode;
+    this.expected = expected;
     indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0, false);
+    filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
     filterAboveScan = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
     scanRule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, optimizerRulesContext);
     sampleRel = new SampleRel(cluster, TRAITS, indexPrunableScan);
@@ -339,27 +333,31 @@ public class TestIndexBasedPruning extends DremioTest {
   }
 
 
-  @Test
-  public void testIndexPruning() {
+  @ParameterizedTest(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
+  @MethodSource("getTestCases")
+  public void testIndexPruning(RexNode rexNode, SearchTypes.SearchQuery expected) {
+    setUp(rexNode, expected);
     indexPruned = false;
     RelOptRuleCall pruneCall = newCall(scanRule, filterAboveScan, indexPrunableScan);
     when(planner.getContext()).thenReturn(plannerSettings);
     scanRule.onMatch(pruneCall);
     if (expected == null) {
-      assertTrue("Index pruned for a wrong condition", !indexPruned);
+      assertTrue(!indexPruned, "Index pruned for a wrong condition");
     }
   }
 
-  @Test
-  public void testIndexPruningSampleScan() {
+  @ParameterizedTest(name = "{index}: Doing index pruning on {0}. Following condition is expected to be passed: {1}")
+  @MethodSource("getTestCases")
+  public void testIndexPruningSampleScan(RexNode rexNode, SearchTypes.SearchQuery expected) {
+    setUp(rexNode, expected);
     indexPruned = false;
     RelOptRuleCall pruneCall = newCall(sampleScanRule, filterAboveScan, sampleRel, indexPrunableScan);
     when(planner.getContext()).thenReturn(plannerSettings);
     sampleScanRule.onMatch(pruneCall);
     if (expected == null) {
-      assertTrue("Index pruned for a wrong condition", !indexPruned);
+      assertTrue(!indexPruned, "Index pruned for a wrong condition");
     } else {
-      assertTrue("Index not pruned", indexPruned);
+      assertTrue(indexPruned, "Index not pruned");
     }
   }
 
@@ -368,9 +366,9 @@ public class TestIndexBasedPruning extends DremioTest {
       @Override
       public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
         if (rule instanceof PruneScanRuleBase.PruneScanRuleFilterOnSampleScan) {
-          assertTrue("SampleRel is expected after pruning", rel instanceof SampleRel && ((SampleRel) rel).getInput() instanceof EmptyRel);
+          assertTrue(rel instanceof SampleRel && ((SampleRel) rel).getInput() instanceof EmptyRel, "SampleRel is expected after pruning");
         } else {
-          assertTrue("EmptyRel is expected after pruning", rel instanceof EmptyRel);
+          assertTrue(rel instanceof EmptyRel, "EmptyRel is expected after pruning");
         }
       }
       @Override

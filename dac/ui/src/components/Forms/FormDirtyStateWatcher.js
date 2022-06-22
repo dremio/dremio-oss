@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { get, noop } from 'lodash';
-
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { get, noop } from "lodash";
 
 export default function FormDirtyStateWatcher(Form) {
   return class extends Component {
@@ -25,15 +24,15 @@ export default function FormDirtyStateWatcher(Form) {
       dirty: PropTypes.bool,
       values: PropTypes.object,
       initialValuesForDirtyStateWatcher: PropTypes.object,
-      updateFormDirtyState: PropTypes.func
+      updateFormDirtyState: PropTypes.func,
     };
 
     static defaultProps = {
-      values: {}
+      values: {},
     };
 
     state = {
-      dirty: false
+      dirty: false,
     };
 
     //Jackson serialization: when value does not exist, it is processed as undefined
@@ -47,10 +46,10 @@ export default function FormDirtyStateWatcher(Form) {
           return null;
         }
         // keep non-objects and nulls as they are
-        if (itemValues === null || typeof itemValues !== 'object') {
+        if (itemValues === null || typeof itemValues !== "object") {
           return itemValues;
         }
-        Object.keys(itemValues).forEach(key => {
+        Object.keys(itemValues).forEach((key) => {
           if (itemValues[key] !== undefined) {
             clean[key] = itemValues[key];
           }
@@ -63,19 +62,29 @@ export default function FormDirtyStateWatcher(Form) {
       // fields in props used as initial value for array field
       // and tracks field's dirty state because of issue in redux-form
       // todo: remove its usage when redux form will be updated to v6
-      const areFieldsEqual = (a, b) => Immutable.fromJS(a).equals(Immutable.fromJS(b));
+      const areFieldsEqual = (a, b) =>
+        Immutable.fromJS(a).equals(Immutable.fromJS(b));
       return Object.keys(nextProps.values).some((field) => {
         // allow skipping of dirty check for certain fields
-        if (nextProps.skipDirtyFields && nextProps.skipDirtyFields.includes(field)) {
+        if (
+          nextProps.skipDirtyFields &&
+          nextProps.skipDirtyFields.includes(field)
+        ) {
           return false;
         }
 
         if (!Array.isArray(nextProps.values[field])) return false;
 
         const currentValue = nextProps.values[field];
-        const initialValue = get(nextProps.initialValuesForDirtyStateWatcher, field, []); // fallback for creation forms
-        return !areFieldsEqual(this._removeKeysWithUndefinedValue(currentValue),
-          this._removeKeysWithUndefinedValue(initialValue));
+        const initialValue = get(
+          nextProps.initialValuesForDirtyStateWatcher,
+          field,
+          []
+        ); // fallback for creation forms
+        return !areFieldsEqual(
+          this._removeKeysWithUndefinedValue(currentValue),
+          this._removeKeysWithUndefinedValue(initialValue)
+        );
       });
     }
 

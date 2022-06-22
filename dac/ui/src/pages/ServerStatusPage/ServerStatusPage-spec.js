@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { ServerStatusPage } from './ServerStatusPage';
+import { ServerStatusPage } from "./ServerStatusPage";
 
-describe('ServerStatusPage', () => {
-
+describe("ServerStatusPage", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
@@ -26,12 +25,12 @@ describe('ServerStatusPage', () => {
       scheduleCheckServerStatus: sinon.spy(),
       unscheduleCheckServerStatus: sinon.spy(),
       manuallyCheckServerStatus: sinon.spy(),
-      checkViewState: Immutable.Map()
+      checkViewState: Immutable.Map(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ServerStatusPage {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ServerStatusPage {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

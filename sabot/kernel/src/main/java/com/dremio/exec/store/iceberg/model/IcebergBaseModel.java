@@ -19,10 +19,14 @@ import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.PartitionSpecAlterOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
@@ -58,12 +62,12 @@ public abstract class IcebergBaseModel implements IcebergModel {
 
   protected abstract IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier);
 
-    @Override
-    public IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
-                                                      BatchSchema batchSchema, List<String> partitionColumnNames, OperatorStats operatorStats) {
-        IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
-        return new IcebergTableCreationCommitter(tableName, batchSchema, partitionColumnNames, icebergCommand, operatorStats);
-    }
+  @Override
+  public IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
+                                                    BatchSchema batchSchema, List<String> partitionColumnNames, OperatorStats operatorStats, PartitionSpec partitionSpec) {
+    IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+    return new IcebergTableCreationCommitter(tableName, batchSchema, partitionColumnNames, icebergCommand, operatorStats, partitionSpec);
+  }
 
     @Override
     public IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier, OperatorStats operatorStats) {
@@ -75,10 +79,10 @@ public abstract class IcebergBaseModel implements IcebergModel {
   public IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
                                                             String tableUuid, IcebergTableIdentifier tableIdentifier,
                                                             BatchSchema batchSchema, List<String> partitionColumnNames,
-                                                            DatasetConfig datasetConfig, OperatorStats operatorStats) {
+                                                            DatasetConfig datasetConfig, OperatorStats operatorStats, PartitionSpec partitionSpec) {
     IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
     return new FullMetadataRefreshCommitter(tableName, datasetPath, tableLocation, tableUuid, batchSchema, configuration,
-      partitionColumnNames, icebergCommand, client, datasetConfig, operatorStats, plugin);
+      partitionColumnNames, icebergCommand, client, datasetConfig, operatorStats, partitionSpec, plugin);
   }
 
   @Override
@@ -91,7 +95,6 @@ public abstract class IcebergBaseModel implements IcebergModel {
       partitionColumnNames, icebergCommand, isFileSystem, client, datasetConfig, plugin);
   }
 
-
   @Override
   public IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
                                                    String columnName, List<Field> columnTypes) {
@@ -99,7 +102,21 @@ public abstract class IcebergBaseModel implements IcebergModel {
     return new AlterTableCommitter(icebergCommand, alterOperationType, columnName, columnTypes, droppedColumns, updatedColumns);
   }
 
-    @Override
+  @Override
+  public IcebergOpCommitter getDmlCommitter(OperatorStats operatorStats,
+                                            IcebergTableIdentifier tableIdentifier,
+                                            DatasetConfig datasetConfig) {
+    IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+    return new IcebergDmlOperationCommitter(icebergCommand, operatorStats, datasetConfig);
+  }
+
+  @Override
+  public IcebergOpCommitter getPrimaryKeyUpdateCommitter(IcebergTableIdentifier tableIdentifier, List<Field> columns) {
+    IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+    return new PrimaryKeyUpdateCommitter(icebergCommand, columns);
+  }
+
+  @Override
     public void truncateTable(IcebergTableIdentifier tableIdentifier) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         icebergCommand.truncateTable();
@@ -109,6 +126,18 @@ public abstract class IcebergBaseModel implements IcebergModel {
     public void deleteTable(IcebergTableIdentifier tableIdentifier) {
       IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
       icebergCommand.deleteTable();
+    }
+
+    @Override
+    public void alterTable(IcebergTableIdentifier tableIdentifier, AlterTableOption alterTableOption) {
+        IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+        switch (alterTableOption.getType()) {
+            case PARTITION_SPEC_UPDATE:
+                icebergCommand.updatePartitionSpec((PartitionSpecAlterOption) alterTableOption);
+                return;
+            default:
+                UserException.unsupportedError().message("Unsupported Operation");
+        }
     }
 
     @Override
@@ -146,6 +175,13 @@ public abstract class IcebergBaseModel implements IcebergModel {
     }
 
     @Override
+    public String updatePrimaryKey(IcebergTableIdentifier tableIdentifier, List<Field> columns) {
+      IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+      icebergCommand.updatePrimaryKey(columns);
+      return icebergCommand.getRootPointer();
+    }
+
+  @Override
     public Table getIcebergTable(IcebergTableIdentifier tableIdentifier) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         return icebergCommand.loadTable();

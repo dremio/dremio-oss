@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
-import DataFreshnessWrapper from 'components/Forms/Wrappers/DataFreshnessWrapper';
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import DataFreshnessSection from "components/Forms/DataFreshnessSection";
+import DataFreshnessWrapper from "components/Forms/Wrappers/DataFreshnessWrapper";
 
 export default class DataFreshnessConfig extends FormElementConfig {
-
   constructor(props) {
     super(props);
     this._renderer = DataFreshnessWrapper;
@@ -33,8 +32,10 @@ export default class DataFreshnessConfig extends FormElementConfig {
   }
 
   addInitValues(initValues) {
-    initValues.accelerationRefreshPeriod = DataFreshnessSection.defaultFormValueRefreshInterval();
-    initValues.accelerationGracePeriod = DataFreshnessSection.defaultFormValueGracePeriod();
+    initValues.accelerationRefreshPeriod =
+      DataFreshnessSection.defaultFormValueRefreshInterval();
+    initValues.accelerationGracePeriod =
+      DataFreshnessSection.defaultFormValueGracePeriod();
     return initValues;
   }
 
@@ -42,5 +43,4 @@ export default class DataFreshnessConfig extends FormElementConfig {
     validations.functions.push(DataFreshnessSection.validate);
     return validations;
   }
-
 }

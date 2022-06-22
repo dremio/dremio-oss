@@ -22,7 +22,6 @@ import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 @JsonTypeName("union")

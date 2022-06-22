@@ -18,6 +18,8 @@ package com.dremio.exec.store.iceberg;
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.getContainerName;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.pathWithoutContainer;
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 import static com.dremio.io.file.Path.AZURE_AUTHORITY_SUFFIX;
 import static com.dremio.io.file.Path.CONTAINER_SEPARATOR;
 import static com.dremio.io.file.Path.SEPARATOR;
@@ -39,7 +41,10 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +52,7 @@ import java.util.Set;
 import java.util.UnknownFormatConversionException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -69,6 +75,10 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DremioIndexByName;
@@ -77,7 +87,8 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsMetadataReader;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.exceptions.NotFoundException;
-import org.apache.iceberg.hadoop.Util;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
@@ -88,31 +99,68 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.VersionedPlugin;
+import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.WriterPrel;
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
-import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.io.file.FileSystem;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import io.protostuff.ByteString;
 
 /**
  * Class contains miscellaneous utility functions for Iceberg table operations
  */
 public class IcebergUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergUtils.class);
+
+  public static final Function<RexNode, List<Integer>> getUsedIndices = cond -> {
+    Set<Integer> usedIndices = new HashSet<>();
+    cond.accept(new RexVisitorImpl<Void>(true) {
+      @Override
+      public Void visitInputRef(RexInputRef inputRef) {
+        usedIndices.add(inputRef.getIndex());
+        return null;
+      }
+    });
+    return usedIndices.stream().sorted().collect(Collectors.toList());
+  };
 
   /**
    *
@@ -198,7 +246,11 @@ public class IcebergUtils {
     } else if (vector instanceof VarCharVector) {
       ((VarCharVector) vector).setSafe(idx, new Text((String) value));
     } else if (vector instanceof VarBinaryVector) {
-      ((VarBinaryVector) vector).setSafe(idx, ((ByteBuffer) value).array());
+      if (value instanceof byte[]) {
+        ((VarBinaryVector) vector).setSafe(idx, (byte[]) value);
+      } else {
+        ((VarBinaryVector) vector).setSafe(idx, ((ByteBuffer) value).array());
+      }
     } else if (vector instanceof DecimalVector) {
       ((DecimalVector) vector).setSafe(idx, (BigDecimal) value);
     } else if (vector instanceof BitVector) {
@@ -250,7 +302,7 @@ public class IcebergUtils {
      */
     public static Optional<SimpleCommandResult> checkTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config,
                                                                                  NamespaceKey path, boolean ifExistsCheck) {
-      boolean icebergFeatureEnabled = DataAdditionCmdHandler.isIcebergFeatureEnabled(config.getContext().getOptions(),
+      boolean icebergFeatureEnabled = isIcebergFeatureEnabled(config.getContext().getOptions(),
           null);
       if (!icebergFeatureEnabled) {
         throw UserException.unsupportedError()
@@ -276,9 +328,9 @@ public class IcebergUtils {
             .buildSilently();
       }
 
-      if (!DataAdditionCmdHandler.validatePluginSupportForIceberg(catalog, path)) {
+      if (!validatePluginSupportForIceberg(catalog, path)) {
         throw UserException.unsupportedError()
-            .message("Source [%s] does not support DML operations", path.getRoot())
+            .message("Source [%s] does not support this operation", path.getRoot())
             .buildSilently();
       }
 
@@ -337,48 +389,125 @@ public class IcebergUtils {
     return Paths.get(rootPointer).getParent().resolve(partitionStatsMetadata).toString();
   }
 
-  public static PartitionSpec getIcebergPartitionSpec(BatchSchema batchSchema,
-                                                        List<String> partitionColumns, Schema existingIcebergSchema) {
-      // match partition column name with name in schema
-      List<String> partitionColumnsInSchemaCase = new ArrayList<>();
-      if (partitionColumns != null) {
-        List<String> invalidPartitionColumns = new ArrayList<>();
-        for (String partitionColumn : partitionColumns) {
-          if (partitionColumn.equals(IncrementalUpdateUtils.UPDATE_COLUMN)) {
-            continue; // skip implicit columns
-          }
-          Optional<Field> fieldFromSchema = batchSchema.findFieldIgnoreCase(partitionColumn);
-          if (fieldFromSchema.isPresent()) {
-            if (fieldFromSchema.get().getType().getTypeID() == ArrowType.ArrowTypeID.Time) {
-              throw UserException.validationError().message("Partition type TIME for column '%s' is not supported", fieldFromSchema.get().getName()).buildSilently();
-            }
-            partitionColumnsInSchemaCase.add(fieldFromSchema.get().getName());
-          } else {
-            invalidPartitionColumns.add(partitionColumn);
-          }
-        }
-        if (!invalidPartitionColumns.isEmpty()) {
-          throw UserException.validationError().message("Partition column(s) %s are not found in table.", invalidPartitionColumns).buildSilently();
+  private static boolean addPartitionTransformToSpec(BatchSchema batchSchema,
+                                                     PartitionTransform transform,
+                                                     PartitionSpec.Builder builder) {
+    String partitionColumn = transform.getColumnName();
+    Optional<Field> fieldFromSchema = batchSchema.findFieldIgnoreCase(partitionColumn);
+    if (fieldFromSchema.isPresent()) {
+      if (fieldFromSchema.get().getType().getTypeID() == ArrowType.ArrowTypeID.Time) {
+        throw UserException.validationError().message("Partition type TIME for column '%s' is not supported",
+          fieldFromSchema.get().getName()).buildSilently();
+      }
+      partitionColumn = fieldFromSchema.get().getName();
+      switch (transform.getType()) {
+        case IDENTITY:
+          builder.identity(partitionColumn);
+          break;
+        case YEAR:
+          builder.year(partitionColumn);
+          break;
+        case MONTH:
+          builder.month(partitionColumn);
+          break;
+        case DAY:
+          builder.day(partitionColumn);
+          break;
+        case HOUR:
+          builder.hour(partitionColumn);
+          break;
+        case BUCKET:
+          builder.bucket(partitionColumn, transform.getArgumentValue(0, Integer.class));
+          break;
+        case TRUNCATE:
+          builder.truncate(partitionColumn, transform.getArgumentValue(0, Integer.class));
+          break;
+        default:
+          throw UserException.validationError().message("Iceberg tables do not support partition transform '%s'",
+            transform.getType().getName()).buildSilently();
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  public static PartitionSpec getIcebergPartitionSpecFromTransforms(BatchSchema batchSchema,
+                                                                    List<PartitionTransform> partitionTransforms,
+                                                                    Schema existingIcebergSchema) {
+    Preconditions.checkNotNull(partitionTransforms);
+
+    try {
+      Schema schema;
+      if (existingIcebergSchema != null) {
+        schema = existingIcebergSchema;
+      } else {
+        SchemaConverter schemaConverter = new SchemaConverter();
+        schema = schemaConverter.toIcebergSchema(batchSchema);
+      }
+
+      PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
+      List<String> invalidColumns = new ArrayList<>();
+      for (PartitionTransform transform : partitionTransforms) {
+        if (!addPartitionTransformToSpec(batchSchema, transform, partitionSpecBuilder)) {
+          invalidColumns.add(transform.getColumnName());
         }
       }
 
-      try {
-        Schema schema;
-        if(existingIcebergSchema != null) {
-          schema = existingIcebergSchema;
+      if (!invalidColumns.isEmpty()) {
+        throw UserException.validationError()
+          .message("Partition column(s) %s are not found in table.", invalidColumns).buildSilently();
+      }
+
+      return partitionSpecBuilder.build();
+    } catch (Exception ex) {
+      throw UserException.validationError(ex).buildSilently();
+    }
+  }
+
+  public static PartitionSpec getIcebergPartitionSpec(BatchSchema batchSchema,
+                                                        List<String> partitionColumns, Schema existingIcebergSchema) {
+    // match partition column name with name in schema
+    List<String> partitionColumnsInSchemaCase = new ArrayList<>();
+    if (partitionColumns != null) {
+      List<String> invalidPartitionColumns = new ArrayList<>();
+      for (String partitionColumn : partitionColumns) {
+        if (partitionColumn.equals(IncrementalUpdateUtils.UPDATE_COLUMN)) {
+          continue; // skip implicit columns
+        }
+        Optional<Field> fieldFromSchema = batchSchema.findFieldIgnoreCase(partitionColumn);
+        if (fieldFromSchema.isPresent()) {
+          if (fieldFromSchema.get().getType().getTypeID() == ArrowType.ArrowTypeID.Time) {
+            throw UserException.validationError().message("Partition type TIME for column '%s' is not supported", fieldFromSchema.get().getName()).buildSilently();
+          }
+          partitionColumnsInSchemaCase.add(fieldFromSchema.get().getName());
         } else {
-          SchemaConverter schemaConverter = new SchemaConverter();
-          schema = schemaConverter.toIcebergSchema(batchSchema);
+          invalidPartitionColumns.add(partitionColumn);
         }
-        PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
-          for (String column : partitionColumnsInSchemaCase) {
-            partitionSpecBuilder.identity(column);
-        }
-        return partitionSpecBuilder.build();
-      } catch (Exception ex) {
-        throw UserException.validationError(ex).buildSilently();
+      }
+      if (!invalidPartitionColumns.isEmpty()) {
+        throw UserException.validationError().message("Partition column(s) %s are not found in table.", invalidPartitionColumns).buildSilently();
       }
     }
+
+    try {
+      Schema schema;
+      if (existingIcebergSchema != null) {
+        schema = existingIcebergSchema;
+      } else {
+        SchemaConverter schemaConverter = new SchemaConverter();
+        schema = schemaConverter.toIcebergSchema(batchSchema);
+      }
+      PartitionSpec.Builder partitionSpecBuilder = PartitionSpec.builderFor(schema);
+      for (String column : partitionColumnsInSchemaCase) {
+        partitionSpecBuilder.identity(column);
+      }
+      return partitionSpecBuilder.build();
+    } catch (Exception ex) {
+      throw UserException.validationError(ex).buildSilently();
+    }
+  }
 
   public static String getValidIcebergPath(Path path, Configuration conf, String fsScheme) {
       try {
@@ -533,43 +662,290 @@ public class IcebergUtils {
     }
   }
 
+  // If a partition column has identity transformation in all the partition specs, that column doesn't need to be
+  // scanned and can be pruned
   public static Set<String> getInvalidColumnsForPruning(Map<Integer, PartitionSpec> partitionSpecMap) {
-    Set<String> scanRequiredColumns = new HashSet<>();
     if(partitionSpecMap != null) {
+      // create a frequency map to record identity transformations for a partition column
+      // key -> column name, value -> count of partition specs in which column has identity transform
+      Map<String, Integer> identityFreqMap = new HashMap<>();
       for (Map.Entry<Integer, PartitionSpec> entry : partitionSpecMap.entrySet()) {
         PartitionSpec partitionSpec = entry.getValue();
         Schema schema = partitionSpec.schema();
         for (PartitionField partitionField : partitionSpec.fields()) {
-          if (entry.getKey() != 0 || !partitionField.transform().isIdentity()) {
-            scanRequiredColumns.add(schema.findField(partitionField.sourceId()).name());
-          }
+          String fieldName = schema.findField(partitionField.sourceId()).name();
+          identityFreqMap.merge(fieldName, partitionField.transform().isIdentity() ? 1 : 0, Integer::sum);
         }
       }
+      int totalPartitionSpecs = partitionSpecMap.size();
+      return identityFreqMap.entrySet().stream()
+        .filter(entry -> entry.getValue() < totalPartitionSpecs)
+        .map(entry -> entry.getKey())
+        .collect(Collectors.toSet());
     }
-    return scanRequiredColumns;
+    return new HashSet<>();
   }
 
-  static org.apache.hadoop.fs.FileSystem getHadoopFs(com.dremio.io.file.Path filePath, FileSystem fs, Configuration conf) {
-    String path;
-    if ((fs == null)
-      || (fs != null && !fs.supportsPathsWithScheme())) {
-      path = com.dremio.io.file.Path.getContainerSpecificRelativePath(filePath);
-      filePath = com.dremio.io.file.Path.of(path);
-    }
-    path = filePath.toString();
-    return Util.getFs(new org.apache.hadoop.fs.Path(path), conf);
+
+  private static PartitionSpec getPartitionSpecFromMap(Map<Integer, PartitionSpec> partitionSpecMap) {
+    int current_id = Collections.max(partitionSpecMap.keySet());
+    return partitionSpecMap != null ? partitionSpecMap.get(current_id) : null;
   }
 
-  public static boolean isTransformedOrPartitionSpecEvolved(Map<Integer, PartitionSpec> partitionSpecMap) {
-      if(partitionSpecMap.size() > 1) {
-        return true;
-      } else {
-        return checkNonIdentityTransform(partitionSpecMap.get(0));
+  public static ByteString getCurrentPartitionSpec(PhysicalDataset physicalDataset, BatchSchema batchSchema, List<String> partitionColumns) {
+    PartitionSpec partitionSpec = null;
+    if (physicalDataset.getIcebergMetadata() != null) {
+      if (physicalDataset.getIcebergMetadata().getPartitionSpecsJsonMap() != null) {
+        partitionSpec = getPartitionSpecFromMap(IcebergSerDe.deserializeJsonPartitionSpecMap(deserializedJsonAsSchema(physicalDataset.getIcebergMetadata().getJsonSchema()),
+          physicalDataset.getIcebergMetadata().getPartitionSpecsJsonMap().toByteArray()));
+      } else if (physicalDataset.getIcebergMetadata().getPartitionSpecs() != null) {
+        partitionSpec = getPartitionSpecFromMap(IcebergSerDe.deserializePartitionSpecMap(physicalDataset.getIcebergMetadata().getPartitionSpecs().toByteArray()));
       }
+    } else {
+      partitionSpec = getIcebergPartitionSpec(batchSchema, partitionColumns, null);
+    }
+    return ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec));
+  }
+
+  public static String getCurrentIcebergSchema(PhysicalDataset physicalDataset, BatchSchema batchSchema) {
+      if (physicalDataset.getIcebergMetadata() != null) {
+        return physicalDataset.getIcebergMetadata().getJsonSchema();
+      } else {
+        return serializedSchemaAsJson(new SchemaConverter().toIcebergSchema(batchSchema));
+      }
+  }
+
+  public static String getPartitionFieldName(PartitionField partitionField) {
+      if(partitionField.transform().isIdentity()) {
+        return partitionField.name() + "_identity";
+      } else if(partitionField.transform().toString().equals("void")) {
+        return partitionField.name() + "_void";
+      } else {
+        return partitionField.name();
+      }
+  }
+
+  public static BatchSchema getWriterSchema(BatchSchema writerSchema, WriterOptions writerOptions) {
+    SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
+    // current parquet writer uses a few extra columns in the schema for partitioning and distribution
+    // For iceberg, filter those extra columns
+    Set<String> extraFields = new HashSet<>();
+    PartitionSpec partitionSpec = writerOptions.getDeserializedPartitionSpec();
+    if (partitionSpec != null) {
+      extraFields = partitionSpec.fields().stream()
+              .map(IcebergUtils::getPartitionFieldName)
+              .map(String::toLowerCase)
+              .collect(Collectors.toSet());
+    }
+
+    for (Field field : writerSchema) {
+      if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
+        continue;
+      }
+      if (field.getName().equalsIgnoreCase(WriterPrel.BUCKET_NUMBER_FIELD)) {
+        continue;
+      }
+
+      if (extraFields.contains(field.getName().toLowerCase())) {
+        continue;
+      }
+      schemaBuilder.addField(field);
+    }
+    return schemaBuilder.build();
+  }
+
+  public static String getMetadataLocation(DatasetConfig configs, Iterator<PartitionChunkMetadata> splits) {
+    IcebergMetadata icebergMetadata = configs.getPhysicalDataset().getIcebergMetadata();
+    if (icebergMetadata != null && icebergMetadata.getMetadataFileLocation() != null &&
+      !icebergMetadata.getMetadataFileLocation().isEmpty()) {
+      return icebergMetadata.getMetadataFileLocation();
+    }
+
+    // following is for backward compatibility
+    try {
+      return EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
+        splits
+          .next()
+          .getDatasetSplits()
+          .iterator()
+          .next()
+          .getSplitExtendedProperty()).getPath();
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public static boolean checkNonIdentityTransform(PartitionSpec partitionSpec) {
     return partitionSpec.fields().stream().anyMatch(partitionField -> !partitionField.transform().isIdentity());
   }
 
+  public static boolean isIcebergFeatureEnabled(OptionManager options,
+                                                Map<String, Object> storageOptionsMap) {
+    if (!options.getOption(ExecConstants.ENABLE_ICEBERG)) {
+      return false;
+    }
+
+    // Iceberg table format will not be used as a storage type explicitly
+    // parquet/arrow/json formats specify in the options
+    if (storageOptionsMap != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  public static boolean isIcebergDMLFeatureEnabled(SourceCatalog sourceCatalog,
+                                                   NamespaceKey path, OptionManager options,
+                                                   Map<String, Object> storageOptionsMap) {
+    if (!isIcebergFeatureEnabled(options, storageOptionsMap)) {
+      return false;
+    }
+
+    StoragePlugin storagePlugin = null;
+    try {
+      storagePlugin = sourceCatalog.getSource(path.getRoot());
+    } catch (UserException ignored) {
+    }
+
+    // to avoid existing test failures do not check for additional flags for Versioned and FileSystem plugins
+    if (storagePlugin == null || storagePlugin instanceof VersionedPlugin || storagePlugin instanceof FileSystemPlugin) {
+      return true;
+    }
+
+    return options.getOption(ExecConstants.ENABLE_ICEBERG_DML);
+  }
+
+  public static boolean validatePluginSupportForIceberg(SourceCatalog sourceCatalog, NamespaceKey path) {
+      StoragePlugin storagePlugin;
+      try {
+          storagePlugin = sourceCatalog.getSource(path.getRoot());
+      } catch (UserException uex) {
+          return false;
+      }
+
+      if (storagePlugin instanceof VersionedPlugin) {
+          return true;
+      }
+
+      if (storagePlugin instanceof FileSystemPlugin) {
+          return ((FileSystemPlugin<?>) storagePlugin).supportsIcebergTables();
+      }
+
+      return storagePlugin instanceof MutablePlugin;
+  }
+
+  public static Term getIcebergTerm(PartitionTransform transform) {
+    String partitionColumn = transform.getColumnName();
+    switch (transform.getType()) {
+      case IDENTITY:
+        return Expressions.ref(partitionColumn);
+      case YEAR:
+        return Expressions.year(partitionColumn);
+      case MONTH:
+        return Expressions.month(partitionColumn);
+      case DAY:
+        return Expressions.day(partitionColumn);
+      case HOUR:
+        return Expressions.hour(partitionColumn);
+      case BUCKET:
+        return Expressions.bucket(partitionColumn, transform.getArgumentValue(0, Integer.class));
+      case TRUNCATE:
+        return Expressions.truncate(partitionColumn, transform.getArgumentValue(0, Integer.class));
+      default:
+        throw UserException.validationError().message("Iceberg tables do not support partition transform '%s'",
+                transform.getType().getName()).buildSilently();
+    }
+  }
+
+  public static CreateTableEntry getIcebergCreateTableEntry(SqlHandlerConfig config, Catalog catalog, DremioTable table, SqlKind sqlKind) {
+    final NamespaceKey key = table.getPath();
+    final DatasetConfig datasetConfig = table.getDatasetConfig();
+    final ReadDefinition readDefinition = datasetConfig.getReadDefinition();
+
+    ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, key.getRoot(),
+      config.getContext().getSession().getSessionVersionForSource(key.getRoot()));
+    List<String> partitionColumnsList = readDefinition.getPartitionColumnsList();
+
+    String queryId = QueryIdHelper.getQueryId(config.getContext().getQueryId());
+    PhysicalDataset physicalDataset = datasetConfig.getPhysicalDataset();
+    BatchSchema batchSchema = table.getSchema();
+    IcebergTableProps icebergTableProps = new IcebergTableProps(null,
+      queryId,
+      null,
+      partitionColumnsList,
+      getIcebergCommandType(sqlKind),
+      null,
+      key.getName(),
+      null,
+      version,
+      getCurrentPartitionSpec(physicalDataset, batchSchema, partitionColumnsList),
+      getCurrentIcebergSchema(physicalDataset, batchSchema));
+
+    final WriterOptions options = new WriterOptions(
+      (int) config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT),
+      partitionColumnsList,
+      readDefinition.getSortColumnsList(),
+      Collections.emptyList(),
+      config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)
+        ? PartitionDistributionStrategy.HASH : PartitionDistributionStrategy.UNSPECIFIED,
+      false,
+      Long.MAX_VALUE,
+      getIcebergWriterOperation(sqlKind),
+      readDefinition.getExtendedProperty(),
+      version);
+
+    options.setIcebergTableProps(icebergTableProps);
+    BatchSchema writerSchema = getWriterSchema(batchSchema, options);
+    icebergTableProps.setFullSchema(writerSchema);
+    icebergTableProps.setPersistedFullSchema(batchSchema);
+
+    return catalog.createNewTable(key,
+      icebergTableProps,
+      options,
+      null);
+  }
+
+  private static IcebergCommandType getIcebergCommandType(SqlKind sqlKind) {
+      switch (sqlKind) {
+        case DELETE:
+          return IcebergCommandType.DELETE;
+        case UPDATE:
+          return IcebergCommandType.UPDATE;
+        case MERGE:
+          return IcebergCommandType.MERGE;
+        default:
+          throw new UnsupportedOperationException("Unrecognized Sql Kind: " + sqlKind);
+      }
+  }
+
+  private static WriterOptions.IcebergWriterOperation getIcebergWriterOperation(SqlKind sqlKind) {
+    switch (sqlKind) {
+      case DELETE:
+        return WriterOptions.IcebergWriterOperation.DELETE;
+      case UPDATE:
+        return WriterOptions.IcebergWriterOperation.UPDATE;
+      case MERGE:
+        return WriterOptions.IcebergWriterOperation.MERGE;
+      default:
+        throw new UnsupportedOperationException("Unrecognized Sql Kind: " + sqlKind);
+    }
+  }
+
+  public static Map<Integer, PartitionSpec> getPartitionSpecMapBySchema(Map<Integer, PartitionSpec> originalMap, Schema schema) {
+    if (originalMap.size() == 0) {
+      return originalMap;
+    }
+    Set<Integer> sourceIds = schema.columns().stream().map(Types.NestedField::fieldId).collect(Collectors.toSet());
+    Map<Integer, PartitionSpec> newMap = new HashMap<>();
+    for (Map.Entry<Integer, PartitionSpec> entry : originalMap.entrySet()) {
+      if (isValidSpecForSchema(entry.getValue(), sourceIds)) {
+        newMap.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return newMap;
+  }
+
+  private static boolean isValidSpecForSchema(PartitionSpec partitionSpec, Set<Integer> sourceIds) {
+    return partitionSpec.fields().stream().map(partitionField -> partitionField.sourceId()).allMatch(sourceId -> sourceIds.contains(sourceId));
+  }
 }

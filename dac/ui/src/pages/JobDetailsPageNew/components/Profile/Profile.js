@@ -13,47 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import './Profile.less';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import "./Profile.less";
 
-const Profile = ({
-  intl: {
-    formatMessage
-  },
-  jobDetails,
-  showJobProfile
-}) => {
-  const attemptDetails = jobDetails.get('attemptDetails');
+const Profile = ({ intl: { formatMessage }, jobDetails, showJobProfile }) => {
+  const attemptDetails = jobDetails.get("attemptDetails");
   const length = attemptDetails && attemptDetails.size;
   return (
-    <div className='profile'>
-      <div className='profile__title'>{formatMessage({ id: 'Profile.Attempts' })}</div>
-      {
-        (attemptDetails && length > 1) && attemptDetails.reverse().map((profile, i) => {
-          const reason = profile.get('reason') ? `(${profile.get('reason')})` : '';
+    <div className="profile">
+      <div className="profile__title">
+        {formatMessage({ id: "Profile.Attempts" })}
+      </div>
+      {attemptDetails &&
+        length > 1 &&
+        attemptDetails.reverse().map((profile, i) => {
+          const reason = profile.get("reason")
+            ? `(${profile.get("reason")})`
+            : "";
           return (
-            <div className='profile__rowWrapper' key={i}>
-              <span className='profile__rowWrapper__attempt'>
-                {formatMessage({ id: 'Profile.Attempt' })} {length - i} {reason}
+            <div className="profile__rowWrapper" key={i}>
+              <span className="profile__rowWrapper__attempt">
+                {formatMessage({ id: "Profile.Attempt" })} {length - i} {reason}
               </span>
               <a
-                className='profile__rowWrapper__profileLink'
-                onClick={() => showJobProfile(profile.get('profileUrl'))}
+                className="profile__rowWrapper__profileLink"
+                onClick={() => showJobProfile(profile.get("profileUrl"))}
               >
-                {formatMessage({ id: 'Job.Profile' })}»
+                {formatMessage({ id: "Job.Profile" })}»
               </a>
             </div>
           );
-        })
-      }
+        })}
     </div>
   );
 };
 Profile.propTypes = {
   intl: PropTypes.object.isRequired,
   jobDetails: PropTypes.instanceOf(Immutable.Map),
-  showJobProfile: PropTypes.func
+  showJobProfile: PropTypes.func,
 };
 export default injectIntl(Profile);

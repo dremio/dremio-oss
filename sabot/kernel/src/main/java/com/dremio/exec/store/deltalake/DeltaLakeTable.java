@@ -91,7 +91,7 @@ public class DeltaLakeTable {
       List<DeltaLogSnapshot> snapshots = getListOfSnapshot();
 
       deltaLogSnapshot = postProcessing.consolidateSnapshots(snapshots);
-      logger.debug("Final consolidated snapshot for delta dataset at {} is {}", deltaLogSnapshot);
+      logger.debug("Final consolidated snapshot for delta dataset at {} is {}", deltaLogDir, deltaLogSnapshot);
       return deltaLogSnapshot;
     }
 
@@ -169,13 +169,11 @@ public class DeltaLakeTable {
     public boolean checkMetadataStale(DeltaLakeProtobuf.DeltaLakeReadSignature oldSignature) throws IOException {
       long oldVersion = oldSignature.getCommitReadEndVersion();
 
-      if(oldVersion >= 0) {
+      if (oldVersion >= 0) {
         Path lastCheckpointPath = deltaLogDir.resolve(Path.of(DeltaConstants.DELTA_LAST_CHECKPOINT));
         Pair<Optional<Long>, Optional<Long>> lastCheckPointVersionAndSubparts = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpointPath);
         Optional<Long> lastVersion = lastCheckPointVersionAndSubparts.getKey();
-        boolean stale = lastVersion.map(version -> {
-          return version > oldVersion ? true : false;
-        }).orElse(false);
+        boolean stale = lastVersion.map(version -> version > oldVersion).orElse(false);
         DeltaFilePathResolver resolver = new DeltaFilePathResolver();
         List<Path> newVersionFiles = resolver.resolve(deltaLogDir, oldVersion + 1, 1L, FileType.JSON);
         return stale || fs.exists(newVersionFiles.get(0));

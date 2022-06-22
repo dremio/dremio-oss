@@ -14,53 +14,114 @@
  * limitations under the License.
  */
 
-import './ExplorePageContentWrapper.less';
+import "./ExplorePageContentWrapper.less";
 
-import React, { PureComponent } from 'react';
-import Immutable, { Map } from 'immutable';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import Mousetrap from 'mousetrap';
+import React, { PureComponent } from "react";
+import Immutable, { Map } from "immutable";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import Mousetrap from "mousetrap";
+import { cloneDeep } from "lodash";
 
-import { withRouter } from 'react-router';
-import { injectIntl } from 'react-intl';
+import { withRouter } from "react-router";
+import { injectIntl } from "react-intl";
 
-import DataGraph from '@inject/pages/ExplorePage/subpages/datagraph/DataGraph';
-import DetailsWizard from 'components/Wizards/DetailsWizard';
-import { MARGIN_PANEL } from 'uiTheme/radium/sizes';
+import { getQueryStatuses, getJobList } from "selectors/jobs";
 
-import { RECOMMENDED_JOIN } from '@app/constants/explorePage/joinTabs';
-import { UNSAVED_DATASET_PATH } from '@app/constants/explorePage/paths';
-import { Wiki } from '@app/pages/ExplorePage/components/Wiki/Wiki';
-import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
-import { getApproximate, getColumnFilter, getDatasetEntityId, getExploreState, getJobProgress, getTableColumns } from '@app/selectors/explore';
-import { runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
-import { loadSourceListData } from 'actions/resources/sources';
-import { navigateToExploreDefaultIfNecessary, constructFullPath } from 'utils/pathUtils';
-import { getExploreViewState } from '@app/selectors/resources';
-import Reflections from '@app/pages/ExplorePage/subpages/reflections/Reflections';
-import Art from '@app/components/Art';
+import DataGraph from "@inject/pages/ExplorePage/subpages/datagraph/DataGraph";
+import DetailsWizard from "components/Wizards/DetailsWizard";
+import { MARGIN_PANEL } from "uiTheme/radium/sizes";
 
-import exploreUtils from 'utils/explore/exploreUtils';
-import { setCurrentSql, updateColumnFilter } from '@app/actions/explore/view';
+import { RECOMMENDED_JOIN } from "@app/constants/explorePage/joinTabs";
+import { Wiki } from "@app/pages/ExplorePage/components/Wiki/Wiki";
+import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import {
+  getApproximate,
+  getDatasetEntityId,
+  getExploreState,
+  getJobProgress,
+} from "@app/selectors/explore";
+import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
+import { loadSourceListData } from "actions/resources/sources";
+import {
+  navigateToExploreDefaultIfNecessary,
+  constructFullPath,
+} from "utils/pathUtils";
+import { getExploreViewState } from "@app/selectors/resources";
+import Reflections from "@app/pages/ExplorePage/subpages/reflections/Reflections";
 
-import { HomePageTop } from '@inject/pages/HomePage/HomePageTop';
-import { Tooltip } from 'components/Tooltip';
-import HistoryLineController from '../components/Timeline/HistoryLineController';
-import DatasetsPanel from '../components/SqlEditor/Sidebar/DatasetsPanel';
-import ExploreTableJobStatus from '../components/ExploreTable/ExploreTableJobStatus';
-import ExploreInfoHeader from '../components/ExploreInfoHeader';
-import ExploreHeader from '../components/ExploreHeader';
-import { withDatasetChanges } from '../DatasetChanges';
-import SqlErrorSection from './../components/SqlEditor/SqlErrorSection';
+import {
+  updateColumnFilter,
+  setQuerySelections,
+  setPreviousAndCurrentSql,
+  setSelectedSql,
+} from "@app/actions/explore/view";
 
-import ExploreTableController from './../components/ExploreTable/ExploreTableController';
-import JoinTables from './../components/ExploreTable/JoinTables';
-import TableControls from './../components/TableControls';
-import ExplorePageMainContent from './ExplorePageMainContent';
+import { HomePageTop } from "@inject/pages/HomePage/HomePageTop";
+import { addNotification } from "@app/actions/notification";
+import { handleOnTabRouting } from "@app/pages/ExplorePage/components/SqlEditor/SqlQueryTabs/utils.tsx";
+import {
+  setQueryStatuses as setQueryStatusesFunc,
+  setQueryTabNumber,
+} from "actions/explore/view";
+import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
+import { SqlStringUtils } from "@app/utils/SqlStringUtils/SqlStringUtils";
+import { memoOne } from "@app/utils/memoUtils";
+import HistoryLineController from "../components/Timeline/HistoryLineController";
+import DatasetsPanel from "../components/SqlEditor/Sidebar/DatasetsPanel";
+import ExploreInfoHeader from "../components/ExploreInfoHeader";
+import ExploreHeader from "../components/ExploreHeader";
+import { withDatasetChanges } from "../DatasetChanges";
+import SqlQueryTabs from "../components/SqlEditor/SqlQueryTabs/SqlQueryTabs";
+import SqlErrorSection from "./../components/SqlEditor/SqlErrorSection";
 
-const EXPLORE_DRAG_TYPE = 'explorePage';
+import ExploreTableController from "./../components/ExploreTable/ExploreTableController";
+import JoinTables from "./../components/ExploreTable/JoinTables";
+import TableControls from "./../components/TableControls";
+import ExplorePageMainContent from "./ExplorePageMainContent";
+import { assemblePendingOrRunningTabContent } from "./utils";
+import ResizeObserver from "resize-observer-polyfill";
+import { fetchSupportFlags } from "@app/actions/supportFlags";
+import config from "@inject/utils/config";
+import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
+import exploreUtils from "@app/utils/explore/exploreUtils";
+import {
+  fetchFilteredJobsList,
+  resetFilteredJobsList,
+  JOB_PAGE_NEW_VIEW_ID,
+} from "@app/actions/joblist/jobList";
+
+const EXPLORE_DRAG_TYPE = "explorePage";
+const EXPLORE_HEADER_HEIGHT = 54;
+const HISTORY_BAR_WIDTH = 34;
+const SIDEBAR_MIN_WIDTH = 300;
+const COLLAPSED_SIDEBAR_WIDTH = 36;
+const SQL_EDITOR_PADDING = 20;
+const EXTRA_PAGE_WIDTH = HISTORY_BAR_WIDTH + SQL_EDITOR_PADDING;
+
+// Update initial query template once confirmed from PM
+// const CREATE_VIEW_QUERY = "CREATE VIEW {INSERT VIEW NAME}\nAS {QUERY}";
+// const CREATE_TABLE_QUERY = "CREATE TABLE {INSERT TABLE NAME}";
+
+const getHeightOfPage = memoOne((offsetHeight, windowHeight) => {
+  // FIX THIS LATER
+  if (offsetHeight) {
+    return windowHeight - EXPLORE_HEADER_HEIGHT - offsetHeight;
+  } else {
+    return windowHeight - EXPLORE_HEADER_HEIGHT;
+  }
+});
+
+const resizeColumn = new ResizeObserver((item) => {
+  const column = item[0];
+  if (column.contentRect.width <= 1000) {
+    column.target.classList.add("--minimal");
+  } else {
+    column.target.classList.remove("--minimal");
+  }
+});
+
 export class ExplorePageContentWrapper extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -87,9 +148,6 @@ export class ExplorePageContentWrapper extends PureComponent {
     setRecommendationInfo: PropTypes.func,
     intl: PropTypes.object.isRequired,
 
-    columnFilter: PropTypes.string,
-    filteredColumnCount: PropTypes.number,
-    columnCount: PropTypes.number,
     haveRows: PropTypes.string,
     updateColumnFilter: PropTypes.func,
 
@@ -99,16 +157,37 @@ export class ExplorePageContentWrapper extends PureComponent {
     previewDatasetSql: PropTypes.func,
     canSelect: PropTypes.any,
     version: PropTypes.string,
+    datasetVersion: PropTypes.string,
+    lastDataset: PropTypes.any,
+    addNotification: PropTypes.func,
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
     datasetSql: PropTypes.string,
-    setCurrentSql: PropTypes.func,
     isSqlQuery: PropTypes.bool,
-    loadSourceListData: PropTypes.func
+    loadSourceListData: PropTypes.func,
+    queryStatuses: PropTypes.array,
+    statusesArray: PropTypes.array,
+    cancelJob: PropTypes.func,
+    setQueryStatuses: PropTypes.func,
+    router: PropTypes.any,
+    querySelections: PropTypes.array,
+    setQuerySelections: PropTypes.func,
+    previousMultiSql: PropTypes.string,
+    setPreviousAndCurrentSql: PropTypes.func,
+    selectedSql: PropTypes.string,
+    setSelectedSql: PropTypes.func,
+    isMultiQueryRunning: PropTypes.bool,
+    queryTabNumber: PropTypes.number,
+    setQueryTabNumber: PropTypes.func,
+    supportFlagsObj: PropTypes.object,
+    fetchSupportFlags: PropTypes.func,
+    jobDetails: PropTypes.any,
+    fetchFilteredJobsList: PropTypes.func,
+    resetFilteredJobsList: PropTypes.func,
   };
 
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -117,55 +196,197 @@ export class ExplorePageContentWrapper extends PureComponent {
     this.getBottomContent = this.getBottomContent.bind(this);
     this.getControlsBlock = this.getControlsBlock.bind(this);
     this.insertFullPathAtCursor = this.insertFullPathAtCursor.bind(this);
-    this.onMouseEnter = this.onMouseEnter.bind(this);
-    this.onMouseLeave = this.onMouseLeave.bind(this);
+    this.onTabChange = this.onTabChange.bind(this);
+    this.cancelPendingSql = this.cancelPendingSql.bind(this);
+    this.resetTabToJobList = this.resetTabToJobList.bind(this);
+    this.sidebarMouseDown = this.sidebarMouseDown.bind(this);
+    this.sidebarMouseMove = this.sidebarMouseMove.bind(this);
+    this.sidebarMouseUp = this.sidebarMouseUp.bind(this);
 
     this.state = {
       funcHelpPanel: false,
-      datasetsPanel: !!(props.dataset && props.dataset.get('isNewQuery')),
+      datasetsPanel: !!(props.dataset && props.dataset.get("isNewQuery")),
       sidebarCollapsed: !props.isSqlQuery,
+      sidebarResize: false,
+      sidebarWidth: null,
       isSqlQuery: props.isSqlQuery,
       tooltipHover: false,
-      jobId: '',
-      keyboardShortcuts: { // Default to Windows commands
-        'run': 'CTRL + Shift + Enter',
-        'preview': 'CTRL + Enter',
-        'comment': 'CTRL + /',
-        'find': 'CTRL + F'
+      jobId: "",
+      keyboardShortcuts: {
+        // Default to Windows commands
+        run: "CTRL + Shift + Enter",
+        preview: "CTRL + Enter",
+        comment: "CTRL + /",
+        find: "CTRL + F",
       },
       currentSqlIsEmpty: true,
       currentSqlEdited: false,
-      datasetSqlIsEmpty: true
+      datasetSqlIsEmpty: true,
+      showJobsTable: false,
+      numberOfTabs: 0,
+      editorWidth: null,
     };
 
     this.editorRef = React.createRef();
+    this.headerRef = React.createRef();
+    this.dremioSideBarRef = React.createRef();
+    this.dremioSideBarDrag = React.createRef();
+
+    this.explorePageRef = React.createRef();
   }
 
   componentDidMount() {
-    Mousetrap.bind(['mod+enter', 'mod+shift+enter'], this.kbdShorthand);
+    // fetch support flags here for powerbi and tableau only if its not enterprise
+    const isEnterpriseFlag = isEnterprise && isEnterprise();
+    const isCommunityFlag = isCommunity && isCommunity();
+    if (!(isEnterpriseFlag || isCommunityFlag)) {
+      this.props.fetchSupportFlags("client.tools.tableau");
+      this.props.fetchSupportFlags("client.tools.powerbi");
+    }
+
+    Mousetrap.bind(["mod+enter", "mod+shift+enter"], this.kbdShorthand);
     this.getUserOperatingSystem();
     this.onJobIdChange();
     this.props.loadSourceListData();
+    this.onTabRender();
+    this.handleResize();
+    this.props.resetFilteredJobsList();
+
+    this.headerRef = document.querySelector(".c-homePageTop");
+
+    document.addEventListener("mouseup", this.sidebarMouseUp);
+    document.addEventListener("mousemove", this.sidebarMouseMove);
+    window.addEventListener("resize", this.handleResize);
+
+    // Observing content column
+    resizeColumn.observe(document.querySelector(".dremioContent__content"));
+
+    // const { state: { createView = "", createTable = "" } = {} } =
+    //   this.props.location || {};
+
+    // if (createView) {
+    //   this.props.setPreviousAndCurrentSql({ sql: CREATE_VIEW_QUERY });
+    // } else if (createTable) {
+    //   this.props.setPreviousAndCurrentSql({ sql: CREATE_TABLE_QUERY });
+    // }
   }
 
   componentWillUnmount() {
-    Mousetrap.unbind(['mod+enter', 'mod+shift+enter']);
+    Mousetrap.unbind(["mod+enter", "mod+shift+enter"]);
+    document.removeEventListener("mouseup", this.sidebarMouseUp);
+    document.removeEventListener("mousemove", this.sidebarMouseMove);
+    window.removeEventListener("resize", this.handleResize);
+    resizeColumn.unobserve(document.querySelector(".dremioContent__content"));
+
+    // Sidebar resizing
+    if (this.dremioSideBarDrag.current) {
+      this.dremioSideBarDrag.current.removeEventListener(
+        "mousedown",
+        this.sidebarMouseDown
+      );
+    }
   }
 
   componentDidUpdate(prevProps) {
     const {
+      addNotification: addSuccessNotification,
+      intl: { formatMessage },
       jobProgress,
-      setCurrentSql: newCurrentSql,
+      setQueryStatuses: newQueryStatuses,
+      setPreviousAndCurrentSql: newPreviousAndCurrentSql,
       datasetSql,
-      currentSql
+      currentSql,
+      datasetVersion,
+      queryStatuses,
+      queryTabNumber,
+      statusesArray,
+      selectedSql,
+      setSelectedSql: newSelectedSql,
+      setQuerySelections: newQuerySelections,
+      isMultiQueryRunning,
+      jobDetails,
     } = this.props;
 
-    if (prevProps.jobProgress && prevProps.jobProgress.jobId !== this.state.jobId) {
+    // if a single job, force the explore table to be in view
+    if (
+      statusesArray.length === 1 &&
+      prevProps.statusesArray.length === statusesArray.length &&
+      !prevProps.statusesArray[0] &&
+      statusesArray[0]
+    ) {
+      this.onTabRender(true);
+    }
+
+    const isDifferentTab =
+      queryTabNumber !== 0 &&
+      prevProps.queryTabNumber !== queryTabNumber &&
+      !isMultiQueryRunning;
+    const isDifferentJob =
+      prevProps.jobProgress && prevProps.jobProgress.jobId !== this.state.jobId;
+    if (isDifferentJob || isDifferentTab) {
       if (jobProgress && jobProgress.jobId) {
+        // Retrieve the Job's details to see if the results were truncated from the backend
+        if (isDifferentTab && jobDetails) {
+          if (jobDetails.getIn(["stats", "isOutputLimited"])) {
+            addSuccessNotification(
+              formatMessage(
+                { id: "Explore.Run.Warning" },
+                {
+                  rows: jobDetails
+                    .getIn(["stats", "outputRecords"])
+                    .toLocaleString(),
+                }
+              ),
+              "success"
+            );
+          }
+        }
 
         // Reset the currentSql to the statement that was executed
-        if (datasetSql !== currentSql) {
-          newCurrentSql({sql: datasetSql});
+        if (datasetSql !== currentSql && !isDifferentTab) {
+          if (queryStatuses && queryStatuses.length < 2) {
+            const [currentSqlQueries] = SqlStringUtils(currentSql);
+            if (
+              currentSqlQueries &&
+              currentSqlQueries.length < 2 &&
+              !selectedSql
+            ) {
+              newPreviousAndCurrentSql({ sql: datasetSql });
+
+              // upon initialization, cause queryStatuses is empty
+              if (!queryStatuses.length) {
+                newQueryStatuses({
+                  statuses: [
+                    {
+                      sqlStatement: datasetSql,
+                      cancelled: false,
+                      jobId: jobProgress.jobId,
+                      version: datasetVersion,
+                    },
+                  ],
+                });
+                this.props.fetchFilteredJobsList(
+                  jobProgress.jobId,
+                  JOB_PAGE_NEW_VIEW_ID
+                );
+              }
+            }
+
+            if (selectedSql) {
+              newSelectedSql({ sql: "" });
+            }
+          } else if (currentSql == null && queryStatuses.length) {
+            // this executes when the module state is reset as a query is being run
+            // for some reason, this only happens when a new user account runs a query
+            // for the first time on DCS
+            let newCurrentSql = "";
+            for (const status of queryStatuses) {
+              newCurrentSql += status.sqlStatement + ";\n";
+            }
+            newPreviousAndCurrentSql({ sql: newCurrentSql });
+            const [, newSelections] = SqlStringUtils(newCurrentSql);
+            newQuerySelections({ selections: newSelections });
+          }
         }
       }
       this.onJobIdChange();
@@ -177,6 +398,14 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
 
     this.handleDisableButton(prevProps);
+
+    // Sidebar resizing
+    if (this.dremioSideBarDrag.current) {
+      this.dremioSideBarDrag.current.addEventListener(
+        "mousedown",
+        this.sidebarMouseDown
+      );
+    }
   }
 
   onJobIdChange() {
@@ -185,19 +414,100 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
   }
 
-  onMouseEnter() {
-    this.setState({tooltipHover: true});
+  resetTabToJobList() {
+    this.setState({
+      showJobsTable: true,
+    });
+    this.props.setQueryTabNumber({ tabNumber: 0 });
   }
 
-  onMouseLeave() {
-    this.setState({tooltipHover: false});
+  onTabRender(forceTab = false) {
+    const { queryStatuses } = this.props;
+    if ((queryStatuses && queryStatuses.length < 2) || forceTab) {
+      this.setState({
+        showJobsTable: false,
+      });
+      this.props.setQueryTabNumber({ tabNumber: 1 });
+    } else {
+      this.resetTabToJobList();
+    }
   }
 
+  onTabChange(tabIndex) {
+    const { queryStatuses, location, router, isMultiQueryRunning } = this.props;
+    const showJobs = tabIndex === 0;
+    const currentJob = queryStatuses[tabIndex - 1];
+    this.setState({
+      showJobsTable: showJobs,
+    });
+    this.props.setQueryTabNumber({ tabNumber: tabIndex });
+    this.handleSqlSelection(tabIndex);
+    if (tabIndex !== 0) {
+      handleOnTabRouting(
+        tabIndex,
+        currentJob.jobId,
+        currentJob.version,
+        location,
+        router,
+        isMultiQueryRunning
+      );
+    } else {
+      handleOnTabRouting(
+        tabIndex,
+        undefined,
+        undefined,
+        location,
+        router,
+        isMultiQueryRunning
+      );
+    }
+  }
+
+  handleSqlSelection(tabIndex) {
+    const { querySelections, currentSql, previousMultiSql } = this.props;
+    const [editorQueries] = SqlStringUtils(currentSql);
+    const isNotEdited = !!previousMultiSql && currentSql === previousMultiSql;
+    const isConsistent = editorQueries.length === querySelections.length;
+    if (
+      isNotEdited &&
+      isConsistent &&
+      querySelections.length > 0 &&
+      tabIndex <= querySelections.length
+    ) {
+      if (tabIndex > 0) {
+        let currentSelection = this.getMonacoEditorInstance().getSelections();
+        const newSelection = querySelections[tabIndex - 1];
+        currentSelection = { ...newSelection };
+        this.getMonacoEditorInstance().setSelection(currentSelection);
+        this.getMonacoEditorInstance().revealLine(
+          currentSelection.startLineNumber
+        );
+      } else {
+        this.getMonacoEditorInstance().setSelection({
+          endColumn: 1,
+          endLineNumber: 1,
+          positionColumn: 1,
+          positionLineNumber: 1,
+          selectionStartColumn: 1,
+          selectionStartLineNumber: 1,
+          startColumn: 1,
+          startLineNumber: 1,
+        });
+        this.getMonacoEditorInstance().revealLine(1);
+      }
+    }
+  }
+
+  // TODO: look into this, see if it needs to support query highlighting
   kbdShorthand = (e) => {
     if (!e) return;
 
     const { pageType, location } = this.props;
-    navigateToExploreDefaultIfNecessary(pageType, location, this.context.router);
+    navigateToExploreDefaultIfNecessary(
+      pageType,
+      location,
+      this.context.router
+    );
 
     if (e.shiftKey) {
       this.props.runDatasetSql();
@@ -208,19 +518,30 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   getMonacoEditorInstance() {
     // TODO: Refactor this `ref` to use Context
-    return this.editorRef.current.explorePageMainContentRef.topSplitterContentRef.sqlEditorControllerRef.sqlAutoCompleteRef.monacoEditorComponent.editor;
+    return this.editorRef.current.explorePageMainContentRef
+      .topSplitterContentRef.sqlEditorControllerRef.sqlAutoCompleteRef
+      .monacoEditorComponent.editor;
   }
 
   getUserOperatingSystem() {
     // Change to Mac commands
-    if (navigator.userAgent.indexOf('Mac OS X') !== -1) {
-      this.setState({ keyboardShortcuts: {
-        'run': 'CMD + Shift + Enter',
-        'preview': 'CMD + Enter',
-        'comment': 'CMD + /',
-        'find': 'CMD + F'
-      }});
+    if (navigator.userAgent.indexOf("Mac OS X") !== -1) {
+      this.setState({
+        keyboardShortcuts: {
+          run: "⌘⇧↵",
+          preview: "⌘↵",
+          comment: "⌘/",
+          find: "⌘F",
+        },
+      });
     }
+  }
+
+  cancelPendingSql(index) {
+    const { queryStatuses, setQueryStatuses } = this.props;
+    const updatedQueries = cloneDeep(queryStatuses);
+    updatedQueries[index].cancelled = true;
+    setQueryStatuses({ statuses: updatedQueries });
   }
 
   insertFullPathAtCursor(id) {
@@ -228,7 +549,7 @@ export class ExplorePageContentWrapper extends PureComponent {
   }
 
   insertFullPath(pathList, ranges) {
-    if (typeof pathList === 'string') {
+    if (typeof pathList === "string") {
       this.insertAtRanges(pathList, ranges);
     } else {
       const text = constructFullPath(pathList);
@@ -236,29 +557,96 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
   }
 
-  insertAtRanges(text, ranges = this.getMonacoEditorInstance().getSelections()) { // getSelections() falls back to cursor location automatically
-    const edits = ranges.map(range => ({ identifier: 'dremio-inject', range, text }));
+  insertAtRanges(
+    text,
+    ranges = this.getMonacoEditorInstance().getSelections()
+  ) {
+    // getSelections() falls back to cursor location automatically
+    const edits = ranges.map((range) => ({
+      identifier: "dremio-inject",
+      range,
+      text,
+    }));
 
-    // Remove highlighted string and place cursor to the end
-    ranges[0].endColumn = ranges[0].endColumn * 10;
-    ranges[0].startColumn = ranges[0].startColumn * 10;
-    ranges[0].selectionStartColumn = ranges[0].selectionStartColumn * 10;
-    ranges[0].positionColumn = ranges[0].positionColumn * 10;
+    // Remove highlighted string and place cursor to the end of the new `text`
+    ranges[0].selectionStartColumn =
+      ranges[0].selectionStartColumn + text.length;
+    ranges[0].positionColumn = ranges[0].positionColumn + text.length;
 
-    this.getMonacoEditorInstance().executeEdits('dremio', edits, ranges);
+    this.getMonacoEditorInstance().executeEdits("dremio", edits, ranges);
     this.getMonacoEditorInstance().pushUndoStop();
     this.getMonacoEditorInstance().focus();
   }
 
+  getSelectedSql = () => {
+    const selection = this.getMonacoEditorInstance().getSelection();
+    const range = {
+      endColumn: selection.endColumn,
+      endLineNumber: selection.endLineNumber,
+      startColumn: selection.startColumn,
+      startLineNumber: selection.startLineNumber,
+    };
+    return this.getMonacoEditorInstance().getModel().getValueInRange(range);
+  };
+
   handleSidebarCollapse = () => {
-    this.setState({ sidebarCollapsed: !this.state.sidebarCollapsed });
-  }
+    this.dremioSideBarRef.current.style.width = null;
+    const width = this.state.sidebarCollapsed
+      ? SIDEBAR_MIN_WIDTH
+      : COLLAPSED_SIDEBAR_WIDTH;
+    this.setState({
+      sidebarCollapsed: !this.state.sidebarCollapsed,
+      editorWidth: this.getNewEditorWidth(width),
+    });
+  };
+
+  handleResize = () => {
+    const width = this.state.sidebarCollapsed
+      ? COLLAPSED_SIDEBAR_WIDTH
+      : this.state.sidebarWidth ?? SIDEBAR_MIN_WIDTH;
+    this.setState({ editorWidth: this.getNewEditorWidth(width) });
+  };
+
+  getNewEditorWidth = (sideBarWidth) => {
+    if (this.explorePageRef?.current) {
+      return (
+        this.explorePageRef.current.offsetWidth -
+        sideBarWidth -
+        EXTRA_PAGE_WIDTH
+      );
+    }
+  };
 
   getBottomContent() {
-    const {dataset, pageType, location, entityId, canSelect} = this.props;
-    const locationQuery = location.query;
+    const {
+      dataset,
+      pageType,
+      location,
+      entityId,
+      canSelect,
+      queryStatuses,
+      queryTabNumber,
+      statusesArray,
+      cancelJob,
+      setQueryStatuses: newQueryStatuses,
+    } = this.props;
 
-    if (locationQuery && locationQuery.type === 'JOIN' && locationQuery.joinTab !== RECOMMENDED_JOIN) {
+    const { showJobsTable } = this.state;
+
+    const locationQuery = location.query;
+    const tabStatusArr = assemblePendingOrRunningTabContent(
+      queryStatuses,
+      statusesArray,
+      newQueryStatuses,
+      cancelJob,
+      this.cancelPendingSql
+    );
+
+    if (
+      locationQuery &&
+      locationQuery.type === "JOIN" &&
+      locationQuery.joinTab !== RECOMMENDED_JOIN
+    ) {
       return (
         <JoinTables
           pageType={pageType}
@@ -272,131 +660,142 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
 
     switch (pageType) {
-    case PageTypes.graph:
-      return (DataGraph && <DataGraph
-        ref='gridTable'
-        dragType={EXPLORE_DRAG_TYPE}
-        dataset={dataset}
-        sqlState={this.props.sqlState}
-        rightTreeVisible={this.props.rightTreeVisible}
-      />);
-    case PageTypes.wiki: {
-      // should allow edit a wiki only if we receive a entity id and permissions allow this.
-      // If we do not receive permissions object, that means the current user is admin (CE)
-      const isWikiEditAllowed = entityId && dataset.getIn(['permissions', 'canManageWiki'], true) && dataset.getIn(['permissions', 'canAlter'], true);
+      case PageTypes.graph:
+        return (
+          DataGraph && (
+            <DataGraph
+              dragType={EXPLORE_DRAG_TYPE}
+              dataset={dataset}
+              sqlState={this.props.sqlState}
+              rightTreeVisible={this.props.rightTreeVisible}
+            />
+          )
+        );
+      case PageTypes.wiki: {
+        // should allow edit a wiki only if we receive a entity id and permissions allow this.
+        // If we do not receive permissions object, that means the current user is admin (CE)
+        const isWikiEditAllowed =
+          entityId &&
+          dataset.getIn(["permissions", "canManageWiki"], true) &&
+          dataset.getIn(["permissions", "canAlter"], true);
 
-      return <Wiki
-        entityId={entityId}
-        isEditAllowed={isWikiEditAllowed}
-        className='bottomContent' />;
-    }
-    case PageTypes.reflections: {
-      return <Reflections
-        datasetId={entityId}
-      />;
-    }
-    case PageTypes.default:
-    case PageTypes.details:
-      return (<ExploreTableController
-        pageType={pageType}
-        dataset={dataset}
-        dragType={EXPLORE_DRAG_TYPE}
-        location={location}
-        sqlSize={this.props.sqlSize}
-        sqlState={this.props.sqlState}
-        rightTreeVisible={this.props.rightTreeVisible}
-        exploreViewState={this.props.exploreViewState}
-        canSelect={canSelect}
-      />);
-    default:
-      throw new Error(`Not supported page type: '${pageType}'`);
-    }
-  }
-
-  getActionsBlock() {
-    const {
-      approximate,
-      pageType,
-      columnFilter,
-      filteredColumnCount,
-      columnCount,
-      version
-    } = this.props;
-
-    switch (pageType) {
-    case PageTypes.graph:
-    case PageTypes.details:
-    case PageTypes.reflections:
-    case PageTypes.wiki:
-      return;
-    case PageTypes.default:
-      return <div className='dremioContent__actions'>
-        <div
-          className='dremioContent-leftCol'
-          data-qa='columnFilterStats'>
-          {columnFilter && <span data-qa='columnFilterCount'>{filteredColumnCount} of </span>}
-          {columnCount} {la('fields')}
-        </div>
-
-        <div className='dremioContent-rightCol'>
-          <div className='dremioContent-rightCol__time'>
-            <ExploreTableJobStatus
-              approximate={approximate}
-              version={version} />
-          </div>
-          <div className='dremioContent-rightCol__shortcuts'>
-            <div onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave} ref='target'>
-              <Art src='keyboard.svg' alt='Keyboard Shortcuts' style={{ height: 24, width: 24}} className='keyboard' />
-              <Tooltip
-                key='tooltip'
-                type='info'
-                placement='left'
-                target={() => this.state.tooltipHover ? this.refs.target : null}
-                container={this}
-                tooltipInnerClass='textWithHelp__tooltip --white'
-                tooltipArrowClass='--white'>
-                <p className='tooltip-content__heading'>Keyboard Shortcuts</p>
-                <ul className='tooltip-content__list'>
-                  <li>Run<span>{ this.state.keyboardShortcuts.run }</span></li>
-                  <li>Preview<span>{ this.state.keyboardShortcuts.preview }</span></li>
-                  <li>Comment Out/In<span>{ this.state.keyboardShortcuts.comment }</span></li>
-                  <li>Find<span>{ this.state.keyboardShortcuts.find }</span></li>
-                </ul>
-              </Tooltip>
-            </div>
-          </div>
-        </div>
-      </div>;
-    default:
-      throw new Error(`not supported page type; '${pageType}'`);
+        return (
+          <Wiki
+            entityId={entityId}
+            isEditAllowed={isWikiEditAllowed}
+            className="bottomContent"
+          />
+        );
+      }
+      case PageTypes.reflections: {
+        return <Reflections datasetId={entityId} />;
+      }
+      case PageTypes.default:
+      case PageTypes.details:
+        return (
+          <ExploreTableController
+            pageType={pageType}
+            dataset={dataset}
+            dragType={EXPLORE_DRAG_TYPE}
+            location={location}
+            sqlSize={this.props.sqlSize}
+            sqlState={this.props.sqlState}
+            rightTreeVisible={this.props.rightTreeVisible}
+            exploreViewState={this.props.exploreViewState}
+            canSelect={canSelect}
+            showJobsTable={showJobsTable}
+            handleTabChange={this.onTabChange}
+            currentJobsMap={queryStatuses}
+            cancelPendingSql={this.cancelPendingSql}
+            tabStatusArr={tabStatusArr}
+            queryTabNumber={queryTabNumber}
+          />
+        );
+      default:
+        throw new Error(`Not supported page type: '${pageType}'`);
     }
   }
 
   getControlsBlock() {
     const {
-      pageType
+      dataset,
+      sqlSize,
+      location,
+      sqlState,
+      rightTreeVisible,
+      exploreViewState,
+      pageType,
+      approximate,
+      version,
+      queryStatuses,
+      datasetSql,
+      isMultiQueryRunning,
+      currentSql,
+      previousMultiSql,
+      statusesArray,
+      queryTabNumber,
     } = this.props;
 
+    const { showJobsTable } = this.state;
+
     switch (pageType) {
-    case PageTypes.graph:
-    case PageTypes.details:
-    case PageTypes.reflections:
-    case PageTypes.wiki:
-      return;
-    case PageTypes.default:
-      return <TableControls
-        dataset={this.props.dataset}
-        sqlSize={this.props.sqlSize}
-        location={this.props.location}
-        pageType={this.props.pageType}
-        sqlState={this.props.sqlState}
-        rightTreeVisible={this.props.rightTreeVisible}
-        exploreViewState={this.props.exploreViewState}
-        disableButtons={this.isButtonDisabled()}
-      />;
-    default:
-      throw new Error(`not supported page type; '${pageType}'`);
+      case PageTypes.graph:
+      case PageTypes.details:
+      case PageTypes.reflections:
+      case PageTypes.wiki:
+        return;
+      case PageTypes.default:
+        return (
+          <TableControls
+            dataset={dataset}
+            sqlSize={sqlSize}
+            location={location}
+            pageType={pageType}
+            sqlState={sqlState}
+            rightTreeVisible={rightTreeVisible}
+            exploreViewState={exploreViewState}
+            disableButtons={
+              this.isButtonDisabled() ||
+              (!queryStatuses.length && !datasetSql) ||
+              isMultiQueryRunning ||
+              currentSql !== previousMultiSql ||
+              statusesArray[queryTabNumber - 1] === "FAILED" ||
+              statusesArray[queryTabNumber - 1] === "CANCELED" ||
+              statusesArray[queryTabNumber - 1] === "REMOVED"
+            }
+            approximate={approximate}
+            version={version}
+            showJobsTable={showJobsTable}
+            jobsCount={queryStatuses.length}
+            queryTabNumber={queryTabNumber}
+          />
+        );
+      default:
+        throw new Error(`not supported page type; '${pageType}'`);
     }
+  }
+
+  getTabsBlock() {
+    const {
+      queryStatuses,
+      location,
+      pageType,
+      statusesArray,
+      isMultiQueryRunning,
+      queryTabNumber,
+    } = this.props;
+    return (
+      pageType === PageTypes.default && (
+        <SqlQueryTabs
+          handleTabChange={this.onTabChange}
+          location={location}
+          tabNumber={queryTabNumber}
+          queryStatuses={queryStatuses}
+          statusesArray={statusesArray}
+          isMultiQueryRunning={isMultiQueryRunning}
+        />
+      )
+    );
   }
 
   getContentHeader() {
@@ -408,68 +807,121 @@ export class ExplorePageContentWrapper extends PureComponent {
       location,
       rightTreeVisible,
       toggleRightTree,
-      sqlState
+      sqlState,
     } = this.props;
 
     switch (pageType) {
-    case PageTypes.graph:
-    case PageTypes.details:
-    case PageTypes.reflections:
-    case PageTypes.wiki:
-      return;
-    case PageTypes.default:
-      return <ExploreHeader
-        dataset={dataset}
-        pageType={pageType}
-        toggleRightTree={toggleRightTree}
-        rightTreeVisible={rightTreeVisible}
-        exploreViewState={exploreViewState}
-        approximate={approximate}
-        location={location}
-        sqlState={sqlState}
-        keyboardShortcuts={this.state.keyboardShortcuts}
-        disableButtons={this.isButtonDisabled()}
-      />;
-    default:
-      throw new Error(`not supported page type; '${pageType}'`);
+      case PageTypes.graph:
+      case PageTypes.details:
+      case PageTypes.reflections:
+      case PageTypes.wiki:
+        return;
+      case PageTypes.default:
+        return (
+          <ExploreHeader
+            dataset={dataset}
+            pageType={pageType}
+            toggleRightTree={toggleRightTree}
+            rightTreeVisible={rightTreeVisible}
+            exploreViewState={exploreViewState}
+            approximate={approximate}
+            location={location}
+            sqlState={sqlState}
+            keyboardShortcuts={this.state.keyboardShortcuts}
+            disableButtons={this.isButtonDisabled()}
+            getSelectedSql={this.getSelectedSql}
+            statusesArray={this.props.statusesArray}
+            resetSqlTabs={this.resetTabToJobList}
+            supportFlagsObj={this.props.supportFlagsObj}
+          />
+        );
+      default:
+        throw new Error(`not supported page type; '${pageType}'`);
+    }
+  }
+
+  sidebarMouseDown() {
+    this.setState({ sidebarResize: true });
+  }
+
+  sidebarMouseMove(e) {
+    if (this.state.sidebarResize) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let newSidebarWidth;
+      const LEFT_NAV_WIDTH = 64;
+      const SIDEBAR_MIN_WIDTH = 300 + LEFT_NAV_WIDTH;
+      const SIDEBAR_MAX_WIDTH = 480 + LEFT_NAV_WIDTH;
+
+      if (e.pageX <= SIDEBAR_MIN_WIDTH) {
+        newSidebarWidth = SIDEBAR_MIN_WIDTH - LEFT_NAV_WIDTH;
+      } else if (e.pageX > SIDEBAR_MAX_WIDTH) {
+        newSidebarWidth = SIDEBAR_MAX_WIDTH - LEFT_NAV_WIDTH;
+      } else {
+        newSidebarWidth = e.pageX - LEFT_NAV_WIDTH;
+      }
+
+      this.dremioSideBarRef.current.style.transition = "inherit";
+      this.setState({
+        sidebarWidth: newSidebarWidth,
+        editorWidth: this.getNewEditorWidth(newSidebarWidth),
+      });
+    }
+  }
+
+  sidebarMouseUp() {
+    if (this.state.sidebarResize) {
+      this.dremioSideBarRef.current.style.transition = null;
+      this.setState({ sidebarResize: false });
     }
   }
 
   getSidebar() {
-    const {
-      pageType,
-      exploreViewState,
-      dataset,
-      sqlSize,
-      location
-    } = this.props;
+    const { pageType, exploreViewState, dataset, sqlSize, location } =
+      this.props;
 
     switch (pageType) {
-    case PageTypes.graph:
-    case PageTypes.details:
-    case PageTypes.reflections:
-    case PageTypes.wiki:
-      return;
-    case PageTypes.default:
-      return <div className='dremioSidebar'>
-        <div className='dremioSidebarWrap'>
-          <div className='dremioSidebarWrap__inner'>
-            <DatasetsPanel
-              dataset={dataset}
-              height={sqlSize - MARGIN_PANEL}
-              isVisible={this.state.datasetsPanel}
-              dragType={EXPLORE_DRAG_TYPE}
-              viewState={exploreViewState}
-              insertFullPathAtCursor={this.insertFullPathAtCursor}
-              location={location}
-              sidebarCollapsed={this.state.sidebarCollapsed}
-              handleSidebarCollapse={this.handleSidebarCollapse}
-            />
+      case PageTypes.graph:
+      case PageTypes.details:
+      case PageTypes.reflections:
+      case PageTypes.wiki:
+        return;
+      case PageTypes.default:
+        return (
+          <div
+            className={classNames(
+              "dremioSidebar",
+              this.state.sidebarResize && "--active"
+            )}
+            ref={this.dremioSideBarRef}
+            style={{
+              width: this.state.sidebarWidth && this.state.sidebarWidth,
+            }}
+          >
+            <div
+              className="dremioSidebar__drag"
+              ref={this.dremioSideBarDrag}
+            ></div>
+            <div className="dremioSidebarWrap">
+              <div className="dremioSidebarWrap__inner">
+                <DatasetsPanel
+                  dataset={dataset}
+                  height={sqlSize - MARGIN_PANEL}
+                  isVisible={this.state.datasetsPanel}
+                  dragType={EXPLORE_DRAG_TYPE}
+                  viewState={exploreViewState}
+                  insertFullPathAtCursor={this.insertFullPathAtCursor}
+                  location={location}
+                  sidebarCollapsed={this.state.sidebarCollapsed}
+                  handleSidebarCollapse={this.handleSidebarCollapse}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>;
-    default:
-      throw new Error(`not supported page type; '${pageType}'`);
+        );
+      default:
+        throw new Error(`not supported page type; '${pageType}'`);
     }
   }
 
@@ -484,51 +936,49 @@ export class ExplorePageContentWrapper extends PureComponent {
       rightTreeVisible,
       sqlSize,
       sqlState,
-      toggleRightTree
+      toggleRightTree,
     } = this.props;
 
     switch (pageType) {
-    case PageTypes.details:
-      return <DetailsWizard
-        dataset={dataset}
-        location={location}
-        startDrag={startDrag}
-        dragType={EXPLORE_DRAG_TYPE}
-        exploreViewState={exploreViewState}
-        canSelect={canSelect}
-      />;
-    case PageTypes.default:
-    case PageTypes.reflections:
-    case PageTypes.graph:
-    case PageTypes.wiki:
-      return (
-
-        <ExplorePageMainContent
-          dataset={dataset}
-          pageType={pageType}
-          rightTreeVisible={rightTreeVisible}
-          sqlSize={sqlSize}
-          sqlState={sqlState}
-          dragType={EXPLORE_DRAG_TYPE}
-          toggleRightTree={toggleRightTree}
-          startDrag={startDrag}
-          exploreViewState={exploreViewState}
-          sidebarCollapsed={this.state.sidebarCollapsed}
-          handleSidebarCollapse={this.handleSidebarCollapse}
-          ref={this.editorRef}
-        />
-      );
-    default:
-      throw new Error(`not supported page type; '${pageType}'`);
+      case PageTypes.details:
+        return (
+          <DetailsWizard
+            dataset={dataset}
+            location={location}
+            startDrag={startDrag}
+            dragType={EXPLORE_DRAG_TYPE}
+            exploreViewState={exploreViewState}
+            canSelect={canSelect}
+          />
+        );
+      case PageTypes.default:
+      case PageTypes.reflections:
+      case PageTypes.graph:
+      case PageTypes.wiki:
+        return (
+          <ExplorePageMainContent
+            dataset={dataset}
+            pageType={pageType}
+            rightTreeVisible={rightTreeVisible}
+            sqlSize={sqlSize}
+            sqlState={sqlState}
+            dragType={EXPLORE_DRAG_TYPE}
+            toggleRightTree={toggleRightTree}
+            startDrag={startDrag}
+            exploreViewState={exploreViewState}
+            sidebarCollapsed={this.state.sidebarCollapsed}
+            handleSidebarCollapse={this.handleSidebarCollapse}
+            ref={this.editorRef}
+            editorWidth={this.state.editorWidth}
+          />
+        );
+      default:
+        throw new Error(`not supported page type; '${pageType}'`);
     }
   }
 
   handleDisableButton(prevProps) {
-    const {
-      currentSql,
-      datasetSql,
-      location
-    } = this.props;
+    const { currentSql, datasetSql } = this.props;
 
     // Only update state if SQL statement has been edited
     if (prevProps.currentSql !== currentSql) {
@@ -551,37 +1001,37 @@ export class ExplorePageContentWrapper extends PureComponent {
     } else if (datasetSql.length > 0) {
       this.setState({ datasetSqlIsEmpty: false });
     }
-
-    // Enable save button if datasetSql is not empty and making a new dataset
-    if (!!datasetSql && location.pathname === UNSAVED_DATASET_PATH) {
-      this.setState({ currentSqlIsEmpty: false });
-    }
   }
 
   // Disabled Run and Preview buttons if SQL statement is empty
   isButtonDisabled = () => {
+    const { currentSqlEdited, currentSqlIsEmpty, datasetSqlIsEmpty } =
+      this.state;
 
     // SQL statement has been edited
-    if (this.state.currentSqlEdited) {
-      if (this.state.currentSqlIsEmpty) {
+    if (currentSqlEdited) {
+      if (currentSqlIsEmpty) {
         return true;
       }
-    // On intial load of a dataset, show buttons
-    } else if (!this.state.currentSqlEdited && this.state.currentSqlIsEmpty && !this.state.datasetSqlIsEmpty) {
+
+      // On intial load of a dataset, show buttons
+    } else if (!currentSqlEdited && currentSqlIsEmpty && !datasetSqlIsEmpty) {
       return false;
     }
 
     // Show buttons if SQL statement has any value
-    if (!this.state.currentSqlIsEmpty) {
+    if (!currentSqlIsEmpty) {
       return false;
     }
 
     return true;
-  }
+  };
 
   setPanelCollapse = () => {
-    this.setState({ sidebarCollapsed: !this.props.isSqlQuery });
-  }
+    this.setState({ sidebarCollapsed: !this.props.isSqlQuery }, () =>
+      this.handleResize()
+    );
+  };
 
   updateColumnFilter = (columnFilter) => {
     this.props.updateColumnFilter(columnFilter);
@@ -591,10 +1041,15 @@ export class ExplorePageContentWrapper extends PureComponent {
     return (
       <>
         <HomePageTop />
-        <div className={classNames('explorePage', this.state.sidebarCollapsed && '--collpase')}>
-
-          <div className='dremioContent'>
-            <div className='dremioContent__header'>
+        <div
+          className={classNames(
+            "explorePage",
+            this.state.sidebarCollapsed && "--collpase"
+          )}
+          ref={this.explorePageRef}
+        >
+          <div className="dremioContent">
+            <div className="dremioContent__header">
               <ExploreInfoHeader
                 dataset={this.props.dataset}
                 pageType={this.props.pageType}
@@ -604,7 +1059,7 @@ export class ExplorePageContentWrapper extends PureComponent {
               />
             </div>
 
-            <div className='dremioContent__main'>
+            <div className="dremioContent__main">
               {this.getSidebar()}
 
               <HistoryLineController
@@ -613,14 +1068,22 @@ export class ExplorePageContentWrapper extends PureComponent {
                 pageType={this.props.pageType}
               />
 
-              <div className='dremioContent__content'>
+              <div
+                className="dremioContent__content"
+                style={{
+                  maxHeight: getHeightOfPage(
+                    this.headerRef && this.headerRef.offsetHeight,
+                    window.innerHeight
+                  ),
+                }}
+              >
                 {this.getContentHeader()}
 
                 {this.getUpperContent()}
 
-                {this.getActionsBlock()}
+                {this.getTabsBlock()}
 
-                <div className='dremioContent__table'>
+                <div className="dremioContent__table gutter-right">
                   {this.getControlsBlock()}
 
                   <SqlErrorSection
@@ -631,9 +1094,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                   {this.getBottomContent()}
                 </div>
               </div>
-
             </div>
-
           </div>
         </div>
       </>
@@ -641,45 +1102,109 @@ export class ExplorePageContentWrapper extends PureComponent {
   }
 }
 
-function mapStateToProps(state, { location, dataset }) {
+function mapStateToProps(state, ownProps) {
+  const { location, dataset } = ownProps;
   const version = location.query && location.query.version;
   const entityId = getDatasetEntityId(state, location);
   const exploreViewState = getExploreViewState(state);
   const explorePageState = getExploreState(state);
-  const datasetVersion = dataset.get('datasetVersion');
+  const datasetVersion = dataset.get("datasetVersion");
   const jobProgress = getJobProgress(state, version);
-  const isSqlQuery = location.pathname === '/new_query' || location.pathname === '/tmp/tmp/UNTITLED';
+  const isSqlQuery = exploreUtils.isSqlEditorTab(location);
+  const jobDetails = state?.resources?.entities?.getIn([
+    "jobDetails",
+    jobProgress?.jobId,
+  ]);
 
-  const columns = getTableColumns(state, datasetVersion, location);
-  const columnFilter = getColumnFilter(state);
+  const queryStatuses = getQueryStatuses(state);
 
   // RBAC needs the permissions sent to the Acceleration components and passed down, in case any component along the way needs to be able to alter reflections
-  const permissions = state.resources.entities.get('datasetUI')
-  && state.resources.entities.get('datasetUI').first()
-  && (Map.isMap(state.resources.entities.get('datasetUI').first()) && state.resources.entities.get('datasetUI').first().get('permissions'));
+  const datasetUI = state.resources.entities.get("datasetUI");
+  const fullDataset = state.resources.entities.get("fullDataset");
+  const firstDataset = datasetUI && datasetUI.first();
+  const lastDataset = fullDataset && fullDataset.last();
+  const permissions =
+    firstDataset && Map.isMap(firstDataset) && firstDataset.get("permissions");
+  const jobListForStatusArray = getJobList(state, ownProps);
+  const statusesArray = queryStatuses.map((job) => {
+    const filteredResult = jobListForStatusArray.filter((listedJob) => {
+      return job.jobId === listedJob.get("id");
+    });
+    const jobResult =
+      Immutable.List.isList(filteredResult) && filteredResult.first();
+    if (jobResult && jobResult.get("state")) {
+      return jobResult.get("state");
+    }
 
-  const canSelect = permissions && permissions.get('canSelect');
+    if (job.error) {
+      return "FAILED";
+    }
+    if (job.cancelled) {
+      return "REMOVED";
+    }
+
+    return;
+  });
+
+  const canSelect = permissions && permissions.get("canSelect");
+  const isEnterpriseFlag = isEnterprise && isEnterprise();
+  const isCommunityFlag = isCommunity && isCommunity();
+  let supportFlagsObj = state.supportFlags;
+  //  if its enterprise read supportFlags from dremioConfig instead of API
+  if (isEnterpriseFlag || isCommunityFlag) {
+    supportFlagsObj = {
+      "client.tools.powerbi": config.analyzeTools.powerbi.enabled,
+      "client.tools.tableau": config.analyzeTools.tableau.enabled,
+      "ui.upload.allow": config.allowAutoComplete,
+    };
+  } else {
+    supportFlagsObj = state.supportFlags;
+  }
 
   return {
     entityId,
+    lastDataset,
+    datasetVersion,
     exploreViewState,
     approximate: getApproximate(state, datasetVersion),
-    columnFilter,
-    columnCount: columns.size,
     currentSql: explorePageState.view.currentSql,
-    filteredColumnCount: exploreUtils.getFilteredColumnCount(columns, columnFilter),
     canSelect,
     version,
     jobProgress,
     queryContext: explorePageState.view.queryContext,
-    isSqlQuery
+    isSqlQuery,
+    queryStatuses,
+    statusesArray,
+    previousMultiSql: explorePageState.view.previousMultiSql,
+    selectedSql: explorePageState.view.selectedSql,
+    querySelections: explorePageState.view.querySelections,
+    isMultiQueryRunning: explorePageState.view.isMultiQueryRunning,
+    queryTabNumber: explorePageState.view.queryTabNumber,
+    supportFlagsObj,
+    jobDetails,
   };
 }
 
-export default withRouter(connect(mapStateToProps, {
-  runDatasetSql,
-  previewDatasetSql,
-  updateColumnFilter,
-  setCurrentSql,
-  loadSourceListData
-}, null, { forwardRef: true })(withDatasetChanges(injectIntl(ExplorePageContentWrapper))));
+export default withRouter(
+  connect(
+    mapStateToProps,
+    {
+      runDatasetSql,
+      previewDatasetSql,
+      updateColumnFilter,
+      addNotification,
+      loadSourceListData,
+      setQueryStatuses: setQueryStatusesFunc,
+      cancelJob: cancelJobAndShowNotification,
+      setQuerySelections,
+      setPreviousAndCurrentSql,
+      setSelectedSql,
+      setQueryTabNumber,
+      fetchSupportFlags,
+      fetchFilteredJobsList,
+      resetFilteredJobsList,
+    },
+    null,
+    { forwardRef: true }
+  )(withDatasetChanges(injectIntl(ExplorePageContentWrapper)))
+);

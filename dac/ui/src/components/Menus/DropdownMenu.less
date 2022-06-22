@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- :global { 
+:global {
   .dropdownMenu {
     align-items: center;
     display: flex;
@@ -27,6 +27,7 @@
       display: flex;
       cursor: pointer;
       height: 27px;
+      padding: 0 8px 0 8px;
       gap: 5px;
       justify-content: space-between;
       position: relative;
@@ -48,9 +49,10 @@
     }
 
     &__icon {
-      filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg) brightness(88%) contrast(87%);
-      height: 16px;
-      width: 18px;
+      filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg)
+        brightness(88%) contrast(87%);
+      height: 20px;
+      width: 20px;
     }
 
     &__divider {
@@ -68,15 +70,19 @@
       height: 32px;
       margin-right: 5px;
       min-width: 50px;
-      padding: 0 10px;
       transition: 300ms ease all;
-      
+
+      &.--disabled {
+        background-color: @FIGMA_NEUTRAL_150;
+      }
+
       &:hover {
-        background-color: @SECONDARY_150;
+        background-color: @FIGMA_PRIMARY_100;
         border: 1px solid @IRON;
 
         .dropdownMenu__icon {
-          filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg) brightness(88%) contrast(87%);
+          filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg)
+            brightness(88%) contrast(87%);
         }
       }
     }
@@ -91,33 +97,36 @@
       min-width: 50px;
       padding: 0 10px;
       transition: 300ms ease all;
-      
+
       &:hover {
         background-color: transparent;
         color: @PELOROUS;
 
         .dropdownMenu__icon {
-          filter: invert(64%) sepia(28%) saturate(773%) hue-rotate(139deg) brightness(93%) contrast(101%);
+          filter: invert(64%) sepia(28%) saturate(773%) hue-rotate(139deg)
+            brightness(93%) contrast(101%);
         }
       }
     }
 
     &.--disabled {
       border-color: @alto;
-      color: @silver-chalice;
-      cursor: default;
-      
+      color: @FIGMA_TEXT_DISABLED;
+      pointer-events: none;
+
       &:hover {
         background: inherit;
         color: @silver-chalice;
-        
+
         .dropdownMenu__icon {
-          filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg) brightness(89%) contrast(85%);
+          filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg)
+            brightness(89%) contrast(85%);
         }
       }
 
       .dropdownMenu__icon {
-        filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg) brightness(89%) contrast(85%);
+        filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg)
+          brightness(89%) contrast(85%);
       }
 
       .dropdownMenu__togglerButton {
@@ -130,18 +139,15 @@
       background: transparent !important;
       border-bottom: none !important;
       min-width: fit-content !important;
-
+      border: none !important;
+      padding: 0 10px 0 10px !important;
       &.--disabled {
-        border-color: @alto;
-        color: @silver-chalice;
         cursor: default;
       }
     }
 
     &__groupDivider {
       height: 24px !important;
-      margin-left: 10px !important;
-      margin-right: 8px !important;
     }
   }
 }

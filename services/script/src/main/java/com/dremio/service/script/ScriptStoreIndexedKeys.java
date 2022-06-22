@@ -23,6 +23,9 @@ import com.dremio.datastore.indexed.IndexKey;
  * Indexes for ScriptStore
  */
 public interface ScriptStoreIndexedKeys {
+  IndexKey ID = IndexKey.newBuilder("id", "ID", String.class)
+    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
+    .build();
   IndexKey NAME = IndexKey.newBuilder("name", "NAME", String.class)
     .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
     .build();

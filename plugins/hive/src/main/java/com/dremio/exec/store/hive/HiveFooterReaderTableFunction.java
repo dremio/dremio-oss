@@ -24,7 +24,6 @@ import com.dremio.exec.store.hive.orc.HiveOrcFooterReader;
 import com.dremio.exec.store.metadatarefresh.footerread.AvroRowCountEstimater;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReader;
-import com.dremio.exec.store.metadatarefresh.footerread.ParquetFooterReader;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;

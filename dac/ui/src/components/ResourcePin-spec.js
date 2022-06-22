@@ -13,44 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { ResourcePin } from './ResourcePin';
+import { ResourcePin } from "./ResourcePin";
 
-describe('ResourcePin-spec', () => {
-
+describe("ResourcePin-spec", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      entityId: 'test entity id',
+      entityId: "test entity id",
       isPinned: false,
-      toggleActivePin: sinon.spy()
+      toggleActivePin: sinon.spy(),
     };
   });
 
-  describe('render', () => {
-    it('should render pin', () => {
-      const wrapper = shallow(<ResourcePin {...commonProps}/>);
-      expect(wrapper.hasClass('pin-wrap')).to.be.true;
+  describe("render", () => {
+    it("should render pin", () => {
+      const wrapper = shallow(<ResourcePin {...commonProps} />);
+      expect(wrapper.hasClass("pin")).to.be.true;
     });
 
-    it('should have active class if isPinned', () => {
-      const wrapper = shallow(<ResourcePin {...commonProps} isPinned/>);
-      expect(wrapper.find('.active')).to.have.length(1);
+    it("should have active class if isPinned", () => {
+      const wrapper = shallow(<ResourcePin {...commonProps} isPinned />);
+      expect(wrapper.find(".active")).to.have.length(1);
     });
   });
 
-  describe('click', () => {
-    it('should call toggleActivePin with name and active state', () => {
+  describe("click", () => {
+    it("should call toggleActivePin with name and active state", () => {
       const inactive = shallow(<ResourcePin {...commonProps} />);
-      const event = {preventDefault: sinon.spy(), stopPropagation: sinon.spy};
-      inactive.simulate('click', event);
+      const event = { preventDefault: sinon.spy(), stopPropagation: sinon.spy };
+      inactive.simulate("click", event);
       commonProps.toggleActivePin.calledWith(commonProps.name, false);
       expect(event.preventDefault.calledOnce).to.be.true;
 
-
-      const active = shallow(<ResourcePin {...commonProps} isPinned/>);
-      active.simulate('click', event);
+      const active = shallow(<ResourcePin {...commonProps} isPinned />);
+      active.simulate("click", event);
       commonProps.toggleActivePin.calledWith(commonProps.name, true);
     });
   });

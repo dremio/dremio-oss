@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
@@ -64,6 +64,7 @@
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hive-plugin</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <version>${project.version}</version>
       <scope>test</scope>
       <exclusions>
@@ -105,6 +106,7 @@
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -113,6 +115,7 @@
       <artifactId>dremio-sabot-kernel</artifactId>
       <version>${project.version}</version>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -126,6 +129,7 @@
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -155,6 +159,7 @@
       <artifactId>hadoop-hdfs</artifactId>
       <version>${hadoop.version}</version>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -194,6 +199,14 @@
       <version>${datanucleus-jdo.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <!-- Dependency for GiB incremental tests -->
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sample-data</artifactId>
+      <version>${project.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -207,6 +220,7 @@
             <artifactId>dremio-common</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
+            <type>test-jar</type>
           </dependency>
         </dependencies>
         <executions>
@@ -227,8 +241,7 @@
       <plugin>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
-          <configLocation>src/main/checkstyle/checkstyle-config.xml</configLocation>
-          <suppressionsLocation>src/main/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
+          <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
         </configuration>
       </plugin>
       <plugin>

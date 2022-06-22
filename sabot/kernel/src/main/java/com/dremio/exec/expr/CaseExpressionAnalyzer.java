@@ -271,7 +271,7 @@ public class CaseExpressionAnalyzer {
   private CodegenState computeCodegenState(CodeGenContext exprContext) {
     SupportedEngines engines = findLeastCommon(exprContext.getExecutionEngineForExpression(),
       exprContext.getExecutionEngineForSubExpression());
-    int engineCount = engines.supportedEngines.size();
+    int engineCount = engines.size();
     if (engineCount == 0) {
       return CodegenState.MIXED;
     }
@@ -295,8 +295,8 @@ public class CaseExpressionAnalyzer {
       executionEngineForSubExpression.contains(preferredEngine)) {
       ret.add(preferredEngine);
     }
-    final int exprEngineCount = executionEngineForExpression.supportedEngines.size();
-    final int subExprEngineCount = executionEngineForSubExpression.supportedEngines.size();
+    final int exprEngineCount = executionEngineForExpression.size();
+    final int subExprEngineCount = executionEngineForSubExpression.size();
     if ((exprEngineCount == 2 && subExprEngineCount == 2) || (exprEngineCount == 1 && subExprEngineCount == 1 &&
       executionEngineForExpression.contains(nonPreferredEngine) &&
       executionEngineForSubExpression.contains(nonPreferredEngine))) {
@@ -463,8 +463,8 @@ public class CaseExpressionAnalyzer {
     private boolean checkChildren(LogicalExpression childExpr) {
       if (ConstantExpressionIdentifier.isExpressionConstant(childExpr)) {
         if (childExpr instanceof CodeGenContext &&
-          ((CodeGenContext) childExpr).getExecutionEngineForExpression().supportedEngines.size() >= 2
-          && ((CodeGenContext) childExpr).getExecutionEngineForSubExpression().supportedEngines.size() >= 2) {
+          ((CodeGenContext) childExpr).getExecutionEngineForExpression().size() >= 2
+          && ((CodeGenContext) childExpr).getExecutionEngineForSubExpression().size() >= 2) {
           // no need to go deep into a constant expression that is supported by both engines
           return false;
         }

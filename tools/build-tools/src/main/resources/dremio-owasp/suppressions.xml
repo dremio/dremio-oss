@@ -253,6 +253,16 @@
     <cpe>cpe:/a:apache:zookeeper</cpe>
   </suppress>
 
+  <!-- Data Sketches -->
+  <suppress>
+    <notes><![CDATA[
+   file name: datasketches-java-2.0.0.jar
+   Incorrectly identified as sketch, which is a macos app
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.datasketches/datasketches\-java@.*$</packageUrl>
+    <cpe>cpe:/a:sketch:sketch</cpe>
+  </suppress>
+
   <!-- Elasticsearch -->
   <suppress>
     <notes><![CDATA[
@@ -501,6 +511,29 @@
     <packageUrl regex="true">^pkg:maven/com\.github\.apache\.incubator\-iceberg/.*@.*$</packageUrl>
     <cpe>cpe:/a:apache:spark</cpe>
   </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: iceberg-hive-metastore-0.12.1.jar
+   Incorrectly identified as hive
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.iceberg/iceberg\-hive\-metastore@.*$</packageUrl>
+    <cpe>cpe:/a:apache:hive</cpe>
+  </suppress>
+
+  <!-- Istio model -->
+  <suppress>
+    <notes><![CDATA[
+   file name: istio-model-1.7.7.1.jar
+   Incorrectly identified as istio service .The maven dependency referenced here is a client library, istio-model that
+   only contains the JSON/YAML models to create Istio objects via the Kubernetes client which is not affected by this
+   vulnerability
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/me\.snowdrop/istio\-model@.*$</packageUrl>
+    <cve>CVE-2021-31920</cve>
+    <cve>CVE-2021-31921</cve>
+    <cve>CVE-2021-39155</cve>
+    <cve>CVE-2021-39156</cve>
+  </suppress>
 
   <!-- Jackson -->
   <suppress>
@@ -669,6 +702,19 @@
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/ch\.qos\.logback\.contrib/.*@.*$</packageUrl>
     <cve>CVE-2017-5929</cve>
+  </suppress>
+
+  <!-- log4j api -->
+  <suppress>
+    <notes><![CDATA[
+   file name: log4j-1.2-api-2.13.3.jar
+   False Positive. The vulnerability is in log4j-core-*.jar and not in log4j-1.2-api*.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j\-1\.2\-api@.*$</packageUrl>
+    <cve>CVE-2021-45046</cve>
+    <cve>CVE-2021-45105</cve>
+    <cve>CVE-2021-44228</cve>
+    <cve>CVE-2021-44832</cve>
   </suppress>
 
   <!-- Log4j over Slf4j -->
@@ -1010,13 +1056,5 @@
     <sha1>08eebdbb7a9df83e02eaa42d0e5da0b57bf2e4da</sha1>
     <cve>CVE-2018-8012</cve>
   </suppress>
-  <!-- Data Sketches -->
-  <suppress>
-    <notes><![CDATA[
-   file name: datasketches-java-2.0.0.jar
-   False positive. The CVE is for Sketch, an UI/UX app for MacOS. datasketch is a completely different library
-   ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.apache\.datasketches/datasketches\-java@.*$</packageUrl>
-    <cve>CVE-2021-40531</cve>
-  </suppress>
+
 </suppressions>

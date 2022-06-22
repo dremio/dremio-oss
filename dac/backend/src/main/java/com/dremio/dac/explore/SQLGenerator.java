@@ -394,7 +394,7 @@ class SQLGenerator {
       return FromBase.unwrap(state.getFrom()).accept(new FromVisitor<String>() {
         @Override
         public String visit(FromSQL sql) throws Exception {
-          return formatSQLWithSubQuery(sql.getSql(), sql.getAlias());
+          return formatSQLWithSubQuery(sql.getSql(), sql.getAlias(), true);
         }
 
         @Override
@@ -411,15 +411,20 @@ class SQLGenerator {
         @Override
         public String visit(FromSubQuery subQuery) throws Exception {
           String sql = innerGenerateSQL(subQuery.getSuqQuery());
-          return formatSQLWithSubQuery(sql, subQuery.getAlias());
+          return formatSQLWithSubQuery(sql, subQuery.getAlias(), false);
         }
 
-        private String formatSQLWithSubQuery(String sql, String alias) {
+        private String formatSQLWithSubQuery(String sql, String alias, boolean checkSemicolon) {
           if (isStar && orders.isEmpty() && evaledFilters.isEmpty() && groupBys.isEmpty() && joins.isEmpty()) {
             return sql;
           } else {
             if (alias == null) {
               throw new UnsupportedOperationException("the subquery should be assigned an alias: " + sql);
+            }
+            // Sub-query can not have terminating semicolon.
+            // Checks innermost non-generated sub-query only.
+            if (checkSemicolon && sql.trim().endsWith(";")) {
+              sql = sql.replaceAll("[; ]+$", "");
             }
             return formatSQL(evaledCols, orders, "(\n" + indent(sql) + "\n) " + quoteIdentifier(alias), joins, evaledFilters, groupBys);
           }

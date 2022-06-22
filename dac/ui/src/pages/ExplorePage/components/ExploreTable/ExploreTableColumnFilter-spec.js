@@ -13,36 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { ExploreTableColumnFilter } from './ExploreTableColumnFilter';
+import { ExploreTableColumnFilter } from "./ExploreTableColumnFilter";
 
-describe('ExploreTableColumnFilter', () => {
-
+describe("ExploreTableColumnFilter", () => {
   let minimalProps;
 
   beforeEach(() => {
     minimalProps = {
       dataset: Immutable.fromJS({}),
-      columnFilter: '',
+      columnFilter: "",
       updateColumnFilter: () => {},
       columnCount: 0,
       filteredColumnCount: 0,
-      location: {pathname: ''},
+      location: { pathname: "" },
       intl: {
-        formatMessage: sinon.spy()
-      }
+        formatMessage: sinon.spy(),
+      },
     };
   });
 
-  describe('render', () => {
-
-    it('should render with minimal props without exploding', () => {
-      const wrapper = shallow(<ExploreTableColumnFilter {...minimalProps}/>);
+  describe("render", () => {
+    it("should render with minimal props without exploding", () => {
+      const wrapper = shallow(<ExploreTableColumnFilter {...minimalProps} />);
       expect(wrapper).to.have.length(1);
-      expect(wrapper.find('div[data-qa=\'columnFilter\']')).to.have.length(1);
+      expect(wrapper.find("div[data-qa='columnFilter']")).to.have.length(1);
     });
   });
-
 });

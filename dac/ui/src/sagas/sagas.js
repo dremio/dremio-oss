@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { all, fork } from 'redux-saga/effects';
+import { all, fork } from "redux-saga/effects";
 
-import loginLogout from 'dyn-load/sagas/loginLogout';
-import { afterAppInit } from 'dyn-load/sagas/appBoot';
-import performTransform from '@inject/sagas/performTransform';
-import wsEvents from './wsEvents';
-import qlik from './qlik';
-import serverStatus from './serverStatus';
-import autoPeek from './autoPeek';
-import downloadDataset from './downloadDataset';
-import downloadFile from './downloadFile';
-import signupUser from './signupUser';
-import performLoadDataset from './performLoadDataset';
-import transformHistoryCheck from './transformHistoryCheck';
-import transformCardPreview from './transformCardPreview';
+import loginLogout from "dyn-load/sagas/loginLogout";
+import { afterAppInit } from "dyn-load/sagas/appBoot";
+import performTransform from "@inject/sagas/performTransform";
+import wsEvents from "./wsEvents";
+import qlik from "./qlik";
+import serverStatus from "./serverStatus";
+import autoPeek from "./autoPeek";
+import downloadDataset from "./downloadDataset";
+import downloadFile from "./downloadFile";
+import signupUser from "./signupUser";
+import performLoadDataset from "./performLoadDataset";
+import transformHistoryCheck from "./transformHistoryCheck";
+import transformCardPreview from "./transformCardPreview";
 
 export default function* rootSaga() {
   yield all([
@@ -43,6 +43,6 @@ export default function* rootSaga() {
     fork(performTransform),
     fork(performLoadDataset),
     fork(transformHistoryCheck),
-    fork(transformCardPreview)
+    fork(transformCardPreview),
   ]);
 }

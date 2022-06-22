@@ -30,6 +30,8 @@ public final class UIOptions {
 
   public static final BooleanValidator ALLOW_FILE_UPLOADS  = new BooleanValidator("ui.upload.allow", true);
 
+  public static final BooleanValidator ALLOW_AUTOCOMPLETE  = new BooleanValidator("ui.autocomplete.allow", true);
+
   public static final StringValidator WHITE_LABEL_URL  = new StringValidator("ui.whitelabel.url", "dremio");
 
   /*

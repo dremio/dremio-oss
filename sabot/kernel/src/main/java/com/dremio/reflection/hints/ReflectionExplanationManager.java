@@ -41,7 +41,7 @@ import com.dremio.sabot.kernel.proto.ReflectionExplanation;
 public class ReflectionExplanationManager {
   public static final int MAX_REFLECTIONS_TO_DISPLAY_TO_SHOW = 5;
   public static final int MAX_NUMBER_OF_HINTS_PER_REFLECTION = 5;
-  private final static Logger LOGGER = LoggerFactory.getLogger(ReflectionExplanationManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ReflectionExplanationManager.class);
   private final ReflectionExplanationFeatureGatherer reflectionExplanationFeatureGatherer;
 
   public ReflectionExplanationManager(ReflectionExplanationFeatureGatherer reflectionExplanationFeatureGatherer) {

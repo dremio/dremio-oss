@@ -13,19 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import { loadNodeCredentials } from 'actions/admin';
-import NodeActivityView, { VIEW_ID as NODE_ACTIVITY_VIEW_ID } from 'pages/AdminPage/subpages/NodeActivity/NodeActivityView';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import { loadNodeCredentials } from "actions/admin";
+import NodeActivityView, {
+  VIEW_ID as NODE_ACTIVITY_VIEW_ID,
+} from "pages/AdminPage/subpages/NodeActivity/NodeActivityView";
 
 const MINUTE = 60000;
 
 class NodeActivity extends PureComponent {
   static propTypes = {
     loadNodeCredentials: PropTypes.func,
-    sourceNodesList: PropTypes.object
-  }
+    sourceNodesList: PropTypes.object,
+  };
 
   constructor(props) {
     super(props);
@@ -37,7 +39,12 @@ class NodeActivity extends PureComponent {
 
   componentWillReceiveProps() {
     clearTimeout(this.updateNode);
-    this.updateNode = setTimeout(() => (this.props.loadNodeCredentials(NODE_ACTIVITY_VIEW_ID)), MINUTE);
+    const skipStartAction = true;
+    this.updateNode = setTimeout(
+      () =>
+        this.props.loadNodeCredentials(NODE_ACTIVITY_VIEW_ID, skipStartAction),
+      MINUTE
+    );
   }
 
   componentWillUnmount() {
@@ -45,18 +52,16 @@ class NodeActivity extends PureComponent {
   }
 
   render() {
-    return (
-      <NodeActivityView sourceNodesList={this.props.sourceNodesList}/>
-    );
+    return <NodeActivityView sourceNodesList={this.props.sourceNodesList} />;
   }
 }
 
 function mapStateToProps(state) {
   return {
-    sourceNodesList: state.admin.get('sourceNodesList')
+    sourceNodesList: state.admin.get("sourceNodesList"),
   };
 }
 
 export default connect(mapStateToProps, {
-  loadNodeCredentials
+  loadNodeCredentials,
 })(NodeActivity);

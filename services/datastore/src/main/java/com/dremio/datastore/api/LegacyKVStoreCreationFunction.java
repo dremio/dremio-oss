@@ -59,5 +59,3 @@ public interface LegacyKVStoreCreationFunction<K, V> extends LegacyStoreCreation
     return pointer.value;
   }
 }
-
-

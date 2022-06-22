@@ -13,34 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import LoginForm from './LoginForm';
+import LoginForm from "./LoginForm";
 
-import { LoginFormContainer } from './LoginFormContainer';
+import { LoginFormContainer } from "./LoginFormContainer";
 
-describe('LoginFormContainer', () => {
-
+describe("LoginFormContainer", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      viewState: Immutable.Map()
+      viewState: Immutable.Map(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<LoginFormContainer {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<LoginFormContainer {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render LoginTitle and LoginForm', () => {
-    const wrapper = shallow(<LoginFormContainer {...commonProps}/>);
-    expect(wrapper.find('LoginTitle')).to.have.length(1);
+  it("should render LoginTitle and LoginForm", () => {
+    const wrapper = shallow(<LoginFormContainer {...commonProps} />);
+    expect(wrapper.find("LoginTitle")).to.have.length(1);
     expect(wrapper.find(LoginForm)).to.have.length(1);
   });
 });

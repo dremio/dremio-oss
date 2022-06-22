@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import apiUtils from '@app/utils/apiUtils/apiUtils';
-import { APIV2Call } from '@app/core/APICall';
+import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { APIV2Call } from "@app/core/APICall";
 
 export const PAGE_SIZE = 100;
 
-export const LOAD_NEXT_ROWS_START = 'LOAD_NEXT_ROWS_START';
-export const LOAD_NEXT_ROWS_SUCCESS = 'LOAD_NEXT_ROWS_SUCCESS';
-export const LOAD_NEXT_ROWS_FAILURE = 'LOAD_NEXT_ROWS_FAILURE';
+export const LOAD_NEXT_ROWS_START = "LOAD_NEXT_ROWS_START";
+export const LOAD_NEXT_ROWS_SUCCESS = "LOAD_NEXT_ROWS_SUCCESS";
+export const LOAD_NEXT_ROWS_FAILURE = "LOAD_NEXT_ROWS_FAILURE";
 
 const fetchNextRows = (datasetVersion, paginationUrl, offset) => {
   const href = `${paginationUrl}?offset=${offset}&limit=${PAGE_SIZE}`;
@@ -33,29 +33,29 @@ const fetchNextRows = (datasetVersion, paginationUrl, offset) => {
     [RSAA]: {
       types: [
         LOAD_NEXT_ROWS_START,
-        {type: LOAD_NEXT_ROWS_SUCCESS, meta: { datasetVersion, offset }},
+        { type: LOAD_NEXT_ROWS_SUCCESS, meta: { datasetVersion, offset } },
         // empty meta to not break existing functionality
-        {type: LOAD_NEXT_ROWS_FAILURE, meta: { }}
+        { type: LOAD_NEXT_ROWS_FAILURE, meta: {} },
       ],
-      method: 'GET',
+      method: "GET",
       headers: apiUtils.getJobDataNumbersAsStringsHeader(),
-      endpoint: apiCall
-    }
+      endpoint: apiCall,
+    },
   };
 };
 
-export const loadNextRows = (datasetVersion, paginationUrl, offset) => (dispatch) => {
-  return dispatch(fetchNextRows(datasetVersion, paginationUrl, offset));
-};
+export const loadNextRows =
+  (datasetVersion, paginationUrl, offset) => (dispatch) => {
+    return dispatch(fetchNextRows(datasetVersion, paginationUrl, offset));
+  };
 
-export const FULL_CELL_VIEW_ID = 'FULL_CELL_VIEW_ID';
+export const FULL_CELL_VIEW_ID = "FULL_CELL_VIEW_ID";
 
-export const LOAD_FULL_CELL_VALUE_START = 'LOAD_FULL_CELL_VALUE_START';
-export const LOAD_FULL_CELL_VALUE_SUCCESS = 'LOAD_FULL_CELL_VALUE_SUCCESS';
-export const LOAD_FULL_CELL_VALUE_FAILURE = 'LOAD_FULL_CELL_VALUE_FAILURE';
+export const LOAD_FULL_CELL_VALUE_START = "LOAD_FULL_CELL_VALUE_START";
+export const LOAD_FULL_CELL_VALUE_SUCCESS = "LOAD_FULL_CELL_VALUE_SUCCESS";
+export const LOAD_FULL_CELL_VALUE_FAILURE = "LOAD_FULL_CELL_VALUE_FAILURE";
 
-export const CLEAR_FULL_CELL_VALUE = 'CLEAR_FULL_CELL_VALUE';
-
+export const CLEAR_FULL_CELL_VALUE = "CLEAR_FULL_CELL_VALUE";
 
 export const loadFullCellValue = ({ href }) => {
   const meta = { viewId: FULL_CELL_VIEW_ID };
@@ -67,29 +67,35 @@ export const loadFullCellValue = ({ href }) => {
       types: [
         { type: LOAD_FULL_CELL_VALUE_START, meta },
         { type: LOAD_FULL_CELL_VALUE_SUCCESS, meta },
-        { type: LOAD_FULL_CELL_VALUE_FAILURE, meta }
+        { type: LOAD_FULL_CELL_VALUE_FAILURE, meta },
       ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 };
 
-export const clearFullCellValue = () => (dispatch) => dispatch({ type: CLEAR_FULL_CELL_VALUE });
+export const clearFullCellValue = () => (dispatch) =>
+  dispatch({ type: CLEAR_FULL_CELL_VALUE });
 
-export const EXPLORE_PAGE_LISTENER_START = 'EXPLORE_PAGE_LISTENER_START';
-export const EXPLORE_PAGE_LISTENER_STOP = 'EXPLORE_PAGE_LISTENER_STOP';
-export const EXPLORE_PAGE_LOCATION_CHANGED = 'EXPLORE_PAGE_LOCATION_CHANGED';
-export const EXPLORE_PAGE_EXIT = 'EXPLORE_PAGE_EXIT';
+export const EXPLORE_PAGE_LISTENER_START = "EXPLORE_PAGE_LISTENER_START";
+export const EXPLORE_PAGE_LISTENER_STOP = "EXPLORE_PAGE_LISTENER_STOP";
+export const EXPLORE_PAGE_LOCATION_CHANGED = "EXPLORE_PAGE_LOCATION_CHANGED";
+export const EXPLORE_PAGE_EXIT = "EXPLORE_PAGE_EXIT";
 /**
  * Starts explore page change listener, that tries to load data for a current dataset
  * @param {bool} doInitialLoad - pass true if you like to try load data for current page
  */
-export const startExplorePageListener = (doInitialLoad) => ({ type: EXPLORE_PAGE_LISTENER_START, doInitialLoad });
+export const startExplorePageListener = (doInitialLoad) => ({
+  type: EXPLORE_PAGE_LISTENER_START,
+  doInitialLoad,
+});
 /**
  * Stops explore page change listener
  */
-export const stopExplorePageListener = () => ({ type: EXPLORE_PAGE_LISTENER_STOP });
+export const stopExplorePageListener = () => ({
+  type: EXPLORE_PAGE_LISTENER_STOP,
+});
 
 export const explorePageExit = () => ({ type: EXPLORE_PAGE_EXIT });
 
@@ -103,36 +109,36 @@ export const explorePageExit = () => ({ type: EXPLORE_PAGE_EXIT });
  */
 export const explorePageLocationChanged = (newRouteState) => ({
   type: EXPLORE_PAGE_LOCATION_CHANGED,
-  newRouteState
+  newRouteState,
 });
 
-export const UPDATE_EXPLORE_JOB_PROGRESS = 'UPDATE_EXPLORE_JOB_PROGRESS';
+export const UPDATE_EXPLORE_JOB_PROGRESS = "UPDATE_EXPLORE_JOB_PROGRESS";
 export const updateExploreJobProgress = (jobUpdate) => ({
   type: UPDATE_EXPLORE_JOB_PROGRESS,
-  jobUpdate
+  jobUpdate,
 });
 
-export const SET_EXPLORE_JOBID_IN_PROGRESS = 'SET_EXPLORE_JOBID_IN_PROGRESS';
+export const SET_EXPLORE_JOBID_IN_PROGRESS = "SET_EXPLORE_JOBID_IN_PROGRESS";
 export const setExploreJobIdInProgress = (jobId, datasetVersion) => ({
   type: SET_EXPLORE_JOBID_IN_PROGRESS,
   jobId,
-  datasetVersion
+  datasetVersion,
 });
 
-export const UPDATE_EXPLORE_JOB_RECORDS = 'UPDATE_EXPLORE_JOB_RECORDS';
+export const UPDATE_EXPLORE_JOB_RECORDS = "UPDATE_EXPLORE_JOB_RECORDS";
 export const updateJobRecordCount = (recordCount) => ({
   type: UPDATE_EXPLORE_JOB_RECORDS,
-  recordCount
+  recordCount,
 });
 
-export const INIT_EXPLORE_JOB_PROGRESS = 'INIT_EXPLORE_JOB_PROGRESS';
+export const INIT_EXPLORE_JOB_PROGRESS = "INIT_EXPLORE_JOB_PROGRESS";
 // initialize explore job progess
 export const initializeExploreJobProgress = (isRun) => ({
   type: INIT_EXPLORE_JOB_PROGRESS,
-  isRun
+  isRun,
 });
 
-export const FAILED_EXPLORE_JOB_PROGRESS = 'FAILED_EXPLORE_JOB_PROGRESS';
+export const FAILED_EXPLORE_JOB_PROGRESS = "FAILED_EXPLORE_JOB_PROGRESS";
 export const failedExploreJobProgress = () => ({
-  type: FAILED_EXPLORE_JOB_PROGRESS
+  type: FAILED_EXPLORE_JOB_PROGRESS,
 });

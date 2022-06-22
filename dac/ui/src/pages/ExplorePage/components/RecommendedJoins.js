@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect } from 'react-redux';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import datasetSchema from 'schemas/v2/fullDataset';
-import { setActiveRecommendedJoin, resetActiveRecommendedJoin, editRecommendedJoin } from 'actions/explore/join';
+import datasetSchema from "schemas/v2/fullDataset";
+import {
+  setActiveRecommendedJoin,
+  resetActiveRecommendedJoin,
+  editRecommendedJoin,
+} from "actions/explore/join";
 
-import Spinner from 'components/Spinner';
+import Spinner from "components/Spinner";
 
-import CancelablePromise, { Cancel } from 'utils/CancelablePromise';
-import {RECOMMENDED_JOINS_VIEW_ID} from 'components/Wizards/DetailsWizard';
-import RecommendedJoinItem from './RecommendedJoinItem';
+import CancelablePromise, { Cancel } from "utils/CancelablePromise";
+import { RECOMMENDED_JOINS_VIEW_ID } from "components/Wizards/DetailsWizard";
+import RecommendedJoinItem from "./RecommendedJoinItem";
 
-@Radium
 export class RecommendedJoins extends Component {
   static propTypes = {
     recommendedJoins: PropTypes.instanceOf(Immutable.List),
@@ -38,11 +40,11 @@ export class RecommendedJoins extends Component {
     fields: PropTypes.object,
     setActiveRecommendedJoin: PropTypes.func,
     resetActiveRecommendedJoin: PropTypes.func,
-    editRecommendedJoin: PropTypes.func
+    editRecommendedJoin: PropTypes.func,
   };
 
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   loadTablePromise = null; // eslint-disable-line react/sort-comp
@@ -64,33 +66,54 @@ export class RecommendedJoins extends Component {
   }
 
   loadRecommendedTable(recommendation) {
-    const uiPropsForEntity = [{key: 'version', value: this.getUniqRecommendationId(recommendation)}];
-    const href = recommendation && recommendation.get && recommendation.get('links') &&
-    recommendation.getIn(['links', 'data']);
+    const uiPropsForEntity = [
+      { key: "version", value: this.getUniqRecommendationId(recommendation) },
+    ];
+    const href =
+      recommendation &&
+      recommendation.get &&
+      recommendation.get("links") &&
+      recommendation.getIn(["links", "data"]);
 
     if (this.loadTablePromise) {
       this.loadTablePromise.cancel();
     }
     this.loadTablePromise = CancelablePromise.resolve(
-      this.props.loadExploreEntities({href, schema: datasetSchema, viewId: RECOMMENDED_JOINS_VIEW_ID, uiPropsForEntity})
+      this.props.loadExploreEntities({
+        href,
+        schema: datasetSchema,
+        viewId: RECOMMENDED_JOINS_VIEW_ID,
+        uiPropsForEntity,
+      })
     );
     return this.loadTablePromise;
   }
 
   getUniqRecommendationId(recommendation) {
-    const fullPathListJSON = recommendation.get('rightTableFullPathList').toJSON();
-    const stringifiedFullPathListJSON = fullPathListJSON && fullPathListJSON.join && fullPathListJSON.join('.');
-    return stringifiedFullPathListJSON + recommendation.get('joinType');
+    const fullPathListJSON = recommendation
+      .get("rightTableFullPathList")
+      .toJSON();
+    const stringifiedFullPathListJSON =
+      fullPathListJSON && fullPathListJSON.join && fullPathListJSON.join(".");
+    return stringifiedFullPathListJSON + recommendation.get("joinType");
   }
 
   updateFormFields(recommendation) {
-    const { fields: { activeDataset, joinType, columns }} = this.props;
-    activeDataset.onChange(recommendation.get('rightTableFullPathList').toJS());
-    joinType.onChange(recommendation.get('joinType'));
-    const matchingKeys = recommendation.get('matchingKeys');
-    columns.onChange(matchingKeys.keySeq().map(leftKey => (
-      { joinedTableKeyColumnName: matchingKeys.get(leftKey), joinedColumn: leftKey }
-    )).toJS());
+    const {
+      fields: { activeDataset, joinType, columns },
+    } = this.props;
+    activeDataset.onChange(recommendation.get("rightTableFullPathList").toJS());
+    joinType.onChange(recommendation.get("joinType"));
+    const matchingKeys = recommendation.get("matchingKeys");
+    columns.onChange(
+      matchingKeys
+        .keySeq()
+        .map((leftKey) => ({
+          joinedTableKeyColumnName: matchingKeys.get(leftKey),
+          joinedColumn: leftKey,
+        }))
+        .toJS()
+    );
   }
 
   selectJoin(recommendation, isCustom) {
@@ -99,14 +122,17 @@ export class RecommendedJoins extends Component {
       // before we proceed.
       this.updateFormFields(recommendation);
 
-      this.loadRecommendedTable(recommendation).then((response) => {
-        const joinVersion = response.payload.get('result');
-        // joinVersion is used to load the join entity data, so we set it here
-        this.props.editRecommendedJoin(recommendation, joinVersion);
-      }).catch((error) => {
-        if (error instanceof Cancel) return;
-        throw error;
-      });
+      this.loadRecommendedTable(recommendation)
+        .then((response) => {
+          const joinVersion = response.payload.get("result");
+          // joinVersion is used to load the join entity data, so we set it here
+          this.props.editRecommendedJoin(recommendation, joinVersion);
+          return null;
+        })
+        .catch((error) => {
+          if (error instanceof Cancel) return;
+          throw error;
+        });
 
       return;
     }
@@ -119,24 +145,28 @@ export class RecommendedJoins extends Component {
 
   renderDatasets() {
     if (!this.props.activeRecommendedJoin.size) {
-      return <Spinner/>;
+      return <Spinner />;
     }
 
-    return this.props.recommendedJoins && this.props.recommendedJoins.map((recommendation, i) => {
-      return (
-        <RecommendedJoinItem
-          key={i}
-          recommendation={recommendation}
-          isActive={recommendation.equals(this.props.activeRecommendedJoin)}
-          selectJoin={this.selectJoin}
-          fields={this.props.fields}/>
-      );
-    });
+    return (
+      this.props.recommendedJoins &&
+      this.props.recommendedJoins.map((recommendation, i) => {
+        return (
+          <RecommendedJoinItem
+            key={i}
+            recommendation={recommendation}
+            isActive={recommendation.equals(this.props.activeRecommendedJoin)}
+            selectJoin={this.selectJoin}
+            fields={this.props.fields}
+          />
+        );
+      })
+    );
   }
 
   render() {
     return (
-      <div className='recommended-joins' style={styles.base}>
+      <div className="recommended-joins" style={styles.base}>
         {this.renderDatasets()}
       </div>
     );
@@ -146,20 +176,20 @@ export class RecommendedJoins extends Component {
 export default connect(null, {
   setActiveRecommendedJoin,
   resetActiveRecommendedJoin,
-  editRecommendedJoin
+  editRecommendedJoin,
 })(RecommendedJoins);
 
 const styles = {
   base: {
     maxHeight: 235,
     minHeight: 235,
-    overflow: 'auto',
-    marginLeft: 20,
+    overflow: "auto",
+    marginLeft: 16,
     marginRight: 20,
-    borderBottom: '1px solid #ccc',
-    borderTop: '1px solid #ccc',
-    borderLeft: '1px solid #ccc',
-    borderRight: '1px solid #ccc',
-    position: 'relative' // use relative so that the spinner only covers us
-  }
+    borderBottom: "1px solid #ccc",
+    borderTop: "1px solid #ccc",
+    borderLeft: "1px solid #ccc",
+    borderRight: "1px solid #ccc",
+    position: "relative", // use relative so that the spinner only covers us
+  },
 };

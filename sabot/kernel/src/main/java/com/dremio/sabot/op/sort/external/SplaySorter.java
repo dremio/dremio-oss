@@ -59,8 +59,7 @@ public class SplaySorter implements Sorter {
     this.classProducer = classProducer;
     this.schema = schema;
     this.allocator = allocator;
-    this.splayTreeBuffer = allocator.buffer(4096 * SplayTree.NODE_SIZE);
-    splayTreeBuffer.setZero(0, splayTreeBuffer.capacity());
+    this.splayTreeBuffer = allocator.getEmpty();
   }
 
   public boolean expandMemoryIfNecessary(int newRequiredSize) {
@@ -69,7 +68,7 @@ public class SplaySorter implements Sorter {
       final int requiredSize = (newRequiredSize + 1) * SplayTree.NODE_SIZE;
       while (splayTreeBuffer.capacity() < requiredSize) {
         final ArrowBuf oldSplayTree = splayTreeBuffer;
-        this.splayTreeBuffer = allocator.buffer(splayTreeBuffer.capacity() * 2);
+        this.splayTreeBuffer = allocator.buffer(Math.max(splayTreeBuffer.capacity() * 2, 4096 * SplayTree.NODE_SIZE));
         splayTreeBuffer.setBytes(0, oldSplayTree, 0, oldSplayTree.capacity());
         splayTreeBuffer.setZero(oldSplayTree.capacity(), splayTreeBuffer.capacity() - oldSplayTree.capacity());
         if (treeManager != null) {

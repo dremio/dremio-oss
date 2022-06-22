@@ -155,7 +155,8 @@ public class TokenManagerImpl implements TokenManager {
   // them in base-32. 128 bits is considered to be cryptographically strong, but each digit in a base 32
   // number can encode 5 bits, so 128 is rounded up to the next multiple of 5 ... Why 32? Because 32 = 2^5;
   // each character will represent exactly 5 bits, and 130 bits can be evenly divided into characters.
-  private String newToken() {
+  @Override
+  public String newToken() {
     return new BigInteger(130, generator).toString(32);
   }
 
@@ -177,6 +178,24 @@ public class TokenManagerImpl implements TokenManager {
     return TokenDetails.of(token, username, expiresAt);
   }
 
+  @VisibleForTesting
+  TokenDetails createThirdPartyToken(final String username, final String clientAddress, final long issuedAt,
+                           final long expiresAt, final String clientID, final List<String> scopes) {
+    final String token = newToken();
+    final SessionState state = new SessionState()
+      .setUsername(username)
+      .setClientAddress(clientAddress)
+      .setIssuedAt(issuedAt)
+      .setExpiresAt(expiresAt)
+      .setClientId(clientID)
+      .setScopesList(scopes);
+
+    tokenStore.put(token, state);
+    tokenCache.put(token, state);
+    logger.trace("Created token for user: {}", username);
+    return TokenDetails.of(token, username, expiresAt, clientID, scopes);
+  }
+
   @Override
   public TokenDetails createToken(final String username, final String clientAddress) {
     final long now = System.currentTimeMillis();
@@ -185,6 +204,14 @@ public class TokenManagerImpl implements TokenManager {
       .getOption(TOKEN_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES);
 
     return createToken(username, clientAddress, now, expires, null, null);
+  }
+
+  @Override
+  public TokenDetails createThirdPartyToken(String username, String clientAddress, String clientID, List<String> scopes, long durationMillis) {
+    final long now = System.currentTimeMillis();
+    final long expires = now + durationMillis;
+
+    return createThirdPartyToken(username, clientAddress, now, expires, clientID, scopes);
   }
 
   @Override
@@ -234,7 +261,7 @@ public class TokenManagerImpl implements TokenManager {
     }
 
     logger.trace("Validated token for user: {}", value.getUsername());
-    return TokenDetails.of(token, value.getUsername(), value.getExpiresAt());
+    return TokenDetails.of(token, value.getUsername(), value.getExpiresAt(), value.getClientId(), value.getScopesList());
   }
 
   public TokenDetails validateTemporaryToken(String token,

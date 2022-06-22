@@ -13,32 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
-import invariant from 'invariant';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import invariant from "invariant";
 
-import {getEntity, getViewState} from 'selectors/resources';
-import ApiUtils from 'utils/apiUtils/apiUtils';
+import { getEntity, getViewState } from "selectors/resources";
+import ApiUtils from "utils/apiUtils/apiUtils";
 
-import { resetViewState } from 'actions/resources';
+import { resetViewState } from "actions/resources";
 import {
   loadFileFormat,
   loadFilePreview,
   saveFileFormat,
-  resetFileFormatPreview
-} from 'actions/modals/addFileModal';
+  resetFileFormatPreview,
+} from "actions/modals/addFileModal";
 
-import FileFormatForm from 'pages/HomePage/components/forms/FileFormatForm';
-import { getSaveFormatUrl, getFormatPreviewUrl, getCurrentFormatUrl, getQueryUrl } from '@app/selectors/home';
+import FileFormatForm from "pages/HomePage/components/forms/FileFormatForm";
+import {
+  getSaveFormatUrl,
+  getFormatPreviewUrl,
+  getCurrentFormatUrl,
+  getQueryUrl,
+} from "@app/selectors/home";
 
-export const VIEW_ID = 'FileFormatModal';
-const PREVIEW_VIEW_ID = 'FileFormatModalPreview';
+export const VIEW_ID = "FileFormatModal";
+const PREVIEW_VIEW_ID = "FileFormatModalPreview";
 
 export class FileFormatController extends Component {
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
   };
 
   static propTypes = {
@@ -60,8 +65,8 @@ export class FileFormatController extends Component {
     loadFilePreview: PropTypes.func,
     resetFileFormatPreview: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
-    resetViewState: PropTypes.func
-  }
+    resetViewState: PropTypes.func,
+  };
 
   componentDidMount() {
     this.loadFormat(this.props);
@@ -88,21 +93,27 @@ export class FileFormatController extends Component {
     return ApiUtils.attachFormSubmitHandlers(
       this.props.saveFileFormat(getSaveFormatUrl(fullPath, isFolder), values)
     ).then(() => {
-      if (this.props.query && this.props.query.then === 'query') {
+      if (this.props.query && this.props.query.then === "query") {
         this.context.router.replace(getQueryUrl(fullPath));
       } else {
         this.props.onDone(null, true);
       }
+      return null;
     });
-  }
+  };
 
   onPreview = (values) => {
     const { fullPath, isFolder } = this.props;
-    this.props.loadFilePreview(getFormatPreviewUrl(fullPath, isFolder), values, PREVIEW_VIEW_ID);
-  }
+    this.props.loadFilePreview(
+      getFormatPreviewUrl(fullPath, isFolder),
+      values,
+      PREVIEW_VIEW_ID
+    );
+  };
 
   render() {
-    const { viewState, previewViewState, updateFormDirtyState, fileFormat } = this.props;
+    const { viewState, previewViewState, updateFormDirtyState, fileFormat } =
+      this.props;
     return (
       <FileFormatForm
         updateFormDirtyState={updateFormDirtyState}
@@ -119,20 +130,23 @@ export class FileFormatController extends Component {
 
 function mapStateToProps(state, props) {
   const { fullPath, entityType } = props;
-  invariant(!entityType || ['file', 'folder'].indexOf(entityType) !== -1, // todo: DRY this up - all other checks like this moved to DatasetSettings
-    'FileFormatController can only work on file or folder entities. Got ' + entityType);
+  invariant(
+    !entityType || ["file", "folder"].indexOf(entityType) !== -1, // todo: DRY this up - all other checks like this moved to DatasetSettings
+    "FileFormatController can only work on file or folder entities. Got " +
+      entityType
+  );
 
-  const isFolder = entityType === 'folder';
+  const isFolder = entityType === "folder";
   const formatUrl = fullPath ? getCurrentFormatUrl(fullPath, isFolder) : null;
 
-  const fileFormat = getEntity(state, formatUrl, 'fileFormat');
+  const fileFormat = getEntity(state, formatUrl, "fileFormat");
 
   return {
     fileFormat,
     isFolder,
     formatUrl,
     viewState: getViewState(state, VIEW_ID),
-    previewViewState: getViewState(state, PREVIEW_VIEW_ID)
+    previewViewState: getViewState(state, PREVIEW_VIEW_ID),
   };
 }
 
@@ -141,5 +155,5 @@ export default connect(mapStateToProps, {
   saveFileFormat,
   loadFilePreview,
   resetFileFormatPreview,
-  resetViewState
+  resetViewState,
 })(FileFormatController);

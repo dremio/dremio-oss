@@ -23,7 +23,7 @@ import com.dremio.common.expression.LogicalExpression;
 public class ExprHelper {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExprHelper.class);
 
-  private final static String COMPOUND_FAIL_MESSAGE = "The current Optiq based logical plan interpreter does not complicated expressions.  For Order By and Filter";
+  private static final String COMPOUND_FAIL_MESSAGE = "The current Optiq based logical plan interpreter does not complicated expressions.  For Order By and Filter";
 
   public static String getAggregateFieldName(FunctionCall c) {
     List<LogicalExpression> exprs = c.args;

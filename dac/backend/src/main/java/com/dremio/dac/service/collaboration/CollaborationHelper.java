@@ -281,6 +281,3 @@ public class CollaborationHelper {
     return new TagsSearchResult(tags, ids.size() > maxTagRequestCount);
   }
 }
-
-
-

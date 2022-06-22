@@ -13,17 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import {BINARY, TEXT, INTEGER, FLOAT, DECIMAL, MAP, BOOLEAN, DATE, TIME, DATETIME} from '@app/constants/DataTypes';
+import {
+  BINARY,
+  TEXT,
+  INTEGER,
+  FLOAT,
+  DECIMAL,
+  MAP,
+  BOOLEAN,
+  DATE,
+  TIME,
+  DATETIME,
+} from "@app/constants/DataTypes";
 
-import Menu from './Menu';
+import Menu from "./Menu";
 
-import TypeGroup from './TypeGroups/TypeGroup';
-import AutoGroup from './TypeGroups/AutoGroup';
+import TypeGroup from "./TypeGroups/TypeGroup";
+import AutoGroup from "./TypeGroups/AutoGroup";
 
 export const NoParamToText = [BINARY, INTEGER, FLOAT, DECIMAL, MAP, BOOLEAN];
 export const NoParamToInt = [BOOLEAN];
@@ -32,14 +43,13 @@ export const NoParamToBinary = [TEXT];
 export const NoParamToDateTimeTimestamp = [DATE, TIME, DATETIME];
 export const NoParamToJSON = [TEXT, BINARY];
 
-@Radium
-export default class ColumnTypeMenu extends PureComponent {
+class ColumnTypeMenu extends PureComponent {
   static propTypes = {
     columnType: PropTypes.string.isRequired,
     hideDropdown: PropTypes.func,
     columnName: PropTypes.string,
     openDetailsWizard: PropTypes.func,
-    makeTransform: PropTypes.func
+    makeTransform: PropTypes.func,
   };
 
   constructor(props) {
@@ -50,12 +60,12 @@ export default class ColumnTypeMenu extends PureComponent {
   runTableTransform(newType) {
     const { columnType, columnName } = this.props;
     const config = {
-      type: 'CONVERT_DATA_TYPE',
+      type: "CONVERT_DATA_TYPE",
       newFieldName: columnName,
       dropSourceField: true,
       columnName,
       columnType,
-      toType: newType
+      toType: newType,
     };
     this.props.makeTransform(config);
   }
@@ -70,18 +80,22 @@ export default class ColumnTypeMenu extends PureComponent {
       TIME: NoParamToDateTimeTimestamp,
       DATE: NoParamToDateTimeTimestamp,
       DATETIME: NoParamToDateTimeTimestamp,
-      JSON: NoParamToJSON
+      JSON: NoParamToJSON,
     };
     if (hash[toType] && hash[toType].indexOf(columnType) !== -1) {
       this.runTableTransform(toType);
     } else {
-      this.props.openDetailsWizard({detailType: 'CONVERT_DATA_TYPE', columnName, toType});
+      this.props.openDetailsWizard({
+        detailType: "CONVERT_DATA_TYPE",
+        columnName,
+        toType,
+      });
     }
     this.props.hideDropdown();
   }
 
   render() {
-    const {columnType} = this.props;
+    const { columnType } = this.props;
 
     return (
       <Menu>
@@ -92,9 +106,11 @@ export default class ColumnTypeMenu extends PureComponent {
           NoParamToInt={NoParamToInt}
           NoParamToFloat={NoParamToFloat}
           NoParamToBinary={NoParamToBinary}
-          NoParamToDateTimeTimestamp={NoParamToDateTimeTimestamp}/>
-        <AutoGroup makeTransform={this.makeTransform} columnType={columnType}/>
+          NoParamToDateTimeTimestamp={NoParamToDateTimeTimestamp}
+        />
+        <AutoGroup makeTransform={this.makeTransform} columnType={columnType} />
       </Menu>
     );
   }
 }
+export default Radium(ColumnTypeMenu);

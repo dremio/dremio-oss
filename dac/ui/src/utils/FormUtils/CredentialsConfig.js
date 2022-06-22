@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import Credentials, { AUTHENTICATION_TYPE_FIELD } from 'components/Forms/Credentials';
-import CredentialsWrapper from 'components/Forms/Wrappers/CredentialsWrapper';
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import Credentials, {
+  AUTHENTICATION_TYPE_FIELD,
+} from "components/Forms/Credentials";
+import CredentialsWrapper from "components/Forms/Wrappers/CredentialsWrapper";
 
 export default class CredentialsConfig extends FormElementConfig {
-
   constructor(props) {
     super(props);
     this._renderer = CredentialsWrapper;
@@ -34,12 +35,15 @@ export default class CredentialsConfig extends FormElementConfig {
   }
 
   addInitValues(initValues) {
-    return FormUtils.addInitValue(initValues, AUTHENTICATION_TYPE_FIELD, 'MASTER');
+    return FormUtils.addInitValue(
+      initValues,
+      AUTHENTICATION_TYPE_FIELD,
+      "MASTER"
+    );
   }
 
   addValidators(validations) {
     validations.functions.push(Credentials.getValidators(super.getConfig()));
     return validations;
   }
-
 }

@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import transformRules from './transformRules';
+import transformRules from "./transformRules";
 
 class TransformModelMapper {
   transformExportPostMapper(data) {
     if (!data) {
       return {};
     }
-    const {columnName, ...otherData} = data;
+    const { columnName, ...otherData } = data;
     delete otherData.fullCellSelection;
     return {
       ...otherData,
-      colName: columnName
+      colName: columnName,
     };
   }
 
-  mapTransformValuesPreview = data => ({
+  mapTransformValuesPreview = (data) => ({
     selection: this.transformExportPostMapper(data.selection),
-    replacedValues: data.values
+    replacedValues: data.values,
   });
 
-  transformDynamicPreviewMapper = data => ({
+  transformDynamicPreviewMapper = (data) => ({
     selection: this.transformExportPostMapper(data.selection),
-    rule: transformRules.getRuleMapper(data.rule.type)(data.rule)
+    rule: transformRules.getRuleMapper(data.rule.type)(data.rule),
   });
-
 }
 
 const transformModelMapper = new TransformModelMapper();

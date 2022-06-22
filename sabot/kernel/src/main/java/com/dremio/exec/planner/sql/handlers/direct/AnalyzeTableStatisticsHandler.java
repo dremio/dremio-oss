@@ -33,6 +33,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlAnalyzeTableStatistics;
 import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
@@ -58,6 +59,7 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlAnalyzeTableStatistics sqlAnalyzeTableStatistics = SqlNodeUtil.unwrap(sqlNode, SqlAnalyzeTableStatistics.class);
     final NamespaceKey path = catalog.resolveSingle(new NamespaceKey(sqlAnalyzeTableStatistics.getTable().names));
+    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
 
     final StatisticsAdministrationService statisticsAdministrationService =
       statisticsAdministrationFactory.get(config.getContext().getQueryUserName());
@@ -65,6 +67,9 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
 
     boolean isAnalysis = sqlAnalyzeTableStatistics.isAnalyze().booleanValue();
     final DremioTable table = catalog.getTable(path);
+    Double samplingRate = table.getStatistic().getRowCount() > plannerSettings.getStatisticsSamplingThreshold() ?
+    plannerSettings.getStatisticsSamplingRate() : null;
+
     if (table == null) {
       throw UserException.validationError()
         .message("Cannot find the requested table: %s",
@@ -103,11 +108,11 @@ public class AnalyzeTableStatisticsHandler extends SimpleDirectHandler {
       }
     }
     if (isAnalysis) { // compute statistics
-      long maxColumnLimit = config.getContext().getPlannerSettings().getStatisticsMaxColumnLimit();
+      long maxColumnLimit = plannerSettings.getStatisticsMaxColumnLimit();
       if (supportedFields.size() > maxColumnLimit) {
         return Collections.singletonList(SimpleCommandResult.successful("The number of columns requested exceeds the the limit set by the administrator, " + maxColumnLimit + "."));
       }
-      String id = statisticsAdministrationService.requestStatistics(new ArrayList<>(supportedFields), path);
+      String id = statisticsAdministrationService.requestStatistics(new ArrayList<>(supportedFields), path, samplingRate);
       return Collections.singletonList(SimpleCommandResult.successful(String.format("Requested with a job ID: %s", id)));
     } else { // delete statistics
       final List<String> failed = statisticsAdministrationFactory.get(config.getContext().getQueryUserName())

@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-export const dropdownMenuStyle =  {
-  boxShadow: '0px 0px 16px rgba(0, 0, 0, 0.1)',
-  overflow: 'visible',
-  width: '254px'
+export const dropdownMenuStyle = {
+  boxShadow: "0px 0px 16px rgba(0, 0, 0, 0.1)",
+  overflow: "visible",
+  width: "254px",
 };
 
 export const menuListStyle = {
-  float: 'left',
-  position: 'relative',
+  float: "left",
+  position: "relative",
   zIndex: 1,
-  padding: '3px 0',
-  overflow: 'hidden',
-  width: '100%'
+  padding: "3px 0",
+  overflow: "hidden",
+  width: "100%",
 };

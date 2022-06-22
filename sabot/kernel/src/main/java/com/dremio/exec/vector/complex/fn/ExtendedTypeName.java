@@ -25,4 +25,3 @@ public interface ExtendedTypeName {
   public static final String INTEGER = "$numberLong"; // 8 byte signed integer (123) [from Mongo]
   public static final String DECIMAL = "$decimal";    // exact numeric value (123.123)
 }
-

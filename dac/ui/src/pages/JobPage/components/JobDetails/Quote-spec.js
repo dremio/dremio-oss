@@ -13,30 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import Quote from './Quote.js';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import Quote from "./Quote.js";
 
-describe('Test quote component', () => {
-
-
-  it('should hide stats box for 0/0', () => {
+describe("Test quote component", () => {
+  it("should hide stats box for 0/0", () => {
     const props = {
       jobIOData: Immutable.fromJS({
         inputBytes: 0,
-        outputBytes: 0
-      })
+        outputBytes: 0,
+      }),
     };
-    const wrapper = shallow(<Quote {...props}/>);
+    const wrapper = shallow(<Quote {...props} />);
     expect(wrapper.instance().render()).to.eql(null);
   });
 
-  it('should hide stats box for {}', () => {
+  it("should hide stats box for {}", () => {
     const props = {
-      jobIOData: Immutable.fromJS({})
+      jobIOData: Immutable.fromJS({}),
     };
-    const wrapper = shallow(<Quote {...props}/>);
+    const wrapper = shallow(<Quote {...props} />);
     expect(wrapper.instance().render()).to.eql(null);
   });
-
 });

@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import XLSFormatForm from './XLSFormatForm';
+import XLSFormatForm from "./XLSFormatForm";
 
-describe('XLSFormatForm', () => {
+describe("XLSFormatForm", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       fields: {
-        XLS: {}
-      }
+        XLS: {},
+      },
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<XLSFormatForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<XLSFormatForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
-    expect(wrapper.find('TextField')).to.have.length(1);
-    expect(wrapper.find('Checkbox')).to.have.length(2);
+    expect(wrapper.find("TextField")).to.have.length(1);
+    expect(wrapper.find("Checkbox")).to.have.length(2);
   });
 });

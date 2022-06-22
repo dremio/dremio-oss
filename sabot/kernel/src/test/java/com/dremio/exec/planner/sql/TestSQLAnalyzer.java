@@ -16,8 +16,8 @@
 package com.dremio.exec.planner.sql;
 
 import static org.apache.calcite.sql.validate.SqlMonotonicity.CONSTANT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -67,11 +68,11 @@ import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -82,27 +83,16 @@ import com.google.common.collect.Iterables;
 /**
  * Tests {@link com.dremio.exec.planner.sql.SQLAnalyzer}
  */
-@RunWith(Parameterized.class)
 public class TestSQLAnalyzer {
 
   private SQLAnalyzer sqlAnalyzer;
-
-  private final String sql;
-  private final int expectedSuggestionCount;
-  private final boolean checkSuggestions;
 
   protected static final String TEST_CATALOG = "TEST_CATALOG";
   protected static final String TEST_SCHEMA = "TEST_SCHEMA";
   protected static final String TEST_TABLE = "TEST_TABLE";
   protected static final List<String> FROM_KEYWORDS = Arrays.asList("(", "LATERAL", "TABLE", "UNNEST");
 
-  public TestSQLAnalyzer(String sql, int expectedSuggestionCount, boolean checkSuggestions) {
-    this.sql = sql;
-    this.expectedSuggestionCount = expectedSuggestionCount;
-    this.checkSuggestions = checkSuggestions;
-  }
-
-  @Before
+  @BeforeEach
   public void setup() {
     // Create and Mock dependencies
     final SabotContext sabotContext = mock(SabotContext.class);
@@ -126,96 +116,95 @@ public class TestSQLAnalyzer {
    * - The expected number of returned suggestions given the MockCatalogReader implementation.
    * - Boolean indicating if suggestion values should be checked.
    */
-  @Parameterized.Parameters(name = "{index}: {0}")
-  public static Iterable<Object[]> data() {
-    return Arrays.asList(
+  private static Stream<Arguments> data() {
+    return Stream.of(
       // Cursor after 'from'
-      new Object[] {
+      Arguments.of(
         "Select * from ^",
         7,
-        true},
+        true),
       // Cursor after 'T'
-      new Object[] {
+      Arguments.of(
         "select * from T^",
         4,
-        true},
+        true),
       // Cursor after 'I'
-      new Object[] {
+      Arguments.of(
         "select * from I^",
         0,
-        true},
+        true),
       // Cursor before 'dummy a'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from ^dummy a, TEST_SCHEMA.dummy b",
         7,
-        true},
+        true),
       // Cursor after 'from'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from ^",
         7,
-        true},
+        true),
       // Cursor after 'from'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from ^, TEST_SCHEMA.dummy b",
         7,
-        true},
+        true),
       // Cursor after 'from' before 'a'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from ^a",
         7,
-        true},
+        true),
       // Cursor before 'TEST_SCHEMA'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from dummy a, ^TEST_SCHEMA.dummy b",
         7,
-        true},
+        true),
       // Cursor after 'TEST_SCHEMA.'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from dummy a, TEST_SCHEMA.^",
         3,
-        true},
+        true),
       // Cursor after 'group'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from emp group ^",
         1,
-        false},
+        false),
       // Cursor before 'dummy a'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from ^dummy a join TEST_SCHEMA.dummy b "
           + "on a.colOne=b.colOne where colTwo=1",
         7,
-        true},
+        true),
       // Cursor after 'from' before 'a'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from ^ a join sales.dummy b",
         7,
-        true},
+        true),
       // Cursor before 'TEST_SCHEMA.dummy b'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from dummy a join ^TEST_SCHEMA.dummy b "
           + "on a.colTwo=b.colTwo where colOne=1",
         7,
-        true},
+        true),
       // Cursor after 'TEST_SCHEMA.'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from dummy a join TEST_SCHEMA.^",
         3,
-        true},
+        true),
       // Cursor after 'TEST_SCHEMA.'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from dummy a join TEST_SCHEMA.^ on",
         3,
-        true},
+        true),
       // Cursor after 'TEST_SCHEMA.'
-      new Object[] {
+      Arguments.of(
         "select a.colOne, b.colTwo from dummy a join TEST_SCHEMA.^ on a.colTwo=",
         108,
-        false},
+        false),
       // Cursor after 'TEST_CATALOG.TEST_SCHEMA'
-      new Object[] {
+      Arguments.of(
         "select * from dummy join TEST_CATALOG.TEST_SCHEMA ^",
         29,
-        false}
+        false)
     );
   }
 
@@ -240,13 +229,14 @@ public class TestSQLAnalyzer {
           assertTrue(FROM_KEYWORDS.contains(hint.getFullyQualifiedNames().get(0)));
           break;
         default:
-          Assert.fail();
+          Assertions.fail();
       }
     }
   }
 
-  @Test
-  public void testSuggestion() {
+  @ParameterizedTest(name = "{index}: {0}")
+  @MethodSource("data")
+  public void testSuggestion(String sql, int expectedSuggestionCount, boolean checkSuggestions) {
     final StringAndPos stringAndPos = SqlParserUtil.findPos(sql);
     List<SqlMoniker> suggestions = sqlAnalyzer.suggest(stringAndPos.sql, stringAndPos.cursor);
     assertEquals(expectedSuggestionCount, suggestions.size());
@@ -255,8 +245,9 @@ public class TestSQLAnalyzer {
     }
   }
 
-  @Test
-  public void testValidation() {
+  @ParameterizedTest(name = "{index}: {0}")
+  @MethodSource("data")
+  public void testValidation(String sql, int expectedSuggestionCount, boolean checkSuggestions) {
     List<SqlAdvisor.ValidateErrorInfo> validationErrors = sqlAnalyzer.validate("select * from");
     assertEquals(1, validationErrors.size());
     assertEquals(10, validationErrors.get(0).getStartColumnNum());

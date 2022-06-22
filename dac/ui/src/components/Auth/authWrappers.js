@@ -13,46 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { replace } from 'react-router-redux';
-import { UserAuthWrapper } from 'redux-auth-wrapper';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { replace } from "react-router-redux";
+import { UserAuthWrapper } from "redux-auth-wrapper";
 
-import userUtils from 'utils/userUtils';
-import { initApp } from '@app/actions/app';
-import LoadingOverlay from '../LoadingOverlay';
+import userUtils from "utils/userUtils";
+import { initApp } from "@app/actions/app";
+import LoadingOverlay from "../LoadingOverlay";
 
 export const UserIsAuthenticated = UserAuthWrapper({
-  authSelector: state => state.account.get('user'),
+  authSelector: (state) => state.account.get("user"),
   predicate: userUtils.isAuthenticated,
   redirectAction: replace,
-  wrapperDisplayName: 'UserIsAuthenticated'
+  wrapperDisplayName: "UserIsAuthenticated",
 });
 
-export const UserIsAdmin = function() {
+export const UserIsAdmin = function () {
   const isAdmin = UserAuthWrapper({
-    authSelector: state => state.account.get('user'),
+    authSelector: (state) => state.account.get("user"),
     predicate: userUtils.isAdmin,
     redirectAction: replace,
-    failureRedirectPath: '/',
-    wrapperDisplayName: 'UserIsAdmin',
+    failureRedirectPath: "/",
+    wrapperDisplayName: "UserIsAdmin",
     // In UserIsAuthenticated we should allow to redirect to some page from login page.
     // But if already some authenticated user will try access an admin page it will
     // redirect him to / and then he won't be able to redirect back the to admin page.
-    allowRedirectBack: false
+    allowRedirectBack: false,
   });
 
   return isAdmin(UserIsAuthenticated(...arguments));
 };
 
 const mapDispatchToProps = {
-  initApp
+  initApp,
 };
 
 const mapStateToProps = (state) => {
   return {
-    initComplete: state.init.complete
+    initComplete: state.init.complete,
   };
 };
 
@@ -66,7 +66,7 @@ export class CheckUserAuthentication extends Component {
     // connected
     initApp: PropTypes.func.isRequired,
     initComplete: PropTypes.bool,
-    children: PropTypes.node
+    children: PropTypes.node,
   };
 
   componentDidMount() {
@@ -75,8 +75,6 @@ export class CheckUserAuthentication extends Component {
 
   render() {
     const { initComplete } = this.props;
-    return !initComplete ?
-      <LoadingOverlay showSpinner/> :
-      this.props.children;
+    return !initComplete ? <LoadingOverlay showSpinner /> : this.props.children;
   }
 }

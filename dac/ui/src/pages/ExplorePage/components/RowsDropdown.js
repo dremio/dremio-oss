@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import './RowsDropdown.less';
+import "./RowsDropdown.less";
 const STEP = 100;
 
 class RowsDropdown extends PureComponent {
   static propTypes = {
     setMaxNumberOfRows: PropTypes.func.isRequired,
-    tableLength: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    tableLength: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   };
 
   constructor(props) {
@@ -32,34 +32,32 @@ class RowsDropdown extends PureComponent {
     this.getItems = this.getItems.bind(this);
     this.getDropDown = this.getDropDown.bind(this);
     let maxValue = (props.tableLength + STEP) / STEP;
-    maxValue = (Math.round(maxValue) * STEP);
+    maxValue = Math.round(maxValue) * STEP;
 
     this.state = {
       currentValue: props.tableLength ? STEP : 0,
       dropdownState: false,
       min: STEP,
-      max: maxValue
+      max: maxValue,
     };
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.tableLength !== this.props.tableLength) {
       let maxValue = (nextProps.tableLength + STEP) / STEP;
-      maxValue = (Math.round(maxValue) * STEP);
+      maxValue = Math.round(maxValue) * STEP;
 
       this.setState({
         currentValue: nextProps.tableLength ? STEP : 0,
         dropdownState: false,
         min: STEP,
-        max: maxValue
+        max: maxValue,
       });
     }
   }
 
   getDropDown() {
-    return <div className='items-container'>
-      {this.getItems()}
-    </div>;
+    return <div className="items-container">{this.getItems()}</div>;
   }
 
   getItems() {
@@ -68,9 +66,10 @@ class RowsDropdown extends PureComponent {
     for (let i = 0; i < numberOfRows; i++) {
       items.push(
         <div
-          className='row-item'
+          className="row-item"
           key={i}
-          onClick={this.setCurrentValue.bind(this, i * STEP)}>
+          onClick={this.setCurrentValue.bind(this, i * STEP)}
+        >
           {i * STEP} rows
         </div>
       );
@@ -80,7 +79,7 @@ class RowsDropdown extends PureComponent {
 
   setCurrentValue(value) {
     this.setState({
-      currentValue: value
+      currentValue: value,
     });
     if (this.props.setMaxNumberOfRows) {
       this.props.setMaxNumberOfRows(value);
@@ -89,18 +88,16 @@ class RowsDropdown extends PureComponent {
 
   toogleDropdown() {
     this.setState({
-      dropdownState: !this.state.dropdownState
+      dropdownState: !this.state.dropdownState,
     });
   }
 
   render() {
-    const dropdown = this.state.dropdownState
-      ? this.getDropDown()
-      : null;
+    const dropdown = this.state.dropdownState ? this.getDropDown() : null;
     return (
-      <div className='rows-dropdown' onClick={this.toogleDropdown}>
-        <span className='text'>First {this.state.currentValue} rows</span>
-        <i className='fa fa-angle-down'></i>
+      <div className="rows-dropdown" onClick={this.toogleDropdown}>
+        <span className="text">First {this.state.currentValue} rows</span>
+        <i className="fa fa-angle-down"></i>
         {dropdown}
       </div>
     );

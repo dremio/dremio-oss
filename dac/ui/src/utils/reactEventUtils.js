@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const stopPropagation = e => {
+export const stopPropagation = (e) => {
   e.preventDefault();
   e.stopPropagation();
 };

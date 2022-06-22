@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 export default {
-  runPreviewOnDatasetSelect: true
+  runPreviewOnDatasetSelect: true,
 };

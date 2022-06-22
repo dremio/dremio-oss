@@ -15,29 +15,28 @@
  */
 
 export const height = {
-  height: '100%'
+  height: "100%",
 };
 
 export const addButton = {
   marginTop: 0,
   marginRight: 0,
   marginBottom: 0,
-  marginLeft: 'auto',
-  display: 'inline-block'
+  marginLeft: "auto",
+  display: "inline-block",
 };
 
 export const listContent = {
   ...height,
-  padding: '0 10px'
+  padding: "0 10px",
 };
 
 export const listItem = {
-  display: 'flex',
-  alignItems: 'center'
+  display: "flex",
+  alignItems: "center",
 };
 
 export const link = {
-  textDecoration: 'none',
-  color: '#333',
-  padding: '0 0 0 3px'
+  textDecoration: "none",
+  color: "var(--dremio--color--text--main)",
 };

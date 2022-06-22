@@ -116,7 +116,7 @@ public class EventBasedRecordWriter {
     }
   }
 
-  public static abstract class FieldConverter {
+  public abstract static class FieldConverter {
     protected int fieldId;
     protected String fieldName;
     protected FieldReader reader;

@@ -13,28 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import SortMultiplyController from 'pages/ExplorePage/components/MultiplySort/SortMultiplyController';
-import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
-import Message from 'components/Message';
-import { applyValidators, notEmptyArray } from 'utils/validation';
+import SortMultiplyController from "pages/ExplorePage/components/MultiplySort/SortMultiplyController";
+import {
+  connectComplexForm,
+  InnerComplexForm,
+} from "components/Forms/connectComplexForm";
+import Message from "components/Message";
+import { applyValidators, notEmptyArray } from "utils/validation";
 
-import DefaultWizardFooter from './../components/DefaultWizardFooter';
+import DefaultWizardFooter from "./../components/DefaultWizardFooter";
 
-@Radium
 class SortMultiplyContent extends PureComponent {
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   static validate(values) {
     const errors = applyValidators(values, [
-      notEmptyArray('sortColumns', 'Select at least one column.')
+      notEmptyArray("sortColumns", "Select at least one column."),
     ]);
     return errors;
   }
@@ -46,17 +47,21 @@ class SortMultiplyContent extends PureComponent {
     submit: PropTypes.func.isRequired,
     cancel: PropTypes.func.isRequired,
     fields: PropTypes.object,
-    error: PropTypes.string
+    error: PropTypes.string,
   };
 
   render() {
     const { error, submit } = this.props;
     return (
-      <div style={[style.base]} className='sort-multiply-content'>
-        <InnerComplexForm
-          {...this.props}
-          onSubmit={submit}>
-          {error && <Message messageType='error' message={error.message} messageId={error.id} />}
+      <div style={style.base} className="sort-multiply-content">
+        <InnerComplexForm {...this.props} onSubmit={submit}>
+          {error && (
+            <Message
+              messageType="error"
+              message={error.message}
+              messageId={error.id}
+            />
+          )}
           <SortMultiplyController
             dataset={this.props.dataset}
             columns={this.props.columns}
@@ -66,7 +71,8 @@ class SortMultiplyContent extends PureComponent {
           <DefaultWizardFooter
             {...this.props}
             onCancel={this.props.cancel}
-            onFormSubmit={submit}/>
+            onFormSubmit={submit}
+          />
         </InnerComplexForm>
       </div>
     );
@@ -74,16 +80,18 @@ class SortMultiplyContent extends PureComponent {
 }
 
 const style = {
-  'base': {
-    'height': '100%'
-  }
+  base: {
+    height: "100%",
+  },
 };
 
-export default connectComplexForm({
-  form: 'sortMultiply',
-  fields: [
-    'sortColumns[].direction',
-    'sortColumns[].name'
-  ],
-  validate: SortMultiplyContent.validate
-}, [], null, null)(SortMultiplyContent);
+export default connectComplexForm(
+  {
+    form: "sortMultiply",
+    fields: ["sortColumns[].direction", "sortColumns[].name"],
+    validate: SortMultiplyContent.validate,
+  },
+  [],
+  null,
+  null
+)(SortMultiplyContent);

@@ -13,160 +13,155 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import FilterSelectMenu from './FilterSelectMenu';
+import FilterSelectMenu from "./FilterSelectMenu";
 
 // this component is needed to test test a content rendering. As enzyme could work only with components
 // not with standard component (span, div)
 const TestRenderer = ({ children }) => <div>{children}</div>;
 TestRenderer.propTypes = {
-  children: PropTypes.any
+  children: PropTypes.any,
 };
-const getSelectViewContent = wrapper => {
-  return shallow(<TestRenderer>{wrapper.find('SelectView').prop('content')}</TestRenderer>);
+const getSelectViewContent = (wrapper) => {
+  return shallow(
+    <TestRenderer>{wrapper.find("SelectView").prop("content")}</TestRenderer>
+  );
 };
 
-describe('FilterSelectMenu', () => {
-
+describe("FilterSelectMenu", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      label: 'label',
+      label: "label",
       items: [
-        {label: 'item3', id: 3},
-        {label: 'item2', id: 2},
-        {label: 'item1', id: 1}
+        { label: "item3", id: 3 },
+        { label: "item2", id: 2 },
+        { label: "item1", id: 1 },
       ],
       selectedValues: Immutable.List([2, 3]),
       onItemSelect: sinon.spy(),
-      onItemUnselect: sinon.spy()
+      onItemUnselect: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<FilterSelectMenu {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<FilterSelectMenu {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render SelectView', () => {
-    const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-    expect(wrapper.find('SelectView')).to.have.length(1);
+  it("should render SelectView", () => {
+    const wrapper = shallow(<FilterSelectMenu {...commonProps} />);
+    expect(wrapper.find("SelectView")).to.have.length(1);
   });
 
-  it('should render label prop when nothing selected', () => {
-    const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-    expect(getSelectViewContent(wrapper).find('span')).to.have.length(0);
-    wrapper.setProps({selectedValues: Immutable.List()});
-    expect(getSelectViewContent(wrapper).find('span').first().text()).to.eql(commonProps.label);
+  it("should render label prop when nothing selected", () => {
+    const wrapper = shallow(<FilterSelectMenu {...commonProps} />);
+    expect(getSelectViewContent(wrapper).find("span")).to.have.length(1);
+    wrapper.setProps({ selectedValues: Immutable.List() });
+    expect(getSelectViewContent(wrapper).find("span").first().text()).to.eql(
+      commonProps.label
+    );
   });
 
-  it('should render SearchField only when there are unselected items', () => {
-    const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-    expect(wrapper.find('SearchField').prop('placeholder')).to.eql('Search');
-
-    wrapper.setProps({selectedValues: Immutable.List([1, 2, 3])});
-    expect(wrapper.find('SearchField')).to.have.length(0);
+  it("should render SearchField if noSearch is set", () => {
+    const wrapper = shallow(<FilterSelectMenu {...commonProps} noSearch />);
+    expect(wrapper.find("SearchField")).to.have.length(0);
   });
 
-  it('should render SearchField if noSearch is set', () => {
-    const wrapper = shallow(<FilterSelectMenu {...commonProps} noSearch/>);
-    expect(wrapper.find('SearchField')).to.have.length(0);
-  });
+  describe("getSelectedItems", () => {
+    it("should return array of items in selectedValues", () => {
+      const wrapper = shallow(<FilterSelectMenu {...commonProps} />);
+      expect(
+        wrapper
+          .instance()
+          .getSelectedItems(commonProps.items, commonProps.selectedValues)
+      ).to.eql([commonProps.items[0], commonProps.items[1]]);
 
-  describe('getSelectedItems', () => {
-    it('should return array of items in selectedValues', () => {
-      const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(wrapper.instance().getSelectedItems(
-        commonProps.items, commonProps.selectedValues
-      )).to.eql([commonProps.items[0], commonProps.items[1]]);
-
-      wrapper.setProps({selectedValues: Immutable.List([1])});
-      expect(wrapper.instance().getSelectedItems(
-        commonProps.items, [1]
-      )).to.eql([commonProps.items[2]]);
+      wrapper.setProps({ selectedValues: Immutable.List([1]) });
+      expect(
+        wrapper.instance().getSelectedItems(commonProps.items, [1])
+      ).to.eql([commonProps.items[2]]);
     });
   });
 
-  describe('getUnselectedItems', () => {
-    it('should return array of items not in selectedValues', () => {
-      const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(wrapper.instance().getUnselectedItems(
-        commonProps.items, commonProps.selectedValues, ''
-      )).to.eql([commonProps.items[2]]);
+  describe("getUnselectedItems", () => {
+    it("should return array of items not in selectedValues", () => {
+      const wrapper = shallow(<FilterSelectMenu {...commonProps} />);
+      expect(
+        wrapper
+          .instance()
+          .getUnselectedItems(commonProps.items, commonProps.selectedValues, "")
+      ).to.eql([commonProps.items[2]]);
 
-      wrapper.setProps({selectedValues: Immutable.List([1])});
-      expect(wrapper.instance().getUnselectedItems(
-        commonProps.items, [1], ''
-      )).to.eql([commonProps.items[0], commonProps.items[1]]);
+      wrapper.setProps({ selectedValues: Immutable.List([1]) });
+      expect(
+        wrapper.instance().getUnselectedItems(commonProps.items, [1], "")
+      ).to.eql([commonProps.items[0], commonProps.items[1]]);
     });
 
-    it('should filter results based on pattern and case insensitive', () => {
-      const wrapper = shallow(<FilterSelectMenu {...commonProps} selectedValues={Immutable.List()}/>);
-      const instance = wrapper.instance();
-      wrapper.setState({pattern: 'item2'});
-      let items = instance.getUnselectedItems(
-        commonProps.items, [], 'item2'
+    it("should filter results based on pattern and case insensitive", () => {
+      const wrapper = shallow(
+        <FilterSelectMenu {...commonProps} selectedValues={Immutable.List()} />
       );
+      const instance = wrapper.instance();
+      wrapper.setState({ pattern: "item2" });
+      let items = instance.getUnselectedItems(commonProps.items, [], "item2");
       expect(items).to.eql([commonProps.items[1]]);
 
-      wrapper.setState({pattern: 'ITEM2'});
-      items = instance.getUnselectedItems(
-        commonProps.items, [], 'ITEM2'
-      );
+      wrapper.setState({ pattern: "ITEM2" });
+      items = instance.getUnselectedItems(commonProps.items, [], "ITEM2");
       expect(items).to.eql([commonProps.items[1]]);
 
       const newItems = [
-        {label: 'ITEM1', id: 1},
-        {label: 'ITEM2', id: 2}
+        { label: "ITEM1", id: 1 },
+        { label: "ITEM2", id: 2 },
       ];
       wrapper.setProps({
-        items: newItems
+        items: newItems,
       });
-      wrapper.setState({pattern: 'item2'});
-      items = instance.getUnselectedItems(
-        newItems, [], 'item2'
-      );
-      expect(items).to.eql([{label: 'ITEM2', id: 2}]);
+      wrapper.setState({ pattern: "item2" });
+      items = instance.getUnselectedItems(newItems, [], "item2");
+      expect(items).to.eql([{ label: "ITEM2", id: 2 }]);
     });
   });
 
-  describe('renderSelectedLabel', () => {
-    it('should render values in label', () => {
-      const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(getSelectViewContent(wrapper).find('.filter-select-label').props().text).to.eql('item3 +1');
-    });
-
-    it('should render All if none selected', () => {
-      const wrapper = shallow(<FilterSelectMenu {...commonProps} selectedValues={Immutable.List()}/>);
-      expect(getSelectViewContent(wrapper).find('.filter-select-label').props().text).to.eql(': {"0":{"id":"Common.All"}}');
+  describe("renderSelectedLabel", () => {
+    it("should render values in label", () => {
+      const wrapper = shallow(<FilterSelectMenu {...commonProps} />);
+      const [ellipsedText, additionalCount] = getSelectViewContent(wrapper)
+        .find(".filter-select-label")
+        .props().children;
+      const expectedText =
+        ellipsedText.props.text + additionalCount.props.children;
+      expect(expectedText).to.eql("item3, +1");
     });
   });
 
-  describe('events', () => {
+  describe("events", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
+      wrapper = shallow(<FilterSelectMenu {...commonProps} />);
       instance = wrapper.instance();
     });
 
-    describe('handleItemChange', () => {
-      it('should call onItemSelect if unchecked', () => {
-        instance.handleItemChange(false, 'id');
-        expect(commonProps.onItemSelect).to.have.been.calledWith('id');
+    describe("handleItemChange", () => {
+      it("should call onItemSelect if unchecked", () => {
+        instance.handleItemChange(false, "id");
+        expect(commonProps.onItemSelect).to.have.been.calledWith("id");
         expect(commonProps.onItemUnselect).to.not.have.been.called;
       });
 
-      it('should call onItemUnselect if checked', () => {
-        instance.handleItemChange(true, 'id');
+      it("should call onItemUnselect if checked", () => {
+        instance.handleItemChange(true, "id");
         expect(commonProps.onItemSelect).to.not.have.been.called;
-        expect(commonProps.onItemUnselect).to.have.been.calledWith('id');
+        expect(commonProps.onItemUnselect).to.have.been.calledWith("id");
       });
     });
   });

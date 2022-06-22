@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { SpacesSection } from './SpacesSection';
+import { shallow } from "enzyme";
+import { SpacesSection } from "./SpacesSection";
 
 const commonProps = {
   spaces: Immutable.fromJS([{}]),
@@ -22,16 +22,18 @@ const commonProps = {
   location: {},
   authInfo: {
     isAdmin: true,
-    allowSpaceManagement: true
-  }
+    allowSpaceManagement: true,
+  },
 };
 
-describe('#getInitialSpacesContent()', () => {
-  it('have no spaces', () => {
-    const instance = shallow(<SpacesSection {...commonProps} spaces={Immutable.fromJS([])} />).instance();
+describe("#getInitialSpacesContent()", () => {
+  it("have no spaces", () => {
+    const instance = shallow(
+      <SpacesSection {...commonProps} spaces={Immutable.fromJS([])} />
+    ).instance();
     expect(instance.getInitialSpacesContent()).to.not.be.null;
   });
-  it('have spaces', () => {
+  it("have spaces", () => {
     const instance = shallow(<SpacesSection {...commonProps} />).instance();
     expect(instance.getInitialSpacesContent()).to.be.null;
   });

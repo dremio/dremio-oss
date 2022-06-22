@@ -35,10 +35,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
- * Implements SQL ALTER TAG ASSIGN to assign a new reference to the given tag. Represents
- * statements like: ALTER TAG tagName ASSIGN ( BRANCH | TAG | COMMIT ) reference IN source
+ * Implements SQL ALTER TAG ASSIGN to assign a new reference to the given tag.
+ *
+ * ALTER TAG tagName ASSIGN
+ * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * [ IN sourceName ]
  */
-public final class SqlAssignTag extends SqlVersionBase {
+public final class SqlAssignTag extends SqlVersionSourceRefBase {
   public static final SqlSpecialOperator OPERATOR =
       new SqlSpecialOperator("ASSIGN_TAG", SqlKind.OTHER) {
         @Override
@@ -56,19 +59,15 @@ public final class SqlAssignTag extends SqlVersionBase {
       };
 
   private final SqlIdentifier tagName;
-  private final ReferenceType refType;
-  private final SqlIdentifier reference;
 
   public SqlAssignTag(
       SqlParserPos pos,
       SqlIdentifier tagName,
       ReferenceType refType,
-      SqlIdentifier reference,
-      SqlIdentifier source) {
-    super(pos, source);
+      SqlIdentifier refValue,
+      SqlIdentifier sourceName) {
+    super(pos, sourceName, refType, refValue);
     this.tagName = tagName;
-    this.refType = refType;
-    this.reference = reference;
   }
 
   @Override
@@ -80,10 +79,9 @@ public final class SqlAssignTag extends SqlVersionBase {
   public List<SqlNode> getOperandList() {
     List<SqlNode> ops = Lists.newArrayList();
     ops.add(tagName);
-    ops.add(SqlLiteral.createSymbol(refType, SqlParserPos.ZERO));
-    ops.add(reference);
+    ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    ops.add(getRefValue());
     ops.add(getSourceName());
-
     return ops;
   }
 
@@ -93,19 +91,8 @@ public final class SqlAssignTag extends SqlVersionBase {
     writer.keyword("TAG");
     tagName.unparse(writer, leftPrec, rightPrec);
 
-    writer.keyword("ASSIGN");
-    switch (refType) {
-      case BRANCH:
-        writer.keyword("BRANCH");
-        break;
-      case TAG:
-        writer.keyword("TAG");
-        break;
-    }
-    reference.unparse(writer, leftPrec, rightPrec);
-
-    writer.keyword("IN");
-    getSourceName().unparse(writer, leftPrec, rightPrec);
+    unparseRef(writer, leftPrec, rightPrec, "ASSIGN");
+    unparseSourceName(writer, leftPrec, rightPrec);
   }
 
   @Override
@@ -127,9 +114,4 @@ public final class SqlAssignTag extends SqlVersionBase {
   public SqlIdentifier getTagName() {
     return tagName;
   }
-
-  public SqlIdentifier getReference() {
-    return reference;
-  }
 }
-

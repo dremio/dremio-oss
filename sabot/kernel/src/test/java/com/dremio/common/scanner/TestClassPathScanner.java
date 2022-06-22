@@ -47,7 +47,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 public class TestClassPathScanner {
 
   @SafeVarargs
-  final private <T extends Comparable<? super T>> void assertListEqualsUnordered(Collection<T> list, T... expected) {
+  private final <T extends Comparable<? super T>> void assertListEqualsUnordered(Collection<T> list, T... expected) {
     List<T> expectedList = asList(expected);
     sort(expectedList);
     List<T> gotList = new ArrayList<>(list);

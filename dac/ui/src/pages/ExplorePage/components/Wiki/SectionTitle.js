@@ -13,34 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import Art from '@app/components/Art';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import Art from "@app/components/Art";
 import {
   title as titleInnerCls,
   section as sectionCls,
   buttonContainer,
-  customButton
-} from './SectionTitle.less';
+  customButton,
+} from "./SectionTitle.less";
 
 export const getIconButtonConfig = ({
   key, // string,
   altText, // string
   icon, //string. SVG icon names
   onClick, // () => void
-  dataQa // string
+  dataQa, // string
 }) => {
   const style = {
-    display: 'block',
+    display: "block",
     width: 24,
-    height: 24
+    height: 24,
   };
   return {
     key,
     text: <Art src={`${icon}.svg`} alt={altText} style={style} title />,
     onClick,
-    dataQa
+    dataQa,
   };
 };
 
@@ -49,47 +49,41 @@ export class SectionTitle extends Component {
     title: PropTypes.oneOfType([PropTypes.string, PropTypes.element]),
     className: PropTypes.string,
     titleClass: PropTypes.string,
-    buttons: PropTypes.arrayOf(PropTypes.shape({
-      key: PropTypes.string.isRequired,
-      text: PropTypes.node.isRequired,
-      onClick: PropTypes.func.isRequired,
-      dataQa: PropTypes.string
-    }))
-  }
+    buttons: PropTypes.arrayOf(
+      PropTypes.shape({
+        key: PropTypes.string.isRequired,
+        text: PropTypes.node.isRequired,
+        onClick: PropTypes.func.isRequired,
+        dataQa: PropTypes.string,
+      })
+    ),
+  };
 
-  createButton = (/* button */ {
-    key,
-    text,
-    onClick,
-    dataQa
-  }) => {
-    return <button
-      key={key}
-      className={customButton}
-      onClick={onClick}
-      data-qa={dataQa}>
-      {text}
-    </button>;
-  }
+  createButton = (/* button */ { key, text, onClick, dataQa }) => {
+    return (
+      <button
+        key={key}
+        className={customButton}
+        onClick={onClick}
+        data-qa={dataQa}
+      >
+        {text}
+      </button>
+    );
+  };
 
   render() {
-    const {
-      title,
-      className,
-      titleClass,
-      buttons
-    } = this.props;
+    const { title, className, titleClass, buttons } = this.props;
 
-    return (<div key='title' className={classNames(sectionCls, className)}>
-      <div className={classNames(titleInnerCls, titleClass)}>
-        {title}
+    return (
+      <div key="title" className={classNames(sectionCls, className)}>
+        <div className={classNames(titleInnerCls, titleClass)}>{title}</div>
+        {buttons && (
+          <div key="buttons" className={buttonContainer}>
+            {buttons.map(this.createButton)}
+          </div>
+        )}
       </div>
-      {
-        buttons &&
-        <div key='buttons' className={buttonContainer}>
-          {buttons.map(this.createButton)}
-        </div>
-      }
-    </div>);
+    );
   }
 }

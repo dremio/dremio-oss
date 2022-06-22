@@ -50,6 +50,7 @@ class TunnelProviderImpl implements TunnelProvider {
   private final SharedResourceGroup resourceGroup;
   private final RpcOutcomeListener<Ack> statusHandler;
   private final FileCursorManagerFactory cursorManagerFactory;
+  private final int outstandingRPCsPerTunnel;
 
   public TunnelProviderImpl(
       SendingAccountor accountor,
@@ -57,17 +58,19 @@ class TunnelProviderImpl implements TunnelProvider {
       ExecConnectionCreator connectionCreator,
       RpcOutcomeListener<Ack> statusHandler,
       SharedResourceGroup resourceGroup,
-      FileCursorManagerFactory cursorManagerFactory) {
+      FileCursorManagerFactory cursorManagerFactory,
+      int outstandingRPCsPerTunnel) {
     super();
     this.accountor = accountor;
     this.statusHandler = statusHandler;
     final SharedResource resource = resourceGroup.createResource("user", SharedResourceType.SEND_MSG_COORDINATOR);
-    final SendingMonitor monitor = new SendingMonitor(resource, accountor);
+    final SendingMonitor monitor = new SendingMonitor(resource, accountor, outstandingRPCsPerTunnel);
     this.coordTunnel = new AccountingExecToCoordTunnel(tunnel, monitor, monitor.wrap(statusHandler));
 
     this.connectionCreator = connectionCreator;
     this.resourceGroup = resourceGroup;
     this.cursorManagerFactory = cursorManagerFactory;
+    this.outstandingRPCsPerTunnel = outstandingRPCsPerTunnel;
   }
 
   @Override
@@ -79,7 +82,7 @@ class TunnelProviderImpl implements TunnelProvider {
     AccountingExecTunnel tunnel = tunnels.get(endpoint);
     if (tunnel == null) {
       final SharedResource resource = resourceGroup.createResource("send-data-" + endpoint.getAddress(), SharedResourceType.SEND_MSG_DATA);
-      SendingMonitor monitor = new SendingMonitor(resource, accountor);
+      SendingMonitor monitor = new SendingMonitor(resource, accountor, outstandingRPCsPerTunnel);
       tunnel = new AccountingExecTunnel(connectionCreator.getTunnel(endpoint), monitor, monitor.wrap(statusHandler));
       tunnels.put(endpoint, tunnel);
     }

@@ -21,6 +21,7 @@ import javax.inject.Provider;
 import javax.validation.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -70,6 +71,11 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   @JsonIgnore
   public boolean allowCreateDrop;
 
+  @Tag(7)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Default CTAS Format")
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -101,4 +107,8 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
+  @Override
+  public String getDefaultCtasFormat() {
+    return defaultCtasFormat.getDefaultCtasFormat();
+  }
 }

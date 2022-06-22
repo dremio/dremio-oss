@@ -116,7 +116,7 @@ public class AwsSecretsManager implements Vault {
     try {
       return objectMapper.readValue(secret, PasswordCredentials.class);
     } catch (IOException e) {
-      logger.debug("Secret {} might not be in json format, Returning secret as is");
+      logger.debug("Secret might not be in json format, Returning secret as is");
     }
     return new PasswordCredentials(secret);
   }
@@ -127,5 +127,3 @@ public class AwsSecretsManager implements Vault {
     return new AwsSecretManagerSecretInfo(secretArn);
   }
 }
-
-

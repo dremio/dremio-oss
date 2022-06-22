@@ -13,29 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import ByteField from './ByteField';
+import ByteField from "./ByteField";
 
-describe('ByteField', () => {
-
+describe("ByteField", () => {
   let minimalProps, commonProps;
   beforeEach(() => {
     minimalProps = {
-      onChange: sinon.spy()
+      onChange: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ByteField {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ByteField {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with commonProps props without exploding', () => {
-    const wrapper = shallow(<ByteField {...commonProps}/>);
+  it("should render with commonProps props without exploding", () => {
+    const wrapper = shallow(<ByteField {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

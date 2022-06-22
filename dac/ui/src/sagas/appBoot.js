@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { takeEvery } from 'redux-saga/effects';
-import { APP_INIT } from '@app/actions/app';
-import { checkAppState } from '@app/sagas/loginLogout';
+import { takeEvery } from "redux-saga/effects";
+import { APP_INIT } from "@app/actions/app";
+import { checkAppState } from "@app/sagas/loginLogout";
 
 export function* afterAppInit() {
   yield takeEvery(APP_INIT, checkAppState);
 }
-

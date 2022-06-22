@@ -15,10 +15,7 @@
  */
 package com.dremio.exec.store;
 
-/**
- * TODO: DX-43144 Wording
- */
-public class ReferenceConflictException extends Exception {
+public class ReferenceConflictException extends RuntimeException {
   private static final long serialVersionUID = 1L;
 
   public ReferenceConflictException() {

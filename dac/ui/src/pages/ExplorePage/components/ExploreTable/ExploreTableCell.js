@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { Cell } from 'fixed-data-table-2';
-import Immutable from 'immutable';
-import shallowEqual from 'fbjs/lib/shallowEqual';
-import { pick } from 'lodash/object';
-import { LIST, MAP, TEXT } from '@app/constants/DataTypes';
-import { DATE_TYPES, NUMBER_TYPES } from '@app/constants/columnTypeGroups';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { Cell } from "fixed-data-table-2";
+import Immutable from "immutable";
+import shallowEqual from "fbjs/lib/shallowEqual";
+import { pick } from "lodash/object";
+import { LIST, MAP, TEXT } from "@app/constants/DataTypes";
+import { DATE_TYPES, NUMBER_TYPES } from "@app/constants/columnTypeGroups";
 
-import dataFormatUtils from 'utils/dataFormatUtils';
-import exploreUtils from 'utils/explore/exploreUtils';
-import { RED } from 'uiTheme/radium/colors';
+import dataFormatUtils from "utils/dataFormatUtils";
+import exploreUtils from "utils/explore/exploreUtils";
+import { RED } from "uiTheme/radium/colors";
 
-import { withLocation } from 'containers/dremioLocation';
-import EllipsisIcon from '../EllipsisIcon';
+import { withLocation } from "containers/dremioLocation";
+import EllipsisIcon from "../EllipsisIcon";
 
-import './ExploreTableCell.less';
+import "./ExploreTableCell.less";
 
 const CACHED_ROWS_NUMBER = 50;
 
@@ -49,7 +49,6 @@ export class ExploreTableCellView extends Component {
     columns: PropTypes.instanceOf(Immutable.List),
     onCellTextSelect: PropTypes.func,
     selectItemsOfList: PropTypes.func,
-    shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
 
     // Cell props
     width: PropTypes.number,
@@ -57,15 +56,15 @@ export class ExploreTableCellView extends Component {
     style: PropTypes.object,
 
     // context properties
-    location: PropTypes.object
+    location: PropTypes.object,
   };
 
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   static defaultProps = {
-    data: Immutable.List()
+    data: Immutable.List(),
   };
 
   constructor(props) {
@@ -77,10 +76,9 @@ export class ExploreTableCellView extends Component {
     this.getCellValue = this.getCellValue.bind(this);
     this.state = {
       innerContentWidth: 0, // will be used to calculate should we display ellipses or not. Zero value is ignored
-      curSelectedCell: '',
-      startSelect: false
+      curSelectedCell: "",
+      startSelect: false,
     };
-
   }
 
   componentWillReceiveProps(nextProps) {
@@ -88,26 +86,37 @@ export class ExploreTableCellView extends Component {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    const dataPath = [nextProps.rowIndex, 'row', nextProps.columnKey];
+    const dataPath = [nextProps.rowIndex, "row", nextProps.columnKey];
 
-    const props = ['rowIndex', 'columnKey', 'columnStatus', 'columnType', 'width'];
-    return !shallowEqual(pick(nextProps, props), pick(this.props, props))
-      || !shallowEqual(nextState, this.state)
-      || !Immutable.is(nextProps.data.getIn(dataPath), this.props.data.getIn(dataPath));
+    const props = [
+      "rowIndex",
+      "columnKey",
+      "columnStatus",
+      "columnType",
+      "width",
+    ];
+    return (
+      !shallowEqual(pick(nextProps, props), pick(this.props, props)) ||
+      !shallowEqual(nextState, this.state) ||
+      !Immutable.is(
+        nextProps.data.getIn(dataPath),
+        this.props.data.getIn(dataPath)
+      )
+    );
   }
 
   componentDidUpdate(prevProps, prevState) {
     if (this.state.startSelect && !prevState.startSelect) {
-      $(document).on('mouseup', this.onMouseUp);
+      $(document).on("mouseup", this.onMouseUp);
     } else if (!this.state.startSelect && prevState.startSelect) {
-      $(document).off('mouseup', this.onMouseUp);
+      $(document).off("mouseup", this.onMouseUp);
     }
   }
 
   onMouseDown(e) {
     this.setState({
       curSelectedCell: e.target,
-      startSelect: true
+      startSelect: true,
     });
   }
 
@@ -115,7 +124,7 @@ export class ExploreTableCellView extends Component {
     const elem = $(e.target);
 
     this.setState({
-      innerContentWidth: elem.outerWidth(true)
+      innerContentWidth: elem.outerWidth(true),
     });
   }
 
@@ -126,19 +135,32 @@ export class ExploreTableCellView extends Component {
     const state = this.props.location.state || {};
     this.setState({ startSelect: false });
     const selection = window.getSelection();
-    const selectionData = exploreUtils.getSelectionData(exploreUtils.updateSelectionToSingleCell(selection));
+    const selectionData = exploreUtils.getSelectionData(
+      exploreUtils.updateSelectionToSingleCell(selection)
+    );
     if (this.prohibitSelection(selectionData)) {
       return null;
     }
 
     const columnName = this.getColumnName(selectionData.oRange.startContainer);
     const columnText = selectionData.oRange.startContainer.data;
-    const columnType = this.props.columns.find(col => col.get('name') === columnName).get('type');
+    const columnType = this.props.columns
+      .find((col) => col.get("name") === columnName)
+      .get("type");
     const cellValue = this.getCellValue();
     if (columnType === LIST) {
-      this.props.selectItemsOfList(columnText, columnName, columnType, selectionData);
+      this.props.selectItemsOfList(
+        columnText,
+        columnName,
+        columnType,
+        selectionData
+      );
     } else if (columnType === TEXT) {
-      const selectedData = exploreUtils.getSelection(columnText, columnName, selectionData);
+      const selectedData = exploreUtils.getSelection(
+        columnText,
+        columnName,
+        selectionData
+      );
       this.context.router.push({
         ...this.props.location,
         state: {
@@ -146,15 +168,21 @@ export class ExploreTableCellView extends Component {
           columnName,
           columnType,
           hasSelection: true,
-          selection: selectedData.model
-        }}
-      );
+          selection: selectedData.model,
+        },
+      });
       if (!state.transformType) {
         this.props.onCellTextSelect({ ...selectedData.position, columnType });
       }
     } else if (columnType !== MAP) {
       const element = selectionData.oRange.startContainer.parentElement;
-      this.props.selectAll(element, columnType, columnName, columnText, cellValue);
+      this.props.selectAll(
+        element,
+        columnType,
+        columnName,
+        columnText,
+        cellValue
+      );
     }
     window.getSelection().removeAllRanges();
   }
@@ -167,39 +195,47 @@ export class ExploreTableCellView extends Component {
   }
 
   getColumnIndex(target) {
-    return $(target).closest('.fixedDataTableCellLayout_main').index();
+    return $(target).closest(".fixedDataTableCellLayout_main").index();
   }
 
   getCellValue() {
     const { data, rowIndex, columnKey } = this.props;
-    return data.getIn([rowIndex, 'row', columnKey, 'v']);
+    return data.getIn([rowIndex, "row", columnKey, "v"]);
   }
 
   getCellType() {
     // columnType can be 'mixed'. The cell type is returned by server.
     const { data, rowIndex, columnKey } = this.props;
-    return data.getIn([rowIndex, 'row', columnKey, 't']);
+    return data.getIn([rowIndex, "row", columnKey, "t"]);
   }
 
   getFullValueUrl() {
     const { data, rowIndex, columnKey } = this.props;
-    return data.getIn([rowIndex, 'row', columnKey, 'u']);
+    return data.getIn([rowIndex, "row", columnKey, "u"]);
   }
 
   prohibitSelection(selectionData) {
     const { query } = this.props.location;
-    if (this.props.isDumbTable ||
-        !selectionData ||
-        !selectionData.text ||
-        !$(this.state.curSelectedCell).closest('.public_fixedDataTableCell_main')) {
+    if (
+      this.props.isDumbTable ||
+      !selectionData ||
+      !selectionData.text ||
+      !$(this.state.curSelectedCell).closest(".public_fixedDataTableCell_main")
+    ) {
       return true;
     }
     const columnName = this.getColumnName(selectionData.oRange.startContainer);
-    const column = this.props.columns.find(col => col.get('name') === columnName);
+    const column = this.props.columns.find(
+      (col) => col.get("name") === columnName
+    );
     if (!column) return true;
 
-    const columnStatus = this.props.columns.find(col => col.get('name') === columnName).get('status');
-    return Boolean(query.type && query.type === 'transform' && columnStatus === 'HIGHLIGHTED');
+    const columnStatus = this.props.columns
+      .find((col) => col.get("name") === columnName)
+      .get("status");
+    return Boolean(
+      query.type && query.type === "transform" && columnStatus === "HIGHLIGHTED"
+    );
   }
 
   // When shouldRenderInvisibles= true, there is additional wrapping above the cell values. We have to find a cell wrapper to determine a cell wrapper.
@@ -210,26 +246,32 @@ export class ExploreTableCellView extends Component {
   getColumnName(cellContentEl) {
     let currentElement = cellContentEl;
 
-    while (currentElement && (!currentElement.className || currentElement.className.indexOf('cell-wrap') < 0)) {
+    while (
+      currentElement &&
+      (!currentElement.className ||
+        currentElement.className.indexOf("cell-wrap") < 0)
+    ) {
       currentElement = currentElement.parentNode;
     }
 
     if (currentElement) {
-      return currentElement.getAttribute('data-columnname');
+      return currentElement.getAttribute("data-columnname");
     }
     return null;
   }
 
   showEllipsis() {
-    const {
-      columnType,
-      width
-    } = this.props;
+    const { columnType, width } = this.props;
     const value = this.getCellValue();
-    return value !== null && Boolean(this.state.innerContentWidth > width
-                  || this.getFullValueUrl()
-                  || columnType === MAP
-                  || columnType === LIST);
+    return (
+      value !== null &&
+      Boolean(
+        this.state.innerContentWidth > width ||
+          this.getFullValueUrl() ||
+          columnType === MAP ||
+          columnType === LIST
+      )
+    );
   }
 
   tryToLoadNextRows(rowIndex, data) {
@@ -239,21 +281,26 @@ export class ExploreTableCellView extends Component {
   }
 
   render() {
-    const { rowIndex, data, columnType, style, width, height, shouldRenderInvisibles } = this.props;
+    const { rowIndex, data, columnType, style, width, height } = this.props;
     const row = data.get(rowIndex);
     const showEllipsis = this.showEllipsis();
     const cellValue = this.getCellValue();
-    const emptyStyle = (cellValue === null || cellValue === '') ? styles.nullCell : {};
+    const emptyStyle =
+      cellValue === null || cellValue === "" ? styles.nullCell : {};
     const removedStyle = row && row.deleted ? styles.removedCell : {};
 
-    const isNumericCell = (DATE_TYPES.indexOf(columnType) !== -1 || NUMBER_TYPES.indexOf(columnType) !== -1)
-      && cellValue !== null;
-    const extraWrapStyle = isNumericCell ? { display: 'flex', justifyContent: 'flex-end' } : {};
+    const isNumericCell =
+      (DATE_TYPES.indexOf(columnType) !== -1 ||
+        NUMBER_TYPES.indexOf(columnType) !== -1) &&
+      cellValue !== null;
+    const extraWrapStyle = isNumericCell
+      ? { display: "flex", justifyContent: "flex-end" }
+      : {};
     // position is absolute by default. We need set "relative" for align
-    const extraCellStyle = isNumericCell ? { position: 'relative' } : {};
+    const extraCellStyle = isNumericCell ? { position: "relative" } : {};
 
-    const className = 'explore-cell ' + (showEllipsis ? 'explore-cell-overflow' : '') +
-      (shouldRenderInvisibles ? ' explore-call-show-invisible' : '');
+    const className =
+      "explore-cell " + (showEllipsis ? "explore-cell-overflow" : "");
 
     return (
       <Cell
@@ -261,19 +308,25 @@ export class ExploreTableCellView extends Component {
         height={height}
         style={{ ...style, ...extraWrapStyle }}
         className={className}
-        ref='cellContent'
         onMouseDown={this.onMouseDown}
       >
-        {row &&
-          <div className='cell-data'>
+        {row && (
+          <div className="cell-data">
             <span
               onMouseEnter={this.onMouseEnter}
-              style={{...emptyStyle, ...removedStyle, ...extraCellStyle }}
-              className='cell-wrap' data-columnname={this.props.columnName}>
-              {dataFormatUtils.formatValue(cellValue, this.getCellType() || columnType, row, shouldRenderInvisibles)}
+              style={{ ...emptyStyle, ...removedStyle, ...extraCellStyle }}
+              className="cell-wrap"
+              data-columnname={this.props.columnName}
+            >
+              {dataFormatUtils.formatValue(
+                cellValue,
+                this.getCellType() || columnType,
+                row,
+                false
+              )}
             </span>
           </div>
-        }
+        )}
         {showEllipsis && <EllipsisIcon onClick={this.onEllipsisClick} />}
       </Cell>
     );
@@ -285,9 +338,12 @@ export default withLocation(ExploreTableCellView);
 const styles = {
   removedCell: {
     color: RED,
-    textDecoration: 'line-through'
+    textDecoration: "line-through",
   },
   nullCell: {
-    fontStyle: 'italic', textAlign: 'center', width: '95%', color: '#aaa'
-  }
+    fontStyle: "italic",
+    textAlign: "center",
+    width: "95%",
+    color: "#aaa",
+  },
 };

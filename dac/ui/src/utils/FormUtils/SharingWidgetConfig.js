@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import { AccessControlListSection } from 'dyn-load/components/Forms/AccessControlListSection';
-import SharingWrapper from 'components/Forms/Wrappers/SharingWrapper';
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import { AccessControlListSection } from "dyn-load/components/Forms/AccessControlListSection";
+import SharingWrapper from "components/Forms/Wrappers/SharingWrapper";
 
 export default class SharingWidgetConfig extends FormElementConfig {
-
   constructor(props) {
     super(props);
     this._renderer = SharingWrapper;
@@ -39,5 +38,4 @@ export default class SharingWidgetConfig extends FormElementConfig {
   addValidators(validations) {
     return validations;
   }
-
 }

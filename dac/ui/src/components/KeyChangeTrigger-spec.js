@@ -13,22 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { KeyChangeTrigger } from './KeyChangeTrigger';
+import { shallow } from "enzyme";
+import { KeyChangeTrigger } from "./KeyChangeTrigger";
 
-describe('KeyChangeTrigger', () => {
+describe("KeyChangeTrigger", () => {
   let stub;
   let wrapper;
-  const parameterToString = parameter => JSON.stringify(parameter, null, 2);
+  const parameterToString = (parameter) => JSON.stringify(parameter, null, 2);
   const testChange = (oldValue, newValue, isOnChangeCalled) =>
-    it(`${isOnChangeCalled ? 'calls' : 'does not call'} onChange if value changed from ${parameterToString(oldValue)} to ${parameterToString(newValue)}`, () => {
+    it(`${
+      isOnChangeCalled ? "calls" : "does not call"
+    } onChange if value changed from ${parameterToString(
+      oldValue
+    )} to ${parameterToString(newValue)}`, () => {
       stub = sinon.stub();
-      wrapper = shallow(<KeyChangeTrigger keyValue={oldValue} onChange={stub} />, {
-        disableLifecycleMethods: false
-      });
+      wrapper = shallow(
+        <KeyChangeTrigger keyValue={oldValue} onChange={stub} />,
+        {
+          disableLifecycleMethods: false,
+        }
+      );
       stub.resetHistory();
       wrapper.setProps({
-        keyValue: newValue
+        keyValue: newValue,
       });
       if (isOnChangeCalled) {
         expect(stub).to.be.calledWith(newValue);
@@ -39,19 +46,19 @@ describe('KeyChangeTrigger', () => {
 
   beforeEach(() => {
     stub = sinon.stub();
-    wrapper = shallow(<KeyChangeTrigger keyValue='1' onChange={stub} />, {
-      disableLifecycleMethods: false
+    wrapper = shallow(<KeyChangeTrigger keyValue="1" onChange={stub} />, {
+      disableLifecycleMethods: false,
     });
   });
 
-  it('calls onChange on mount', () => {
-    expect(stub).to.be.calledWith('1');
+  it("calls onChange on mount", () => {
+    expect(stub).to.be.calledWith("1");
   });
 
   [
     //strings
-    ['1', '2', true],
-    ['1', '1', false],
+    ["1", "2", true],
+    ["1", "1", false],
     // numbers
     [1, 1, false],
     [1, 2, true],
@@ -63,15 +70,15 @@ describe('KeyChangeTrigger', () => {
     //object
     [{}, {}, false],
     [{ a: 1 }, { a: 1 }, false],
-    [{}, { a : 1 }, true],
-    [{}, { a : null }, true],
-    [{}, { a : undefined }, true],
+    [{}, { a: 1 }, true],
+    [{}, { a: null }, true],
+    [{}, { a: undefined }, true],
     //arrays
     [[], [], false],
     [[1], [1], false],
     [[1, 2, 3], [1, 2, 3], false],
     [[1], [1, 2], true],
     [[1, 2], [1], true],
-    [[1, 2], [2, 1], true]
-  ].map(args => testChange(...args));
+    [[1, 2], [2, 1], true],
+  ].map((args) => testChange(...args));
 });

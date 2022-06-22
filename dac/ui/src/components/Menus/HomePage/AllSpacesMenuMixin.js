@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import MenuItemLink from 'components/Menus/MenuItemLink';
-import { EntityLinkProvider } from '@app/pages/HomePage/components/EntityLink';
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import MenuItemLink from "components/Menus/MenuItemLink";
+import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     render() {
       const { spaceId, closeMenu } = this.props;
-      const {location} = this.context;
+      const { location } = this.context;
       return (
         <Menu>
           {
@@ -30,7 +31,7 @@ export default function(input) {
               {(link) => (
                 <MenuItemLink
                   href={link}
-                  text={la('Browse')}
+                  text={la("Browse")}
                   closeMenu={closeMenu}
                 />
               )}
@@ -38,15 +39,21 @@ export default function(input) {
           }
           {
             <MenuItemLink
-              href={{...location, state: { modal: 'SpaceModal', entityId: spaceId }}}
-              text={la('Edit Details')}
-              closeMenu={closeMenu}/>
+              href={{
+                ...location,
+                state: { modal: "SpaceModal", entityId: spaceId },
+              }}
+              text={la("Edit Details")}
+              closeMenu={closeMenu}
+            />
           }
           {
-            <MenuItem onClick={this.handleRemoveSpace}>{la('Remove Space')}</MenuItem>
+            <MenuItem onClick={this.handleRemoveSpace}>
+              {la("Remove Space")}
+            </MenuItem>
           }
         </Menu>
       );
-    }
+    },
   });
 }

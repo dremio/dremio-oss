@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import SearchField from './SearchField';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import SearchField from "./SearchField";
 
-describe('SearchField', () => {
+describe("SearchField", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -25,23 +25,23 @@ describe('SearchField', () => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      value: '123',
+      value: "123",
       showCloseIcon: true,
       onChange: sinon.spy(),
       columns: Immutable.fromJS([
-        { name: 'name' },
-        { name: 'foo' },
-        { name: 'bar' }
-      ])
+        { name: "name" },
+        { name: "foo" },
+        { name: "bar" },
+      ]),
     };
-    wrapper = shallow(<SearchField {...commonProps}/>);
+    wrapper = shallow(<SearchField {...commonProps} />);
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapperMinProps = shallow(<SearchField {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapperMinProps = shallow(<SearchField {...minimalProps} />);
     expect(wrapperMinProps).to.have.length(1);
   });
-  it('should render 1 FontIcon components, input', () => {
-    expect(wrapper.find('FontIcon')).to.have.length(1);
-    expect(wrapper.find('input')).to.have.length(1);
+  it("should render 1 FontIcon components, input", () => {
+    expect(wrapper.find("FontIcon")).to.have.length(1);
+    expect(wrapper.find("input")).to.have.length(1);
   });
 });

@@ -13,20 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { AutoSizer, List } from 'react-virtualized';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { AutoSizer, List } from "react-virtualized";
 
-import { SearchField } from 'components/Fields';
-import classNames from 'classnames';
-import { rowMargin } from '@app/uiTheme/less/forms.less';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import { SearchField } from "components/Fields";
+import classNames from "classnames";
+import { rowMargin } from "@app/uiTheme/less/forms.less";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 
-import { base, search } from '@app/uiTheme/less/DragComponents/DragColumnMenu.less';
-import ColumnMenuItem from './ColumnMenuItem';
+import {
+  base,
+  search,
+} from "@app/uiTheme/less/DragComponents/DragColumnMenu.less";
+import ColumnMenuItem from "./ColumnMenuItem";
 
-export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST']);
+export const NOT_SUPPORTED_TYPES = new Set(["MAP", "LIST"]);
 
 export default class DragColumnMenu extends PureComponent {
   static propTypes = {
@@ -41,35 +44,39 @@ export default class DragColumnMenu extends PureComponent {
     type: PropTypes.string,
     fieldType: PropTypes.string,
     className: PropTypes.string,
-    canAlter: PropTypes.any
-  }
+    canAlter: PropTypes.any,
+  };
 
   static sortColumns(columns, disabledColumnNames) {
-    return columns.sortBy((column) =>
-      (disabledColumnNames.has(column.get('name')) ? columns.size : 0) + column.get('index')
+    return columns.sortBy(
+      (column) =>
+        (disabledColumnNames.has(column.get("name")) ? columns.size : 0) +
+        column.get("index")
     );
   }
 
-  filteredSortedColumns = undefined
+  filteredSortedColumns = undefined;
 
   constructor(props) {
     super(props);
     this.state = {
-      filter: ''
+      filter: "",
     };
     this.updateColumns(this.state.filter, props.disabledColumnNames);
   }
 
   onFilterChange = (filter) => {
     this.setState({
-      filter
+      filter,
     });
-  }
+  };
 
   componentWillUpdate(nextProps, nextState) {
-    if (nextProps.items !== this.props.items ||
+    if (
+      nextProps.items !== this.props.items ||
       nextProps.disabledColumnNames !== this.props.disabledColumnNames ||
-      nextState.filter !== this.state.filter) {
+      nextState.filter !== this.state.filter
+    ) {
       this.updateColumns(nextState.filter, nextProps.disabledColumnNames);
     }
   }
@@ -85,45 +92,56 @@ export default class DragColumnMenu extends PureComponent {
   }
 
   filterColumns(filter, allColumns) {
-    return allColumns.filter((column) => column.get('name').toLowerCase().includes(filter.trim().toLowerCase()));
+    return allColumns.filter((column) =>
+      column.get("name").toLowerCase().includes(filter.trim().toLowerCase())
+    );
   }
 
   renderColumn = ({ index, key, style }) => {
     const column = this.filteredSortedColumns.get(index);
     const isUserAnAdmin = localStorageUtils.isUserAnAdmin();
     const { canAlter } = this.props;
-    return <div key={key} style={style}>
-      <ColumnMenuItem
-        item={column}
-        disabled={this.props.disabledColumnNames.has(column.get('name'))}
-        type={this.props.type}
-        fieldType={this.props.fieldType}
-        handleDragStart={this.props.handleDragStart}
-        onDragEnd={this.props.onDragEnd}
-        name={this.props.name}
-        dragType={this.props.dragType}
-        preventDrag={!(isUserAnAdmin || canAlter)}
-        className={rowMargin}
-      />
-    </div>;
-  }
+    return (
+      <div key={key} style={style}>
+        <ColumnMenuItem
+          item={column}
+          disabled={this.props.disabledColumnNames.has(column.get("name"))}
+          type={this.props.type}
+          fieldType={this.props.fieldType}
+          handleDragStart={this.props.handleDragStart}
+          onDragEnd={this.props.onDragEnd}
+          name={this.props.name}
+          dragType={this.props.dragType}
+          preventDrag={!(isUserAnAdmin || canAlter)}
+          className={rowMargin}
+        />
+      </div>
+    );
+  };
 
   render() {
     return (
-      <div className={classNames(['inner-join-left-menu', base, this.props.className])} style={this.props.style}>
+      <div
+        className={classNames([
+          "inner-join-left-menu",
+          base,
+          this.props.className,
+        ])}
+        style={this.props.style}
+      >
         <SearchField
-          dataQa={'search-field-' + this.props.fieldType}
+          dataQa={"search-field-" + this.props.fieldType}
           showCloseIcon
-          placeholder={la('Search fields…')}
+          placeholder={la("Search fields…")}
           value={this.state.filter}
           onChange={this.onFilterChange}
           className={search}
         />
-        <div style={{flexGrow: 1, overflow: 'hidden'}}>
+        <div style={{ flexGrow: 1, overflow: "hidden" }}>
           <AutoSizer>
             {({ height, width }) => (
               <List
-                ref={(ref) => this.virtualList = ref}
+                ref={(ref) => (this.virtualList = ref)}
                 rowRenderer={this.renderColumn}
                 rowCount={this.filteredSortedColumns.size}
                 rowHeight={30}

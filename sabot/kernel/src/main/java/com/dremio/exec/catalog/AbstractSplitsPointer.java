@@ -42,7 +42,7 @@ public abstract class AbstractSplitsPointer implements SplitsPointer {
     splitsCount = -1;
   }
 
-  abstract public long getSplitVersion();
+  public abstract long getSplitVersion();
 
   @Override
   public double getSplitRatio() {

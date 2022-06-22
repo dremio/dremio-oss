@@ -13,19 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import invariant from 'invariant';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import invariant from "invariant";
 
-import codeMirror from 'codemirror';
-import './CodeMirror-sqlMode';
+import codeMirror from "codemirror";
+import "./CodeMirror-sqlMode";
 
 const CM_EVENTS = [
-  'change', 'changes', 'beforeChange', 'cursorActivity', 'keyHandled', 'inputRead', 'electricInput',
-  'beforeSelectionChange', 'viewportChange', 'swapDoc', 'gutterClick', 'gutterContextMenu', 'focus', 'blur', 'scroll',
-  'refresh', 'optionChange', 'scrollCursorIntoView', 'update', 'renderLine', 'mousedown', 'dblclick', 'touchstart',
-  'contextmenu', 'keydown', 'keypress', 'keyup', 'cut', 'copy', 'paste', 'dragstart', 'dragenter', 'dragover',
-  'dragleave', 'drop'
+  "change",
+  "changes",
+  "beforeChange",
+  "cursorActivity",
+  "keyHandled",
+  "inputRead",
+  "electricInput",
+  "beforeSelectionChange",
+  "viewportChange",
+  "swapDoc",
+  "gutterClick",
+  "gutterContextMenu",
+  "focus",
+  "blur",
+  "scroll",
+  "refresh",
+  "optionChange",
+  "scrollCursorIntoView",
+  "update",
+  "renderLine",
+  "mousedown",
+  "dblclick",
+  "touchstart",
+  "contextmenu",
+  "keydown",
+  "keypress",
+  "keyup",
+  "cut",
+  "copy",
+  "paste",
+  "dragstart",
+  "dragenter",
+  "dragover",
+  "dragleave",
+  "drop",
 ];
 
 const PROP_NAME_TO_CM_EVENT = CM_EVENTS.reduce((prev, event) => {
@@ -33,14 +63,17 @@ const PROP_NAME_TO_CM_EVENT = CM_EVENTS.reduce((prev, event) => {
   return prev;
 }, {});
 
-const CM_EVENT_PROP_TYPES = Object.keys(PROP_NAME_TO_CM_EVENT).reduce((prev, propName) => {
-  prev[propName] = PropTypes.func;
-  return prev;
-}, {});
+const CM_EVENT_PROP_TYPES = Object.keys(PROP_NAME_TO_CM_EVENT).reduce(
+  (prev, propName) => {
+    prev[propName] = PropTypes.func;
+    return prev;
+  },
+  {}
+);
 
 const DEFAULT_OPTIONS = {
-  mode: 'text/x-dremiosql',
-  theme: 'mdn-like'
+  mode: "text/x-dremiosql",
+  theme: "mdn-like",
 };
 
 /**
@@ -53,31 +86,33 @@ const DEFAULT_OPTIONS = {
  * happen before componentDidMount.
  */
 export default class CodeMirror extends PureComponent {
-
   static propTypes = {
     defaultValue: PropTypes.string,
     options: PropTypes.object,
     ...CM_EVENT_PROP_TYPES,
-    codeMirror: PropTypes.func // for testing
-  }
+    codeMirror: PropTypes.func, // for testing
+  };
 
   static defaultProps = {
     options: {},
-    codeMirror
-  }
+    codeMirror,
+  };
 
   editor = null;
   codeMirrorEl = null;
 
   componentDidMount() {
     const { options } = this.props;
-    this.editor = this.props.codeMirror(this.codeMirrorEl, {...DEFAULT_OPTIONS, ...options});
+    this.editor = this.props.codeMirror(this.codeMirrorEl, {
+      ...DEFAULT_OPTIONS,
+      ...options,
+    });
 
     Object.keys(PROP_NAME_TO_CM_EVENT).forEach((propName) => {
       if (this.props[propName]) {
         // special case onChange to prevent change event when reseting
-        if (propName === 'onChange') {
-          this.editor.on('change', this.handleChange);
+        if (propName === "onChange") {
+          this.editor.on("change", this.handleChange);
         } else {
           this.editor.on(PROP_NAME_TO_CM_EVENT[propName], this.props[propName]);
         }
@@ -94,7 +129,10 @@ export default class CodeMirror extends PureComponent {
     if (this.props.defaultValue !== prevProps.defaultValue) {
       this.resetValue();
     }
-    invariant(this.props.options === prevProps.options, 'changing options is not implemented');
+    invariant(
+      this.props.options === prevProps.options,
+      "changing options is not implemented"
+    );
   }
 
   componentWillUnmount() {
@@ -108,12 +146,12 @@ export default class CodeMirror extends PureComponent {
     if (!this.reseting) {
       this.props.onChange(cm, event);
     }
-  }
+  };
 
   resetValue() {
     this.reseting = true;
     try {
-      this.editor.setValue(this.props.defaultValue || '');
+      this.editor.setValue(this.props.defaultValue || "");
     } finally {
       this.reseting = false;
     }
@@ -121,7 +159,10 @@ export default class CodeMirror extends PureComponent {
 
   render() {
     return (
-      <div className='ReactCodeMirror' ref={(ref) => this.codeMirrorEl = ref}/>
+      <div
+        className="ReactCodeMirror"
+        ref={(ref) => (this.codeMirrorEl = ref)}
+      />
     );
   }
 }

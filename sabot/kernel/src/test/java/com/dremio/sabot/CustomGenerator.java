@@ -49,9 +49,9 @@ import com.google.common.base.Preconditions;
  */
 public class CustomGenerator implements Generator {
 
-  final public static Field ID = CompleteType.INT.toField("ID");
-  final public static Field VALUE = CompleteType.VARCHAR.toField("FIELD");
-  final static Field MYLIST = CompleteType.BIGINT.asList().toField("MYLIST");
+  public static final Field ID = CompleteType.INT.toField("ID");
+  public static final Field VALUE = CompleteType.VARCHAR.toField("FIELD");
+  static final Field MYLIST = CompleteType.BIGINT.asList().toField("MYLIST");
 
   private static final int INNER_LIST_SIZE = 3;
 

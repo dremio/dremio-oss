@@ -51,12 +51,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 
 @RunWith(value = Enclosed.class)
 public class TestCompleteType {
   @RunWith(value = Parameterized.class)
-  public static class SupportedUpPromotionTests {
+  public static class SupportedUpPromotionTests implements SupportsTypeCoercionsAndUpPromotions {
     private final CompleteType fileType;
     private final CompleteType tableType;
     private final CompleteType finalType;
@@ -112,27 +113,27 @@ public class TestCompleteType {
 
     @Test
     public void testSuccessfulUpPromotion() {
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType()).isEqualTo(finalType.getType());
     }
   }
 
-  public static class UnsupportedUpPromotionTests {
+  public static class UnsupportedUpPromotionTests implements SupportsTypeCoercionsAndUpPromotions {
     @Test(expected = NoSupportedUpPromotionOrCoercionException.class)
     public void testUnsupportedUpPromotionForComplexTypes() {
-      LIST.mergeFieldListsWithUpPromotionOrCoercion(STRUCT);
-      LIST.mergeFieldListsWithUpPromotionOrCoercion(INT);
-      STRUCT.mergeFieldListsWithUpPromotionOrCoercion(LIST);
-      STRUCT.mergeFieldListsWithUpPromotionOrCoercion(INT);
+      LIST.mergeFieldListsWithUpPromotionOrCoercion(STRUCT, this);
+      LIST.mergeFieldListsWithUpPromotionOrCoercion(INT, this);
+      STRUCT.mergeFieldListsWithUpPromotionOrCoercion(LIST, this);
+      STRUCT.mergeFieldListsWithUpPromotionOrCoercion(INT, this);
     }
   }
 
-  public static class SupportedUpPromotionTestsForComplexTypes {
+  public static class SupportedUpPromotionTestsForComplexTypes implements SupportsTypeCoercionsAndUpPromotions {
 
     @Test
     public void testNullTypePromotionForComplexTypes() {
-      NULL.mergeFieldListsWithUpPromotionOrCoercion(STRUCT);
-      NULL.mergeFieldListsWithUpPromotionOrCoercion(LIST);
+      NULL.mergeFieldListsWithUpPromotionOrCoercion(STRUCT, this);
+      NULL.mergeFieldListsWithUpPromotionOrCoercion(LIST, this);
     }
 
     @Test
@@ -140,7 +141,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", BIT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", VARCHAR.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(VARCHAR.getType());
     }
@@ -150,7 +151,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(64, true)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Int.class);
       assertThat(((ArrowType.Int) upPromotedType.getOnlyChild().getType()).getBitWidth()).isEqualTo(64);
@@ -161,7 +162,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(64, true)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Int.class);
       assertThat(((ArrowType.Int) upPromotedType.getOnlyChild().getType()).getBitWidth()).isEqualTo(64);
@@ -172,7 +173,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new FloatingPoint(SINGLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -183,7 +184,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new FloatingPoint(SINGLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -194,7 +195,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new FloatingPoint(FloatingPointPrecision.DOUBLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -205,7 +206,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new FloatingPoint(FloatingPointPrecision.DOUBLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -216,7 +217,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(6, 2, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(6);
@@ -228,7 +229,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", INT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", VARCHAR.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(VARCHAR.getType());
     }
@@ -238,7 +239,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", BIGINT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", FLOAT.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -249,7 +250,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(64, true)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new FloatingPoint(SINGLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -260,7 +261,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(64, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new FloatingPoint(FloatingPointPrecision.DOUBLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -271,7 +272,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(64, true)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new FloatingPoint(FloatingPointPrecision.DOUBLE)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.FloatingPoint.class);
       assertThat(((ArrowType.FloatingPoint) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(FloatingPointPrecision.DOUBLE);
@@ -282,7 +283,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(64, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(6, 2, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(6);
@@ -294,7 +295,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", BIGINT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", VARCHAR.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(VARCHAR.getType());
     }
@@ -304,7 +305,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", FLOAT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", DOUBLE.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(DOUBLE.getType());
       assertThat(upPromotedType.getOnlyChild().getType()).isNotEqualTo(FLOAT.getType());
@@ -315,7 +316,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", FLOAT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(6, 2, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(6);
@@ -327,7 +328,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", FLOAT.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", VARCHAR.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(VARCHAR.getType());
     }
@@ -337,7 +338,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", DOUBLE.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", VARCHAR.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(VARCHAR.getType());
     }
@@ -347,7 +348,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(6, 2, 128)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", DOUBLE.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(DOUBLE.getType());
     }
@@ -357,7 +358,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", DECIMAL.getType()));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", VARCHAR.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType()).isEqualTo(VARCHAR.getType());
     }
@@ -367,7 +368,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(3, 1, 128)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(6, 2, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(6);
@@ -379,7 +380,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(38, 35, 128)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new ArrowType.Decimal(38, 1, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(38);
@@ -391,7 +392,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new ArrowType.Decimal(3, 1, 128)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new ArrowType.Decimal(6, 2, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(6);
@@ -403,7 +404,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new ArrowType.Decimal(38, 35, 128)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new ArrowType.Decimal(38, 1, 128)));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Decimal.class);
       assertThat(((ArrowType.Decimal) upPromotedType.getOnlyChild().getType()).getPrecision()).isEqualTo(38);
@@ -415,7 +416,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(ArrowType.Struct.INSTANCE, Field.nullable("col1", BIT.getType()), Field.nullable("col2", INT.getType()));
       CompleteType tableType = new CompleteType(ArrowType.Struct.INSTANCE, Field.nullable("col1", VARCHAR.getType()), Field.nullable("col2", DOUBLE.getType()));
 
-      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType upPromotedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(ArrowType.Struct.class);
       assertThat(upPromotedType.getChildren().get(0).getType()).isEqualTo(VARCHAR.getType());
       assertThat(upPromotedType.getChildren().get(1).getType()).isEqualTo(DOUBLE.getType());
@@ -423,7 +424,7 @@ public class TestCompleteType {
   }
 
   @RunWith(value = Parameterized.class)
-  public static class SupportedCoercionTests {
+  public static class SupportedCoercionTests implements SupportsTypeCoercionsAndUpPromotions {
     private final CompleteType fileType;
     private final CompleteType tableType;
     private final CompleteType finalType;
@@ -472,19 +473,19 @@ public class TestCompleteType {
 
     @Test
     public void testSuccessfulUpPromotion() {
-      CompleteType coercedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType);
+      CompleteType coercedType = tableType.mergeFieldListsWithUpPromotionOrCoercion(fileType, this);
       assertThat(coercedType.getType()).isEqualTo(finalType.getType());
       assertThat(coercedType.getType()).isNotEqualTo(fileType.getType());
     }
   }
 
-  public static class SupportedCoercionTestsForComplexTypes {
+  public static class SupportedCoercionTestsForComplexTypes implements SupportsTypeCoercionsAndUpPromotions {
     @Test
     public void testIntToBigintCoercionInList() {
       CompleteType fileType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(List.INSTANCE, Field.nullable("col1", new Int(64, true)));
 
-      CompleteType upPromotedType = fileType.mergeFieldListsWithUpPromotionOrCoercion(tableType);
+      CompleteType upPromotedType = fileType.mergeFieldListsWithUpPromotionOrCoercion(tableType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(List.class);
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Int.class);
       assertThat(((ArrowType.Int) upPromotedType.getOnlyChild().getType()).getBitWidth()).isEqualTo(64);
@@ -495,7 +496,7 @@ public class TestCompleteType {
       CompleteType fileType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(32, true)));
       CompleteType tableType = new CompleteType(STRUCT.getType(), Field.nullable("col1", new Int(64, true)));
 
-      CompleteType upPromotedType = fileType.mergeFieldListsWithUpPromotionOrCoercion(tableType);
+      CompleteType upPromotedType = fileType.mergeFieldListsWithUpPromotionOrCoercion(tableType, this);
       assertThat(upPromotedType.getType().getClass()).isEqualTo(STRUCT.getType().getClass());
       assertThat(upPromotedType.getOnlyChild().getType().getClass()).isEqualTo(ArrowType.Int.class);
       assertThat(((ArrowType.Int) upPromotedType.getOnlyChild().getType()).getBitWidth()).isEqualTo(64);
@@ -503,7 +504,7 @@ public class TestCompleteType {
   }
 
   @RunWith(value = Parameterized.class)
-  public static class UnionRemovalTests {
+  public static class UnionRemovalTests implements SupportsTypeCoercionsAndUpPromotions {
     private final CompleteType unionType;
     private final CompleteType finalType;
 
@@ -537,12 +538,12 @@ public class TestCompleteType {
 
     @Test
     public void testUnionRemoval() {
-      CompleteType typeContainingUnions = CompleteType.removeUnions(unionType);
+      CompleteType typeContainingUnions = CompleteType.removeUnions(unionType, this);
       assertThat(typeContainingUnions.getType()).isEqualTo(finalType.getType());
     }
   }
 
-  public static class UnionRemovalTestsInComplexTypes {
+  public static class UnionRemovalTestsInComplexTypes implements SupportsTypeCoercionsAndUpPromotions {
     private final String name = "col1";
 
     @Test
@@ -552,7 +553,7 @@ public class TestCompleteType {
       Field listField = new Field("listField", FieldType.nullable(LIST.getType()), singletonList(structField));
       CompleteType typeWithUnion = new CompleteType(LIST.getType(), listField);
 
-      CompleteType actualType = typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion);
+      CompleteType actualType = typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion, this);
       assertThat(actualType.getType()).isEqualTo(LIST.getType());
       java.util.List<Field> children = actualType.getOnlyChild().getChildren().get(0).getChildren();
       assertThat(children.size()).isEqualTo(1);
@@ -565,7 +566,7 @@ public class TestCompleteType {
       Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), singletonList(unionField));
       Field listField = new Field("listField", FieldType.nullable(LIST.getType()), singletonList(structField));
       CompleteType typeWithUnion = new CompleteType(LIST.getType(), listField);
-      assertThatThrownBy(() -> typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion))
+      assertThatThrownBy(() -> typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion, this))
         .isInstanceOf(Exception.class)
         .hasMessageContaining("Unable to coerce from the file's data type \"float\" to the column's data type \"boolean\", column \"col1\"");
     }
@@ -576,7 +577,7 @@ public class TestCompleteType {
       Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), singletonList(unionField));
       Field listField = new Field("listField", FieldType.nullable(LIST.getType()), singletonList(structField));
       CompleteType typeWithUnion = new CompleteType(LIST.getType(), listField);
-      assertThatThrownBy(() -> typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion))
+      assertThatThrownBy(() -> typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion, this))
         .isInstanceOf(Exception.class)
         .hasMessageContaining("Unable to coerce from the file's data type \"int32\" to the column's data type \"struct<a::varchar, b::int32>\", column \"col1\"");
     }
@@ -588,7 +589,7 @@ public class TestCompleteType {
       Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), singletonList(listField));
       CompleteType typeWithUnion = new CompleteType(STRUCT.getType(), structField);
 
-      CompleteType actualType = typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion);
+      CompleteType actualType = typeWithUnion.mergeFieldListsWithUpPromotionOrCoercion(typeWithUnion, this);
       assertThat(actualType.getType()).isEqualTo(STRUCT.getType());
       java.util.List<Field> children = actualType.getOnlyChild().getChildren().get(0).getChildren();
       assertThat(children.size()).isEqualTo(1);

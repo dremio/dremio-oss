@@ -108,6 +108,18 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
   }
 
   @Test
+  public void testGetTypeInfo() throws Exception {
+    final FlightInfo flightInfo = flightSqlClient.getXdbcTypeInfo(getCallOptions());
+    try (
+      final FlightStream stream = flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+        getCallOptions())) {
+      Assert.assertTrue(stream.next());
+      final VectorSchemaRoot root = stream.getRoot();
+      Assert.assertEquals(root.getRowCount(), 34);
+    }
+  }
+
+  @Test
   public void testGetTablesFilteringByCatalogPattern() throws Exception {
     final FlightInfo flightInfo = flightSqlClient.getTables("DREMIO", null, null,
       null, false, getCallOptions());

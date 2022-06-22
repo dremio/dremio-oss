@@ -261,7 +261,7 @@ public class TaskLeaderElection implements AutoCloseable {
           leadershipReleaseFuture.cancel(false);
         }
       } catch(InterruptedException ie) {
-        logger.error("Current thread is interrupted. stopping elections for {} before leader reelections for {}",
+        logger.error("Current thread is interrupted. stopping elections before leader reelections for {}",
           serviceName, ie);
         Thread.currentThread().interrupt();
       } catch (Exception e) {

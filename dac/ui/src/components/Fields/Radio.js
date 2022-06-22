@@ -13,36 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import classNames from 'classnames';
+import { PureComponent } from "react";
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Checkbox, { checkboxPropTypes } from './Checkbox';
-import { dot, dummy } from './Radio.less';
+import Checkbox, { checkboxPropTypes } from "./Checkbox";
+import { dot, dummy } from "./Radio.less";
 
 export default class Radio extends PureComponent {
-
   static propTypes = {
     ...checkboxPropTypes,
     // radio is checked based on props.checked if it is defined, or
     // if props.value (of the field) matches props.radioValue (of this radio).
-    radioValue: PropTypes.any
-  }
+    radioValue: PropTypes.any,
+  };
 
   renderDummyRadio = (isChecked, style) => {
-    return <div
-      data-qa={this.props.radioValue}
-      className={classNames(dummy, isChecked && 'checked')}
-      style={style}>
-      {isChecked ? <div className={dot} /> : ''}
-    </div>;
-  }
+    return (
+      <div
+        data-qa={this.props.radioValue}
+        className={classNames(dummy, isChecked && "checked")}
+        style={style}
+      >
+        {isChecked ? <div className={dot} /> : ""}
+      </div>
+    );
+  };
 
   render() {
-    const {checked, value, radioValue, ...props} = this.props;
+    const { checked, value, radioValue, ...props } = this.props;
     const finalChecked = checked === undefined ? radioValue === value : checked;
-    return <Checkbox {...props} value={radioValue} checked={finalChecked}
-      inputType='radio' renderDummyInput={this.renderDummyRadio}/>;
+    return (
+      <Checkbox
+        {...props}
+        value={radioValue}
+        checked={finalChecked}
+        inputType="radio"
+        renderDummyInput={this.renderDummyRadio}
+      />
+    );
   }
 }

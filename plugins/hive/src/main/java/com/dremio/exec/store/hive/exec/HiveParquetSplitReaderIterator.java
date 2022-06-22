@@ -163,7 +163,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
             RecordReader wrappedRecordReader = compositeReader.wrapIfNecessary(context.getAllocator(), curr,
                     hiveParquetSplits.get(location).getDatasetSplit());
             return ParquetCoercionReader.newInstance(context, compositeReader.getInnerColumns(),
-                    wrappedRecordReader, fullSchema, hiveTypeCoercion, curr.getFilterConditions());
+                    wrappedRecordReader, fullSchema, hiveTypeCoercion, curr.getFilters());
         });
     }
 
@@ -218,7 +218,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
                     UnifiedParquetReader.getReaderFactory(context.getConfig()),
                     fullSchema,
                     compositeReader.getInnerColumns(),
-                    copyOfFilterConditions,
+                    new HiveParquetFilters(copyOfFilterConditions),
                     hiveParquetSplit.getFileSplit(),
                     hiveParquetSplit.getHiveSplitXAttr(),
                     jobConf,

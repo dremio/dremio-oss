@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import FontIcon from 'components/Icon/FontIcon';
-import SimpleButton from 'components/Buttons/SimpleButton';
-import {createReflectionFormValues} from 'utils/accelerationUtils';
-import AccelerationRawMixin from '@inject/components/Acceleration/Advanced/AccelerationRawMixin.js';
+import FontIcon from "components/Icon/FontIcon";
+import SimpleButton from "components/Buttons/SimpleButton";
+import { createReflectionFormValues } from "utils/accelerationUtils";
+import AccelerationRawMixin from "@inject/components/Acceleration/Advanced/AccelerationRawMixin.js";
 
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import { commonThemes } from '../commonThemes';
-import AccelerationGridController from './AccelerationGridController';
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import { commonThemes } from "../commonThemes";
+import AccelerationGridController from "./AccelerationGridController";
 
 @AccelerationRawMixin
 export default class AccelerationRaw extends Component {
@@ -32,23 +32,23 @@ export default class AccelerationRaw extends Component {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
   };
 
   static getFields() {
     return [
-      'rawReflections[].id',
-      'rawReflections[].tag',
-      'rawReflections[].type',
-      'rawReflections[].name',
-      'rawReflections[].enabled',
-      'rawReflections[].arrowCachingEnabled',
-      'rawReflections[].partitionDistributionStrategy',
-      'rawReflections[].partitionFields[].name',
-      'rawReflections[].sortFields[].name',
-      'rawReflections[].displayFields[].name',
-      'rawReflections[].distributionFields[].name',
-      'rawReflections[].shouldDelete'
+      "rawReflections[].id",
+      "rawReflections[].tag",
+      "rawReflections[].type",
+      "rawReflections[].name",
+      "rawReflections[].enabled",
+      "rawReflections[].arrowCachingEnabled",
+      "rawReflections[].partitionDistributionStrategy",
+      "rawReflections[].partitionFields[].name",
+      "rawReflections[].sortFields[].name",
+      "rawReflections[].displayFields[].name",
+      "rawReflections[].distributionFields[].name",
+      "rawReflections[].shouldDelete",
     ];
   }
 
@@ -59,42 +59,56 @@ export default class AccelerationRaw extends Component {
   addNewLayout = () => {
     const { rawReflections } = this.props.fields;
 
-    const reflection = createReflectionFormValues({
-      type: 'RAW'
-    }, rawReflections.map(e => e.name.value));
+    const reflection = createReflectionFormValues(
+      {
+        type: "RAW",
+      },
+      rawReflections.map((e) => e.name.value)
+    );
 
     rawReflections.addField(reflection);
   };
 
   renderHeader = () => {
     return (
-      <div className={'AccelerationRaw__header'}>
-        <h3 className={'AccelerationRaw__toggleLabel'}>
-          <FontIcon type='RawMode' theme={commonThemes.rawIconTheme}/>
-          {la('Raw Reflections')}
+      <div className={"AccelerationRaw__header"}>
+        <h3 className={"AccelerationRaw__toggleLabel"}>
+          <FontIcon type="RawMode" theme={commonThemes.rawIconTheme} />
+          {la("Raw Reflections")}
         </h3>
         <SimpleButton
           onClick={this.addNewLayout}
-          buttonStyle='secondary'
-          children={la('New Reflection')}
+          buttonStyle="secondary"
           // DX-34369
-          style={this.checkIfButtonShouldBeRendered() ? {minWidth: '110px', marginRight: '8px'} : {display: 'none'}}
-          type='button'/>
+          style={
+            this.checkIfButtonShouldBeRendered()
+              ? { minWidth: "110px", marginRight: "8px" }
+              : { display: "none" }
+          }
+          type="button"
+        >
+          {la("New Reflection")}
+        </SimpleButton>
       </div>
     );
   };
 
   render() {
-    const {dataset, reflections, fields: {rawReflections}, canAlter} = this.props;
+    const {
+      dataset,
+      reflections,
+      fields: { rawReflections },
+      canAlter,
+    } = this.props;
     return (
-      <div className={'AccelerationRaw'}>
+      <div className={"AccelerationRaw"}>
         {this.renderHeader()}
         <AccelerationGridController
           canAlter={canAlter}
           dataset={dataset}
           reflections={reflections}
           layoutFields={rawReflections}
-          activeTab='raw'
+          activeTab="raw"
         />
       </div>
     );

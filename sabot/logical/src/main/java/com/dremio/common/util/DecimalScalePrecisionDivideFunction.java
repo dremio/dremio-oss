@@ -16,7 +16,6 @@
 
 package com.dremio.common.util;
 
-import com.dremio.common.util.CoreDecimalUtility;
 
 /*
  * Here we compute the scale and precision of the output decimal data type

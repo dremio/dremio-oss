@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
+import Immutable from "immutable";
 
-import DragAreaColumn from 'components/oldDragComponents/DragAreaColumn';
+import DragAreaColumn from "components/oldDragComponents/DragAreaColumn";
 
-@Radium
 class JoinDragAreaColumn extends PureComponent {
   static propTypes = {
     dragColumntableType: PropTypes.string,
@@ -39,7 +38,7 @@ class JoinDragAreaColumn extends PureComponent {
     showSortDropdown: PropTypes.func,
     handleMeasureChange: PropTypes.func,
     onDragEnd: PropTypes.func,
-    addColumn: PropTypes.func
+    addColumn: PropTypes.func,
   };
 
   constructor(props) {
@@ -48,51 +47,63 @@ class JoinDragAreaColumn extends PureComponent {
   }
 
   filterLeftColumns() {
-    return this.props.leftColumns.filter(col => {
-      const isFound = this.props.items &&
-                      this.props.items.find(item => item.get('default').get('name') === col.get('name'));
+    return this.props.leftColumns.filter((col) => {
+      const isFound =
+        this.props.items &&
+        this.props.items.find(
+          (item) => item.get("default").get("name") === col.get("name")
+        );
       return !isFound;
     });
   }
 
   filterByType(columns, linkedItem) {
-    return columns.filter(column => (linkedItem.get('empty') || column.get('type') === linkedItem.get('type')));
+    return columns.filter(
+      (column) =>
+        linkedItem.get("empty") || column.get("type") === linkedItem.get("type")
+    );
   }
 
   render() {
     const { item, index } = this.props;
     return (
-      <div className='drag-measure-column' style={[styles.base]}>
+      <div className="drag-measure-column" style={[styles.base]}>
         <DragAreaColumn
           dragColumntableType={this.props.dragColumntableType}
-          ownDragColumntableType='default'
+          ownDragColumntableType="default"
           isDragInProgress={this.props.isDragInProgress}
           addColumn={this.props.addColumn}
-          columns={this.filterByType(this.filterLeftColumns(), item.get('custom'))}
-          key={item.get('id')}
+          columns={this.filterByType(
+            this.filterLeftColumns(),
+            item.get("custom")
+          )}
+          key={item.get("id")}
           index={index}
           icon={<div style={styles.equal}>=</div>}
-          type='default'
+          type="default"
           removeColumn={this.props.removeColumn}
           moveColumn={this.props.moveColumn}
           dragType={this.props.dragType}
-          id={item.get('id')}
-          item={item.get('default')}
+          id={item.get("id")}
+          item={item.get("default")}
         />
         <DragAreaColumn
           dragColumntableType={this.props.dragColumntableType}
-          ownDragColumntableType='custom'
+          ownDragColumntableType="custom"
           isDragInProgress={this.props.isDragInProgress}
           addColumn={this.props.addColumn}
-          columns={this.filterByType(this.props.rightColumns, item.get('default'))}
-          key={item.get('id') + 'custom'}
+          columns={this.filterByType(
+            this.props.rightColumns,
+            item.get("default")
+          )}
+          key={item.get("id") + "custom"}
           index={index}
-          type='custom'
-          removeColumn={this.props.removeColumn.bind(this, item.get('id'))}
+          type="custom"
+          removeColumn={this.props.removeColumn.bind(this, item.get("id"))}
           moveColumn={this.props.moveColumn}
           dragType={this.props.dragType}
-          id={item.get('id')}
-          item={item.get('custom')}
+          id={item.get("id")}
+          item={item.get("custom")}
         />
       </div>
     );
@@ -101,25 +112,25 @@ class JoinDragAreaColumn extends PureComponent {
 
 const styles = {
   base: {
-    display: 'flex',
-    flexWrap: 'nowrap',
-    alignItems: 'center'
+    display: "flex",
+    flexWrap: "nowrap",
+    alignItems: "center",
   },
   equal: {
-    marginLeft: 7
+    marginLeft: 7,
   },
   iconStyle: {
-    top: 0
+    top: 0,
   },
   customLabelStyle: {
-    top: 13
+    top: 13,
   },
   select: {
     width: 400,
     height: 25,
     marginLeft: 5,
-    marginTop: 4
-  }
+    marginTop: 4,
+  },
 };
 
-export default JoinDragAreaColumn;
+export default Radium(JoinDragAreaColumn);

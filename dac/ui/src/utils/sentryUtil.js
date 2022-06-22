@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as Sentry from '@sentry/browser';
-import uuid from 'uuid';
-import { getVersion } from '@root/scripts/versionUtils';
-import config from './config';
+import * as Sentry from "@sentry/browser";
+import uuid from "uuid";
+import { getVersion } from "@root/scripts/versionUtils";
+import config from "./config";
 
 /*
   !!! Important. You must verify that this utils send logs to sentry correctly in production
@@ -25,7 +25,6 @@ import config from './config';
   (See ErrorBoundary for example)
  */
 class SentryUtil {
-
   // we'd really like to have a uuid for the error, but cross-referencing sentry with the UI
   // will be prone to timing issues. So just creating a session UUID that we can use - it should be
   // good enough to find records given a report.
@@ -34,27 +33,29 @@ class SentryUtil {
   install() {
     if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
       Sentry.init({
-        dsn: 'https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750',
+        dsn: "https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750",
         release: getVersion(),
-        serverName: config.clusterId
+        serverName: config.clusterId,
       });
 
       // extra info that could be used to search an error.
       // example: sessionUUID:"1ac6a0bb-6582-4532-81c3-5b2ac479dcab"
       Sentry.setTags({
         sessionUUID: this.sessionUUID,
-        commitHash: config.versionInfo.commitHash
+        commitHash: config.versionInfo.commitHash,
       });
     }
   }
 
   logException(ex, context) {
     if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
-      Sentry.withScope(scope => {
+      Sentry.withScope((scope) => {
         scope.setExtras(context);
         Sentry.captureException(ex);
       });
       global.console && console.error && console.error(ex, context);
+    } else {
+      return "failed";
     }
   }
 

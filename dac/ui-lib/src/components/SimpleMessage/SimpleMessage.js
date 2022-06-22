@@ -13,50 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
-import { ReactComponent as XSmall } from '../../art/XSmall.svg';
-import { ReactComponent as SuccessIcon } from '../../art/OK.svg';
-import { ReactComponent as WarningIcon } from '../../art/Warning.svg';
-import { ReactComponent as ErrorIcon } from '../../art/ErrorSolid.svg';
-import { ReactComponent as InfoIcon } from '../../art/InfoCircleNoninteractive.svg';
+import { ReactComponent as XSmall } from "../../art/XSmall.svg";
+import { ReactComponent as SuccessIcon } from "../../art/OK.svg";
+import { ReactComponent as WarningIcon } from "../../art/Warning.svg";
+import { ReactComponent as ErrorIcon } from "../../art/ErrorSolid.svg";
+import { ReactComponent as InfoIcon } from "../../art/InfoCircleNoninteractive.svg";
 
-import './simpleMessage.scss';
+import "./simpleMessage.scss";
 
 const SimpleMessage = ({ type, message, handleDismiss }) => {
   const renderMessageIcon = (messageType) => {
     switch (messageType) {
-    case 'error':
-      return <ErrorIcon className='simpleMessage__icon margin-right' />;
-    case 'warning':
-      return <WarningIcon className='simpleMessage__icon margin-right' />;
-    case 'info':
-      return <InfoIcon className='simpleMessage__icon margin-right' />;
-    case 'success':
-      return <SuccessIcon className='simpleMessage__icon margin-right' />;
-    default:
-      return null;
+      case "error":
+        return <ErrorIcon className="simpleMessage__icon margin-right" />;
+      case "warning":
+        return <WarningIcon className="simpleMessage__icon margin-right" />;
+      case "info":
+        return <InfoIcon className="simpleMessage__icon margin-right" />;
+      case "success":
+        return <SuccessIcon className="simpleMessage__icon margin-right" />;
+      default:
+        return null;
     }
   };
 
   return (
     <div className={`simpleMessage --${type}`}>
       {renderMessageIcon(type)}
-      <span className='simpleMessage__text'>{message}</span>
-      <XSmall className='simpleMessage__dismissIcon' onClick={handleDismiss} data-qa='dismiss-message' />
+      <span className="simpleMessage__text">{message}</span>
+      <XSmall
+        className="simpleMessage__dismissIcon"
+        onClick={handleDismiss}
+        data-qa="dismiss-message"
+      />
     </div>
   );
 };
 
 SimpleMessage.propTypes = {
-  type: PropTypes.oneOf(['error', 'info', 'success', 'warning']).isRequired,
+  type: PropTypes.oneOf(["error", "info", "success", "warning"]).isRequired,
   message: PropTypes.string.isRequired,
-  handleDismiss: PropTypes.func.isRequired
+  handleDismiss: PropTypes.func.isRequired,
 };
 
 SimpleMessage.defaultProps = {
-  type: 'info'
+  type: "info",
 };
 
 export default SimpleMessage;

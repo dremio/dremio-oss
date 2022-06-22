@@ -17,8 +17,10 @@ package com.dremio.sabot.exec;
 
 import static com.dremio.exec.ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING;
 import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITOR_DELAY_MILLIS;
 import static com.dremio.exec.ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING;
 import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITOR_DELAY_MILLIS;
 
 import javax.inject.Provider;
 
@@ -41,6 +43,7 @@ public class HeapMonitorManager implements Service {
   private HeapMonitorThread heapMonitorThread;
   private AdminBooleanValidator enableHeapMonitoringOption;
   private RangeLongValidator clawBackThresholdOption;
+  private RangeLongValidator heapMonitorDelayOption;
   private Role role;
 
   public HeapMonitorManager(Provider<OptionManager> optionManagerProvider,
@@ -56,10 +59,12 @@ public class HeapMonitorManager implements Service {
       case COORDINATOR:
         this.enableHeapMonitoringOption = COORDINATOR_ENABLE_HEAP_MONITORING;
         this.clawBackThresholdOption = COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+        this.heapMonitorDelayOption = COORDINATOR_HEAP_MONITOR_DELAY_MILLIS;
         break;
       case EXECUTOR:
         this.enableHeapMonitoringOption = EXECUTOR_ENABLE_HEAP_MONITORING;
         this.clawBackThresholdOption = EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+        this.heapMonitorDelayOption = EXECUTOR_HEAP_MONITOR_DELAY_MILLIS;
         break;
       default:
         throw new UnsupportedOperationException("Heap monitor manager cannot be configured for provided role:" + role.name());
@@ -69,15 +74,16 @@ public class HeapMonitorManager implements Service {
   public void start() {
     OptionManager optionManager = optionManagerProvider.get();
     startHeapMonitorThread(optionManager.getOption(enableHeapMonitoringOption),
-                           optionManager.getOption(clawBackThresholdOption));
+      optionManager.getOption(clawBackThresholdOption),
+      optionManager.getOption(heapMonitorDelayOption));
     optionManager.addOptionChangeListener(new HeapOptionChangeListener(optionManager));
   }
 
   // Start heap monitor thread, if heap monitoring is enabled
-  private void startHeapMonitorThread(boolean enableHeapMonitoring, long thresholdPercentage) {
+  private void startHeapMonitorThread(boolean enableHeapMonitoring, long thresholdPercentage, long heapMonitorDelayMillis) {
     if (enableHeapMonitoring) {
       logger.info("Starting heap monitor thread in " + role.name().toLowerCase());
-      heapMonitorThread = new HeapMonitorThread(heapClawBackStrategy, thresholdPercentage, role);
+      heapMonitorThread = new HeapMonitorThread(heapClawBackStrategy, thresholdPercentage, heapMonitorDelayMillis, role);
       heapMonitorThread.start();
     }
   }
@@ -90,25 +96,29 @@ public class HeapMonitorManager implements Service {
   private class HeapOptionChangeListener implements OptionChangeListener {
     private boolean enableHeapMonitoring;
     private long thresholdPercentage;
+    private long heapMonitorDelayMillis;
     private OptionManager optionManager;
 
     public HeapOptionChangeListener(OptionManager optionManager) {
       this.optionManager = optionManager;
       this.enableHeapMonitoring = optionManager.getOption(enableHeapMonitoringOption);
       this.thresholdPercentage = optionManager.getOption(clawBackThresholdOption);
+      this.heapMonitorDelayMillis = optionManager.getOption(heapMonitorDelayOption);
     }
 
     @Override
     public synchronized void onChange() {
       boolean newEnableHeapMonitoring = optionManager.getOption(enableHeapMonitoringOption);
       long newThresholdPercentage = optionManager.getOption(clawBackThresholdOption);
+      long newHeapMonitorDelayMillis = optionManager.getOption(heapMonitorDelayOption);
       if (newEnableHeapMonitoring != enableHeapMonitoring ||
-        newThresholdPercentage != thresholdPercentage) {
+        newThresholdPercentage != thresholdPercentage || newHeapMonitorDelayMillis != heapMonitorDelayMillis) {
         logger.info("Heap monitor options changed.");
         stopHeapMonitorThread();
         enableHeapMonitoring = newEnableHeapMonitoring;
         thresholdPercentage = newThresholdPercentage;
-        startHeapMonitorThread(enableHeapMonitoring, thresholdPercentage);
+        heapMonitorDelayMillis = newHeapMonitorDelayMillis;
+        startHeapMonitorThread(enableHeapMonitoring, thresholdPercentage, heapMonitorDelayMillis);
       }
     }
   }

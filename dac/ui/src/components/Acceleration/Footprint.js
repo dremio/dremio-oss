@@ -13,23 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import FileUtils from 'utils/FileUtils';
+import PropTypes from "prop-types";
+import FileUtils from "utils/FileUtils";
 
 // todo: ax
 export default function Footprint(props) {
   const currentByteSize = props.currentByteSize || 0; // needs fallback, API can skip if NEW
   const currentSizeText = FileUtils.getFormattedBytes(currentByteSize);
-  const totalSizeText = FileUtils.getFormattedBytes(props.totalByteSize || currentByteSize);
-  return <span>
-    <span title={la('Storage used for latest Reflection.')}>{currentSizeText}</span>
-    {props.totalByteSize !== currentByteSize && <span>
-      {' '}<span title={la('Total storage used (including expired data).')}>({totalSizeText})</span>
-    </span>}
-  </span>;
+  const totalSizeText = FileUtils.getFormattedBytes(
+    props.totalByteSize || currentByteSize
+  );
+  return (
+    <span>
+      <span title={la("Storage used for latest Reflection.")}>
+        {currentSizeText}
+      </span>
+      {props.totalByteSize !== currentByteSize && (
+        <span>
+          {" "}
+          <span title={la("Total storage used (including expired data).")}>
+            ({totalSizeText})
+          </span>
+        </span>
+      )}
+    </span>
+  );
 }
 
 Footprint.propTypes = {
   totalByteSize: PropTypes.number,
-  currentByteSize: PropTypes.number
+  currentByteSize: PropTypes.number,
 };

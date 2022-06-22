@@ -1,0 +1,20 @@
+<svg id="common/Ellipsis" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/Expand-Text</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="Icon/Expand-Text" sketch:type="MSArtboardGroup">
+            <g sketch:type="MSLayerGroup">
+                <g id="icon-box-24-copy-14" sketch:type="MSShapeGroup">
+                    <rect id="icon-box-24" x="0" y="0" width="20" height="20"></rect>
+                </g>
+                <g id="Group" transform="translate(4.000000, 4.000000)" sketch:type="MSShapeGroup">
+                    <rect id="Rectangle-183" fill="#8a95a3" x="0" y="5" width="3" height="3" rx="1"></rect>
+                    <rect id="Rectangle-183-Copy" fill="#8a95a3" x="5" y="5" width="3" height="3" rx="1"></rect>
+                    <rect id="Rectangle-183-Copy-2" fill="#8a95a3" x="10" y="5" width="3" height="3" rx="1"></rect>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

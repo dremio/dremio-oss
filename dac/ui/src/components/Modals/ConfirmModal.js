@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import invariant from 'invariant';
-import Grid from '@material-ui/core/Grid';
-import Modal from 'components/Modals/Modal';
-import ConfirmCancelFooter from 'components/Modals/ConfirmCancelFooter';
-import { Checkbox, TextField } from 'components/Fields';
-import { Label } from 'dremio-ui-lib';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import invariant from "invariant";
+import Grid from "@material-ui/core/Grid";
+import Modal from "components/Modals/Modal";
+import ConfirmCancelFooter from "components/Modals/ConfirmCancelFooter";
+import { Checkbox, TextField } from "components/Fields";
+import { Label } from "dremio-ui-lib";
+import uuid from "uuid";
 
-import { confirmBodyText, modalContent } from 'uiTheme/radium/modal';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import Keys from '@app/constants/Keys.json';
+import { confirmBodyText, modalContent } from "uiTheme/radium/modal";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
+import Keys from "@app/constants/Keys.json";
 
 export default class ConfirmModal extends Component {
-
   static propTypes = {
     isOpen: PropTypes.bool,
     isCentered: PropTypes.bool,
@@ -51,30 +51,37 @@ export default class ConfirmModal extends Component {
     style: PropTypes.object,
     closeButtonType: PropTypes.string,
     className: PropTypes.string,
-    headerIcon: PropTypes.node
+    headerIcon: PropTypes.node,
+    size: PropTypes.string,
   };
 
   static defaultProps = {
     hideCancelButton: false,
     showOnlyConfirm: false,
     hideCloseButton: false,
-    style: {}
+    style: {},
   };
 
   state = {
     promptValue: undefined,
-    doNotAskAgain: false
+    doNotAskAgain: false,
   };
 
   componentWillMount() {
     const { promptFieldProps, showPrompt, doNotAskAgainKey } = this.props;
 
     invariant(
-      promptFieldProps ? showPrompt : true, 'must set showPrompt if setting promptFieldProps'
+      promptFieldProps ? showPrompt : true,
+      "must set showPrompt if setting promptFieldProps"
     );
-    invariant(!showPrompt || !doNotAskAgainKey, 'prompt and doNotAskAgain are mutually exclusive');
+    invariant(
+      !showPrompt || !doNotAskAgainKey,
+      "prompt and doNotAskAgain are mutually exclusive"
+    );
 
-    const stored = localStorageUtils.getCustomValue('doNotAskAgain-' + this.props.doNotAskAgainKey);
+    const stored = localStorageUtils.getCustomValue(
+      "doNotAskAgain-" + this.props.doNotAskAgainKey
+    );
     if (this.props.doNotAskAgainKey && stored) {
       this.props.onConfirm();
     }
@@ -82,35 +89,30 @@ export default class ConfirmModal extends Component {
 
   onConfirm = () => {
     const {
-      state: {
-        promptValue,
-        doNotAskAgain
-      },
-      props: {
-        validatePromptText,
-        onConfirm,
-        doNotAskAgainKey
-      }
+      state: { promptValue, doNotAskAgain },
+      props: { validatePromptText, onConfirm, doNotAskAgainKey },
     } = this;
     if (doNotAskAgainKey && doNotAskAgain) {
-      localStorageUtils.setCustomValue('doNotAskAgain-' + doNotAskAgainKey, true);
+      localStorageUtils.setCustomValue(
+        "doNotAskAgain-" + doNotAskAgainKey,
+        true
+      );
     }
 
     if (validatePromptText && !validatePromptText(promptValue)) {
       return;
     }
     onConfirm(promptValue);
-  }
+  };
 
   renderPrompt() {
-    const {
-      promptFieldProps,
-      promptLabel
-    } = this.props;
+    const { promptFieldProps, promptLabel } = this.props;
     return (
       <>
         {promptLabel && <Label value={promptLabel} />}
-        <TextField initialFocus {...promptFieldProps}
+        <TextField
+          initialFocus
+          {...promptFieldProps}
           onChange={(event) => {
             this.setState({ promptValue: event.target.value });
           }}
@@ -125,9 +127,7 @@ export default class ConfirmModal extends Component {
   }
 
   renderDonotAskAgainCheckbox() {
-    const {
-      doNotAskAgainText
-    } = this.props;
+    const { doNotAskAgainText } = this.props;
 
     return (
       <Checkbox
@@ -141,18 +141,17 @@ export default class ConfirmModal extends Component {
   }
 
   renderBody() {
-    const {
-      text,
-      doNotAskAgainText,
-      doNotAskAgainKey,
-      showPrompt
-    } = this.props;
+    const { text, doNotAskAgainText, doNotAskAgainKey, showPrompt } =
+      this.props;
 
     let textRenderer = text;
     if (Array.isArray(text)) {
       textRenderer = text.map((textVal, index) => {
         return (
-          <p className={index < text.length - 1 ? 'margin-bottom--double' : ''}>
+          <p
+            key={uuid()}
+            className={index < text.length - 1 ? "margin-bottom--double" : ""}
+          >
             {textVal}
           </p>
         );
@@ -162,24 +161,16 @@ export default class ConfirmModal extends Component {
     return (
       <Grid
         container
-        direction='column'
-        alignItems='stretch'
-        justify='space-evenly'
-        classes={{ root: 'full-height margin-bottom--double margin-top' }}
+        direction="column"
+        alignItems="stretch"
+        justify="space-evenly"
+        classes={{ root: "full-height margin-bottom--double margin-top" }}
       >
-        <Grid item>
-          {textRenderer}
-        </Grid>
-        {showPrompt &&
-          <Grid item>
-            {this.renderPrompt()}
-          </Grid>
-        }
-        {doNotAskAgainKey && doNotAskAgainText &&
-          <Grid item>
-            {this.renderDonotAskAgainCheckbox()}
-          </Grid>
-        }
+        <Grid item>{textRenderer}</Grid>
+        {showPrompt && <Grid item>{this.renderPrompt()}</Grid>}
+        {doNotAskAgainKey && doNotAskAgainText && (
+          <Grid item>{this.renderDonotAskAgainCheckbox()}</Grid>
+        )}
       </Grid>
     );
   }
@@ -200,7 +191,8 @@ export default class ConfirmModal extends Component {
       validatePromptText,
       closeButtonType,
       className,
-      headerIcon
+      headerIcon,
+      size = "smallest",
     } = this.props;
     const hideCancel = this.props.hideCancelButton || showOnlyConfirm;
     const onHide = showOnlyConfirm ? () => {} : onCancel;
@@ -208,17 +200,19 @@ export default class ConfirmModal extends Component {
     let canSubmit = true;
 
     if (showPrompt && validatePromptText) {
-      canSubmit =  validatePromptText(this.state.promptValue);
+      canSubmit = validatePromptText(this.state.promptValue);
     }
 
     // Using style here instead of classes because Modal doesn't work with classNames, should switch to use the Dialog from ui-lib
     const modalStyle = {
-      ...(showPrompt ? { height: '275px' } : {}),
-      ...(isCentered ? {
-        top: '50%',
-        marginTop: -(showPrompt ? 275 : 200) / 2
-      } : {}),
-      ...style
+      ...(showPrompt ? { height: "275px" } : {}),
+      ...(isCentered
+        ? {
+            top: "50%",
+            marginTop: -(showPrompt ? 275 : 200) / 2,
+          }
+        : {}),
+      ...style,
     };
 
     return (
@@ -226,24 +220,24 @@ export default class ConfirmModal extends Component {
         isOpen={isOpen}
         hide={onHide}
         hideCloseButton={hideCloseButton}
-        classQa='confirm-modal'
+        classQa="confirm-modal"
         dataQa={dataQa}
-        size='smallest'
-        title={title || la('Confirm')}
+        size={size}
+        title={title || la("Confirm")}
         style={modalStyle}
         className={className}
         closeButtonType={closeButtonType}
         headerIcon={headerIcon}
       >
-        <div style={{...modalContent, ...confirmBodyText}}>
+        <div style={{ ...modalContent, ...confirmBodyText }}>
           {this.renderBody()}
         </div>
         <ConfirmCancelFooter
           hideCancel={hideCancel}
           confirm={this.onConfirm}
-          confirmText={confirmText || la('OK')}
+          confirmText={confirmText || la("OK")}
           confirmButtonStyle={confirmButtonStyle}
-          cancelText={cancelText || la('Cancel')}
+          cancelText={cancelText || la("Cancel")}
           cancel={onCancel}
           canSubmit={canSubmit}
         />

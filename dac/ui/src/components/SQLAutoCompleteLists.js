@@ -16,2134 +16,2134 @@
 export const SQLAutoCompleteItems = (monaco) => {
   return [
     {
-      label: 'ABS',
+      label: "ABS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ABS',
-      detail: 'ABS is meant to be used along with ALL'
+      insertText: "ABS",
+      detail: "ABS is meant to be used along with ALL",
     },
     {
-      label: 'ALL',
+      label: "ALL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ALL',
-      detail: 'Keyword'
+      insertText: "ALL",
+      detail: "Keyword",
     },
     {
-      label: 'ALLOCATE',
+      label: "ALLOCATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ALLOCATE',
-      detail: 'Keyword'
+      insertText: "ALLOCATE",
+      detail: "Keyword",
     },
     {
-      label: 'ALLOW',
+      label: "ALLOW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ALLOW',
-      detail: 'Keyword'
+      insertText: "ALLOW",
+      detail: "Keyword",
     },
     {
-      label: 'ALTER',
+      label: "ALTER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ALTER',
-      detail: 'Keyword'
+      insertText: "ALTER",
+      detail: "Keyword",
     },
     {
-      label: 'AND',
+      label: "AND",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'AND',
-      detail: 'Keyword'
+      insertText: "AND",
+      detail: "Keyword",
     },
     {
-      label: 'ANY',
+      label: "ANY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ANY',
-      detail: 'Keyword'
+      insertText: "ANY",
+      detail: "Keyword",
     },
     {
-      label: 'ARE',
+      label: "ARE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ARE',
-      detail: 'Keyword'
+      insertText: "ARE",
+      detail: "Keyword",
     },
     {
-      label: 'ARRAY',
+      label: "ARRAY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ARRAY',
-      detail: 'Keyword'
+      insertText: "ARRAY",
+      detail: "Keyword",
     },
     {
-      label: 'ARRAY_MAX_CARDINALITY',
+      label: "ARRAY_MAX_CARDINALITY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ARRAY_MAX_CARDINALITY',
-      detail: 'Keyword'
+      insertText: "ARRAY_MAX_CARDINALITY",
+      detail: "Keyword",
     },
     {
-      label: 'AS',
+      label: "AS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'AS',
-      detail: 'Keyword'
+      insertText: "AS",
+      detail: "Keyword",
     },
     {
-      label: 'ASENSITIVE’, ‘ASYMMETRIC',
+      label: "ASENSITIVE’, ‘ASYMMETRIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ASENSITIVE’, ‘ASYMMETRIC',
-      detail: 'Keyword'
+      insertText: "ASENSITIVE’, ‘ASYMMETRIC",
+      detail: "Keyword",
     },
     {
-      label: 'AT',
+      label: "AT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'AT',
-      detail: 'Keyword'
+      insertText: "AT",
+      detail: "Keyword",
     },
     {
-      label: 'ATOMIC',
+      label: "ATOMIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ATOMIC',
-      detail: 'Keyword'
+      insertText: "ATOMIC",
+      detail: "Keyword",
     },
     {
-      label: 'AUTHORIZATION',
+      label: "AUTHORIZATION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'AUTHORIZATION',
-      detail: 'Keyword'
+      insertText: "AUTHORIZATION",
+      detail: "Keyword",
     },
     {
-      label: 'AVG',
+      label: "AVG",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'AVG',
-      detail: 'Keyword'
+      insertText: "AVG",
+      detail: "Keyword",
     },
     {
-      label: 'BEGIN',
+      label: "BEGIN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BEGIN',
-      detail: 'Keyword'
+      insertText: "BEGIN",
+      detail: "Keyword",
     },
     {
-      label: 'BEGIN_FRAME',
+      label: "BEGIN_FRAME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BEGIN_FRAME',
-      detail: 'Keyword'
+      insertText: "BEGIN_FRAME",
+      detail: "Keyword",
     },
     {
-      label: 'BEGIN_PARTITION',
+      label: "BEGIN_PARTITION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BEGIN_PARTITION',
-      detail: 'Keyword'
+      insertText: "BEGIN_PARTITION",
+      detail: "Keyword",
     },
     {
-      label: 'BETWEEN',
+      label: "BETWEEN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BETWEEN',
-      detail: 'Keyword'
+      insertText: "BETWEEN",
+      detail: "Keyword",
     },
     {
-      label: 'BIGINT',
+      label: "BIGINT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BIGINT',
-      detail: 'Keyword'
+      insertText: "BIGINT",
+      detail: "Keyword",
     },
     {
-      label: 'BINARY',
+      label: "BINARY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BINARY',
-      detail: 'Keyword'
+      insertText: "BINARY",
+      detail: "Keyword",
     },
     {
-      label: 'BIT',
+      label: "BIT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BIT',
-      detail: 'Keyword'
+      insertText: "BIT",
+      detail: "Keyword",
     },
     {
-      label: 'BLOB',
+      label: "BLOB",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BLOB',
-      detail: 'Keyword'
+      insertText: "BLOB",
+      detail: "Keyword",
     },
     {
-      label: 'BOOLEAN',
+      label: "BOOLEAN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BOOLEAN',
-      detail: 'Keyword'
+      insertText: "BOOLEAN",
+      detail: "Keyword",
     },
     {
-      label: 'BOTH',
+      label: "BOTH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BOTH',
-      detail: 'Keyword'
+      insertText: "BOTH",
+      detail: "Keyword",
     },
     {
-      label: 'BY',
+      label: "BY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'BY',
-      detail: 'Keyword'
+      insertText: "BY",
+      detail: "Keyword",
     },
     {
-      label: 'CALL',
+      label: "CALL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CALL',
-      detail: 'Keyword'
+      insertText: "CALL",
+      detail: "Keyword",
     },
     {
-      label: 'CALLED',
+      label: "CALLED",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CALLED',
-      detail: 'Keyword'
+      insertText: "CALLED",
+      detail: "Keyword",
     },
     {
-      label: 'CARDINALITY',
+      label: "CARDINALITY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CARDINALITY',
-      detail: 'Keyword'
+      insertText: "CARDINALITY",
+      detail: "Keyword",
     },
     {
-      label: 'CASCADED',
+      label: "CASCADED",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CASCADED',
-      detail: 'Keyword'
+      insertText: "CASCADED",
+      detail: "Keyword",
     },
     {
-      label: 'CASE',
+      label: "CASE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CASE',
-      detail: 'Keyword'
+      insertText: "CASE",
+      detail: "Keyword",
     },
     {
-      label: 'CAST',
+      label: "CAST",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CAST',
-      detail: 'Keyword'
+      insertText: "CAST",
+      detail: "Keyword",
     },
     {
-      label: 'CEIL',
+      label: "CEIL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CEIL',
-      detail: 'Keyword'
+      insertText: "CEIL",
+      detail: "Keyword",
     },
     {
-      label: 'CEILING',
+      label: "CEILING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CEILING',
-      detail: 'Keyword'
+      insertText: "CEILING",
+      detail: "Keyword",
     },
     {
-      label: 'CHAR',
+      label: "CHAR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CHAR',
-      detail: 'Keyword'
+      insertText: "CHAR",
+      detail: "Keyword",
     },
     {
-      label: 'CHAR_LENGTH',
+      label: "CHAR_LENGTH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CHAR_LENGTH',
-      detail: 'Keyword'
+      insertText: "CHAR_LENGTH",
+      detail: "Keyword",
     },
     {
-      label: 'CHARACTER',
+      label: "CHARACTER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CHARACTER',
-      detail: 'Keyword'
+      insertText: "CHARACTER",
+      detail: "Keyword",
     },
     {
-      label: 'CHARACTER_LENGTH',
+      label: "CHARACTER_LENGTH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CHARACTER_LENGTH',
-      detail: 'Keyword'
+      insertText: "CHARACTER_LENGTH",
+      detail: "Keyword",
     },
     {
-      label: 'CHECK',
+      label: "CHECK",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CHECK',
-      detail: 'Keyword'
+      insertText: "CHECK",
+      detail: "Keyword",
     },
     {
-      label: 'CLASSIFIER',
+      label: "CLASSIFIER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CLASSIFIER',
-      detail: 'Keyword'
+      insertText: "CLASSIFIER",
+      detail: "Keyword",
     },
     {
-      label: 'CLOB',
+      label: "CLOB",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CLOB',
-      detail: 'Keyword'
+      insertText: "CLOB",
+      detail: "Keyword",
     },
     {
-      label: 'CLOSE',
+      label: "CLOSE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CLOSE',
-      detail: 'Keyword'
+      insertText: "CLOSE",
+      detail: "Keyword",
     },
     {
-      label: 'COALESCE',
+      label: "COALESCE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COALESCE',
-      detail: 'Keyword'
+      insertText: "COALESCE",
+      detail: "Keyword",
     },
     {
-      label: 'COLLATE',
+      label: "COLLATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COLLATE',
-      detail: 'Keyword'
+      insertText: "COLLATE",
+      detail: "Keyword",
     },
     {
-      label: 'COLLECT',
+      label: "COLLECT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COLLECT',
-      detail: 'Keyword'
+      insertText: "COLLECT",
+      detail: "Keyword",
     },
     {
-      label: 'COLUMN',
+      label: "COLUMN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COLUMN',
-      detail: 'Keyword'
+      insertText: "COLUMN",
+      detail: "Keyword",
     },
     {
-      label: 'COMMIT',
+      label: "COMMIT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COMMIT',
-      detail: 'Keyword'
+      insertText: "COMMIT",
+      detail: "Keyword",
     },
     {
-      label: 'CONDITION',
+      label: "CONDITION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CONDITION',
-      detail: 'Keyword'
+      insertText: "CONDITION",
+      detail: "Keyword",
     },
     {
-      label: 'CONNECT',
+      label: "CONNECT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CONNECT',
-      detail: 'Keyword'
+      insertText: "CONNECT",
+      detail: "Keyword",
     },
     {
-      label: 'CONSTRAINT',
+      label: "CONSTRAINT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CONSTRAINT',
-      detail: 'Keyword'
+      insertText: "CONSTRAINT",
+      detail: "Keyword",
     },
     {
-      label: 'CONTAINS',
+      label: "CONTAINS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CONTAINS',
-      detail: 'Keyword'
+      insertText: "CONTAINS",
+      detail: "Keyword",
     },
     {
-      label: 'CONVERT',
+      label: "CONVERT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CONVERT',
-      detail: 'Keyword'
+      insertText: "CONVERT",
+      detail: "Keyword",
     },
     {
-      label: 'CORR',
+      label: "CORR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CORR',
-      detail: 'Keyword'
+      insertText: "CORR",
+      detail: "Keyword",
     },
     {
-      label: 'CORRESPONDING',
+      label: "CORRESPONDING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CORRESPONDING',
-      detail: 'Keyword'
+      insertText: "CORRESPONDING",
+      detail: "Keyword",
     },
     {
-      label: 'COUNT',
+      label: "COUNT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COUNT',
-      detail: 'Keyword'
+      insertText: "COUNT",
+      detail: "Keyword",
     },
     {
-      label: 'COVAR_POP',
+      label: "COVAR_POP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COVAR_POP',
-      detail: 'Keyword'
+      insertText: "COVAR_POP",
+      detail: "Keyword",
     },
     {
-      label: 'COVAR_SAMP',
+      label: "COVAR_SAMP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'COVAR_SAMP',
-      detail: 'Keyword'
+      insertText: "COVAR_SAMP",
+      detail: "Keyword",
     },
     {
-      label: 'CREATE',
+      label: "CREATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CREATE',
-      detail: 'Keyword'
+      insertText: "CREATE",
+      detail: "Keyword",
     },
     {
-      label: 'CROSS',
+      label: "CROSS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CROSS',
-      detail: 'Keyword'
+      insertText: "CROSS",
+      detail: "Keyword",
     },
     {
-      label: 'CUBE',
+      label: "CUBE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CUBE',
-      detail: 'Keyword'
+      insertText: "CUBE",
+      detail: "Keyword",
     },
     {
-      label: 'CUME_DIST',
+      label: "CUME_DIST",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CUME_DIST',
-      detail: 'Keyword'
+      insertText: "CUME_DIST",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT',
+      label: "CURRENT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT',
-      detail: 'Keyword'
+      insertText: "CURRENT",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_CATALOG',
+      label: "CURRENT_CATALOG",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_CATALOG',
-      detail: 'Keyword'
+      insertText: "CURRENT_CATALOG",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_DATE',
+      label: "CURRENT_DATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_DATE',
-      detail: 'Keyword'
+      insertText: "CURRENT_DATE",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_DEFAULT_TRANSFORM_GROUP',
+      label: "CURRENT_DEFAULT_TRANSFORM_GROUP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_DEFAULT_TRANSFORM_GROUP',
-      detail: 'Keyword'
+      insertText: "CURRENT_DEFAULT_TRANSFORM_GROUP",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_PATH',
+      label: "CURRENT_PATH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_PATH',
-      detail: 'Keyword'
+      insertText: "CURRENT_PATH",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_ROLE',
+      label: "CURRENT_ROLE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_ROLE',
-      detail: 'Keyword'
+      insertText: "CURRENT_ROLE",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_ROW',
+      label: "CURRENT_ROW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_ROW',
-      detail: 'Keyword'
+      insertText: "CURRENT_ROW",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_SCHEMA',
+      label: "CURRENT_SCHEMA",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_SCHEMA',
-      detail: 'Keyword'
+      insertText: "CURRENT_SCHEMA",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_TIME',
+      label: "CURRENT_TIME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_TIME',
-      detail: 'Keyword'
+      insertText: "CURRENT_TIME",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_TIMESTAMP',
+      label: "CURRENT_TIMESTAMP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_TIMESTAMP',
-      detail: 'Keyword'
+      insertText: "CURRENT_TIMESTAMP",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_TRANSFORM_GROUP_FOR_TYPE',
+      label: "CURRENT_TRANSFORM_GROUP_FOR_TYPE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_TRANSFORM_GROUP_FOR_TYPE',
-      detail: 'Keyword'
+      insertText: "CURRENT_TRANSFORM_GROUP_FOR_TYPE",
+      detail: "Keyword",
     },
     {
-      label: 'CURRENT_USER',
+      label: "CURRENT_USER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURRENT_USER',
-      detail: 'Keyword'
+      insertText: "CURRENT_USER",
+      detail: "Keyword",
     },
     {
-      label: 'CURSOR',
+      label: "CURSOR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CURSOR',
-      detail: 'Keyword'
+      insertText: "CURSOR",
+      detail: "Keyword",
     },
     {
-      label: 'CYCLE',
+      label: "CYCLE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'CYCLE',
-      detail: 'Keyword'
+      insertText: "CYCLE",
+      detail: "Keyword",
     },
     {
-      label: 'DATE',
+      label: "DATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DATE',
-      detail: 'Keyword'
+      insertText: "DATE",
+      detail: "Keyword",
     },
     {
-      label: 'DAY',
+      label: "DAY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DAY',
-      detail: 'Keyword'
+      insertText: "DAY",
+      detail: "Keyword",
     },
     {
-      label: 'DEALLOCATE',
+      label: "DEALLOCATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DEALLOCATE',
-      detail: 'Keyword'
+      insertText: "DEALLOCATE",
+      detail: "Keyword",
     },
     {
-      label: 'DEC',
+      label: "DEC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DEC',
-      detail: 'Keyword'
+      insertText: "DEC",
+      detail: "Keyword",
     },
     {
-      label: 'DECIMAL',
+      label: "DECIMAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DECIMAL',
-      detail: 'Keyword'
+      insertText: "DECIMAL",
+      detail: "Keyword",
     },
     {
-      label: 'DECLARE',
+      label: "DECLARE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DECLARE',
-      detail: 'Keyword'
+      insertText: "DECLARE",
+      detail: "Keyword",
     },
     {
-      label: 'DEFAULT',
+      label: "DEFAULT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DEFAULT',
-      detail: 'Keyword'
+      insertText: "DEFAULT",
+      detail: "Keyword",
     },
     {
-      label: 'DEFINE',
+      label: "DEFINE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DEFINE',
-      detail: 'Keyword'
+      insertText: "DEFINE",
+      detail: "Keyword",
     },
     {
-      label: 'DELETE',
+      label: "DELETE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DELETE',
-      detail: 'Keyword'
+      insertText: "DELETE",
+      detail: "Keyword",
     },
     {
-      label: 'DENSE_RANK',
+      label: "DENSE_RANK",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DENSE_RANK',
-      detail: 'Keyword'
+      insertText: "DENSE_RANK",
+      detail: "Keyword",
     },
     {
-      label: 'DEREF',
+      label: "DEREF",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DEREF',
-      detail: 'Keyword'
+      insertText: "DEREF",
+      detail: "Keyword",
     },
     {
-      label: 'DESCRIBE',
+      label: "DESCRIBE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DESCRIBE',
-      detail: 'Keyword'
+      insertText: "DESCRIBE",
+      detail: "Keyword",
     },
     {
-      label: 'DETERMINISTIC',
+      label: "DETERMINISTIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DETERMINISTIC',
-      detail: 'Keyword'
+      insertText: "DETERMINISTIC",
+      detail: "Keyword",
     },
     {
-      label: 'DISALLOW',
+      label: "DISALLOW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DISALLOW',
-      detail: 'Keyword'
+      insertText: "DISALLOW",
+      detail: "Keyword",
     },
     {
-      label: 'DISCONNECT',
+      label: "DISCONNECT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DISCONNECT',
-      detail: 'Keyword'
+      insertText: "DISCONNECT",
+      detail: "Keyword",
     },
     {
-      label: 'DISTINCT',
+      label: "DISTINCT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DISTINCT',
-      detail: 'Keyword'
+      insertText: "DISTINCT",
+      detail: "Keyword",
     },
     {
-      label: 'DOUBLE',
+      label: "DOUBLE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DOUBLE',
-      detail: 'Keyword'
+      insertText: "DOUBLE",
+      detail: "Keyword",
     },
     {
-      label: 'DROP',
+      label: "DROP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DROP',
-      detail: 'Keyword'
+      insertText: "DROP",
+      detail: "Keyword",
     },
     {
-      label: 'DYNAMIC',
+      label: "DYNAMIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'DYNAMIC',
-      detail: 'Keyword'
+      insertText: "DYNAMIC",
+      detail: "Keyword",
     },
     {
-      label: 'EACH',
+      label: "EACH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EACH',
-      detail: 'Keyword'
+      insertText: "EACH",
+      detail: "Keyword",
     },
     {
-      label: 'ELEMENT',
+      label: "ELEMENT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ELEMENT',
-      detail: 'Keyword'
+      insertText: "ELEMENT",
+      detail: "Keyword",
     },
     {
-      label: 'ELSE',
+      label: "ELSE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ELSE',
-      detail: 'Keyword'
+      insertText: "ELSE",
+      detail: "Keyword",
     },
     {
-      label: 'EMPTY',
+      label: "EMPTY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EMPTY',
-      detail: 'Keyword'
+      insertText: "EMPTY",
+      detail: "Keyword",
     },
     {
-      label: 'END',
+      label: "END",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'END',
-      detail: 'Keyword'
+      insertText: "END",
+      detail: "Keyword",
     },
     {
-      label: 'END-EXEC',
+      label: "END-EXEC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'END-EXEC',
-      detail: 'Keyword'
+      insertText: "END-EXEC",
+      detail: "Keyword",
     },
     {
-      label: 'END_FRAME',
+      label: "END_FRAME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'END_FRAME',
-      detail: 'Keyword'
+      insertText: "END_FRAME",
+      detail: "Keyword",
     },
     {
-      label: 'END_PARTITION',
+      label: "END_PARTITION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'END_PARTITION',
-      detail: 'Keyword'
+      insertText: "END_PARTITION",
+      detail: "Keyword",
     },
     {
-      label: 'EQUALS',
+      label: "EQUALS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EQUALS',
-      detail: 'Keyword'
+      insertText: "EQUALS",
+      detail: "Keyword",
     },
     {
-      label: 'ESCAPE',
+      label: "ESCAPE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ESCAPE',
-      detail: 'Keyword'
+      insertText: "ESCAPE",
+      detail: "Keyword",
     },
     {
-      label: 'EVERY',
+      label: "EVERY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EVERY',
-      detail: 'Keyword'
+      insertText: "EVERY",
+      detail: "Keyword",
     },
     {
-      label: 'EXCEPT',
+      label: "EXCEPT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXCEPT',
-      detail: 'Keyword'
+      insertText: "EXCEPT",
+      detail: "Keyword",
     },
     {
-      label: 'EXEC',
+      label: "EXEC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXEC',
-      detail: 'Keyword'
+      insertText: "EXEC",
+      detail: "Keyword",
     },
     {
-      label: 'EXECUTE',
+      label: "EXECUTE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXECUTE',
-      detail: 'Keyword'
+      insertText: "EXECUTE",
+      detail: "Keyword",
     },
     {
-      label: 'EXISTS',
+      label: "EXISTS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXISTS',
-      detail: 'Keyword'
+      insertText: "EXISTS",
+      detail: "Keyword",
     },
     {
-      label: 'EXP',
+      label: "EXP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXP',
-      detail: 'Keyword'
+      insertText: "EXP",
+      detail: "Keyword",
     },
     {
-      label: 'EXPLAIN',
+      label: "EXPLAIN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXPLAIN',
-      detail: 'Keyword'
+      insertText: "EXPLAIN",
+      detail: "Keyword",
     },
     {
-      label: 'EXTEND',
+      label: "EXTEND",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXTEND',
-      detail: 'Keyword'
+      insertText: "EXTEND",
+      detail: "Keyword",
     },
     {
-      label: 'EXTERNAL',
+      label: "EXTERNAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXTERNAL',
-      detail: 'Keyword'
+      insertText: "EXTERNAL",
+      detail: "Keyword",
     },
     {
-      label: 'EXTRACT',
+      label: "EXTRACT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'EXTRACT',
-      detail: 'Keyword'
+      insertText: "EXTRACT",
+      detail: "Keyword",
     },
     {
-      label: 'FALSE',
+      label: "FALSE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FALSE',
-      detail: 'Keyword'
+      insertText: "FALSE",
+      detail: "Keyword",
     },
     {
-      label: 'FETCH',
+      label: "FETCH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FETCH',
-      detail: 'Keyword'
+      insertText: "FETCH",
+      detail: "Keyword",
     },
     {
-      label: 'FILTER',
+      label: "FILTER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FILTER',
-      detail: 'Keyword'
+      insertText: "FILTER",
+      detail: "Keyword",
     },
     {
-      label: 'FIRST_VALUE',
+      label: "FIRST_VALUE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FIRST_VALUE',
-      detail: 'Keyword'
+      insertText: "FIRST_VALUE",
+      detail: "Keyword",
     },
     {
-      label: 'FLOAT',
+      label: "FLOAT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FLOAT',
-      detail: 'Keyword'
+      insertText: "FLOAT",
+      detail: "Keyword",
     },
     {
-      label: 'FLOOR',
+      label: "FLOOR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FLOOR',
-      detail: 'Keyword'
+      insertText: "FLOOR",
+      detail: "Keyword",
     },
     {
-      label: 'FOR',
+      label: "FOR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FOR',
-      detail: 'Keyword'
+      insertText: "FOR",
+      detail: "Keyword",
     },
     {
-      label: 'FOREIGN',
+      label: "FOREIGN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FOREIGN',
-      detail: 'Keyword'
+      insertText: "FOREIGN",
+      detail: "Keyword",
     },
     {
-      label: 'FRAME_ROW',
+      label: "FRAME_ROW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FRAME_ROW',
-      detail: 'Keyword'
+      insertText: "FRAME_ROW",
+      detail: "Keyword",
     },
     {
-      label: 'FREE',
+      label: "FREE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FREE',
-      detail: 'Keyword'
+      insertText: "FREE",
+      detail: "Keyword",
     },
     {
-      label: 'FROM',
+      label: "FROM",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FROM',
-      detail: 'Keyword'
+      insertText: "FROM",
+      detail: "Keyword",
     },
     {
-      label: 'FULL',
+      label: "FULL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FULL',
-      detail: 'Keyword'
+      insertText: "FULL",
+      detail: "Keyword",
     },
     {
-      label: 'FUNCTION',
+      label: "FUNCTION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FUNCTION',
-      detail: 'Keyword'
+      insertText: "FUNCTION",
+      detail: "Keyword",
     },
     {
-      label: 'FUSION',
+      label: "FUSION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'FUSION',
-      detail: 'Keyword'
+      insertText: "FUSION",
+      detail: "Keyword",
     },
     {
-      label: 'GET',
+      label: "GET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'GET',
-      detail: 'Keyword'
+      insertText: "GET",
+      detail: "Keyword",
     },
     {
-      label: 'GLOBAL',
+      label: "GLOBAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'GLOBAL',
-      detail: 'Keyword'
+      insertText: "GLOBAL",
+      detail: "Keyword",
     },
     {
-      label: 'GRANT',
+      label: "GRANT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'GRANT',
-      detail: 'Keyword'
+      insertText: "GRANT",
+      detail: "Keyword",
     },
     {
-      label: 'GROUP',
+      label: "GROUP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'GROUP',
-      detail: 'Keyword'
+      insertText: "GROUP",
+      detail: "Keyword",
     },
     {
-      label: 'GROUPING',
+      label: "GROUPING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'GROUPING',
-      detail: 'Keyword'
+      insertText: "GROUPING",
+      detail: "Keyword",
     },
     {
-      label: 'GROUPS',
+      label: "GROUPS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'GROUPS',
-      detail: 'Keyword'
+      insertText: "GROUPS",
+      detail: "Keyword",
     },
     {
-      label: 'HAVING',
+      label: "HAVING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'HAVING',
-      detail: 'Keyword'
+      insertText: "HAVING",
+      detail: "Keyword",
     },
     {
-      label: 'HOLD',
+      label: "HOLD",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'HOLD',
-      detail: 'Keyword'
+      insertText: "HOLD",
+      detail: "Keyword",
     },
     {
-      label: 'HOUR',
+      label: "HOUR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'HOUR',
-      detail: 'Keyword'
+      insertText: "HOUR",
+      detail: "Keyword",
     },
     {
-      label: 'IDENTITY',
+      label: "IDENTITY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'IDENTITY',
-      detail: 'Keyword'
+      insertText: "IDENTITY",
+      detail: "Keyword",
     },
     {
-      label: 'IMPORT',
+      label: "IMPORT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'IMPORT',
-      detail: 'Keyword'
+      insertText: "IMPORT",
+      detail: "Keyword",
     },
     {
-      label: 'IN',
+      label: "IN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'IN',
-      detail: 'Keyword'
+      insertText: "IN",
+      detail: "Keyword",
     },
     {
-      label: 'INDICATOR',
+      label: "INDICATOR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INDICATOR',
-      detail: 'Keyword'
+      insertText: "INDICATOR",
+      detail: "Keyword",
     },
     {
-      label: 'INITIAL',
+      label: "INITIAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INITIAL',
-      detail: 'Keyword'
+      insertText: "INITIAL",
+      detail: "Keyword",
     },
     {
-      label: 'INNER',
+      label: "INNER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INNER',
-      detail: 'Keyword'
+      insertText: "INNER",
+      detail: "Keyword",
     },
     {
-      label: 'INOUT',
+      label: "INOUT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INOUT',
-      detail: 'Keyword'
+      insertText: "INOUT",
+      detail: "Keyword",
     },
     {
-      label: 'INSENSITIVE',
+      label: "INSENSITIVE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INSENSITIVE',
-      detail: 'Keyword'
+      insertText: "INSENSITIVE",
+      detail: "Keyword",
     },
     {
-      label: 'INSERT',
+      label: "INSERT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INSERT',
-      detail: 'Keyword'
+      insertText: "INSERT",
+      detail: "Keyword",
     },
     {
-      label: 'INT',
+      label: "INT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INT',
-      detail: 'Keyword'
+      insertText: "INT",
+      detail: "Keyword",
     },
     {
-      label: 'INTEGER',
+      label: "INTEGER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INTEGER',
-      detail: 'Keyword'
+      insertText: "INTEGER",
+      detail: "Keyword",
     },
     {
-      label: 'INTERSECT',
+      label: "INTERSECT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INTERSECT',
-      detail: 'Keyword'
+      insertText: "INTERSECT",
+      detail: "Keyword",
     },
     {
-      label: 'INTERSECTION',
+      label: "INTERSECTION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INTERSECTION',
-      detail: 'Keyword'
+      insertText: "INTERSECTION",
+      detail: "Keyword",
     },
     {
-      label: 'INTERVAL',
+      label: "INTERVAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INTERVAL',
-      detail: 'Keyword'
+      insertText: "INTERVAL",
+      detail: "Keyword",
     },
     {
-      label: 'INTO',
+      label: "INTO",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'INTO',
-      detail: 'Keyword'
+      insertText: "INTO",
+      detail: "Keyword",
     },
     {
-      label: 'IS',
+      label: "IS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'IS',
-      detail: 'Keyword'
+      insertText: "IS",
+      detail: "Keyword",
     },
     {
-      label: 'JOIN',
+      label: "JOIN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'JOIN',
-      detail: 'Keyword'
+      insertText: "JOIN",
+      detail: "Keyword",
     },
     {
-      label: 'LAG',
+      label: "LAG",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LAG',
-      detail: 'Keyword'
+      insertText: "LAG",
+      detail: "Keyword",
     },
     {
-      label: 'LANGUAGE',
+      label: "LANGUAGE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LANGUAGE',
-      detail: 'Keyword'
+      insertText: "LANGUAGE",
+      detail: "Keyword",
     },
     {
-      label: 'LARGE',
+      label: "LARGE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LARGE',
-      detail: 'Keyword'
+      insertText: "LARGE",
+      detail: "Keyword",
     },
     {
-      label: 'LAST_VALUE',
+      label: "LAST_VALUE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LAST_VALUE',
-      detail: 'Keyword'
+      insertText: "LAST_VALUE",
+      detail: "Keyword",
     },
     {
-      label: 'LATERAL',
+      label: "LATERAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LATERAL',
-      detail: 'Keyword'
+      insertText: "LATERAL",
+      detail: "Keyword",
     },
     {
-      label: 'LEAD',
+      label: "LEAD",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LEAD',
-      detail: 'Keyword'
+      insertText: "LEAD",
+      detail: "Keyword",
     },
     {
-      label: 'LEADING',
+      label: "LEADING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LEADING',
-      detail: 'Keyword'
+      insertText: "LEADING",
+      detail: "Keyword",
     },
     {
-      label: 'LEFT',
+      label: "LEFT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LEFT',
-      detail: 'Keyword'
+      insertText: "LEFT",
+      detail: "Keyword",
     },
     {
-      label: 'LIKE',
+      label: "LIKE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LIKE',
-      detail: 'Keyword'
+      insertText: "LIKE",
+      detail: "Keyword",
     },
     {
-      label: 'LIKE_REGEX',
+      label: "LIKE_REGEX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LIKE_REGEX',
-      detail: 'Keyword'
+      insertText: "LIKE_REGEX",
+      detail: "Keyword",
     },
     {
-      label: 'LIMIT',
+      label: "LIMIT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LIMIT',
-      detail: 'Keyword'
+      insertText: "LIMIT",
+      detail: "Keyword",
     },
     {
-      label: 'LN',
+      label: "LN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LN',
-      detail: 'Keyword'
+      insertText: "LN",
+      detail: "Keyword",
     },
     {
-      label: 'LOCAL',
+      label: "LOCAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LOCAL',
-      detail: 'Keyword'
+      insertText: "LOCAL",
+      detail: "Keyword",
     },
     {
-      label: 'LOCALTIME',
+      label: "LOCALTIME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LOCALTIME',
-      detail: 'Keyword'
+      insertText: "LOCALTIME",
+      detail: "Keyword",
     },
     {
-      label: 'LOCALTIMESTAMP',
+      label: "LOCALTIMESTAMP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LOCALTIMESTAMP',
-      detail: 'Keyword'
+      insertText: "LOCALTIMESTAMP",
+      detail: "Keyword",
     },
     {
-      label: 'LOWER',
+      label: "LOWER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'LOWER',
-      detail: 'Keyword'
+      insertText: "LOWER",
+      detail: "Keyword",
     },
     {
-      label: 'MATCH',
+      label: "MATCH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MATCH',
-      detail: 'Keyword'
+      insertText: "MATCH",
+      detail: "Keyword",
     },
     {
-      label: 'MATCHES',
+      label: "MATCHES",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MATCHES',
-      detail: 'Keyword'
+      insertText: "MATCHES",
+      detail: "Keyword",
     },
     {
-      label: 'MATCH_NUMBER',
+      label: "MATCH_NUMBER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MATCH_NUMBER',
-      detail: 'Keyword'
+      insertText: "MATCH_NUMBER",
+      detail: "Keyword",
     },
     {
-      label: 'MATCH_RECOGNIZE',
+      label: "MATCH_RECOGNIZE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MATCH_RECOGNIZE',
-      detail: 'Keyword'
+      insertText: "MATCH_RECOGNIZE",
+      detail: "Keyword",
     },
     {
-      label: 'MAX',
+      label: "MAX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MAX',
-      detail: 'Keyword'
+      insertText: "MAX",
+      detail: "Keyword",
     },
     {
-      label: 'MEASURES',
+      label: "MEASURES",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MEASURES',
-      detail: 'Keyword'
+      insertText: "MEASURES",
+      detail: "Keyword",
     },
     {
-      label: 'MEMBER',
+      label: "MEMBER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MEMBER',
-      detail: 'Keyword'
+      insertText: "MEMBER",
+      detail: "Keyword",
     },
     {
-      label: 'MERGE',
+      label: "MERGE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MERGE',
-      detail: 'Keyword'
+      insertText: "MERGE",
+      detail: "Keyword",
     },
     {
-      label: 'METHOD',
+      label: "METHOD",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'METHOD',
-      detail: 'Keyword'
+      insertText: "METHOD",
+      detail: "Keyword",
     },
     {
-      label: 'MIN',
+      label: "MIN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MIN',
-      detail: 'Keyword'
+      insertText: "MIN",
+      detail: "Keyword",
     },
     {
-      label: 'MINUTE',
+      label: "MINUTE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MINUTE',
-      detail: 'Keyword'
+      insertText: "MINUTE",
+      detail: "Keyword",
     },
     {
-      label: 'MOD',
+      label: "MOD",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MOD',
-      detail: 'Keyword'
+      insertText: "MOD",
+      detail: "Keyword",
     },
     {
-      label: 'MODIFIES',
+      label: "MODIFIES",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MODIFIES',
-      detail: 'Keyword'
+      insertText: "MODIFIES",
+      detail: "Keyword",
     },
     {
-      label: 'MODULE',
+      label: "MODULE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MODULE',
-      detail: 'Keyword'
+      insertText: "MODULE",
+      detail: "Keyword",
     },
     {
-      label: 'MONTH',
+      label: "MONTH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MONTH',
-      detail: 'Keyword'
+      insertText: "MONTH",
+      detail: "Keyword",
     },
     {
-      label: 'MORE',
+      label: "MORE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MORE',
-      detail: 'Keyword'
+      insertText: "MORE",
+      detail: "Keyword",
     },
     {
-      label: 'MULTISET',
+      label: "MULTISET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MULTISET',
-      detail: 'Keyword'
+      insertText: "MULTISET",
+      detail: "Keyword",
     },
     {
-      label: 'NATIONAL',
+      label: "NATIONAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NATIONAL',
-      detail: 'Keyword'
+      insertText: "NATIONAL",
+      detail: "Keyword",
     },
     {
-      label: 'NATURAL',
+      label: "NATURAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NATURAL',
-      detail: 'Keyword'
+      insertText: "NATURAL",
+      detail: "Keyword",
     },
     {
-      label: 'NCHAR',
+      label: "NCHAR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NCHAR',
-      detail: 'Keyword'
+      insertText: "NCHAR",
+      detail: "Keyword",
     },
     {
-      label: 'NCLOB',
+      label: "NCLOB",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NCLOB',
-      detail: 'Keyword'
+      insertText: "NCLOB",
+      detail: "Keyword",
     },
     {
-      label: 'NEW',
+      label: "NEW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NEW',
-      detail: 'Keyword'
+      insertText: "NEW",
+      detail: "Keyword",
     },
     {
-      label: 'NEXT',
+      label: "NEXT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NEXT',
-      detail: 'Keyword'
+      insertText: "NEXT",
+      detail: "Keyword",
     },
     {
-      label: 'NO',
+      label: "NO",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NO',
-      detail: 'Keyword'
+      insertText: "NO",
+      detail: "Keyword",
     },
     {
-      label: 'NONE',
+      label: "NONE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NONE',
-      detail: 'Keyword'
+      insertText: "NONE",
+      detail: "Keyword",
     },
     {
-      label: 'NORMALIZE',
+      label: "NORMALIZE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NORMALIZE',
-      detail: 'Keyword'
+      insertText: "NORMALIZE",
+      detail: "Keyword",
     },
     {
-      label: 'NOT',
+      label: "NOT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NOT',
-      detail: 'Keyword'
+      insertText: "NOT",
+      detail: "Keyword",
     },
     {
-      label: 'NTH_VALUE',
+      label: "NTH_VALUE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NTH_VALUE',
-      detail: 'Keyword'
+      insertText: "NTH_VALUE",
+      detail: "Keyword",
     },
     {
-      label: 'NTILE',
+      label: "NTILE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NTILE',
-      detail: 'Keyword'
+      insertText: "NTILE",
+      detail: "Keyword",
     },
     {
-      label: 'NULL',
+      label: "NULL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NULL',
-      detail: 'Keyword'
+      insertText: "NULL",
+      detail: "Keyword",
     },
     {
-      label: 'NULLIF',
+      label: "NULLIF",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NULLIF',
-      detail: 'Keyword'
+      insertText: "NULLIF",
+      detail: "Keyword",
     },
     {
-      label: 'NUMERIC',
+      label: "NUMERIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'NUMERIC',
-      detail: 'Keyword'
+      insertText: "NUMERIC",
+      detail: "Keyword",
     },
     {
-      label: 'OCCURRENCES_REGEX',
+      label: "OCCURRENCES_REGEX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OCCURRENCES_REGEX',
-      detail: 'Keyword'
+      insertText: "OCCURRENCES_REGEX",
+      detail: "Keyword",
     },
     {
-      label: 'OCTET_LENGTH',
+      label: "OCTET_LENGTH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OCTET_LENGTH',
-      detail: 'Keyword'
+      insertText: "OCTET_LENGTH",
+      detail: "Keyword",
     },
     {
-      label: 'OF',
+      label: "OF",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OF',
-      detail: 'Keyword'
+      insertText: "OF",
+      detail: "Keyword",
     },
     {
-      label: 'OFFSET',
+      label: "OFFSET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OFFSET',
-      detail: 'Keyword'
+      insertText: "OFFSET",
+      detail: "Keyword",
     },
     {
-      label: 'OLD',
+      label: "OLD",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OLD',
-      detail: 'Keyword'
+      insertText: "OLD",
+      detail: "Keyword",
     },
     {
-      label: 'OMIT',
+      label: "OMIT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OMIT',
-      detail: 'Keyword'
+      insertText: "OMIT",
+      detail: "Keyword",
     },
     {
-      label: 'ON',
+      label: "ON",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ON',
-      detail: 'Keyword'
+      insertText: "ON",
+      detail: "Keyword",
     },
     {
-      label: 'ONE',
+      label: "ONE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ONE',
-      detail: 'Keyword'
+      insertText: "ONE",
+      detail: "Keyword",
     },
     {
-      label: 'ONLY',
+      label: "ONLY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ONLY',
-      detail: 'Keyword'
+      insertText: "ONLY",
+      detail: "Keyword",
     },
     {
-      label: 'OPEN',
+      label: "OPEN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OPEN',
-      detail: 'Keyword'
+      insertText: "OPEN",
+      detail: "Keyword",
     },
     {
-      label: 'OR',
+      label: "OR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OR',
-      detail: 'Keyword'
+      insertText: "OR",
+      detail: "Keyword",
     },
     {
-      label: 'ORDER',
+      label: "ORDER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ORDER',
-      detail: 'Keyword'
+      insertText: "ORDER",
+      detail: "Keyword",
     },
     {
-      label: 'OUT',
+      label: "OUT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OUT',
-      detail: 'Keyword'
+      insertText: "OUT",
+      detail: "Keyword",
     },
     {
-      label: 'OUTER',
+      label: "OUTER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OUTER',
-      detail: 'Keyword'
+      insertText: "OUTER",
+      detail: "Keyword",
     },
     {
-      label: 'OVER',
+      label: "OVER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OVER',
-      detail: 'Keyword'
+      insertText: "OVER",
+      detail: "Keyword",
     },
     {
-      label: 'OVERLAPS',
+      label: "OVERLAPS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OVERLAPS',
-      detail: 'Keyword'
+      insertText: "OVERLAPS",
+      detail: "Keyword",
     },
     {
-      label: 'OVERLAY',
+      label: "OVERLAY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'OVERLAY',
-      detail: 'Keyword'
+      insertText: "OVERLAY",
+      detail: "Keyword",
     },
     {
-      label: 'PARAMETER',
+      label: "PARAMETER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PARAMETER',
-      detail: 'Keyword'
+      insertText: "PARAMETER",
+      detail: "Keyword",
     },
     {
-      label: 'PARTITION',
+      label: "PARTITION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PARTITION',
-      detail: 'Keyword'
+      insertText: "PARTITION",
+      detail: "Keyword",
     },
     {
-      label: 'PATTERN',
+      label: "PATTERN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PATTERN',
-      detail: 'Keyword'
+      insertText: "PATTERN",
+      detail: "Keyword",
     },
     {
-      label: 'PER',
+      label: "PER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PER',
-      detail: 'Keyword'
+      insertText: "PER",
+      detail: "Keyword",
     },
     {
-      label: 'PERCENT',
+      label: "PERCENT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PERCENT',
-      detail: 'Keyword'
+      insertText: "PERCENT",
+      detail: "Keyword",
     },
     {
-      label: 'PERCENTILE_CONT',
+      label: "PERCENTILE_CONT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PERCENTILE_CONT',
-      detail: 'Keyword'
+      insertText: "PERCENTILE_CONT",
+      detail: "Keyword",
     },
     {
-      label: 'PERCENTILE_DISC',
+      label: "PERCENTILE_DISC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PERCENTILE_DISC',
-      detail: 'Keyword'
+      insertText: "PERCENTILE_DISC",
+      detail: "Keyword",
     },
     {
-      label: 'PERCENT_RANK',
+      label: "PERCENT_RANK",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PERCENT_RANK',
-      detail: 'Keyword'
+      insertText: "PERCENT_RANK",
+      detail: "Keyword",
     },
     {
-      label: 'PERIOD',
+      label: "PERIOD",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PERIOD',
-      detail: 'Keyword'
+      insertText: "PERIOD",
+      detail: "Keyword",
     },
     {
-      label: 'PERMUTE',
+      label: "PERMUTE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PERMUTE',
-      detail: 'Keyword'
+      insertText: "PERMUTE",
+      detail: "Keyword",
     },
     {
-      label: 'PORTION',
+      label: "PORTION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PORTION',
-      detail: 'Keyword'
+      insertText: "PORTION",
+      detail: "Keyword",
     },
     {
-      label: 'POSITION',
+      label: "POSITION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'POSITION',
-      detail: 'Keyword'
+      insertText: "POSITION",
+      detail: "Keyword",
     },
     {
-      label: 'POSITION_REGEX',
+      label: "POSITION_REGEX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'POSITION_REGEX',
-      detail: 'Keyword'
+      insertText: "POSITION_REGEX",
+      detail: "Keyword",
     },
     {
-      label: 'POWER',
+      label: "POWER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'POWER',
-      detail: 'Keyword'
+      insertText: "POWER",
+      detail: "Keyword",
     },
     {
-      label: 'PRECEDES',
+      label: "PRECEDES",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PRECEDES',
-      detail: 'Keyword'
+      insertText: "PRECEDES",
+      detail: "Keyword",
     },
     {
-      label: 'PRECISION',
+      label: "PRECISION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PRECISION',
-      detail: 'Keyword'
+      insertText: "PRECISION",
+      detail: "Keyword",
     },
     {
-      label: 'PREPARE',
+      label: "PREPARE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PREPARE',
-      detail: 'Keyword'
+      insertText: "PREPARE",
+      detail: "Keyword",
     },
     {
-      label: 'PREV',
+      label: "PREV",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PREV',
-      detail: 'Keyword'
+      insertText: "PREV",
+      detail: "Keyword",
     },
     {
-      label: 'PRIMARY',
+      label: "PRIMARY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PRIMARY',
-      detail: 'Keyword'
+      insertText: "PRIMARY",
+      detail: "Keyword",
     },
     {
-      label: 'PROCEDURE',
+      label: "PROCEDURE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'PROCEDURE',
-      detail: 'Keyword'
+      insertText: "PROCEDURE",
+      detail: "Keyword",
     },
     {
-      label: 'RANGE',
+      label: "RANGE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RANGE',
-      detail: 'Keyword'
+      insertText: "RANGE",
+      detail: "Keyword",
     },
     {
-      label: 'RANK',
+      label: "RANK",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RANK',
-      detail: 'Keyword'
+      insertText: "RANK",
+      detail: "Keyword",
     },
     {
-      label: 'READS',
+      label: "READS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'READS',
-      detail: 'Keyword'
+      insertText: "READS",
+      detail: "Keyword",
     },
     {
-      label: 'REAL',
+      label: "REAL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REAL',
-      detail: 'Keyword'
+      insertText: "REAL",
+      detail: "Keyword",
     },
     {
-      label: 'RECURSIVE',
+      label: "RECURSIVE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RECURSIVE',
-      detail: 'Keyword'
+      insertText: "RECURSIVE",
+      detail: "Keyword",
     },
     {
-      label: 'REF',
+      label: "REF",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REF',
-      detail: 'Keyword'
+      insertText: "REF",
+      detail: "Keyword",
     },
     {
-      label: 'REFERENCES',
+      label: "REFERENCES",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REFERENCES',
-      detail: 'Keyword'
+      insertText: "REFERENCES",
+      detail: "Keyword",
     },
     {
-      label: 'REFERENCING',
+      label: "REFERENCING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REFERENCING',
-      detail: 'Keyword'
+      insertText: "REFERENCING",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_AVGX',
+      label: "REGR_AVGX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_AVGX',
-      detail: 'Keyword'
+      insertText: "REGR_AVGX",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_AVGY',
+      label: "REGR_AVGY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_AVGY',
-      detail: 'Keyword'
+      insertText: "REGR_AVGY",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_COUNT',
+      label: "REGR_COUNT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_COUNT',
-      detail: 'Keyword'
+      insertText: "REGR_COUNT",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_INTERCEPT',
+      label: "REGR_INTERCEPT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_INTERCEPT',
-      detail: 'Keyword'
+      insertText: "REGR_INTERCEPT",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_R2',
+      label: "REGR_R2",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_R2',
-      detail: 'Keyword'
+      insertText: "REGR_R2",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_SLOPE',
+      label: "REGR_SLOPE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_SLOPE',
-      detail: 'Keyword'
+      insertText: "REGR_SLOPE",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_SXX',
+      label: "REGR_SXX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_SXX',
-      detail: 'Keyword'
+      insertText: "REGR_SXX",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_SXY',
+      label: "REGR_SXY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_SXY',
-      detail: 'Keyword'
+      insertText: "REGR_SXY",
+      detail: "Keyword",
     },
     {
-      label: 'REGR_SYY',
+      label: "REGR_SYY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REGR_SYY',
-      detail: 'Keyword'
+      insertText: "REGR_SYY",
+      detail: "Keyword",
     },
     {
-      label: 'RELEASE',
+      label: "RELEASE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RELEASE',
-      detail: 'Keyword'
+      insertText: "RELEASE",
+      detail: "Keyword",
     },
     {
-      label: 'RESET',
+      label: "RESET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RESET',
-      detail: 'Keyword'
+      insertText: "RESET",
+      detail: "Keyword",
     },
     {
-      label: 'RESULT',
+      label: "RESULT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RESULT',
-      detail: 'Keyword'
+      insertText: "RESULT",
+      detail: "Keyword",
     },
     {
-      label: 'RETURN',
+      label: "RETURN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RETURN',
-      detail: 'Keyword'
+      insertText: "RETURN",
+      detail: "Keyword",
     },
     {
-      label: 'RETURNS',
+      label: "RETURNS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RETURNS',
-      detail: 'Keyword'
+      insertText: "RETURNS",
+      detail: "Keyword",
     },
     {
-      label: 'REVOKE',
+      label: "REVOKE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'REVOKE',
-      detail: 'Keyword'
+      insertText: "REVOKE",
+      detail: "Keyword",
     },
     {
-      label: 'RIGHT',
+      label: "RIGHT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RIGHT',
-      detail: 'Keyword'
+      insertText: "RIGHT",
+      detail: "Keyword",
     },
     {
-      label: 'ROLLBACK',
+      label: "ROLLBACK",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ROLLBACK',
-      detail: 'Keyword'
+      insertText: "ROLLBACK",
+      detail: "Keyword",
     },
     {
-      label: 'ROLLUP',
+      label: "ROLLUP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ROLLUP',
-      detail: 'Keyword'
+      insertText: "ROLLUP",
+      detail: "Keyword",
     },
     {
-      label: 'ROW',
+      label: "ROW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ROW',
-      detail: 'Keyword'
+      insertText: "ROW",
+      detail: "Keyword",
     },
     {
-      label: 'ROW_NUMBER',
+      label: "ROW_NUMBER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ROW_NUMBER',
-      detail: 'Keyword'
+      insertText: "ROW_NUMBER",
+      detail: "Keyword",
     },
     {
-      label: 'ROWS',
+      label: "ROWS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'ROWS',
-      detail: 'Keyword'
+      insertText: "ROWS",
+      detail: "Keyword",
     },
     {
-      label: 'RUNNING',
+      label: "RUNNING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'RUNNING',
-      detail: 'Keyword'
+      insertText: "RUNNING",
+      detail: "Keyword",
     },
     {
-      label: 'SAVEPOINT',
+      label: "SAVEPOINT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SAVEPOINT',
-      detail: 'Keyword'
+      insertText: "SAVEPOINT",
+      detail: "Keyword",
     },
     {
-      label: 'SCOPE',
+      label: "SCOPE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SCOPE',
-      detail: 'Keyword'
+      insertText: "SCOPE",
+      detail: "Keyword",
     },
     {
-      label: 'SCROLL',
+      label: "SCROLL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SCROLL',
-      detail: 'Keyword'
+      insertText: "SCROLL",
+      detail: "Keyword",
     },
     {
-      label: 'SEARCH',
+      label: "SEARCH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SEARCH',
-      detail: 'Keyword'
+      insertText: "SEARCH",
+      detail: "Keyword",
     },
     {
-      label: 'SECOND',
+      label: "SECOND",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SECOND',
-      detail: 'Keyword'
+      insertText: "SECOND",
+      detail: "Keyword",
     },
     {
-      label: 'SEEK',
+      label: "SEEK",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SEEK',
-      detail: 'Keyword'
+      insertText: "SEEK",
+      detail: "Keyword",
     },
     {
-      label: 'SELECT',
+      label: "SELECT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SELECT',
-      detail: 'Keyword'
+      insertText: "SELECT",
+      detail: "Keyword",
     },
     {
-      label: 'SENSITIVE',
+      label: "SENSITIVE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SENSITIVE',
-      detail: 'Keyword'
+      insertText: "SENSITIVE",
+      detail: "Keyword",
     },
     {
-      label: 'SESSION_USER',
+      label: "SESSION_USER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SESSION_USER',
-      detail: 'Keyword'
+      insertText: "SESSION_USER",
+      detail: "Keyword",
     },
     {
-      label: 'SET',
+      label: "SET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SET',
-      detail: 'Keyword'
+      insertText: "SET",
+      detail: "Keyword",
     },
     {
-      label: 'MINUS',
+      label: "MINUS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'MINUS',
-      detail: 'Keyword'
+      insertText: "MINUS",
+      detail: "Keyword",
     },
     {
-      label: 'SHOW',
+      label: "SHOW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SHOW',
-      detail: 'Keyword'
+      insertText: "SHOW",
+      detail: "Keyword",
     },
     {
-      label: 'SIMILAR',
+      label: "SIMILAR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SIMILAR',
-      detail: 'Keyword'
+      insertText: "SIMILAR",
+      detail: "Keyword",
     },
     {
-      label: 'SKIP',
+      label: "SKIP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SKIP',
-      detail: 'Keyword'
+      insertText: "SKIP",
+      detail: "Keyword",
     },
     {
-      label: 'SMALLINT',
+      label: "SMALLINT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SMALLINT',
-      detail: 'Keyword'
+      insertText: "SMALLINT",
+      detail: "Keyword",
     },
     {
-      label: 'SOME',
+      label: "SOME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SOME',
-      detail: 'Keyword'
+      insertText: "SOME",
+      detail: "Keyword",
     },
     {
-      label: 'SPECIFIC',
+      label: "SPECIFIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SPECIFIC',
-      detail: 'Keyword'
+      insertText: "SPECIFIC",
+      detail: "Keyword",
     },
     {
-      label: 'SPECIFICTYPE',
+      label: "SPECIFICTYPE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SPECIFICTYPE',
-      detail: 'Keyword'
+      insertText: "SPECIFICTYPE",
+      detail: "Keyword",
     },
     {
-      label: 'SQL',
+      label: "SQL",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SQL',
-      detail: 'Keyword'
+      insertText: "SQL",
+      detail: "Keyword",
     },
     {
-      label: 'SQLEXCEPTION',
+      label: "SQLEXCEPTION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SQLEXCEPTION',
-      detail: 'Keyword'
+      insertText: "SQLEXCEPTION",
+      detail: "Keyword",
     },
     {
-      label: 'SQLSTATE',
+      label: "SQLSTATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SQLSTATE',
-      detail: 'Keyword'
+      insertText: "SQLSTATE",
+      detail: "Keyword",
     },
     {
-      label: 'SQLWARNING',
+      label: "SQLWARNING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SQLWARNING',
-      detail: 'Keyword'
+      insertText: "SQLWARNING",
+      detail: "Keyword",
     },
     {
-      label: 'SQRT',
+      label: "SQRT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SQRT',
-      detail: 'Keyword'
+      insertText: "SQRT",
+      detail: "Keyword",
     },
     {
-      label: 'START',
+      label: "START",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'START',
-      detail: 'Keyword'
+      insertText: "START",
+      detail: "Keyword",
     },
     {
-      label: 'STATIC',
+      label: "STATIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'STATIC',
-      detail: 'Keyword'
+      insertText: "STATIC",
+      detail: "Keyword",
     },
     {
-      label: 'STDDEV_POP',
+      label: "STDDEV_POP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'STDDEV_POP',
-      detail: 'Keyword'
+      insertText: "STDDEV_POP",
+      detail: "Keyword",
     },
     {
-      label: 'STDDEV_SAMP',
+      label: "STDDEV_SAMP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'STDDEV_SAMP',
-      detail: 'Keyword'
+      insertText: "STDDEV_SAMP",
+      detail: "Keyword",
     },
     {
-      label: 'STREAM',
+      label: "STREAM",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'STREAM',
-      detail: 'Keyword'
+      insertText: "STREAM",
+      detail: "Keyword",
     },
     {
-      label: 'SUBMULTISET',
+      label: "SUBMULTISET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SUBMULTISET',
-      detail: 'Keyword'
+      insertText: "SUBMULTISET",
+      detail: "Keyword",
     },
     {
-      label: 'SUBSET',
+      label: "SUBSET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SUBSET',
-      detail: 'Keyword'
+      insertText: "SUBSET",
+      detail: "Keyword",
     },
     {
-      label: 'SUBSTRING',
+      label: "SUBSTRING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SUBSTRING',
-      detail: 'Keyword'
+      insertText: "SUBSTRING",
+      detail: "Keyword",
     },
     {
-      label: 'SUBSTRING_REGEX',
+      label: "SUBSTRING_REGEX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SUBSTRING_REGEX',
-      detail: 'Keyword'
+      insertText: "SUBSTRING_REGEX",
+      detail: "Keyword",
     },
     {
-      label: 'SUCCEEDS',
+      label: "SUCCEEDS",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SUCCEEDS',
-      detail: 'Keyword'
+      insertText: "SUCCEEDS",
+      detail: "Keyword",
     },
     {
-      label: 'SUM',
+      label: "SUM",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SUM',
-      detail: 'Keyword'
+      insertText: "SUM",
+      detail: "Keyword",
     },
     {
-      label: 'SYMMETRIC',
+      label: "SYMMETRIC",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SYMMETRIC',
-      detail: 'Keyword'
+      insertText: "SYMMETRIC",
+      detail: "Keyword",
     },
     {
-      label: 'SYSTEM',
+      label: "SYSTEM",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SYSTEM',
-      detail: 'Keyword'
+      insertText: "SYSTEM",
+      detail: "Keyword",
     },
     {
-      label: 'SYSTEM_TIME',
+      label: "SYSTEM_TIME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SYSTEM_TIME',
-      detail: 'Keyword'
+      insertText: "SYSTEM_TIME",
+      detail: "Keyword",
     },
     {
-      label: 'SYSTEM_USER',
+      label: "SYSTEM_USER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'SYSTEM_USER',
-      detail: 'Keyword'
+      insertText: "SYSTEM_USER",
+      detail: "Keyword",
     },
     {
-      label: 'TABLE',
+      label: "TABLE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TABLE',
-      detail: 'Keyword'
+      insertText: "TABLE",
+      detail: "Keyword",
     },
     {
-      label: 'TABLESAMPLE',
+      label: "TABLESAMPLE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TABLESAMPLE',
-      detail: 'Keyword'
+      insertText: "TABLESAMPLE",
+      detail: "Keyword",
     },
     {
-      label: 'THEN',
+      label: "THEN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'THEN',
-      detail: 'Keyword'
+      insertText: "THEN",
+      detail: "Keyword",
     },
     {
-      label: 'TIME',
+      label: "TIME",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TIME',
-      detail: 'Keyword'
+      insertText: "TIME",
+      detail: "Keyword",
     },
     {
-      label: 'TIMESTAMP',
+      label: "TIMESTAMP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TIMESTAMP',
-      detail: 'Keyword'
+      insertText: "TIMESTAMP",
+      detail: "Keyword",
     },
     {
-      label: 'TIMEZONE_HOUR',
+      label: "TIMEZONE_HOUR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TIMEZONE_HOUR',
-      detail: 'Keyword'
+      insertText: "TIMEZONE_HOUR",
+      detail: "Keyword",
     },
     {
-      label: 'TIMEZONE_MINUTE',
+      label: "TIMEZONE_MINUTE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TIMEZONE_MINUTE',
-      detail: 'Keyword'
+      insertText: "TIMEZONE_MINUTE",
+      detail: "Keyword",
     },
     {
-      label: 'TINYINT',
+      label: "TINYINT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TINYINT',
-      detail: 'Keyword'
+      insertText: "TINYINT",
+      detail: "Keyword",
     },
     {
-      label: 'TO',
+      label: "TO",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TO',
-      detail: 'Keyword'
+      insertText: "TO",
+      detail: "Keyword",
     },
     {
-      label: 'TRAILING',
+      label: "TRAILING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRAILING',
-      detail: 'Keyword'
+      insertText: "TRAILING",
+      detail: "Keyword",
     },
     {
-      label: 'TRANSLATE',
+      label: "TRANSLATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRANSLATE',
-      detail: 'Keyword'
+      insertText: "TRANSLATE",
+      detail: "Keyword",
     },
     {
-      label: 'TRANSLATE_REGEX',
+      label: "TRANSLATE_REGEX",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRANSLATE_REGEX',
-      detail: 'Keyword'
+      insertText: "TRANSLATE_REGEX",
+      detail: "Keyword",
     },
     {
-      label: 'TRANSLATION',
+      label: "TRANSLATION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRANSLATION',
-      detail: 'Keyword'
+      insertText: "TRANSLATION",
+      detail: "Keyword",
     },
     {
-      label: 'TREAT',
+      label: "TREAT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TREAT',
-      detail: 'Keyword'
+      insertText: "TREAT",
+      detail: "Keyword",
     },
     {
-      label: 'TRIGGER',
+      label: "TRIGGER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRIGGER',
-      detail: 'Keyword'
+      insertText: "TRIGGER",
+      detail: "Keyword",
     },
     {
-      label: 'TRIM',
+      label: "TRIM",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRIM',
-      detail: 'Keyword'
+      insertText: "TRIM",
+      detail: "Keyword",
     },
     {
-      label: 'TRIM_ARRAY',
+      label: "TRIM_ARRAY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRIM_ARRAY',
-      detail: 'Keyword'
+      insertText: "TRIM_ARRAY",
+      detail: "Keyword",
     },
     {
-      label: 'TRUE',
+      label: "TRUE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRUE',
-      detail: 'Keyword'
+      insertText: "TRUE",
+      detail: "Keyword",
     },
     {
-      label: 'TRUNCATE',
+      label: "TRUNCATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'TRUNCATE',
-      detail: 'Keyword'
+      insertText: "TRUNCATE",
+      detail: "Keyword",
     },
     {
-      label: 'UESCAPE',
+      label: "UESCAPE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UESCAPE',
-      detail: 'Keyword'
+      insertText: "UESCAPE",
+      detail: "Keyword",
     },
     {
-      label: 'UNION',
+      label: "UNION",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UNION',
-      detail: 'Keyword'
+      insertText: "UNION",
+      detail: "Keyword",
     },
     {
-      label: 'UNIQUE',
+      label: "UNIQUE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UNIQUE',
-      detail: 'Keyword'
+      insertText: "UNIQUE",
+      detail: "Keyword",
     },
     {
-      label: 'UNKNOWN',
+      label: "UNKNOWN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UNKNOWN',
-      detail: 'Keyword'
+      insertText: "UNKNOWN",
+      detail: "Keyword",
     },
     {
-      label: 'UNNEST',
+      label: "UNNEST",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UNNEST',
-      detail: 'Keyword'
+      insertText: "UNNEST",
+      detail: "Keyword",
     },
     {
-      label: 'UPDATE',
+      label: "UPDATE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UPDATE',
-      detail: 'Keyword'
+      insertText: "UPDATE",
+      detail: "Keyword",
     },
     {
-      label: 'UPPER',
+      label: "UPPER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UPPER',
-      detail: 'Keyword'
+      insertText: "UPPER",
+      detail: "Keyword",
     },
     {
-      label: 'UPSERT',
+      label: "UPSERT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'UPSERT',
-      detail: 'Keyword'
+      insertText: "UPSERT",
+      detail: "Keyword",
     },
     {
-      label: 'USER',
+      label: "USER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'USER',
-      detail: 'Keyword'
+      insertText: "USER",
+      detail: "Keyword",
     },
     {
-      label: 'USING',
+      label: "USING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'USING',
-      detail: 'Keyword'
+      insertText: "USING",
+      detail: "Keyword",
     },
     {
-      label: 'VALUE',
+      label: "VALUE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VALUE',
-      detail: 'Keyword'
+      insertText: "VALUE",
+      detail: "Keyword",
     },
     {
-      label: 'VALUES',
+      label: "VALUES",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VALUES',
-      detail: 'Keyword'
+      insertText: "VALUES",
+      detail: "Keyword",
     },
     {
-      label: 'VALUE_OF',
+      label: "VALUE_OF",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VALUE_OF',
-      detail: 'Keyword'
+      insertText: "VALUE_OF",
+      detail: "Keyword",
     },
     {
-      label: 'VAR_POP',
+      label: "VAR_POP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VAR_POP',
-      detail: 'Keyword'
+      insertText: "VAR_POP",
+      detail: "Keyword",
     },
     {
-      label: 'VAR_SAMP',
+      label: "VAR_SAMP",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VAR_SAMP',
-      detail: 'Keyword'
+      insertText: "VAR_SAMP",
+      detail: "Keyword",
     },
     {
-      label: 'VARBINARY',
+      label: "VARBINARY",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VARBINARY',
-      detail: 'Keyword'
+      insertText: "VARBINARY",
+      detail: "Keyword",
     },
     {
-      label: 'VARCHAR',
+      label: "VARCHAR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VARCHAR',
-      detail: 'Keyword'
+      insertText: "VARCHAR",
+      detail: "Keyword",
     },
     {
-      label: 'VARYING',
+      label: "VARYING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VARYING',
-      detail: 'Keyword'
+      insertText: "VARYING",
+      detail: "Keyword",
     },
     {
-      label: 'VERSIONING',
+      label: "VERSIONING",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'VERSIONING',
-      detail: 'Keyword'
+      insertText: "VERSIONING",
+      detail: "Keyword",
     },
     {
-      label: 'WHEN',
+      label: "WHEN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WHEN',
-      detail: 'Keyword'
+      insertText: "WHEN",
+      detail: "Keyword",
     },
     {
-      label: 'WHENEVER',
+      label: "WHENEVER",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WHENEVER',
-      detail: 'Keyword'
+      insertText: "WHENEVER",
+      detail: "Keyword",
     },
     {
-      label: 'WHERE',
+      label: "WHERE",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WHERE',
-      detail: 'Keyword'
+      insertText: "WHERE",
+      detail: "Keyword",
     },
     {
-      label: 'WIDTH_BUCKET',
+      label: "WIDTH_BUCKET",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WIDTH_BUCKET',
-      detail: 'Keyword'
+      insertText: "WIDTH_BUCKET",
+      detail: "Keyword",
     },
     {
-      label: 'WINDOW',
+      label: "WINDOW",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WINDOW',
-      detail: 'Keyword'
+      insertText: "WINDOW",
+      detail: "Keyword",
     },
     {
-      label: 'WITH',
+      label: "WITH",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WITH',
-      detail: 'Keyword'
+      insertText: "WITH",
+      detail: "Keyword",
     },
     {
-      label: 'WITHIN',
+      label: "WITHIN",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WITHIN',
-      detail: 'Keyword'
+      insertText: "WITHIN",
+      detail: "Keyword",
     },
     {
-      label: 'WITHOUT',
+      label: "WITHOUT",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'WITHOUT',
-      detail: 'Keyword'
+      insertText: "WITHOUT",
+      detail: "Keyword",
     },
     {
-      label: 'YEAR',
+      label: "YEAR",
       kind: monaco.languages.CompletionItemKind.Keyword,
-      insertText: 'YEAR',
-      detail: 'Keyword'
-    }
+      insertText: "YEAR",
+      detail: "Keyword",
+    },
   ];
 };

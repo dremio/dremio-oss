@@ -18,7 +18,9 @@ package com.dremio.dac.api;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Iterables;
 
 /**
  * Folder
@@ -40,6 +42,11 @@ public class Folder implements CatalogEntity {
     this.path = path;
     this.tag = tag;
     this.children = children;
+  }
+
+  @JsonIgnore
+  public String getName() {
+    return Iterables.getLast(getPath());
   }
 
   public String getId() {

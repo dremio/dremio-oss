@@ -22,6 +22,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Iterators;
 
 public abstract class AbstractTableFunctionPOP extends AbstractSingle {
@@ -57,5 +58,15 @@ public abstract class AbstractTableFunctionPOP extends AbstractSingle {
   @Override
   public Iterator<PhysicalOperator> iterator() {
     return Iterators.singletonIterator(child);
+  }
+
+  @JsonIgnore
+  public long getMaxParallelizationWidth() {
+    return getFunction().getMaxWidth();
+  }
+
+  @JsonIgnore
+  public long getMinParallelizationWidth() {
+    return getFunction().getMinWidth();
   }
 }

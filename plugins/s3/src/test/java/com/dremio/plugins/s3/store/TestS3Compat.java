@@ -49,7 +49,7 @@ public class TestS3Compat extends BaseTestQuery {
   private int port;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Before
   public void setup() {

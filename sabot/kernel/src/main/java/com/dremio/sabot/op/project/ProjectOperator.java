@@ -37,7 +37,6 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.collections.Tuple;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -54,8 +53,6 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ClassGenerator;
-import com.dremio.exec.expr.CodeGenContext;
-import com.dremio.exec.expr.CodeGenerationContextRemover;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.expr.ExpressionSplitter;
 import com.dremio.exec.expr.FunctionHolderExpr;
@@ -416,22 +413,18 @@ public class ProjectOperator implements SingleInputOperator {
         continue;
       }
 
-      final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer().materializeAndAllowComplex(options,
-        namedExpression.getExpr(), incoming);
-      final LogicalExpression expr = codeGenContextExpAndMaterializedExpTuple.first;
-      final LogicalExpression originalExpression = ((CodeGenContext) expr).getChild();
-      LogicalExpression originalExprWithNoCodeGenContextInfo = codeGenContextExpAndMaterializedExpTuple.second;
-      switch (ProjectOperator.getEvalMode(incoming, originalExpression, transferFieldIds)) {
+      final LogicalExpression materializedExp = context.getClassProducer().materializeAndAllowComplex(namedExpression.getExpr(), incoming, true);
+      switch (ProjectOperator.getEvalMode(incoming, materializedExp, transferFieldIds)) {
 
         case COMPLEX: {
 
-          outgoing.addOrGet(originalExprWithNoCodeGenContextInfo.getCompleteType().toField(namedExpression.getRef()));
+          outgoing.addOrGet(materializedExp.getCompleteType().toField(namedExpression.getRef()));
           // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
-          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExprWithNoCodeGenContextInfo).getHolder()).setReference(namedExpression.getRef());
-          if (context.getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED)) {
-            cg.lazyAddExp(originalExprWithNoCodeGenContextInfo, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) materializedExp).getHolder()).setReference(namedExpression.getRef());
+            if (context.getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED)) {
+            cg.lazyAddExp(materializedExp, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
           } else {
-            cg.addExpr(originalExprWithNoCodeGenContextInfo, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+            cg.addExpr(materializedExp, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
           }
           if (nonDirectExprs != null) {
             nonDirectExprs.add(namedExpression);
@@ -440,8 +433,7 @@ public class ProjectOperator implements SingleInputOperator {
         }
 
         case DIRECT: {
-          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
-          final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) originalExpr;
+          final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) materializedExp;
           final TypedFieldId id = vectorRead.getFieldId();
           final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
           final FieldReference ref = namedExpression.getRef();
@@ -453,7 +445,7 @@ public class ProjectOperator implements SingleInputOperator {
         }
 
         case EVAL: {
-          splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()), originalExprWithNoCodeGenContextInfo);
+          splitter.addExpr(outgoing, new NamedExpression(materializedExp, namedExpression.getRef()));
           if (nonDirectExprs != null) {
             nonDirectExprs.add(namedExpression);
           }

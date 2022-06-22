@@ -17,6 +17,7 @@ package com.dremio.service.namespace.proto;
 
 import java.util.List;
 
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.google.protobuf.ByteString;
 
 import io.protostuff.LinkedBuffer;
@@ -63,6 +64,13 @@ public class NameSpaceContainer {
       public int getNumber() {
         return com.dremio.service.namespace.protostuff.NameSpaceContainer.Type.DATASET.getNumber();
       }
+    },
+
+    FUNCTION {
+      @Override
+      public int getNumber() {
+        return com.dremio.service.namespace.protostuff.NameSpaceContainer.Type.FUNCTION.getNumber();
+      }
     };
 
     /**
@@ -104,6 +112,8 @@ public class NameSpaceContainer {
         return Type.FOLDER;
       case DATASET:
         return Type.DATASET;
+      case FUNCTION:
+        return Type.FUNCTION;
       default:
         throw new RuntimeException("bad type");
     }
@@ -125,6 +135,9 @@ public class NameSpaceContainer {
         break;
       case DATASET:
         delegate.setType(com.dremio.service.namespace.protostuff.NameSpaceContainer.Type.DATASET);
+        break;
+      case FUNCTION:
+        delegate.setType(com.dremio.service.namespace.protostuff.NameSpaceContainer.Type.FUNCTION);
         break;
       default:
         throw new RuntimeException("bad type");
@@ -148,6 +161,13 @@ public class NameSpaceContainer {
 
   public NameSpaceContainer setSpace(com.dremio.service.namespace.space.proto.SpaceConfig space) {
     delegate.setSpace(space);
+    return this;
+  }
+
+  public FunctionConfig getFunction() {return delegate.getFunction(); }
+
+  public NameSpaceContainer setFunction(FunctionConfig udf) {
+    delegate.setFunction(udf);
     return this;
   }
 

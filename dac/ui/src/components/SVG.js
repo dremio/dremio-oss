@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import ReactDOMServer from 'react-dom/server';
-import invariant from 'invariant';
-import { Tooltip } from 'dremio-ui-lib';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import ReactDOMServer from "react-dom/server";
+import invariant from "invariant";
+import { Tooltip } from "dremio-ui-lib";
 
-import { allSVGs } from 'dyn-load/components/svgLoader';
+import { allSVGs } from "dyn-load/components/svgLoader";
 
 // inline SVGs are cool:
 // - can inherit currentColor
@@ -39,33 +39,35 @@ export default class SVG extends PureComponent {
   static propTypes = {
     src: PropTypes.string.isRequired,
 
-    'aria-label': PropTypes.string.isRequired,
+    "aria-label": PropTypes.string.isRequired,
     role: PropTypes.string.isRequired,
     title: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.any,
-      PropTypes.bool // set to true to take the aria-label
+      PropTypes.bool, // set to true to take the aria-label
     ]),
     dataQa: PropTypes.string,
     interactive: PropTypes.bool,
-    id: PropTypes.any
-  }
+    id: PropTypes.any,
+  };
 
   static defaultProps = {
-    role: 'img' // https://stackoverflow.com/a/4756461/2860787: NVDA, JAWS, and WindowEyes will read the aria-label when the element also contains role="img".
-  }
+    role: "img", // https://stackoverflow.com/a/4756461/2860787: NVDA, JAWS, and WindowEyes will read the aria-label when the element also contains role="img".
+  };
 
   render() {
-    let {src, title, dataQa, id, interactive, ...props} = this.props;
+    let { title } = this.props;
+    const { src, dataQa, id, interactive, ...props } = this.props;
 
     if (!allSVGs[`./${src}`]) {
+      console.error("SVG is not rendering, ", src);
       return null;
     }
 
     const SpecificSVG = allSVGs[`./${src}`].default;
 
     let shouldInline = false;
-    if (SHOULD_INLINE_CACHE.hasOwnProperty(src)) {
+    if (Object.prototype.hasOwnProperty.call(SHOULD_INLINE_CACHE, src)) {
       shouldInline = SHOULD_INLINE_CACHE[src];
     }
 
@@ -73,34 +75,37 @@ export default class SVG extends PureComponent {
     if (!shouldInline) {
       if (!url) {
         const svgText = ReactDOMServer.renderToStaticMarkup(<SpecificSVG />);
-        shouldInline = SHOULD_INLINE_CACHE[src] = !!svgText.match(/currentColor/i); // there may be more, but starting with this
+        shouldInline = SHOULD_INLINE_CACHE[src] =
+          !!svgText.match(/currentColor/i); // there may be more, but starting with this
         invariant(
-          !shouldInline || !(svgText.match(/\s(id|class)=/i) || svgText.match(/<style(>|\s)/i)),
+          !shouldInline ||
+            !(
+              svgText.match(/\s(id|class)=/i) || svgText.match(/<style(>|\s)/i)
+            ),
           `Inline-prefered SVG ${src} contains non-inlineable features.`
         );
         if (!shouldInline) {
-          const blob = new Blob([svgText], { type: 'image/svg+xml' });
+          const blob = new Blob([svgText], { type: "image/svg+xml" });
           url = URL_CACHE[src] = URL.createObjectURL(blob);
         }
       }
     }
 
     if (!url) {
-      invariant(!title, 'Title not yet supported on inline SVGs.');
+      invariant(!title, "Title not yet supported on inline SVGs.");
       return <SpecificSVG {...props} />;
     }
 
     if (title === true) {
-      title = props['aria-label'];
+      title = props["aria-label"];
     }
 
-    return (
-      title ?
-        <Tooltip title={title} interactive={interactive}>
-          <img src={url} id={id} data-qa={dataQa} {...props} />
-        </Tooltip>
-        :
-        <img src={url} title={title} id={id} data-qa={dataQa} {...props} />
+    return title ? (
+      <Tooltip title={title} interactive={interactive}>
+        <img src={url} id={id} data-qa={dataQa} {...props} />
+      </Tooltip>
+    ) : (
+      <img src={url} title={title} id={id} data-qa={dataQa} {...props} />
     );
   }
 }

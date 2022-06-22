@@ -13,45 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import { getEngineSizeLabel, getNodeCount, getIsInReadOnlyState } from './provisioningUtils';
+import Immutable from "immutable";
+import {
+  getEngineSizeLabel,
+  getNodeCount,
+  getIsInReadOnlyState,
+} from "./provisioningUtils";
 
-describe('getIsInReadOnlyState', () => {
-  it('should default to false', () => {
+describe("getIsInReadOnlyState", () => {
+  it("should default to false", () => {
     expect(getIsInReadOnlyState()).to.equal(false);
     expect(getIsInReadOnlyState({})).to.equal(false);
-    expect(getIsInReadOnlyState(Immutable.fromJS({currentState: 'RUNNING'}))).to.equal(false);
+    expect(
+      getIsInReadOnlyState(Immutable.fromJS({ state: "RUNNING" }))
+    ).to.equal(false);
   });
-  it('should return true for STARTING/STOPPING', () => {
-    expect(getIsInReadOnlyState(Immutable.fromJS({currentState: 'STARTING'}))).to.equal(true);
-    expect(getIsInReadOnlyState(Immutable.fromJS({currentState: 'STOPPING'}))).to.equal(true);
+  it("should return true for STARTING/STOPPING", () => {
+    expect(
+      getIsInReadOnlyState(Immutable.fromJS({ state: "STARTING" }))
+    ).to.equal(true);
+    expect(
+      getIsInReadOnlyState(Immutable.fromJS({ state: "STOPPING" }))
+    ).to.equal(true);
   });
-  it('should return true for DELETING', () => {
-    expect(getIsInReadOnlyState(Immutable.fromJS({desiredState: 'DELETED'}))).to.equal(true);
+  it("should return true for DELETING", () => {
+    expect(
+      getIsInReadOnlyState(Immutable.fromJS({ desiredState: "DELETED" }))
+    ).to.equal(true);
   });
 });
 
-describe('getEngineSizeLabel', () => {
-  it('should find standard size label', () => {
-    expect(getEngineSizeLabel(2)).to.equal('Small - 2');
-    expect(getEngineSizeLabel(4)).to.equal('Medium - 4');
-    expect(getEngineSizeLabel(64)).to.equal('3X Large - 64');
+describe("getEngineSizeLabel", () => {
+  it("should find standard size label", () => {
+    expect(getEngineSizeLabel(2)).to.equal("Small - 2");
+    expect(getEngineSizeLabel(4)).to.equal("Medium - 4");
+    expect(getEngineSizeLabel(64)).to.equal("3X Large - 64");
   });
 
-  it('should use custom size for non-standard', () => {
-    expect(getEngineSizeLabel(6)).to.equal('Custom - 6');
-    expect(getEngineSizeLabel(100)).to.equal('Custom - 100');
+  it("should use custom size for non-standard", () => {
+    expect(getEngineSizeLabel(6)).to.equal("Custom - 6");
+    expect(getEngineSizeLabel(100)).to.equal("Custom - 100");
   });
-
 });
 
-describe('getNodeCount', () => {
-  it('should default to zero', () => {
-    expect(getNodeCount( Immutable.fromJS({}))).to.equal(0);
-    expect(getNodeCount( Immutable.fromJS({ workersSummary: {}}))).to.equal(0);
+describe("getNodeCount", () => {
+  it("should default to zero", () => {
+    expect(getNodeCount(Immutable.fromJS({}))).to.equal(0);
+    expect(getNodeCount(Immutable.fromJS({ workersSummary: {} }))).to.equal(0);
   });
 
-  it('should get total from workersSummary', () => {
-    expect(getNodeCount( Immutable.fromJS({ workersSummary: { total: 2 }}))).to.equal(2);
+  it("should get total from workersSummary", () => {
+    expect(
+      getNodeCount(Immutable.fromJS({ workersSummary: { total: 2 } }))
+    ).to.equal(2);
   });
 });

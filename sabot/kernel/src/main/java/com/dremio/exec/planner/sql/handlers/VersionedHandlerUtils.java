@@ -25,6 +25,19 @@ public class VersionedHandlerUtils {
   private VersionedHandlerUtils() {
   }
 
+  public static NamespaceKey resolveSourceNameAsNamespaceKey(SqlIdentifier sourceIdentifier, NamespaceKey defaultSchemaPath) {
+    if (sourceIdentifier == null) {
+      if (defaultSchemaPath == null) {
+        throw UserException.validationError()
+          .message("Unable to choose a source. \"[ IN sourceName ]\" was not specified and current context was not found.")
+          .buildSilently();
+      }
+      return defaultSchemaPath;
+    }
+
+    return new NamespaceKey(sourceIdentifier.names);
+  }
+
   public static String resolveSourceName(SqlIdentifier sourceIdentifier, NamespaceKey defaultSchemaPath) {
     if (sourceIdentifier == null) {
       if (defaultSchemaPath == null) {

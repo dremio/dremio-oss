@@ -13,24 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { get } from 'lodash/object';
+import { Component } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { get } from "lodash/object";
 
+import "@app/uiTheme/less/commonModifiers.less";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
 
-import '@app/uiTheme/less/commonModifiers.less';
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
+import AccelerationGridControllerMixin from "dyn-load/components/Acceleration/Advanced/AccelerationGridControllerMixin";
 
-import AccelerationGridControllerMixin from 'dyn-load/components/Acceleration/Advanced/AccelerationGridControllerMixin';
-
-import AccelerationGrid from 'components/Acceleration/Advanced/AccelerationGrid';
-import AccelerationGridSubCell from 'components/Acceleration/Advanced/AccelerationGridSubCell';
-import CellPopover from 'components/Acceleration/Advanced/CellPopover';
-import { cellType, fieldTypes, granularityValue } from '@app/constants/AccelerationConstants';
-import { TIMESTAMP } from '@app/constants/DataTypes';
-import { findAllMeasureTypes, getDefaultMeasureTypes } from 'utils/accelerationUtils';
+import AccelerationGrid from "components/Acceleration/Advanced/AccelerationGrid";
+import AccelerationGridSubCell from "components/Acceleration/Advanced/AccelerationGridSubCell";
+import CellPopover from "components/Acceleration/Advanced/CellPopover";
+import {
+  cellType,
+  fieldTypes,
+  granularityValue,
+} from "@app/constants/AccelerationConstants";
+import { TIMESTAMP } from "@app/constants/DataTypes";
+import {
+  findAllMeasureTypes,
+  getDefaultMeasureTypes,
+} from "utils/accelerationUtils";
 
 // AccelerationGridController is used for behavior definition cells on Raw/Aggregation
 // Aggregation:
@@ -45,48 +50,55 @@ import { findAllMeasureTypes, getDefaultMeasureTypes } from 'utils/accelerationU
 // In Raw mode: at least one display per layout is required
 
 @AccelerationGridControllerMixin
-@Radium
-export default class AccelerationGridController extends Component {
+class AccelerationGridController extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     layoutFields: PropTypes.array,
     activeTab: PropTypes.string,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
   };
 
   state = {
-    filter: '',
+    filter: "",
     currentCell: {
-      labelCell: '',
+      labelCell: "",
       columnIndex: null,
-      rowIndex: null
+      rowIndex: null,
     },
-    anchorEl: null
+    anchorEl: null,
   };
 
   onFilterChange = (filter) => {
     this.setState({
-      filter
+      filter,
     });
   };
 
   getRowByIndex = (rowIndex) => {
-    const allColumns = this.props.dataset.get('fields');
+    const allColumns = this.props.dataset.get("fields");
     const datasetSchema = this.filterFieldList(allColumns).toJS();
     return datasetSchema.find((row, i) => i === rowIndex);
   };
 
   filterFieldList = (allColumns) => {
     const { filter } = this.state;
-    return allColumns.filter((item) => item.get('name').toLowerCase().includes(filter.trim().toLowerCase()));
+    return allColumns.filter((item) =>
+      item.get("name").toLowerCase().includes(filter.trim().toLowerCase())
+    );
   };
 
   findCurrentIndexInFieldsList = (currentColumn, field, currentColumnIndex) => {
     const { columnIndex } = this.state.currentCell;
-    const colIndex = currentColumnIndex || currentColumnIndex === 0 ? currentColumnIndex : columnIndex;
+    const colIndex =
+      currentColumnIndex || currentColumnIndex === 0
+        ? currentColumnIndex
+        : columnIndex;
 
-    if (!this.props.layoutFields[colIndex] || !this.props.layoutFields[colIndex][field]) {
+    if (
+      !this.props.layoutFields[colIndex] ||
+      !this.props.layoutFields[colIndex][field]
+    ) {
       return -1;
     }
 
@@ -99,42 +111,59 @@ export default class AccelerationGridController extends Component {
 
   findCurrentColumnInLayouts = (field, rowIndex, columnIndex) => {
     const { layoutFields, dataset } = this.props;
-    const allColumns = dataset.get('fields');
+    const allColumns = dataset.get("fields");
     const datasetSchema = this.filterFieldList(allColumns).toJS();
     const currentColumn = datasetSchema.find((column, i) => i === rowIndex);
 
-    return layoutFields[columnIndex]
-      && layoutFields[columnIndex][field].find(col => col.name.value === currentColumn.name);
+    return (
+      layoutFields[columnIndex] &&
+      layoutFields[columnIndex][field].find(
+        (col) => col.name.value === currentColumn.name
+      )
+    );
   };
 
   removeFieldByIndex = (currentColumn, field, columnIndex) => {
-    const index = this.findCurrentIndexInFieldsList(currentColumn, field, columnIndex);
+    const index = this.findCurrentIndexInFieldsList(
+      currentColumn,
+      field,
+      columnIndex
+    );
     if (index !== -1) {
       this.props.layoutFields[columnIndex][field].removeField(index);
     }
   };
 
   addFieldByIndex = (currentColumn, field, columnIndex) => {
-    const index = this.findCurrentIndexInFieldsList(currentColumn, field, columnIndex);
+    const index = this.findCurrentIndexInFieldsList(
+      currentColumn,
+      field,
+      columnIndex
+    );
     if (index === -1) {
       this.props.layoutFields[columnIndex][field].addField(currentColumn);
     }
   };
 
-  handleRequestClose = () => this.setState({
-    anchorEl: null,
-    currentCell: {
-      labelCell: '',
-      field: '',
-      columnIndex: null,
-      rowIndex: null
-    }
-  });
+  handleRequestClose = () =>
+    this.setState({
+      anchorEl: null,
+      currentCell: {
+        labelCell: "",
+        field: "",
+        columnIndex: null,
+        rowIndex: null,
+      },
+    });
 
   toggleField = (field, columnIndex, rowIndex) => {
     const { layoutFields } = this.props;
     const currentRow = this.getRowByIndex(rowIndex);
-    const isFieldSelected = this.findCurrentColumnInLayouts(field, rowIndex, columnIndex);
+    const isFieldSelected = this.findCurrentColumnInLayouts(
+      field,
+      rowIndex,
+      columnIndex
+    );
     if (isFieldSelected) {
       this.removeFieldByIndex(currentRow, field, columnIndex);
     } else {
@@ -144,9 +173,11 @@ export default class AccelerationGridController extends Component {
 
   getFieldTypeByFieldName = (fieldName) => {
     const { dataset } = this.props;
-    const allFieldTypes = (dataset) ? dataset.toJS().fields : [];
-    const fieldTypeDefinition = allFieldTypes.find(field => field.name === fieldName);
-    return get(fieldTypeDefinition, 'type.name', '');
+    const allFieldTypes = dataset ? dataset.toJS().fields : [];
+    const fieldTypeDefinition = allFieldTypes.find(
+      (field) => field.name === fieldName
+    );
+    return get(fieldTypeDefinition, "type.name", "");
   };
 
   isFieldTypeTimestamp = (fieldName) => {
@@ -154,57 +185,90 @@ export default class AccelerationGridController extends Component {
   };
 
   setFieldGranularity = (newValue, columnIndex, rowIndex) => {
-    const selectedField = this.findCurrentColumnInLayouts(fieldTypes.dimension, rowIndex, columnIndex);
+    const selectedField = this.findCurrentColumnInLayouts(
+      fieldTypes.dimension,
+      rowIndex,
+      columnIndex
+    );
     if (selectedField.granularity) {
       selectedField.granularity.onChange(newValue);
     }
   };
 
   setFieldMeasureType = (newValue, columnIndex, rowIndex) => {
-    const selectedField = this.findCurrentColumnInLayouts(fieldTypes.measure, rowIndex, columnIndex);
+    const selectedField = this.findCurrentColumnInLayouts(
+      fieldTypes.measure,
+      rowIndex,
+      columnIndex
+    );
     if (selectedField.measureTypeList) {
       selectedField.measureTypeList.onChange(newValue);
     }
-    this.setState({currentCell: {...this.state.currentCell, measureTypeList: newValue}});
+    this.setState({
+      currentCell: { ...this.state.currentCell, measureTypeList: newValue },
+    });
   };
 
   findCurrentCellValue = (currentCell) => {
     // if the cell is dimension and its type is timestamp, return granularity, else return null
-    if (!currentCell || currentCell.labelCell !== cellType.dimension) return null;
+    if (!currentCell || currentCell.labelCell !== cellType.dimension)
+      return null;
 
-    const currentColumn = this.findCurrentColumnInLayouts(fieldTypes.dimension, currentCell.rowIndex, currentCell.columnIndex);
+    const currentColumn = this.findCurrentColumnInLayouts(
+      fieldTypes.dimension,
+      currentCell.rowIndex,
+      currentCell.columnIndex
+    );
     if (currentColumn && this.isFieldTypeTimestamp(currentColumn.name.value)) {
-      return get(currentColumn, 'granularity.value', granularityValue.date);
+      return get(currentColumn, "granularity.value", granularityValue.date);
     }
     return null;
   };
 
   findCurrentCellAllMeasureTypes = (currentCell) => {
-    if (this.props.activeTab === 'raw') return null;
-    const currentColumn = currentCell && this.findCurrentColumnInLayouts(fieldTypes.measure, currentCell.rowIndex, currentCell.columnIndex);
-    const fieldName = get(currentColumn, 'name.value');
-    return (fieldName) ? findAllMeasureTypes(this.getFieldTypeByFieldName(fieldName)) : null;
+    if (this.props.activeTab === "raw") return null;
+    const currentColumn =
+      currentCell &&
+      this.findCurrentColumnInLayouts(
+        fieldTypes.measure,
+        currentCell.rowIndex,
+        currentCell.columnIndex
+      );
+    const fieldName = get(currentColumn, "name.value");
+    return fieldName
+      ? findAllMeasureTypes(this.getFieldTypeByFieldName(fieldName))
+      : null;
   };
 
   findCurrentCellDefaultMeasureTypes = (currentCell) => {
-    const currentColumn = currentCell && this.findCurrentColumnInLayouts(fieldTypes.measure, currentCell.rowIndex, currentCell.columnIndex);
-    const fieldName = get(currentColumn, 'name.value');
-    return (fieldName) ? getDefaultMeasureTypes(this.getFieldTypeByFieldName(fieldName)) : null;
+    const currentColumn =
+      currentCell &&
+      this.findCurrentColumnInLayouts(
+        fieldTypes.measure,
+        currentCell.rowIndex,
+        currentCell.columnIndex
+      );
+    const fieldName = get(currentColumn, "name.value");
+    return fieldName
+      ? getDefaultMeasureTypes(this.getFieldTypeByFieldName(fieldName))
+      : null;
   };
 
   getMeasureFieldSubValue = (fieldType, measureTypeList) => {
-    const measureTypeListValue = get(measureTypeList, 'value');
-    const subValue = {text: ' ', alt: 'Default measures'}; //start with default
+    const measureTypeListValue = get(measureTypeList, "value");
+    const subValue = { text: " ", alt: "Default measures" }; //start with default
     if (measureTypeListValue && measureTypeListValue.length) {
       // compare default measures for a type with the actual measureTypeList array entries
       const defaultMeasureTypes = getDefaultMeasureTypes(fieldType);
-      if (measureTypeListValue.length !== defaultMeasureTypes.length ||
+      if (
+        measureTypeListValue.length !== defaultMeasureTypes.length ||
         // assuming arrays don't have duplicates reduce works here at least as well as lodash .difference
         !measureTypeListValue.reduce((arraysAreEqual, type) => {
           return arraysAreEqual && defaultMeasureTypes.includes(type);
-        }, true)) {
-        subValue.text = ' ';
-        subValue.alt = 'Custom measures';
+        }, true)
+      ) {
+        subValue.text = " ";
+        subValue.alt = "Custom measures";
       }
     }
     return subValue;
@@ -214,10 +278,13 @@ export default class AccelerationGridController extends Component {
     const { layoutFields } = this.props;
     const currentRow = this.getRowByIndex(rowIndex);
 
-    if (field && !this.findCurrentColumnInLayouts(field, rowIndex, columnIndex)) {
+    if (
+      field &&
+      !this.findCurrentColumnInLayouts(field, rowIndex, columnIndex)
+    ) {
       layoutFields[columnIndex][field].addField(currentRow);
     } else {
-      this.removeFieldByIndex(currentRow, 'sortFields', columnIndex);
+      this.removeFieldByIndex(currentRow, "sortFields", columnIndex);
     }
   };
 
@@ -243,17 +310,28 @@ export default class AccelerationGridController extends Component {
       currentCell.value = currentCellValue;
     }
 
-    const currentCellAllMeasureTypes = this.findCurrentCellAllMeasureTypes(currentCell);
+    const currentCellAllMeasureTypes =
+      this.findCurrentCellAllMeasureTypes(currentCell);
     if (currentCellAllMeasureTypes) {
-      const currentCellField = this.findCurrentColumnInLayouts(fieldTypes.measure, currentCell.rowIndex, currentCell.columnIndex);
-      const currentMeasureTypeList = get(currentCellField, 'measureTypeList.value');
+      const currentCellField = this.findCurrentColumnInLayouts(
+        fieldTypes.measure,
+        currentCell.rowIndex,
+        currentCell.columnIndex
+      );
+      const currentMeasureTypeList = get(
+        currentCellField,
+        "measureTypeList.value"
+      );
       currentCell.measureTypeAll = currentCellAllMeasureTypes;
-      currentCell.measureTypeList = (currentMeasureTypeList && currentMeasureTypeList.length) ?
-        currentMeasureTypeList : this.findCurrentCellDefaultMeasureTypes(currentCell);
+      currentCell.measureTypeList =
+        currentMeasureTypeList && currentMeasureTypeList.length
+          ? currentMeasureTypeList
+          : this.findCurrentCellDefaultMeasureTypes(currentCell);
     }
 
     this.setState({
-      currentCell, anchorEl: e.currentTarget
+      currentCell,
+      anchorEl: e.currentTarget,
     });
     e.stopPropagation();
   };
@@ -270,7 +348,7 @@ export default class AccelerationGridController extends Component {
 
   applyConstraints = (field, columnIndex, rowIndex) => {
     const { activeTab } = this.props;
-    if (activeTab !== 'raw') {
+    if (activeTab !== "raw") {
       this.applyAggregationConstraints(field, columnIndex, rowIndex);
     } else {
       this.applyRawConstraints(field, columnIndex, rowIndex);
@@ -279,15 +357,25 @@ export default class AccelerationGridController extends Component {
 
   applyAggregationConstraints = (field, columnIndex, rowIndex) => {
     const currentRow = this.getRowByIndex(rowIndex);
-    const dimensionSelected = this.findCurrentColumnInLayouts(fieldTypes.dimension, rowIndex, columnIndex);
-    const fieldSelected = field && this.findCurrentColumnInLayouts(field, rowIndex, columnIndex);
+    const dimensionSelected = this.findCurrentColumnInLayouts(
+      fieldTypes.dimension,
+      rowIndex,
+      columnIndex
+    );
+    const fieldSelected =
+      field && this.findCurrentColumnInLayouts(field, rowIndex, columnIndex);
 
     if (field === fieldTypes.dimension && !dimensionSelected) {
       this.removeFieldByIndex(currentRow, fieldTypes.sort, columnIndex);
       this.removeFieldByIndex(currentRow, fieldTypes.partition, columnIndex);
       this.removeFieldByIndex(currentRow, fieldTypes.distribution, columnIndex);
     }
-    if ([fieldTypes.partition, fieldTypes.distribution, fieldTypes.sort].includes(field) && fieldSelected) {
+    if (
+      [fieldTypes.partition, fieldTypes.distribution, fieldTypes.sort].includes(
+        field
+      ) &&
+      fieldSelected
+    ) {
       this.addFieldByIndex(currentRow, fieldTypes.dimension, columnIndex);
     }
   };
@@ -295,13 +383,21 @@ export default class AccelerationGridController extends Component {
   applyRawConstraints = (field, columnIndex, rowIndex) => {
     const { layoutFields } = this.props;
     const currentRow = this.getRowByIndex(rowIndex);
-    const displaySelected = this.findCurrentColumnInLayouts(fieldTypes.display, rowIndex, columnIndex);
-    const displayDependentOn = [fieldTypes.sort, fieldTypes.partition, fieldTypes.distribution];
+    const displaySelected = this.findCurrentColumnInLayouts(
+      fieldTypes.display,
+      rowIndex,
+      columnIndex
+    );
+    const displayDependentOn = [
+      fieldTypes.sort,
+      fieldTypes.partition,
+      fieldTypes.distribution,
+    ];
 
     if (displayDependentOn.includes(field) && !displaySelected) {
       layoutFields[columnIndex].displayFields.addField(currentRow);
     }
-    if (field === 'displayFields' && !displaySelected) {
+    if (field === "displayFields" && !displaySelected) {
       for (const subField of displayDependentOn) {
         this.removeFieldByIndex(currentRow, subField, columnIndex);
       }
@@ -309,23 +405,52 @@ export default class AccelerationGridController extends Component {
   };
 
   renderCell = (fieldType, rowIndex, columnIndex) => {
-    const onCheckClick = () => this.handleOnCheckboxItem(fieldType, columnIndex, rowIndex);
-    const isChecked = !!this.findCurrentColumnInLayouts(fieldType, rowIndex, columnIndex);
-    const isLastCell = (fieldType === fieldTypes.partition) ?
-      !this.shouldShowDistribution() : (fieldType === fieldTypes.distribution);
+    const onCheckClick = () =>
+      this.handleOnCheckboxItem(fieldType, columnIndex, rowIndex);
+    const isChecked = !!this.findCurrentColumnInLayouts(
+      fieldType,
+      rowIndex,
+      columnIndex
+    );
+    const isLastCell =
+      fieldType === fieldTypes.partition
+        ? !this.shouldShowDistribution()
+        : fieldType === fieldTypes.distribution;
     return (
-      <AccelerationGridSubCell onClick={onCheckClick} isChecked={isChecked} isLastCell={isLastCell} hasPermission={this.checkForPermissionToAlter()}/>
+      <AccelerationGridSubCell
+        onClick={onCheckClick}
+        isChecked={isChecked}
+        isLastCell={isLastCell}
+        hasPermission={this.checkForPermissionToAlter()}
+      />
     );
   };
 
   renderDimensionCell = (rowIndex, columnIndex) => {
-    const currentColumn = this.findCurrentColumnInLayouts(fieldTypes.dimension, rowIndex, columnIndex);
-    const granularity = (get(currentColumn, 'granularity.value') === granularityValue.normal) ?
-      {code: 'O', alt: 'Original'} : {code: 'D', alt: 'Date'}; //TODO i18n
+    const currentColumn = this.findCurrentColumnInLayouts(
+      fieldTypes.dimension,
+      rowIndex,
+      columnIndex
+    );
+    const granularity =
+      get(currentColumn, "granularity.value") === granularityValue.normal
+        ? { code: "O", alt: "Original" }
+        : { code: "D", alt: "Date" }; //TODO i18n
 
-    const subValue = currentColumn && this.isFieldTypeTimestamp(currentColumn.name.value) && granularity.code || '';
-    const onCheckClick = () => this.handleOnCheckboxItem(fieldTypes.dimension, columnIndex, rowIndex);
-    const onValueClick = (e) => this.handleClickSubValue(e, {columnIndex, rowIndex, labelCell: cellType.dimension, field: fieldTypes.dimension});
+    const subValue =
+      (currentColumn &&
+        this.isFieldTypeTimestamp(currentColumn.name.value) &&
+        granularity.code) ||
+      "";
+    const onCheckClick = () =>
+      this.handleOnCheckboxItem(fieldTypes.dimension, columnIndex, rowIndex);
+    const onValueClick = (e) =>
+      this.handleClickSubValue(e, {
+        columnIndex,
+        rowIndex,
+        labelCell: cellType.dimension,
+        field: fieldTypes.dimension,
+      });
     const isChecked = !!currentColumn;
 
     return (
@@ -342,20 +467,34 @@ export default class AccelerationGridController extends Component {
 
   renderSortCell = (rowIndex, columnIndex) => {
     const { dataset } = this.props;
-    const allColumns = dataset.get('fields');
+    const allColumns = dataset.get("fields");
     const datasetSchema = this.filterFieldList(allColumns).toJS();
     const currentColumn = datasetSchema.find((column, i) => i === rowIndex);
-    const order = this.findCurrentIndexInFieldsList(currentColumn, fieldTypes.sort, columnIndex);
-    const sortFields = get(this.props, `layoutFields[${columnIndex}].sortFields`);
+    const order = this.findCurrentIndexInFieldsList(
+      currentColumn,
+      fieldTypes.sort,
+      columnIndex
+    );
+    const sortFields = get(
+      this.props,
+      `layoutFields[${columnIndex}].sortFields`
+    );
     const haveMoreThanOneSortFields = sortFields && sortFields.length > 1;
 
-    const onCheckClick = () => this.handleOnSortCheckboxItem(columnIndex, rowIndex);
-    const onValueClick = (haveMoreThanOneSortFields) ?
-      (e) => this.handleClickSubValue(e, {columnIndex, rowIndex, labelCell: cellType.sort, field: fieldTypes.sort})
+    const onCheckClick = () =>
+      this.handleOnSortCheckboxItem(columnIndex, rowIndex);
+    const onValueClick = haveMoreThanOneSortFields
+      ? (e) =>
+          this.handleClickSubValue(e, {
+            columnIndex,
+            rowIndex,
+            labelCell: cellType.sort,
+            field: fieldTypes.sort,
+          })
       : undefined;
     const isChecked = order !== -1;
-    const subValue = (haveMoreThanOneSortFields) ? `${order + 1}` : null;
-    const subValueAltText = 'Sort order';
+    const subValue = haveMoreThanOneSortFields ? `${order + 1}` : null;
+    const subValueAltText = "Sort order";
 
     return (
       <AccelerationGridSubCell
@@ -370,14 +509,33 @@ export default class AccelerationGridController extends Component {
   };
 
   renderMeasureCell = (rowIndex, columnIndex) => {
-    const currentColumn = this.findCurrentColumnInLayouts(fieldTypes.measure, rowIndex, columnIndex);
-    const currentColumnType = currentColumn && this.getFieldTypeByFieldName(currentColumn.name.value) || '';
+    const currentColumn = this.findCurrentColumnInLayouts(
+      fieldTypes.measure,
+      rowIndex,
+      columnIndex
+    );
+    const currentColumnType =
+      (currentColumn &&
+        this.getFieldTypeByFieldName(currentColumn.name.value)) ||
+      "";
     const isChecked = !!currentColumn;
-    const subValue = currentColumn && this.getMeasureFieldSubValue(currentColumnType, currentColumn.measureTypeList);
-    const subValueText = subValue && subValue.text || '';
-    const subValueAltText = subValue && subValue.alt || '';
-    const onCheckClick = () => this.handleOnCheckboxItem(fieldTypes.measure, columnIndex, rowIndex);
-    const onValueClick = (e) => this.handleClickSubValue(e, {columnIndex, rowIndex, labelCell: cellType.measure, field: fieldTypes.measure});
+    const subValue =
+      currentColumn &&
+      this.getMeasureFieldSubValue(
+        currentColumnType,
+        currentColumn.measureTypeList
+      );
+    const subValueText = (subValue && subValue.text) || "";
+    const subValueAltText = (subValue && subValue.alt) || "";
+    const onCheckClick = () =>
+      this.handleOnCheckboxItem(fieldTypes.measure, columnIndex, rowIndex);
+    const onValueClick = (e) =>
+      this.handleClickSubValue(e, {
+        columnIndex,
+        rowIndex,
+        labelCell: cellType.measure,
+        field: fieldTypes.measure,
+      });
 
     return (
       <AccelerationGridSubCell
@@ -400,36 +558,41 @@ export default class AccelerationGridController extends Component {
    */
   renderBodyCell = (rowIndex, columnIndex) => {
     const { canAlter } = this.props;
-    const backgroundColor = rowIndex % 2 ? '--bgColor-advEnDark' : '--bgColor-advEnLight';
-    const disabledBackgroundColor = rowIndex % 2 ? '--bgColor-advDisDark' : '--bgColor-advDisLight';
+    const backgroundColor =
+      rowIndex % 2 ? "--bgColor-advEnDark" : "--bgColor-advEnLight";
+    const disabledBackgroundColor =
+      rowIndex % 2 ? "--bgColor-advDisDark" : "--bgColor-advDisLight";
 
-    const isRaw = this.props.activeTab === 'raw';
+    const isRaw = this.props.activeTab === "raw";
     const showDistributionCell = this.shouldShowDistribution();
     return (
       <div
-        className={`AccelerationGridController__cell --bColor-bottom 
-        ${canAlter ? backgroundColor : disabledBackgroundColor }
+        className={`AccelerationGridController__cell --bColor-bottom
+        ${canAlter ? backgroundColor : disabledBackgroundColor}
         `}
         key={`${rowIndex}-${columnIndex}`}
-        data-qa={`acceleration-cell-${rowIndex + 1}-${columnIndex + 1}`}>
+        data-qa={`acceleration-cell-${rowIndex + 1}-${columnIndex + 1}`}
+      >
         {isRaw && this.renderCell(fieldTypes.display, rowIndex, columnIndex)}
         {!isRaw && this.renderDimensionCell(rowIndex, columnIndex)}
         {!isRaw && this.renderMeasureCell(rowIndex, columnIndex)}
         {this.renderSortCell(rowIndex, columnIndex)}
         {this.renderCell(fieldTypes.partition, rowIndex, columnIndex)}
-        {showDistributionCell && this.renderCell(fieldTypes.distribution, rowIndex, columnIndex)}
+        {showDistributionCell &&
+          this.renderCell(fieldTypes.distribution, rowIndex, columnIndex)}
       </div>
     );
   };
 
   render() {
-    const { layoutFields, dataset, reflections, activeTab, canAlter } = this.props;
+    const { layoutFields, dataset, reflections, activeTab, canAlter } =
+      this.props;
     const { columnIndex } = this.state.currentCell;
-    const allColumns = dataset.get('fields');
+    const allColumns = dataset.get("fields");
     const columns = this.filterFieldList(allColumns);
 
     return (
-      <div className={'AccelerationGridController'}>
+      <div className={"AccelerationGridController"}>
         <AccelerationGrid
           activeTab={activeTab}
           renderBodyCell={this.renderBodyCell}
@@ -444,7 +607,9 @@ export default class AccelerationGridController extends Component {
         <CellPopover
           currentCell={this.state.currentCell}
           anchorEl={this.state.anchorEl}
-          sortFields={layoutFields[columnIndex] && layoutFields[columnIndex].sortFields}
+          sortFields={
+            layoutFields[columnIndex] && layoutFields[columnIndex].sortFields
+          }
           onRequestClose={this.handleRequestClose}
           onSelectMenuItem={this.handleOnSelectMenuItem}
           hasPermission={this.checkForPermissionToAlter()}
@@ -453,3 +618,4 @@ export default class AccelerationGridController extends Component {
     );
   }
 }
+export default AccelerationGridController;

@@ -13,38 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import Tabs from 'components/Tabs';
-import { Radio } from 'components/Fields';
-import { formLabel } from 'uiTheme/radium/typography';
-import { inlineLabel, inlineFieldWrap } from 'uiTheme/radium/exploreTransform';
+import { Component } from "react";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import Tabs from "components/Tabs";
+import { Radio } from "components/Fields";
+import { formLabel } from "uiTheme/radium/typography";
+import { inlineLabel, inlineFieldWrap } from "uiTheme/radium/exploreTransform";
 
-import ExtractSingleList from './../../cardContent/ExtractSingleList';
-import ExtractMultipleList from './../../cardContent/ExtractMultipleList';
-import TransformCard from './../../TransformCard';
+import ExtractSingleList from "./../../cardContent/ExtractSingleList";
+import ExtractMultipleList from "./../../cardContent/ExtractMultipleList";
+import TransformCard from "./../../TransformCard";
 
-@Radium
-export default class ExtractListCard extends Component {
-
+class ExtractListCard extends Component {
   static getFields() {
     return [
       ...ExtractSingleList.getFields(),
       ...ExtractMultipleList.getFields(),
-      'type'
+      "type",
     ];
   }
 
   static validate(values) {
-    if (values.type === 'single') {
+    if (values.type === "single") {
       return ExtractSingleList.validate(values);
-    } else if (values.type === 'multiple') {
+    } else if (values.type === "multiple") {
       return ExtractMultipleList.validate(values);
     }
     return {
-      type: 'Type is required.'
+      type: "Type is required.",
     };
   }
 
@@ -52,7 +50,7 @@ export default class ExtractListCard extends Component {
     card: PropTypes.instanceOf(Immutable.Map),
     fields: PropTypes.object,
     active: PropTypes.bool,
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
   };
 
   renderBack() {
@@ -60,32 +58,38 @@ export default class ExtractListCard extends Component {
     return (
       <div>
         <div style={inlineFieldWrap}>
-          <span style={inlineLabel}>
+          <span
+            style={{ ...inlineLabel, display: "flex", alignItems: "center" }}
+          >
             Extract
           </span>
           <Radio
             {...fields.type}
-            radioValue='single'
-            label='Single'
-            style={{...formLabel, ...styles.radio}}/>
+            radioValue="single"
+            label="Single"
+            style={{ ...formLabel, ...styles.radio }}
+          />
           <Radio
             {...fields.type}
-            radioValue='multiple'
-            label='Multiple'
-            style={{...formLabel, ...styles.radio}}/>
+            radioValue="multiple"
+            label="Multiple"
+            style={{ ...formLabel, ...styles.radio }}
+          />
         </div>
-        <div className='transform-card-content'>
+        <div className="transform-card-content">
           <Tabs activeTab={fields.type.value}>
             <ExtractSingleList
-              tabId='single'
+              tabId="single"
               startIndex={fields.single.startIndex}
-              firstElementLabel='Element'/>
+              firstElementLabel="Element"
+            />
             <ExtractMultipleList
-              tabId='multiple'
+              tabId="multiple"
               startIndex={fields.multiple.startIndex}
               endIndex={fields.multiple.endIndex}
-              firstElementLabel='First Element'
-              lastElementLabel='Last Element'/>
+              firstElementLabel="First Element"
+              lastElementLabel="Last Element"
+            />
           </Tabs>
         </div>
       </div>
@@ -110,18 +114,20 @@ export const styles = {
   header: {
     marginLeft: 10,
     marginTop: 10,
-    ...formLabel
+    ...formLabel,
   },
   radio: {
-    width: 75
+    width: 75,
+    marginTop: 0,
   },
   cardStyle: {
-    display: 'flex',
-    flexDirection: 'column',
-    marginBottom: 20
+    display: "flex",
+    flexDirection: "column",
+    marginBottom: 20,
   },
   title: {
     ...formLabel,
-    margin: 10
-  }
+    margin: 10,
+  },
 };
+export default Radium(ExtractListCard);

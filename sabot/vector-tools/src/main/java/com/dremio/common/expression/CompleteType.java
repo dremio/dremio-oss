@@ -109,8 +109,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import com.dremio.common.types.SchemaUpPromotionRules;
-import com.dremio.common.types.TypeCoercionRules;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.MajorTypeHelper;
@@ -729,8 +728,8 @@ public class CompleteType {
     return mergedList;
   }
 
-  public static List<Field> mergeFieldListsWithUpPromotionOrCoercion(List<Field> tableFields, List<Field> fileFields) {
-    Map<String,Field> secondFieldMap = new LinkedHashMap<>();
+  public static List<Field> mergeFieldListsWithUpPromotionOrCoercion(List<Field> tableFields, List<Field> fileFields, SupportsTypeCoercionsAndUpPromotions coercionRulesSet) {
+    Map<String, Field> secondFieldMap = new LinkedHashMap<>();
     List<Field> mergedList = new ArrayList<>();
     for (Field field : fileFields) {
       secondFieldMap.put(field.getName().toLowerCase(), field);
@@ -740,7 +739,7 @@ public class CompleteType {
       Field matchingField = secondFieldMap.remove(tableSchemaField.getName().toLowerCase());
       if (matchingField != null) {
         try {
-          mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField)).toField(tableSchemaField.getName()));
+          mergedList.add(fromField(tableSchemaField).mergeFieldListsWithUpPromotionOrCoercion(fromField(matchingField), coercionRulesSet).toField(tableSchemaField.getName()));
         } catch (NoSupportedUpPromotionOrCoercionException e) {
           e.addColumnName(tableSchemaField.getName());
           throw e;
@@ -823,15 +822,16 @@ public class CompleteType {
    * @return the merged {@code CompleteType} after up promotion
    * @throws UnsupportedOperationException if the merge could not be done due to incompatible types
    */
-  public CompleteType mergeFieldListsWithUpPromotionOrCoercion(CompleteType fileType) throws UnsupportedOperationException {
+  @VisibleForTesting
+  CompleteType mergeFieldListsWithUpPromotionOrCoercion(CompleteType fileType, SupportsTypeCoercionsAndUpPromotions rules) throws UnsupportedOperationException {
     CompleteType tableType = this;
 
     if (tableType.isUnion()) {
-      tableType = removeUnions(tableType);
+      tableType = removeUnions(tableType, rules);
     }
 
     if (fileType.isUnion()) {
-      fileType = removeUnions(fileType);
+      fileType = removeUnions(fileType, rules);
     }
 
     if (tableType.getType().equals(fileType.getType())) {
@@ -842,22 +842,22 @@ public class CompleteType {
       if (tableType.isList()) {
         CompleteType tableTypeChild = fromField(tableType.getOnlyChild());
         CompleteType fileTypeChild = fromField(fileType.getOnlyChild());
-        return new CompleteType(tableType.getType(), tableTypeChild.mergeFieldListsWithUpPromotionOrCoercion(fileTypeChild).toInternalList());
+        return new CompleteType(tableType.getType(), tableTypeChild.mergeFieldListsWithUpPromotionOrCoercion(fileTypeChild, rules).toInternalList());
       }
 
       if (tableType.isStruct()) {
-        return new CompleteType(tableType.getType(), mergeFieldListsWithUpPromotionOrCoercion(tableType.getChildren(), fileType.getChildren()));
+        return new CompleteType(tableType.getType(), mergeFieldListsWithUpPromotionOrCoercion(tableType.getChildren(), fileType.getChildren(), rules));
       }
 
       throw new IllegalStateException("Unsupported type: " + tableType);
     }
 
-    Optional<CompleteType> tableSchemaUpPromotion = SchemaUpPromotionRules.getResultantType(fileType, tableType);
+    Optional<CompleteType> tableSchemaUpPromotion = rules.getUpPromotionRules().getResultantType(fileType, tableType);
     if (tableSchemaUpPromotion.isPresent()) {
       return tableSchemaUpPromotion.get();
     }
 
-    Optional<CompleteType> typeCoercion = TypeCoercionRules.getResultantType(fileType, tableType);
+    Optional<CompleteType> typeCoercion = rules.getTypeCoercionRules().getResultantType(fileType, tableType);
     if (typeCoercion.isPresent()) {
       return typeCoercion.get();
     }
@@ -865,12 +865,12 @@ public class CompleteType {
   }
 
   @VisibleForTesting
-  static CompleteType removeUnions(CompleteType type) {
+  static CompleteType removeUnions(CompleteType type, SupportsTypeCoercionsAndUpPromotions rules) {
     List<Field> fieldList = type.getChildren();
-    type = new CompleteType(fieldList.get(0).getType(),fieldList.get(0).getChildren());
+    type = new CompleteType(fieldList.get(0).getType(), fieldList.get(0).getChildren());
     for (Field currentField : fieldList) {
-      CompleteType currentCompleteType = new CompleteType(currentField.getType(),currentField.getChildren());
-      type = type.mergeFieldListsWithUpPromotionOrCoercion(currentCompleteType);
+      CompleteType currentCompleteType = new CompleteType(currentField.getType(), currentField.getChildren());
+      type = type.mergeFieldListsWithUpPromotionOrCoercion(currentCompleteType, rules);
     }
     return type;
   }

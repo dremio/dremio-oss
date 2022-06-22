@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { FolderMenu } from './FolderMenu';
-describe('FolderMenu', () => {
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { FolderMenu } from "./FolderMenu";
+describe("FolderMenu", () => {
   let minimalProps;
   let commonProps;
   let contextTypes;
@@ -25,43 +25,49 @@ describe('FolderMenu', () => {
     minimalProps = {
       folder: Immutable.fromJS({
         links: {
-          self: '/sdc?aws'
-        }
+          self: "/sdc?aws",
+        },
       }),
       closeMenu: sinon.spy(),
       showConfirmationDialog: sinon.spy(),
-      removeSpaceFolder: sinon.spy()
+      removeSpaceFolder: sinon.spy(),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
     contextTypes = {
       location: {},
       routeParams: {},
-      userName: ''
+      userName: "",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<FolderMenu {...minimalProps}/>, {context: contextTypes});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<FolderMenu {...minimalProps} />, {
+      context: contextTypes,
+    });
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#removeFolder', () => {
-    it('should show confirmation dialog before removing', () => {
-      const instance = shallow(<FolderMenu {...commonProps} />, {context: contextTypes}).instance();
+  describe("#removeFolder", () => {
+    it("should show confirmation dialog before removing", () => {
+      const instance = shallow(<FolderMenu {...commonProps} />, {
+        context: contextTypes,
+      }).instance();
       instance.removeFolder();
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(commonProps.removeSpaceFolder).to.not.be.called;
       expect(commonProps.closeMenu).to.be.called;
     });
 
-    it('should call remove folder when confirmed', () => {
+    it("should call remove folder when confirmed", () => {
       const props = {
         ...commonProps,
-        showConfirmationDialog: (opts) => opts.confirm()
+        showConfirmationDialog: (opts) => opts.confirm(),
       };
-      const instance = shallow(<FolderMenu {...props}/>, {context: contextTypes}).instance();
+      const instance = shallow(<FolderMenu {...props} />, {
+        context: contextTypes,
+      }).instance();
       instance.removeFolder();
       expect(props.removeSpaceFolder).to.be.called;
       expect(props.closeMenu).to.be.called;

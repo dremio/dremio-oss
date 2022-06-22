@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
 export const transformProps = {
   dataset: PropTypes.instanceOf(Immutable.Map),
@@ -24,5 +24,5 @@ export const transformProps = {
   fields: PropTypes.object,
   values: PropTypes.object,
   onFormChange: PropTypes.func,
-  viewState: PropTypes.instanceOf(Immutable.Map)
+  viewState: PropTypes.instanceOf(Immutable.Map),
 };

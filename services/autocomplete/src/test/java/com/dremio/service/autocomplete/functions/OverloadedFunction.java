@@ -34,7 +34,10 @@ import com.google.common.collect.ImmutableList;
  * A SqlFunction that takes a variable number of arguments.
  */
 public final class OverloadedFunction extends SqlFunction {
-  public static final OverloadedFunction INSTANCE = new OverloadedFunction();
+  public static final OverloadedFunction TWO_ARG_1 = new OverloadedFunction(OperandTypes.TWO_ARG_1);
+  public static final OverloadedFunction TWO_ARG_2 = new OverloadedFunction(OperandTypes.TWO_ARG_2);
+  public static final OverloadedFunction THREE_ARG_1 = new OverloadedFunction(OperandTypes.THREE_ARG_1);
+  private final List<SqlTypeName> operandTypes;
 
   private static final class OperandTypes {
     private OperandTypes() {}
@@ -52,19 +55,23 @@ public final class OverloadedFunction extends SqlFunction {
       .build();
   }
 
-  private OverloadedFunction() {
-    super("OVERLOADED_FUNCTION", SqlKind.OTHER, null, null, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+  private OverloadedFunction(List<SqlTypeName> operandTypes) {
+    super(
+      "OVERLOADED_FUNCTION",
+      SqlKind.OTHER,
+      null,
+      null,
+      null,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+    this.operandTypes = operandTypes;
   }
 
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
-    switch (sqlCallBinding.operands().size()) {
-    case 2:
-      return checkArgTypes(sqlCallBinding, OperandTypes.TWO_ARG_1) || checkArgTypes(sqlCallBinding, OperandTypes.TWO_ARG_2);
-    case 3:
-      return checkArgTypes(sqlCallBinding, OperandTypes.THREE_ARG_1);
-    default:
+    if (sqlCallBinding.operands().size() != operandTypes.size()) {
       return false;
     }
+
+    return checkArgTypes(sqlCallBinding, operandTypes);
   }
 
   private static boolean checkArgTypes(SqlCallBinding sqlCallBinding, List<SqlTypeName> types) {
@@ -85,7 +92,7 @@ public final class OverloadedFunction extends SqlFunction {
 
   @Override
   public SqlOperandCountRange getOperandCountRange() {
-    return SqlOperandCountRanges.between(2, 3);
+    return SqlOperandCountRanges.of(operandTypes.size());
   }
 
   public RelDataType inferReturnType(

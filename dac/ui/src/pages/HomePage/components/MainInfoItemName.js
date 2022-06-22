@@ -13,33 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { Link, location } from 'react-router';
-import CopyButton from 'components/Buttons/CopyButton';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import FontIcon from 'components/Icon/FontIcon';
-import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
-import EllipsedText from 'components/EllipsedText';
-import { injectIntl } from 'react-intl';
-import { constructFullPath, splitFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
-import { getIconDataTypeFromEntity } from 'utils/iconUtils';
-import { checkIfUserShouldGetDeadLink, getHref } from '@inject/utils/mainInfoUtils/mainInfoNameUtil';
+import { Component } from "react";
+import { Link, location } from "react-router";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import FontIcon from "components/Icon/FontIcon";
+import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
+import EllipsedText from "components/EllipsedText";
+import { injectIntl } from "react-intl";
+import { splitFullPath } from "utils/pathUtils";
+import { getIconDataTypeFromEntity } from "utils/iconUtils";
+import {
+  checkIfUserShouldGetDeadLink,
+  getHref,
+} from "@inject/utils/mainInfoUtils/mainInfoNameUtil";
 
-@injectIntl
-@Radium
-export default class MainInfoItemName extends Component {
-
+class MainInfoItemName extends Component {
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     intl: PropTypes.object.isRequired,
     entity: PropTypes.object,
-    onMount: PropTypes.func // takes width parameter
+    onMount: PropTypes.func, // takes width parameter
   };
 
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -48,7 +46,7 @@ export default class MainInfoItemName extends Component {
   }
 
   componentDidMount() {
-    const {onMount} = this.props;
+    const { onMount } = this.props;
     if (onMount) {
       onMount(this.getComponentWidth());
     }
@@ -64,54 +62,73 @@ export default class MainInfoItemName extends Component {
 
   renderDatasetItemLabel(shouldGetADeadLink) {
     const { item } = this.props;
-    const type = item.get('entityType');
+    const type = item.get("entityType");
     const typeIcon = getIconDataTypeFromEntity(item);
     if (shouldGetADeadLink) {
       return (
         <div style={styles.flexAlign}>
           <FontIcon type={typeIcon} />
-          <EllipsedText className='--dead-link' style={styles.fullPath} text={item.get('name')} />
+          <EllipsedText
+            className="--dead-link"
+            style={styles.fullPath}
+            text={item.get("name")}
+          />
         </div>
       );
-    } else if (type === 'dataset' || type === 'physicalDataset' || type === 'file' && item.get('queryable')
-        || type === 'folder' && item.get('queryable')) {
+    } else if (
+      type === "dataset" ||
+      type === "physicalDataset" ||
+      (type === "file" && item.get("queryable")) ||
+      (type === "folder" && item.get("queryable"))
+    ) {
       return (
         <DatasetItemLabel
-          name={item.get('name')}
+          name={item.get("name")}
           item={item}
-          fullPath={item.get('fullPathList') || item.getIn(['fileFormat', 'fullPath'])
-                    || splitFullPath(item.get('filePath'))}
-          typeIcon={typeIcon}/>
+          fullPath={
+            item.get("fullPathList") ||
+            item.getIn(["fileFormat", "fullPath"]) ||
+            splitFullPath(item.get("filePath"))
+          }
+          typeIcon={typeIcon}
+        />
       );
     }
     return (
       <div style={styles.flexAlign}>
         <FontIcon type={typeIcon} />
-        <EllipsedText className='last-File' style={styles.fullPath} text={item.get('name')} />
+        <EllipsedText
+          className="last-File"
+          style={styles.fullPath}
+          text={item.get("name")}
+        />
       </div>
     );
   }
 
   render() {
-    const { item, intl } = this.props;
-    const fileType = item.get('fileType');
-    const fullPath = constructFullPath(getFullPathListFromEntity(item));
+    const { item } = this.props;
+    const fileType = item.get("fileType");
     const href = getHref(item, this.context);
     const shouldGetADeadLink = checkIfUserShouldGetDeadLink(item);
-    const linkStyle = (fileType === 'folder' && !item.get('queryable'))
-      ? styles.flexAlign
-      : {...styles.flexAlign, ...styles.leafLink};
+    const linkStyle =
+      fileType === "folder" && !item.get("queryable")
+        ? styles.flexAlign
+        : { ...styles.flexAlign, ...styles.leafLink };
 
     return (
-      <div style={[styles.flexAlign, styles.base]} className={shouldGetADeadLink ? '--dead-link' : null} ref={this.setWrapRef}>
-        <Link style={linkStyle} className={shouldGetADeadLink ? '--dead-link' : null} to={shouldGetADeadLink ? location : href}>
+      <div
+        style={{ ...styles.flexAlign, ...styles.base }}
+        className={shouldGetADeadLink ? "--dead-link" : null}
+        ref={this.setWrapRef}
+      >
+        <Link
+          style={linkStyle}
+          className={shouldGetADeadLink ? "--dead-link" : null}
+          to={shouldGetADeadLink ? location : href}
+        >
           {this.renderDatasetItemLabel(shouldGetADeadLink)}
         </Link>
-        { fullPath && <CopyButton
-          text={fullPath}
-          title={intl.formatMessage({ id: 'Path.Copy' })}
-          style={{transform: 'translateY(1px)'}}
-        /> }
       </div>
     );
   }
@@ -119,19 +136,20 @@ export default class MainInfoItemName extends Component {
 
 const styles = {
   base: {
-    maxWidth: 'calc(100% - 100px)' // reserve 100px for tags [IE 11]
+    maxWidth: "calc(100% - 100px)", // reserve 100px for tags [IE 11]
   },
   fullPath: {
-    marginLeft: 5
+    marginLeft: 5,
   },
   flexAlign: {
-    display: 'flex',
+    display: "flex",
     //flex: '0 1', // should get rid ofthis for [IE 11]
-    alignItems: 'center',
-    maxWidth: '100%'
+    alignItems: "center",
+    maxWidth: "100%",
   },
   leafLink: {
-    textDecoration: 'none',
-    color: '#333'
-  }
+    textDecoration: "none",
+    color: "#333",
+  },
 };
+export default injectIntl(MainInfoItemName);

@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { Overlay } from 'react-overlays';
-import clsx from 'clsx';
+import { PureComponent } from "react";
+import { Overlay } from "react-overlays";
+import clsx from "clsx";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import getTooltipStyles from 'uiTheme/radium/tooltips';
+import getTooltipStyles from "uiTheme/radium/tooltips";
 
 export class Tooltip extends PureComponent {
   static propTypes = {
@@ -36,11 +36,11 @@ export class Tooltip extends PureComponent {
     tooltipInnerClass: PropTypes.string,
     tooltipArrowStyle: PropTypes.object,
     tooltipArrowClass: PropTypes.string,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
   };
 
   static defaultProps = {
-    type: 'status'
+    type: "status",
   };
 
   render() {
@@ -55,7 +55,7 @@ export class Tooltip extends PureComponent {
       tooltipInnerClass,
       tooltipArrowClass,
       container,
-      dataQa
+      dataQa,
     } = this.props;
     const styles = getTooltipStyles(this.props.type);
     const finalStyle = { ...styles.base, ...style };
@@ -69,47 +69,51 @@ export class Tooltip extends PureComponent {
         container={container}
         popperConfig={popperConfig}
       >
-        {
-          (overlayInfo) => {
-            const { placement: curPlacement, props: overlayProps, arrowProps } = overlayInfo;
-            const basePlacement = (!curPlacement ? placement : curPlacement).split('-')[0];
-            const placementStyle = styles.placement[basePlacement];
+        {(overlayInfo) => {
+          const {
+            placement: curPlacement,
+            props: overlayProps,
+            arrowProps,
+          } = overlayInfo;
+          const basePlacement = (
+            !curPlacement ? placement : curPlacement
+          ).split("-")[0];
+          const placementStyle = styles.placement[basePlacement];
 
-            return (
-              <div
-                {...overlayProps}
-                id={id} className={className}
-                data-qa='tooltip'
-                style={{
-                  ...finalStyle,
-                  ...overlayProps.style
-                }}
-                className='tooltip-content'
-              >
-                <div style={placementStyle.tooltip}>
-                  <div
-                    {...arrowProps}
-                    style={{
-                      ...styles.arrow,
-                      // arrowProps.style could contain styles like top: '', left: ''. That is why
-                      // we need to apply placementStyle after arrowProps
-                      ...arrowProps.style,
-                      ...placementStyle.arrow
-                    }}
-                    className={clsx(tooltipArrowClass, `--${basePlacement}`)}
-                  />
-                  <div
-                    data-qa={dataQa}
-                    style={{ ...styles.inner, ...tooltipInnerStyle }}
-                    className={tooltipInnerClass}
-                  >
-                    {children}
-                  </div>
+          return (
+            <div
+              {...overlayProps}
+              id={id}
+              className={`${className} tooltip-content`}
+              data-qa="tooltip"
+              style={{
+                ...finalStyle,
+                ...overlayProps.style,
+              }}
+            >
+              <div style={placementStyle.tooltip}>
+                <div
+                  {...arrowProps}
+                  style={{
+                    ...styles.arrow,
+                    // arrowProps.style could contain styles like top: '', left: ''. That is why
+                    // we need to apply placementStyle after arrowProps
+                    ...arrowProps.style,
+                    ...placementStyle.arrow,
+                  }}
+                  className={clsx(tooltipArrowClass, `--${basePlacement}`)}
+                />
+                <div
+                  data-qa={dataQa}
+                  style={{ ...styles.inner, ...tooltipInnerStyle }}
+                  className={tooltipInnerClass}
+                >
+                  {children}
                 </div>
               </div>
-            );
-          }
-        }
+            </div>
+          );
+        }}
       </Overlay>
     );
   }
@@ -118,7 +122,7 @@ export class Tooltip extends PureComponent {
 const popperConfig = {
   modifiers: {
     preventOverflow: {
-      boundariesElement: 'viewport'
-    }
-  }
+      boundariesElement: "viewport",
+    },
+  },
 };

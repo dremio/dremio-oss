@@ -52,6 +52,7 @@ import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
@@ -150,8 +151,8 @@ public class TestJobDetails extends BaseTestServer {
     assertEquals(0, jobInfoDetailsUI.getNrReflectionsUsed());
     assertEquals(0, jobInfoDetailsUI.getReflectionsMatched().size());
     assertEquals(0, jobInfoDetailsUI.getReflectionsUsed().size());
-    assertEquals(java.util.Optional.ofNullable(100l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getStartTime()).get());
-    assertEquals(java.util.Optional.ofNullable(110l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getEndTime()).get());
+    assertEquals(Long.valueOf(100L), jobInfoDetailsUI.getStartTime());
+    assertEquals(Long.valueOf(110L), jobInfoDetailsUI.getEndTime());
     assertEquals(0, jobInfoDetailsUI.getDatasetGraph().size());
     assertEquals(0, jobInfoDetailsUI.getTotalMemory());
     assertEquals(0, jobInfoDetailsUI.getCpuUsed());
@@ -178,7 +179,7 @@ public class TestJobDetails extends BaseTestServer {
         .setState(state)
         .setInfo(jobInfo);
 
-    return new Job(jobId, jobAttempt);
+    return new Job(jobId, jobAttempt, new SessionId());
   }
 
   private static JobInfo newJobInfo(final JobInfo templateJobInfo, long start, long end, String failureInfo) {
@@ -213,6 +214,6 @@ public class TestJobDetails extends BaseTestServer {
       .build();
 
     long actualDuration = JobUtil.getTotalDuration(jobdetails,0);
-    assertEquals(7l,actualDuration);
+    assertEquals(7L, actualDuration);
   }
 }

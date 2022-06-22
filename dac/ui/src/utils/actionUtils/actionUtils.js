@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { AUTO_PREVIEW_DELAY } from '@app/constants/Constants';
+import { AUTO_PREVIEW_DELAY } from "@app/constants/Constants";
 
-import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
+import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
 
 class ActionUtils {
   shouldLoad(resource) {
     if (!resource) {
       return false;
     }
-    const { isInProgress, isInvalid } = resource.get ? resource.toObject() : resource;
+    const { isInProgress, isInvalid } = resource.get
+      ? resource.toObject()
+      : resource;
     return !isInProgress && isInvalid;
   }
 
@@ -31,30 +33,39 @@ class ActionUtils {
     this.autoPreviewTimer = setTimeout(submitForm, AUTO_PREVIEW_DELAY);
   }
 
-  humanizeNotificationMessage = (errorMessage) => (payload, showDefaultMoreInfo = true) => {
-    const defaultMessage = payload && payload.status === 409
-      ? la('The data has been changed since you last accessed it. Please reload the page.')
-      : DEFAULT_ERR_MSG;
-    const _errorMessage = errorMessage ||
-      payload && payload.errorMessage ||
-      payload && payload.response && payload.response.errorMessage ||
-      defaultMessage;
-    const moreInfo = payload && payload.response && payload.response.moreInfo || (showDefaultMoreInfo ? defaultMessage : null);
-    const message = _errorMessage === moreInfo
-      ? Immutable.Map({ message: _errorMessage })
-      : Immutable.Map({ message: _errorMessage, moreInfo });
-    return {
-      message,
-      level: 'error'
+  humanizeNotificationMessage =
+    (errorMessage) =>
+    (payload, showDefaultMoreInfo = true) => {
+      const defaultMessage =
+        payload && payload.status === 409
+          ? la(
+              "The data has been changed since you last accessed it. Please reload the page."
+            )
+          : DEFAULT_ERR_MSG;
+      const _errorMessage =
+        errorMessage ||
+        (payload && payload.errorMessage) ||
+        (payload && payload.response && payload.response.errorMessage) ||
+        defaultMessage;
+      const moreInfo =
+        (payload && payload.response && payload.response.moreInfo) ||
+        (showDefaultMoreInfo ? defaultMessage : null);
+      const message =
+        _errorMessage === moreInfo
+          ? Immutable.Map({ message: _errorMessage })
+          : Immutable.Map({ message: _errorMessage, moreInfo });
+      return {
+        message,
+        level: "error",
+      };
     };
-  };
 
   // added 'actionUtils_' in the begining to make it easier to find out source of action types during debugging
-  generateRequestActions = prefix => ({
+  generateRequestActions = (prefix) => ({
     start: `actionUtils_${prefix}_REQUEST_START`,
     success: `actionUtils_${prefix}_REQUEST_SUCCESS`,
-    failure: `actionUtils_${prefix}_REQUEST_FAILURE`
-  })
+    failure: `actionUtils_${prefix}_REQUEST_FAILURE`,
+  });
 }
 
 const actionUtils = new ActionUtils();

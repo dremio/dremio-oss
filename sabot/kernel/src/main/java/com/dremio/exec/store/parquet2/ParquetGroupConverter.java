@@ -458,7 +458,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
   }
 
 
-  protected static abstract class ParquetPrimitiveConverter
+  protected abstract static class ParquetPrimitiveConverter
     extends PrimitiveConverter implements ParquetListElementConverter {
     protected boolean written = false;
     ParquetPrimitiveConverter() {

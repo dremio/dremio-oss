@@ -15,14 +15,14 @@
  */
 /*eslint no-unused-vars: [2, {"args": "after-used", "varsIgnorePattern": "React"}]*/
 
-import React from 'react';
+import React from "react";
 
 // Exported from redux-devtools
-import { createDevTools } from '@redux-devtools/core';
+import { createDevTools } from "@redux-devtools/core";
 
 // Monitors are separate packages, and you can make a custom one
-import LogMonitor from '@redux-devtools/log-monitor';
-import DockMonitor from '@redux-devtools/dock-monitor';
+import LogMonitor from "@redux-devtools/log-monitor";
+import DockMonitor from "@redux-devtools/dock-monitor";
 
 window.React = React;
 
@@ -33,11 +33,11 @@ const DevTools = createDevTools(
   // Here, we put LogMonitor inside a DockMonitor.
   // Note: DockMonitor is visible by default.
   <DockMonitor
-    toggleVisibilityKey='ctrl-h'
-    changePositionKey='ctrl-q'
+    toggleVisibilityKey="ctrl-h"
+    changePositionKey="ctrl-q"
     defaultIsVisible
   >
-    <LogMonitor theme='tomorrow' />
+    <LogMonitor theme="tomorrow" />
   </DockMonitor>
 );
 

@@ -15,12 +15,15 @@
  */
 
 @import "~@app/uiTheme/less/color-schema.less";
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
   .historyLine {
     align-items: center;
     border-left: 1px solid @DARK_200;
     display: flex;
+    max-height: calc(100vh - 120px);
+    min-height: 63rem;
     flex-direction: column;
     width: 3.4rem;
 
@@ -39,6 +42,35 @@
       .result {
         color: @WHITE;
       }
+    }
+
+    .history-clock-wrapper {
+      height: 40px;
+      display: flex;
+      align-items: center;
+
+      &-icon {
+        height: 24px;
+        width: 24px;
+      }
+    }
+  }
+
+  .tooltip-history {
+    background-color: @FIGMA_NEUTRAL_700;
+    font-size: 14px;
+
+    &-title {
+      font-weight: 600;
+    }
+
+    &-info,
+    &-warning {
+      font-weight: 400;
+    }
+
+    &-warning {
+      color: @FIGMA_NEUTRAL_300;
     }
   }
 }

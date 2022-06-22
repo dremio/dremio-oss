@@ -15,17 +15,21 @@
  */
 import {
   createNessieContext,
-  NessieContext
-} from '@app/pages/NessieHomePage/utils/context';
-import { NessieRootState } from '@app/reducers/nessie/nessie';
-import { fetchDefaultReference as fetchDefaultReferenceAction } from '@app/actions/nessie/nessie';
-import { connect } from 'react-redux';
-import { useEffect } from 'react';
-import BranchPicker from '../BranchPicker/BranchPicker';
+  NessieContext,
+} from "@app/pages/NessieHomePage/utils/context";
+import { NessieRootState } from "@app/reducers/nessie/nessie";
+import { fetchDefaultReference as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
+import { connect } from "react-redux";
+import { useEffect } from "react";
+import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
+import FontIcon from "@app/components/Icon/FontIcon";
+import { getRootEntityLinkUrl } from "@app/selectors/home";
+import BranchPicker from "../BranchPicker/BranchPicker";
 
 type ConnectedProps = {
   nessie: NessieRootState;
   fetchDefaultReference: any;
+  redirectUrl: string;
 };
 
 type SourceBranchPickerProps = {
@@ -33,6 +37,8 @@ type SourceBranchPickerProps = {
   anchorEl?: any;
   position?: any;
   prefix?: string;
+  redirect?: boolean;
+  onClose?: () => void;
 };
 
 function SourceBranchPicker({
@@ -41,7 +47,9 @@ function SourceBranchPicker({
   fetchDefaultReference,
   anchorEl,
   position,
-  prefix = '' //Prefix for redux state key
+  prefix = "", //Prefix for redux state key
+  redirectUrl,
+  onClose,
 }: SourceBranchPickerProps & ConnectedProps) {
   const config = source.config;
   const endpoint = config.nessieEndpoint;
@@ -56,20 +64,40 @@ function SourceBranchPicker({
     fetchDefaultReference(stateKey, context.api);
   }, [fetchDefaultReference, stateKey, context.api]);
 
+  const isLoading = isDefaultReferenceLoading(nessie[stateKey]);
+  if (isLoading) {
+    return (
+      <FontIcon
+        type="Loader spinner"
+        theme={{ Container: { marginTop: 2 }, Icon: { width: 15, height: 15 } }}
+      />
+    );
+  }
+
   return (
-    <div className='sources-branch-picker'>
+    <div className="sources-branch-picker">
       <NessieContext.Provider value={context}>
         <BranchPicker
           position={position}
-          redirectOnChange={false}
+          redirectUrl={redirectUrl}
           anchorEl={anchorEl}
+          onClose={onClose}
         />
       </NessieContext.Provider>
     </div>
   );
 }
-const mapStateToProps = ({ nessie }: any) => ({ nessie });
+const mapStateToProps = (
+  state: any,
+  { source, redirect = true }: SourceBranchPickerProps
+) => {
+  return {
+    nessie: state.nessie,
+    redirectUrl:
+      redirect && source ? getRootEntityLinkUrl(state, source.id) : "",
+  };
+};
 const mapDispatchToProps = {
-  fetchDefaultReference: fetchDefaultReferenceAction
+  fetchDefaultReference: fetchDefaultReferenceAction,
 };
 export default connect(mapStateToProps, mapDispatchToProps)(SourceBranchPicker);

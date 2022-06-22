@@ -17,7 +17,7 @@
 
 class FileResourcePathUtils {
   toFullPath(resourcePath) {
-    const parts = resourcePath.split('/');
+    const parts = resourcePath.split("/");
     if (parts.length === 3) {
       return parts[2];
     }
@@ -25,7 +25,7 @@ class FileResourcePathUtils {
   }
 
   toHref(resourcePath) {
-    const parts = resourcePath.split('/');
+    const parts = resourcePath.split("/");
     const fullPath = this.toFullPath(resourcePath);
     const fullPathParts = fullPath.match(/([^".]+|"[^"]+")/g);
     let name = fullPathParts[fullPathParts.length - 1];
@@ -36,8 +36,9 @@ class FileResourcePathUtils {
       }
     }
 
-    const suffix =
-        `${fullPathParts.slice(0, fullPathParts.length - 1).join('.')}/${name}`;
+    const suffix = `${fullPathParts
+      .slice(0, fullPathParts.length - 1)
+      .join(".")}/${name}`;
 
     if (parts.length === 3) {
       return `/space/${suffix}`;

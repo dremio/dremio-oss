@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.sabot.op.common.ht2.Copier;
+import com.google.common.base.Preconditions;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -38,12 +39,12 @@ import io.netty.util.internal.PlatformDependent;
 public class ValueListFilter implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ValueListFilter.class);
     public static final int META_SIZE = 33;
+    public static final int BLOOM_FILTER_SIZE = 8192;
+    protected ArrowBuf fullBuffer;
+    protected ArrowBuf valueListSlice;
 
-    private ArrowBuf fullBuffer;
-    private ArrowBuf valueListSlice;
-
-    private int valueCount;
-    private byte blockSize;
+    protected int valueCount;
+    protected byte blockSize;
     private String name;
     private boolean isFixedWidth = true;
     private boolean isBoolField;
@@ -99,7 +100,8 @@ public class ValueListFilter implements AutoCloseable {
 
         byte[] nameBytesTrimmed = new byte[24];
         byte[] nameBytesAll = name.getBytes(StandardCharsets.UTF_8);
-        System.arraycopy(name.getBytes(StandardCharsets.UTF_8), Math.max(0, nameBytesAll.length - 24), nameBytesTrimmed, 0, Math.min(24, nameBytesAll.length));
+        System.arraycopy(name.getBytes(StandardCharsets.UTF_8), Math.max(0, nameBytesAll.length - 24),
+          nameBytesTrimmed, 0, Math.min(24, nameBytesAll.length));
         this.name = new String(nameBytesTrimmed, StandardCharsets.UTF_8).trim();
         this.fullBuffer.setBytes(0, nameBytesTrimmed);
 
@@ -313,6 +315,17 @@ public class ValueListFilter implements AutoCloseable {
                 src.getBlockSize());
     }
 
+    public static void copyMetadataBuffer(ValueListFilter src, ValueListFilter dst) {
+      Preconditions.checkArgument(dst.valOnlyBuf().capacity() >= src.valOnlyBuf().capacity());
+      Copier.copy(src.buf().memoryAddress(), dst.buf().memoryAddress(), META_SIZE);
+    }
+
+    public static void copyValueList(ValueListFilter src, ValueListFilter dst) {
+      Preconditions.checkArgument(dst.valOnlyBuf().capacity() >= src.valOnlyBuf().capacity());
+      Copier.copy(src.valOnlyBuf().memoryAddress(),
+        dst.valOnlyBuf().memoryAddress(), src.getBlockSize() * src.getValueCount());
+    }
+
     @Override
     public String toString() {
         return "ValueListFilter{" +
@@ -355,5 +368,16 @@ public class ValueListFilter implements AutoCloseable {
             logger.error("Error while create a copy of the ValueListFilter " + this.getFieldName(), e);
             throw new RuntimeException(e);
         }
+    }
+
+    public void buildBloomFilter() {
+    }
+
+    public boolean mightBePresent(int val) {
+      return true;
+    }
+
+    public boolean mightBePresent(long val) {
+      return true;
     }
 }

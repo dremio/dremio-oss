@@ -13,30 +13,105 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
   .filterSelectMenu {
     align-items: center;
-    &__vectorColumns {
-      flex-basis: 17%;
-    }
-    &__downVector{
-      height: 17px;
-      width: 13px;
-      &:hover{
-        filter: invert(54%) sepia(93%) saturate(304%) hue-rotate(139deg) brightness(101%) contrast(84%);
-      }
-    }
-    &__upVector{
-      height: 18px;
-      width: 14px;
-      &:hover{
-        filter: invert(54%) sepia(93%) saturate(304%) hue-rotate(139deg) brightness(101%) contrast(84%);
-      }
-    }
-    &__checkbox{
+
+    &__labelWrapper {
+      height: 32px;
+      width: 160px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 14px !important;
+      border: 1px solid @FIGMA_NEUTRAL_200;
       display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+
+      &.--filtered {
+        border-color: @FIGMA_PRIMARY_500;
+        background-color: @FIGMA_PRIMARY_100;
+      }
+    }
+
+    &__label {
+      &__text {
+        display: flex;
+        align-items: center;
+
+        &.--filtered {
+          color: @FIGMA_PRIMARY_700;
+        }
+      }
+    }
+
+    &__menuItem {
+      cursor: pointer;
+
+      &.--transparent {
+        background-color: @WHITE !important;
+      }
+      &:hover {
+        background-color: @FIGMA_PRIMARY_100;
+      }
+
+      &.--chosen {
+        background-color: @FIGMA_PRIMARY_150;
+        &:hover {
+          background-color: @FIGMA_PRIMARY_200;
+        }
+      }
+      &.--disabled {
+        color: @FIGMA_TEXT_DISABLED;
+        background-color: @WHITE;
+        &:hover {
+          background-color: @WHITE;
+          &.--chosen {
+            background-color: @WHITE;
+          }
+        }
+      }
+    }
+
+    &__downIcon {
+      width: 24px;
+      height: 24px;
+    }
+
+    &__checkbox {
+      display: flex;
+      height: 32px;
+      padding: 6px 16px;
       flex-basis: 100%;
-      margin-bottom: 5px;
+
+      .field {
+        margin-top: 0 !important;
+        width: 100%;
+      }
+
+      span {
+        font-size: 14px !important;
+      }
+
+      .font-icon {
+        margin-right: 4px;
+      }
+    }
+    &__dragHandle {
+      height: 24px;
+      width: 24px;
+      margin-left: 4px;
+      margin-right: 8px;
+    }
+    &__dragTargetCls {
+      width: 95%;
+      height: 100%;
+    }
+    &__dragTargetHoverCls {
+      border-bottom: 1px solid @FIGMA_PRIMARY_600;
+      width: 100%;
     }
   }
 }

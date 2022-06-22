@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Component } from 'react';
+import { shallow } from "enzyme";
+import { Component } from "react";
 
-import { wrapUnsavedChangesWarningWithModal } from './FormUnsavedWarningHOC';
+import { wrapUnsavedChangesWarningWithModal } from "./FormUnsavedWarningHOC";
 
-describe('FormUnsavedWarningHOC', () => {
-
+describe("FormUnsavedWarningHOC", () => {
   const MockModalComponent = class extends Component {
     render() {
-      return (<div>Fake Modal</div>);
+      return <div>Fake Modal</div>;
     }
   };
 
@@ -31,28 +30,27 @@ describe('FormUnsavedWarningHOC', () => {
   beforeEach(() => {
     minimalProps = {
       hide: sinon.spy(),
-      showUnsavedChangesConfirmDialog: sinon.spy()
+      showUnsavedChangesConfirmDialog: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#updateFormDirtyState', () => {
-
-    it('should set state', () => {
-      const instance = shallow(<TestComponent {...minimalProps}/>).instance();
+  describe("#updateFormDirtyState", () => {
+    it("should set state", () => {
+      const instance = shallow(<TestComponent {...minimalProps} />).instance();
       instance.updateFormDirtyState(true);
       expect(instance.state.isFormDirty).to.be.true;
     });
   });
 
-  describe('#handleHide', () => {
-    it('should call hide from the props and reset form dirty state', async () => {
-      const instance = shallow(<TestComponent {...minimalProps}/>).instance();
-      sinon.spy(instance, 'updateFormDirtyState');
+  describe("#handleHide", () => {
+    it("should call hide from the props and reset form dirty state", async () => {
+      const instance = shallow(<TestComponent {...minimalProps} />).instance();
+      sinon.spy(instance, "updateFormDirtyState");
       const promiseResolveFn = sinon.stub();
       await instance.handleHide(promiseResolveFn);
       expect(promiseResolveFn).to.be.calledWith(true); // true means modal close is confirmed
@@ -61,26 +59,26 @@ describe('FormUnsavedWarningHOC', () => {
     });
   });
 
-  describe('#hide', () => {
+  describe("#hide", () => {
     let instance;
     beforeEach(() => {
-      instance = shallow(<TestComponent {...minimalProps}/>).instance();
-      sinon.spy(instance, 'handleHide');
+      instance = shallow(<TestComponent {...minimalProps} />).instance();
+      sinon.spy(instance, "handleHide");
     });
 
-    it('should call handleHide when form not dirty', () => {
+    it("should call handleHide when form not dirty", () => {
       instance.hide();
       expect(instance.handleHide).to.be.calledOnce;
     });
 
-    it('should call handleHide when form dirty and submitted', () => {
-      instance.setState({isFormDirty: true});
+    it("should call handleHide when form dirty and submitted", () => {
+      instance.setState({ isFormDirty: true });
       instance.hide(null, true);
       expect(instance.handleHide).to.be.calledOnce;
     });
 
-    it('should call showUnsavedChangesConfirmDialog when form is dirty', () => {
-      instance.setState({isFormDirty: true});
+    it("should call showUnsavedChangesConfirmDialog when form is dirty", () => {
+      instance.setState({ isFormDirty: true });
       instance.hide();
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.calledOnce;
     });

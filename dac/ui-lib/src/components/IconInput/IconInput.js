@@ -13,32 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
-import get from 'lodash.get';
+import React from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
+import { get } from "lodash";
 
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles } from "@material-ui/core/styles";
 
-import FormValidationMessage from '../FormValidationMessage';
-import Label from '../Label';
+import FormValidationMessage from "../FormValidationMessage";
+import Label from "../Label";
 
-import './iconInput.scss';
+import "./iconInput.scss";
 
 const IconInput = (props) => {
-
   const {
     label,
     labelStyle,
     classes = {},
     field,
-    field: {
-      name
-    },
-    form: {
-      errors,
-      touched
-    },
+    field: { name },
+    form: { errors, touched },
     hideError,
     icon: Icon,
     iconColor,
@@ -46,44 +40,56 @@ const IconInput = (props) => {
     ...otherProps
   } = props;
 
-  const useStylesBase = makeStyles(theme => {
-    const {
-      typography: {
-        fontSize,
-        fontFamily,
-        fontWeight
-      } = {}
-    } = theme || {};
+  const useStylesBase = makeStyles((theme) => {
+    const { typography: { fontSize, fontFamily, fontWeight } = {} } =
+      theme || {};
 
     return {
       input: {
         fontSize,
         fontFamily,
-        fontWeight
-      }
+        fontWeight,
+      },
     };
   });
 
   const classesBase = useStylesBase();
 
-  const rootClass = clsx('input-root', { [classes.root]: classes.root });
-  const inputClass = clsx(classesBase.input, 'iconInput-input', { [classes.input]: classes.input });
+  const rootClass = clsx("input-root", { [classes.root]: classes.root });
+  const inputClass = clsx(classesBase.input, "iconInput-input", {
+    [classes.input]: classes.input,
+  });
   const showError = !hideError && get(touched, name) && get(errors, name);
 
   return (
     <div className={rootClass}>
-      <Label value={label} className={classes.label} style={labelStyle} id={`icon-input-label-${name}`} />
-      <div className='input-container'>
+      <Label
+        value={label}
+        className={classes.label}
+        style={labelStyle}
+        id={`icon-input-label-${name}`}
+      />
+      <div className="input-container">
         <input
           className={inputClass}
           aria-labelledby={`icon-input-label-${name}`}
           {...field}
           {...otherProps}
         />
-        {showIcon && <Icon fontSize='small' classes={{ root: 'iconInput-icon' }} htmlColor={iconColor} data-testid={`icon-input-icon-${name}`} />}
+        {showIcon && (
+          <Icon
+            fontSize="small"
+            classes={{ root: "iconInput-icon" }}
+            htmlColor={iconColor}
+            data-testid={`icon-input-icon-${name}`}
+          />
+        )}
       </div>
       {showError && (
-        <FormValidationMessage className='input-validation-error' id={`icon-input-error-${name}`}>
+        <FormValidationMessage
+          className="input-validation-error"
+          id={`icon-input-error-${name}`}
+        >
           {get(errors, name)}
         </FormValidationMessage>
       )}
@@ -96,22 +102,22 @@ IconInput.propTypes = {
   labelStyle: PropTypes.object,
   classes: PropTypes.shape({
     root: PropTypes.string,
-    input: PropTypes.string
+    input: PropTypes.string,
   }),
   field: PropTypes.object.isRequired,
   form: PropTypes.object.isRequired,
   hideError: PropTypes.bool,
   icon: PropTypes.object.isRequired,
   iconColor: PropTypes.string,
-  showIcon: PropTypes.bool
+  showIcon: PropTypes.bool,
 };
 
 IconInput.defaultProps = {
   labelStyle: {},
   classes: {},
   hideError: false,
-  iconColor: '#000000',
-  showIcon: false
+  iconColor: "#000000",
+  showIcon: false,
 };
 
 export default IconInput;

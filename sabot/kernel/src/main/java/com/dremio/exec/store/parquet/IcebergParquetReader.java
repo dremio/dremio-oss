@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.List;
 import java.util.Map;
 
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
@@ -36,7 +35,7 @@ public class IcebergParquetReader extends TransactionalTableParquetReader {
     BatchSchema tableSchema,
     ParquetScanProjectedColumns projectedColumns,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-    List<ParquetFilterCondition> filterConditions,
+    IcebergParquetFilters filters,
     ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
     FileSystem fs,
     MutableParquetMetadata footer,
@@ -45,8 +44,9 @@ public class IcebergParquetReader extends TransactionalTableParquetReader {
     boolean vectorize,
     boolean enableDetailedTracing,
     boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider, boolean isConvertedIcebergDataset) {
-    super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filterConditions,
+    InputStreamProvider inputStreamProvider,
+    boolean isConvertedIcebergDataset) {
+    super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filters,
             readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads,
             inputStreamProvider, isConvertedIcebergDataset);
   }

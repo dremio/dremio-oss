@@ -61,5 +61,3 @@ public class WindowRel extends WindowRelBase implements Rel {
     return new WindowRel(getCluster(), traitSet, sole(inputs), constants, getRowType(), groups);
   }
 }
-
-

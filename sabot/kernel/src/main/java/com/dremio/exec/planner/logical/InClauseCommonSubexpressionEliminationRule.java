@@ -255,4 +255,3 @@ public final class InClauseCommonSubexpressionEliminationRule extends RelOptRule
     }
   }
 }
-

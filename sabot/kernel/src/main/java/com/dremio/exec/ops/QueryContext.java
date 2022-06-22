@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.ops;
 
+import static com.dremio.exec.ExecConstants.ENABLE_PARTITION_STATS_USAGE;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
@@ -33,6 +34,7 @@ import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
+import org.apache.commons.lang3.tuple.Pair;
 import org.projectnessie.client.api.NessieApiV1;
 
 import com.dremio.common.AutoCloseables;
@@ -54,7 +56,10 @@ import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.DefaultSubstitutionProviderFactory;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
+import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
+import com.dremio.exec.planner.logical.partition.PartitionStatsBasedPruner;
+import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
@@ -127,6 +132,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   /* Stores constants and their holders by type */
   private final Map<String, Map<MinorType, ValueHolder>> constantValueHolderCache;
+  private final Map<List<String>, Map<String, Long>> survivingRowCountsWithPruneFilter;
+  private final Map<List<String>, Map<String, Long>> survivingFileCountsWithPruneFilter;
+
   /* Stores error contexts registered with this function context **/
   private int nextErrorContextId = 0;
   private final List<FunctionErrorContext> errorContexts;
@@ -253,6 +261,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
             DefaultSubstitutionProviderFactory.class);
 
     this.constantValueHolderCache = Maps.newHashMap();
+    this.survivingRowCountsWithPruneFilter = Maps.newHashMap();
+    this.survivingFileCountsWithPruneFilter = Maps.newHashMap();
     this.errorContexts = Lists.newArrayList();
     this.relMetadataQuerySupplier = sabotContext.getRelMetadataQuerySupplier().get();
   }
@@ -537,6 +547,41 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   // TODO (DX-40379) : remove this method and use plugin to retrieve the Nessie client.
   public Provider<NessieApiV1> getNessieClientProvider() {
     return sabotContext.getNessieClientProvider();
+  }
+
+  @Override
+  public Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) {
+    if (pruneCondition != null && getPlannerSettings().getOptions().getOption(ENABLE_PARTITION_STATS_USAGE)) {
+      List<String> table = scan.getTableMetadata().getName().getPathComponents();
+      if (!survivingRowCountsWithPruneFilter.containsKey(table)) {
+        survivingRowCountsWithPruneFilter.put(table, Maps.newHashMap());
+      }
+
+      if (!survivingFileCountsWithPruneFilter.containsKey(table)) {
+        survivingFileCountsWithPruneFilter.put(table, Maps.newHashMap());
+      }
+
+      Map<String, Long> fileCounts = survivingFileCountsWithPruneFilter.get(table);
+      Map<String, Long> rowCounts = survivingRowCountsWithPruneFilter.get(table);
+      String filterKey = pruneCondition.toString();
+
+      Long rowCount = rowCounts.get(filterKey);
+      Long fileCount = fileCounts.get(filterKey);
+
+      if (rowCount == null) {
+        Optional<Pair<Long, Long>> stats = PartitionStatsBasedPruner.prune(this, scan, pruneCondition);
+
+        if(stats.isPresent()) {
+          rowCount = stats.get().getLeft();
+          fileCount = stats.get().getRight();
+        }
+
+        rowCounts.put(filterKey, rowCount);
+        fileCounts.put(filterKey, fileCount);
+      }
+      return Pair.of(rowCount, fileCount);
+    }
+    return null;
   }
 
   public boolean isQueryRequiresGroupsInfo() {

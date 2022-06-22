@@ -20,6 +20,7 @@ import java.util.List;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 
 /**
  * Holds job results. Could be partial or complete job results.
@@ -30,6 +31,12 @@ public interface JobDataFragment extends AutoCloseable {
    * @return
    */
   JobId getJobId();
+
+  /**
+   * Get the {@link SessionId}
+   * @return
+   */
+  SessionId getSessionId();
 
   /**
    * Get the number of records.

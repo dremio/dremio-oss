@@ -177,7 +177,7 @@ public class TestJobsProtoUtil {
       "d0628f078890fec234b98b873f9e1f3cd140988a"));
     references.put("source2", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
     references.put("source3", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
-    com.dremio.service.jobs.SqlQuery sqlQuery = new com.dremio.service.jobs.SqlQuery("create tag tagName in source1", null, null, null, null, references);
+    com.dremio.service.jobs.SqlQuery sqlQuery = new com.dremio.service.jobs.SqlQuery("create tag tagName in source1", null, "user", null, null, references);
 
 
     Map<String, SqlQuery.VersionContext> sourceVersionMappingExpected = new HashMap<>();

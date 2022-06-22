@@ -25,7 +25,8 @@
  * @param {string[]} list - a list of enum values
  * @returns enum
  */
-export const generateEnumFromList = list => list.reduce((e, v) => {
-  e[v] = v;
-  return e;
-}, {});
+export const generateEnumFromList = (list) =>
+  list.reduce((e, v) => {
+    e[v] = v;
+    return e;
+  }, {});

@@ -34,6 +34,6 @@ public interface DremioFlightServiceOptions {
   // Allows users to configure the timeout waiting for the client to be ready for data. Default to 5000ms.
   TypeValidators.PositiveLongValidator CLIENT_READINESS_TIMEOUT_MILLIS =
     new TypeValidators.PositiveLongValidator(
-      "flight.client.readiness.timeout.millis", 900000L, 5000L
+      "flight.client.readiness.timeout.millis", 900000L, 50000L
     );
 }

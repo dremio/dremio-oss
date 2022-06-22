@@ -42,6 +42,11 @@ public class TestDDLAliases {
   }
 
   @Test
+  public void alterView() throws SqlParseException{
+    parse("ALTER VIEW a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  }
+
+  @Test
   public void alterPDS() throws SqlParseException {
     parse("ALTER PDS a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b,c) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }

@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Button from '@app/components/Buttons/Button';
-import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
-import EngineStatus from '@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus';
+import Button from "@app/components/Buttons/Button";
+import * as ButtonTypes from "@app/components/Buttons/ButtonTypes";
+import EngineStatus from "@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     loadData() {},
     getEngineStatus(engine, styles) {
       return <EngineStatus engine={engine} style={styles.statusIcon} />;
@@ -31,9 +32,9 @@ export default function(input) {
           onClick={this.onEdit}
           disable={isReadOnly}
           type={ButtonTypes.NEXT}
-          text={la('Edit Settings')}
+          text={la("Edit Settings")}
         />
       );
-    }
+    },
   });
 }

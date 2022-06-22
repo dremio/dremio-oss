@@ -13,23 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
-import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
-import CheckEnabledContainerWrapper from 'components/Forms/Wrappers/CheckEnabledContainerWrapper';
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
+import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
+import CheckEnabledContainerWrapper from "components/Forms/Wrappers/CheckEnabledContainerWrapper";
 
 export default class CheckEnabledContainerConfig extends FormElementConfig {
-
   constructor(config, functionalElements) {
     super(config);
     if (config.container) {
       if (config.container.propName) {
         // container is simple element
-        config.container = SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(config.container, functionalElements);
+        config.container =
+          SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(
+            config.container,
+            functionalElements
+          );
       } else {
         // container is a section
-        config.container = new FormSectionConfig(config.container, functionalElements);
+        config.container = new FormSectionConfig(
+          config.container,
+          functionalElements
+        );
       }
     }
     this._renderer = CheckEnabledContainerWrapper;
@@ -49,14 +55,17 @@ export default class CheckEnabledContainerConfig extends FormElementConfig {
 
   addInitValues(initValues) {
     const elementConfig = super.getConfig();
-    initValues = FormUtils.addInitValue(initValues, elementConfig.propName, elementConfig.checkValue);
+    initValues = FormUtils.addInitValue(
+      initValues,
+      elementConfig.propName,
+      elementConfig.checkValue
+    );
     return elementConfig.container.addInitValues(initValues);
   }
 
   addValidators(validations) {
-    const {container} = super.getConfig();
+    const { container } = super.getConfig();
     validations = container.addValidators(validations);
     return validations;
   }
-
 }

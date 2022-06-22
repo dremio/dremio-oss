@@ -13,24 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import IntlMessageFormat from 'intl-messageformat';
-import enStrings from '@inject/locales/en.json';
+import IntlMessageFormat from "intl-messageformat";
+import enStrings from "@inject/locales/en.json";
 
 export function getLocale() {
   // todo: write code to actually handle multiple options
-  let language = (navigator.languages && navigator.languages[0]) || navigator.language;
-  language = 'en'; // hardcode to only supported option today
+  let language =
+    (navigator.languages && navigator.languages[0]) || navigator.language;
+  language = "en"; // hardcode to only supported option today
   let localeStrings = enStrings;
   try {
-    if (localStorage.getItem('language')) {
-      if (localStorage.getItem('language') === 'ids') {
+    if (localStorage.getItem("language")) {
+      if (localStorage.getItem("language") === "ids") {
         localeStrings = undefined;
-      } else if (localStorage.getItem('language') === 'double') {
+      } else if (localStorage.getItem("language") === "double") {
         for (const [key, value] of Object.entries(localeStrings)) {
-          localeStrings[key] = value + ' ' + value;
+          localeStrings[key] = value + " " + value;
         }
       } else {
-        language = localStorage.getItem('language');
+        language = localStorage.getItem("language");
       }
     }
   } catch (e) {
@@ -48,4 +49,3 @@ export function formatMessage(message, values) {
 export function haveLocKey(key) {
   return key in enStrings;
 }
-

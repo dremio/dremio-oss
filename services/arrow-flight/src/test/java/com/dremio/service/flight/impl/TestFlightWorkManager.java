@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight.impl;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,10 +27,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightRuntimeException;
+import org.apache.arrow.flight.sql.FlightSqlColumnMetadata;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -39,7 +40,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 
 import com.dremio.exec.proto.UserProtos;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -145,34 +145,51 @@ public class TestFlightWorkManager {
       new FieldType(false,
         new ArrowType.Int(32, true),
         null,
-        null),
-      null);
+        new FlightSqlColumnMetadata.Builder()
+          .schemaName("schema1")
+          .tableName("table")
+          .typeName("INTEGER")
+          .isAutoIncrement(false)
+          .isCaseSensitive(false)
+          .isReadOnly(true)
+          .isSearchable(true)
+          .build().getMetadataMap()),
+      Collections.emptyList());
 
     final Field column2 = new Field("column2",
       new FieldType(false, new ArrowType.Utf8(),
         null,
-        null),
-      null);
+        new FlightSqlColumnMetadata.Builder()
+          .schemaName("schema2")
+          .tableName("table")
+          .typeName("CHARACTER VARYING")
+          .isAutoIncrement(false)
+          .isCaseSensitive(false)
+          .isReadOnly(true)
+          .isSearchable(true)
+          .precision(65536)
+          .build().getMetadataMap()),
+      Collections.emptyList());
 
-    final ImmutableMap<UserProtos.TableMetadata, ImmutableList<Field>> expectedMap = ImmutableMap.of(
-      tableMetadata1, ImmutableList.of(column1),
-      tableMetadata2, ImmutableList.of(column2));
+    final ImmutableMap<UserProtos.TableMetadata, List<Field>> expectedMap = ImmutableMap.of(
+      tableMetadata1, Collections.singletonList(column1),
+      tableMetadata2, Collections.singletonList(column2));
 
-    Map<UserProtos.TableMetadata, List<Field>> actualMap = FlightWorkManager.buildArrowFieldsByTableMap(
-      UserProtos.GetColumnsResp.newBuilder()
-        .addColumns(UserProtos.ColumnMetadata.newBuilder()
+    UserProtos.GetColumnsResp columnsResp = UserProtos.GetColumnsResp.newBuilder()
+      .addColumns(UserProtos.ColumnMetadata.newBuilder()
           .setSchemaName("schema1")
           .setTableName("table")
           .setColumnName("column1")
           .setDataType("INTEGER")
           .build())
-        .addColumns(UserProtos.ColumnMetadata.newBuilder()
+      .addColumns(UserProtos.ColumnMetadata.newBuilder()
           .setSchemaName("schema2")
           .setTableName("table")
           .setColumnName("column2")
           .setDataType("CHARACTER VARYING")
           .build())
-        .build());
+        .build();
+    ImmutableMap<UserProtos.TableMetadata, List<Field>> actualMap = ImmutableMap.copyOf(FlightWorkManager.buildArrowFieldsByTableMap(columnsResp));
 
     assertEquals(expectedMap, actualMap);
   }

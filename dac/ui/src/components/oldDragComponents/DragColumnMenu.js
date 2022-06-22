@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
+import Immutable from "immutable";
 
-import ColumnMenuItem from './ColumnMenuItem';
+import ColumnMenuItem from "./ColumnMenuItem";
 
-export const NOT_SUPPORTED_TYPES = ['MAP', 'LIST'];
+export const NOT_SUPPORTED_TYPES = ["MAP", "LIST"];
 
-@Radium
-export default class DragColumnMenu extends PureComponent {
+class DragColumnMenu extends PureComponent {
   static propTypes = {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
     namesOfColumnsInDragArea: PropTypes.instanceOf(Immutable.List),
@@ -33,24 +32,31 @@ export default class DragColumnMenu extends PureComponent {
     name: PropTypes.string.isRequired,
     dragType: PropTypes.string.isRequired,
     style: PropTypes.object,
-    type: PropTypes.string
-  }
+    type: PropTypes.string,
+  };
 
   static formatColumnItem(column, namesOfColumnsInDragArea) {
-    const isAddedToDragArea = namesOfColumnsInDragArea &&
-      namesOfColumnsInDragArea.find(item => item === column.get('name'));
-    const isNotSupported = NOT_SUPPORTED_TYPES.indexOf(column.get('type')) !== -1;
+    const isAddedToDragArea =
+      namesOfColumnsInDragArea &&
+      namesOfColumnsInDragArea.find((item) => item === column.get("name"));
+    const isNotSupported =
+      NOT_SUPPORTED_TYPES.indexOf(column.get("type")) !== -1;
 
     if (isAddedToDragArea || isNotSupported) {
-      return column.set('disabled', true);
+      return column.set("disabled", true);
     }
     return column;
   }
 
   static decorateColumns(columns, namesOfColumnsInDragArea) {
-    return columns.map(column => {
-      return DragColumnMenu.formatColumnItem(column, namesOfColumnsInDragArea);
-    }).sort(a => (a.get('disabled')));
+    return columns
+      .map((column) => {
+        return DragColumnMenu.formatColumnItem(
+          column,
+          namesOfColumnsInDragArea
+        );
+      })
+      .sort((a) => a.get("disabled"));
   }
 
   constructor(props) {
@@ -60,25 +66,29 @@ export default class DragColumnMenu extends PureComponent {
 
   getItems() {
     const namesOfColumnsInDragArea = this.props.namesOfColumnsInDragArea || [];
-    return DragColumnMenu.decorateColumns(this.props.items, namesOfColumnsInDragArea).map(item => (
+    return DragColumnMenu.decorateColumns(
+      this.props.items,
+      namesOfColumnsInDragArea
+    ).map((item) => (
       <ColumnMenuItem
         item={item}
         type={this.props.type}
         handleDragStart={this.props.handleDragStart}
         onDragEnd={this.props.onDragEnd}
-        key={item.get('name')}
-        dragType={this.props.dragType}/>
-    )
-    );
+        key={item.get("name")}
+        dragType={this.props.dragType}
+      />
+    ));
   }
 
   render() {
     return (
-      <div className='inner-join-left-menu' style={[styles.base, this.props.style]}>
+      <div
+        className="inner-join-left-menu"
+        style={[styles.base, this.props.style]}
+      >
         <div style={[styles.content]}>
-          <div style={[styles.items]}>
-            {this.getItems()}
-          </div>
+          <div style={[styles.items]}>{this.getItems()}</div>
         </div>
       </div>
     );
@@ -87,30 +97,31 @@ export default class DragColumnMenu extends PureComponent {
 
 const styles = {
   base: {
-    display: 'flex',
+    display: "flex",
     width: 275,
     height: 180,
-    borderRight: '1px solid rgba(0,0,0,0.10)',
+    borderRight: "1px solid rgba(0,0,0,0.10)",
     paddingRight: 5,
-    paddingLeft: 5
+    paddingLeft: 5,
   },
   content: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    overflowY: 'hidden'
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    overflowY: "hidden",
   },
   items: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflowY: 'auto',
+    display: "flex",
+    flexDirection: "column",
+    overflowY: "auto",
     maxHeight: 180,
-    minHeight: 150
+    minHeight: 150,
   },
   title: {
     paddingLeft: 5,
     paddingTop: 5,
-    color: '#000',
-    fontWeight: 600
-  }
+    color: "#000",
+    fontWeight: 600,
+  },
 };
+export default Radium(DragColumnMenu);

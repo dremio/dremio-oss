@@ -55,7 +55,6 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
-import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.AsyncStreamConf;
 import com.dremio.exec.store.dfs.EmptySplitReaderCreator;
 import com.dremio.exec.store.dfs.PrefetchingIterator;
@@ -64,13 +63,13 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveAsyncStreamConf;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
-import com.dremio.exec.store.parquet.OutputMutatorHelper;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
 import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
-import com.dremio.exec.store.parquet.ParquetFilterCondition;
+import com.dremio.exec.store.parquet.OutputMutatorHelper;
+import com.dremio.exec.store.parquet.ParquetFilters;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
@@ -102,7 +101,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final OperatorContext oContext;
   private final BatchSchema tableSchema;
   private final List<SchemaPath> columnsToRead;
-  private final List<ParquetFilterCondition> conditions;
+  private final HiveParquetFilters filters;
   private final FileSplit fileSplit;
   private final HiveSplitXattr hiveSplitXattr;
   private final JobConf jobConf;
@@ -142,7 +141,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     final ParquetReaderFactory readerFactory,
     final BatchSchema tableSchema,
     final List<SchemaPath> columnsToRead,
-    final List<ParquetFilterCondition> conditions,
+    final HiveParquetFilters filters,
     final FileSplit fileSplit,
     final HiveSplitXattr hiveSplitXattr,
     final JobConf jobConf,
@@ -159,7 +158,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.oContext = oContext;
     this.tableSchema = tableSchema;
     this.columnsToRead = columnsToRead;
-    this.conditions = conditions;
+    this.filters = filters;
     this.fileSplit = fileSplit;
     this.hiveSplitXattr = hiveSplitXattr;
     filePath = new org.apache.hadoop.fs.Path(fileSplit.getPath().toUri());
@@ -207,8 +206,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.nextFileSplitReader = nextFileSplitReader;
   }
 
-  public List<ParquetFilterCondition> getFilterConditions() {
-    return conditions;
+  public ParquetFilters getFilters() {
+    return filters;
   }
 
   public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
@@ -240,9 +239,9 @@ public class FileSplitParquetRecordReader implements RecordReader {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       org.apache.hadoop.fs.Path finalPath  = new org.apache.hadoop.fs.Path(uri);
       boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
-
+      Preconditions.checkArgument(hiveStoragePlugin instanceof HadoopFsSupplierProviderPluginClassLoader, " plugin does not instance of HadoopFsSupplierProviderPluginClassLoader");
       final PrivilegedExceptionAction<FileSystem> getFsAction =
-        () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled()),
+        () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled(), ((HadoopFsSupplierProviderPluginClassLoader)hiveStoragePlugin).getHadoopFsSupplierPluginClassLoader(finalPath.toString(), jobConf).get()),
           oContext, cacheAndAsyncConf);
 
       fs = readerUgi.doAs(getFsAction);
@@ -286,7 +285,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         dataset,
         fileLastModificationTime,
         false,
-        (((conditions != null) && (conditions.size() >=1)) && (readColumnIndices == true)));
+        filters.hasPushdownFilters() && readColumnIndices);
     } catch (Exception e) {
       // Close input stream provider in case of errors
       if (inputStreamProviderOfFirstRowGroup != null) {
@@ -310,7 +309,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
     this.outputMutator = output;
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
@@ -433,8 +431,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   @Override
   public void close() throws Exception {
-    if ((conditions != null) && !conditions.isEmpty()) {
-      if (conditions.get(0).isModifiedForPushdown()) {
+    if (filters.hasPushdownFilters()) {
+      if (filters.getPushdownFilters().get(0).isModifiedForPushdown()) {
         this.oContext.getStats().addLongStat(ScanOperator.Metric.NUM_FILTERS_MODIFIED, 1);
       }
     }
@@ -602,7 +600,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             tableSchema,
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead),
             null,
-            conditions,
+            filters,
             readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()),
             readerFactory.newDictionaryConvertor(ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema),
             splitXAttr,
@@ -644,7 +642,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
           inputStreamProvider = inputStreamProviderFactory.create(fs, oContext, path, fileLength, splitXAttr.getLength(),
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, lastInputStreamProvider, (f) -> splitXAttr.getRowGroupIndex(),
             readFullFile, dataset, splitXAttr.getLastModificationTime(), false,
-            ((conditions != null) && (conditions.size() >=1) && readColumnIndices));
+            filters.hasPushdownFilters() && readColumnIndices);
           return null;
         });
       }

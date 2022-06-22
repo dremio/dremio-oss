@@ -13,43 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import classNames from 'classnames';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Select from 'components/Fields/Select';
+import Select from "components/Fields/Select";
 
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import FieldWithError from 'components/Fields/FieldWithError';
-import TextField from 'components/Fields/TextField';
-import Radio from 'components/Fields/Radio';
-import DateInput from 'components/Fields/DateInput';
-import actionUtils from 'utils/actionUtils/actionUtils';
-import { applyValidators, isRequiredIfAnotherPropertyEqual} from 'utils/validation';
-import { formLabel } from 'uiTheme/radium/typography';
-import { isDateType, BOOLEAN } from '@app/constants/DataTypes';
-import BooleanSelect from './BooleanSelect';
+import NewFieldSection from "components/Forms/NewFieldSection";
+import FieldWithError from "components/Fields/FieldWithError";
+import TextField from "components/Fields/TextField";
+import Radio from "components/Fields/Radio";
+import DateInput from "components/Fields/DateInput";
+import actionUtils from "utils/actionUtils/actionUtils";
+import {
+  applyValidators,
+  isRequiredIfAnotherPropertyEqual,
+} from "utils/validation";
+import { formLabel } from "uiTheme/radium/typography";
+import { isDateType, BOOLEAN } from "@app/constants/DataTypes";
+import BooleanSelect from "./BooleanSelect";
 import {
   base,
   wrap,
   replacementValue as replacementValueCls,
   replacementType,
-  select as selectCls
-} from './ReplaceFooter.less';
+  select as selectCls,
+} from "./ReplaceFooter.less";
 
-@Radium
-export default class ReplaceFooter extends PureComponent {
+class ReplaceFooter extends PureComponent {
   static getFields() {
-    return ['replaceType', 'replacementValue', 'replaceSelectionType'];
+    return ["replaceType", "replacementValue", "replaceSelectionType"];
   }
 
   static validate(values) {
-    if (values.transformType === 'replace') {
+    if (values.transformType === "replace") {
       return applyValidators(values, [
-        isRequiredIfAnotherPropertyEqual('replacementValue', 'replaceType', 'NULL', 'Replacement value')
+        isRequiredIfAnotherPropertyEqual(
+          "replacementValue",
+          "replaceType",
+          "NULL",
+          "Replacement value"
+        ),
       ]);
     }
   }
@@ -59,7 +65,7 @@ export default class ReplaceFooter extends PureComponent {
     fields: PropTypes.object,
     handleReplacementValue: PropTypes.func,
     toggleBottomRadioBtn: PropTypes.func,
-    submitForm: PropTypes.func
+    submitForm: PropTypes.func,
   };
 
   constructor(props) {
@@ -67,52 +73,55 @@ export default class ReplaceFooter extends PureComponent {
     this.onChange = this.onChange.bind(this);
     this.options = [
       {
-        label: 'Matching Text',
-        option: 'Matching Text'
+        label: "Matching Text",
+        option: "Matching Text",
       },
       {
-        label: 'Entire Value',
-        option: 'Entire Value'
-      }
+        label: "Entire Value",
+        option: "Entire Value",
+      },
     ];
 
     this.patternOptions = [
       {
-        label: 'Text Selection',
-        option: 'SELECTION'
+        label: "Text Selection",
+        option: "SELECTION",
       },
       {
-        label: 'Entire Value',
-        option: 'VALUE'
-      }
+        label: "Entire Value",
+        option: "VALUE",
+      },
     ];
   }
 
   onChange(data) {
-    const { fields: { replacementValue } } = this.props;
+    const {
+      fields: { replacementValue },
+    } = this.props;
     replacementValue.onChange(data);
     actionUtils.runAutoPreview(this.props.submitForm);
   }
 
   renderDefaultBtns() {
     return (
-      <div style={[style.item]}>
+      <div style={style.item}>
         <label>Replacement Value</label>
         <input
-          style={[style.input]}
-          onChange={this.props.handleReplacementValue}/>
+          style={style.input}
+          onChange={this.props.handleReplacementValue}
+        />
       </div>
     );
   }
 
   renderFooterByType() {
     const { transform } = this.props;
-    const columnType = transform.get('columnType');
+    const columnType = transform.get("columnType");
     const hash = {
-      '#': () => this.renderDefaultBtns(),
-      'A': () => this.renderDefaultBtns(),
-      'integer': () => this.renderRadioBtn(),
-      'timestamp': () => this.renderRadioBtn()
+      "#": () => this.renderDefaultBtns(),
+      A: () => this.renderDefaultBtns(),
+      integer: () => this.renderRadioBtn(),
+      timestamp: () => this.renderRadioBtn(),
     };
 
     if (hash[columnType]) {
@@ -122,18 +131,20 @@ export default class ReplaceFooter extends PureComponent {
 
   renderRadioBtn() {
     return (
-      <div className='item-block'>
+      <div className="item-block">
         <input
           defaultChecked
           onChange={this.props.toggleBottomRadioBtn}
-          type='radio'/>
-        <label className='item-label'>Value:</label>
-        <input type='number'/>
+          type="radio"
+        />
+        <label className="item-label">Value:</label>
+        <input type="number" />
         <input
           defaultChecked={false}
           onChange={this.props.toggleBottomRadioBtn}
-          type='radio'/>
-        <label className='item-label'>Null</label>
+          type="radio"
+        />
+        <label className="item-label">Null</label>
       </div>
     );
   }
@@ -142,57 +153,77 @@ export default class ReplaceFooter extends PureComponent {
       return <DateInput type={columnType} {...replacementValue} />;
     }
     if (columnType === BOOLEAN) {
-      return <BooleanSelect
-        {...replacementValue}
-        style={{ ...style.text, marginRight: 5 }}
-      />;
+      return (
+        <BooleanSelect
+          {...replacementValue}
+          style={{ ...style.text, marginRight: 5 }}
+        />
+      );
     }
-    return <TextField
-      data-qa='replaceValueFooter'
-      {...replacementValue}
-      onChange={this.onChange}
-      style={style.text}
-    />;
+    return (
+      <TextField
+        data-qa="replaceValueFooter"
+        {...replacementValue}
+        onChange={this.onChange}
+        style={style.text}
+      />
+    );
   }
 
   render() {
-    const { transform, fields: { replaceType, replacementValue, replaceSelectionType } } = this.props;
-    const columnName = transform.get('columnName');
-    const columnType = transform.get('columnType');
-    const selectHash = { // todo: loc
+    const {
+      transform,
+      fields: { replaceType, replacementValue, replaceSelectionType },
+    } = this.props;
+    const columnName = transform.get("columnName");
+    const columnType = transform.get("columnType");
+    const selectHash = {
+      // todo: loc
       Values: null,
-      Pattern: <Select className={selectCls} items={this.patternOptions} {...replaceSelectionType}/>
+      Pattern: (
+        <Select
+          className={selectCls}
+          items={this.patternOptions}
+          {...replaceSelectionType}
+        />
+      ),
     };
-    const select = selectHash[transform.get('method')] || null;
+    const select = selectHash[transform.get("method")] || null;
 
     return (
-      <div className={classNames('replace-footer', base)}>
+      <div className={classNames("replace-footer", base)}>
         {this.renderFooterByType()}
-        {select && <div className={wrap}>
-          <span style={formLabel}>{la('Replace')}</span>
-          <div className={replacementType}>{select}</div>
-        </div>
-        }
+        {select && (
+          <div className={wrap}>
+            <span style={{ ...formLabel, marginBottom: 8 }}>
+              {la("Replace")}
+            </span>
+            <div className={replacementType} style={{ background: "white" }}>
+              {select}
+            </div>
+          </div>
+        )}
         <div className={wrap}>
-          <span style={formLabel}>{la('Replacement value')}</span>
+          <span style={{ ...formLabel, marginBottom: 8 }}>
+            {la("Replacement value")}
+          </span>
           <div className={replacementValueCls}>
-            <Radio
-              {...replaceType}
-              radioValue='VALUE'
-              label='Value' />
+            <Radio {...replaceType} radioValue="VALUE" label="Value" />
             <FieldWithError
               {...replacementValue}
-              errorPlacement='bottom'
-              style={formLabel}>
+              errorPlacement="bottom"
+              style={formLabel}
+            >
               {this.renderReplaceValueInput(columnType, replacementValue)}
             </FieldWithError>
-            <Radio
-              {...replaceType}
-              radioValue='NULL'
-              label='Null'/>
+            <Radio {...replaceType} radioValue="NULL" label="Null" />
           </div>
         </div>
-        <NewFieldSection columnName={columnName} fields={this.props.fields} style={{ marginBottom: 0}}/>
+        <NewFieldSection
+          columnName={columnName}
+          fields={this.props.fields}
+          style={{ marginBottom: 0 }}
+        />
       </div>
     );
   }
@@ -202,14 +233,15 @@ const style = {
   input: {
     width: 228,
     height: 29,
-    border: '1px solid #ccc',
+    border: "1px solid #ccc",
     borderRadius: 3,
-    outline: 'none',
-    padding: 5
+    outline: "none",
+    padding: 5,
   },
   item: {
-    float: 'left',
+    float: "left",
     maxWidth: 228,
-    marginLeft: 5
-  }
+    marginLeft: 5,
+  },
 };
+export default ReplaceFooter;

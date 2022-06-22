@@ -234,7 +234,7 @@ public class Foreman {
       queryRequest.runInSameThread());
   }
 
-  public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
+  public void dataFromScreenArrived(QueryData header, ResponseSender sender, ByteBuf... data) throws RpcException {
     final AttemptManager manager = attemptManager;
     if (manager == null) {
       logger.warn("Dropping data from screen, no active attempt manager.");
@@ -243,7 +243,7 @@ public class Foreman {
       return;
     }
 
-    manager.dataFromScreenArrived(header, data, sender);
+    manager.dataFromScreenArrived(header, sender, data);
   }
 
   private boolean recoverFromFailure(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {

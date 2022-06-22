@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePromise } from 'react-smart-promise';
+import { useCallback, useEffect, useState } from "react";
+import { usePromise } from "react-smart-promise";
 
-import { DefaultApi, FetchOption, Reference } from '@app/services/nessie/client';
+import {
+  DefaultApi,
+  FetchOption,
+  Reference,
+} from "@app/services/nessie/client";
 
 export type RepoViewContextType = {
   defaultRef: Reference;
@@ -49,6 +53,6 @@ export function useRepoViewContext(api: DefaultApi): RepoViewContextType {
     setDefaultRef,
     setAllRefs,
     allRefsErr,
-    allRefsStatus
+    allRefsStatus,
   };
 }

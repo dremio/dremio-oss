@@ -96,7 +96,19 @@ public class InExpression extends LogicalExpressionBase {
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    return ImmutableList.<LogicalExpression>builder().add(eval).addAll(constants).build().iterator();
+    return new Iterator<LogicalExpression>() {
+      private int currentExprIdx = 0;
+      @Override
+      public boolean hasNext() {
+        return currentExprIdx < getSizeOfChildren();
+      }
+
+      @Override
+      public LogicalExpression next() {
+        final int prev = currentExprIdx++;
+        return (prev == 0) ? eval : (prev > 0 && prev < getSizeOfChildren()) ? constants.get(prev - 1) : null;
+      }
+    };
   }
 
   @Override

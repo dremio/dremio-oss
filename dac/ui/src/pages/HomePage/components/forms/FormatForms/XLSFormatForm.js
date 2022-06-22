@@ -13,55 +13,65 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 
-import { Checkbox, TextField, FieldWithError } from 'components/Fields';
-import { divider } from 'uiTheme/radium/forms';
+import { Checkbox, TextField, FieldWithError } from "components/Fields";
+import { divider } from "uiTheme/radium/forms";
 
 @injectIntl
 export default class XLSFormatForm extends Component {
   static propTypes = {
     fields: PropTypes.object,
     disabled: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   static getFields() {
-    return ['extractHeader', 'hasMergedCells', 'sheetName'];
+    return ["extractHeader", "hasMergedCells", "sheetName"];
   }
 
   render() {
     const {
       disabled,
       intl,
-      fields: { XLS: { extractHeader, hasMergedCells, sheetName }}
+      fields: {
+        XLS: { extractHeader, hasMergedCells, sheetName },
+      },
     } = this.props;
 
     return (
       <div>
         <div style={styles.row}>
           <div style={styles.options}>
-            <Checkbox disabled={disabled} style={styles.checkbox} dataQa='extract-field-names'
-              label={intl.formatMessage({ id: 'File.ExtractFieldNames' })} {...extractHeader}/>
+            <Checkbox
+              disabled={disabled}
+              style={styles.checkbox}
+              dataQa="extract-field-names"
+              label={intl.formatMessage({ id: "File.ExtractFieldNames" })}
+              {...extractHeader}
+            />
           </div>
           <div style={styles.options}>
             <Checkbox
               disabled={disabled}
               style={styles.checkbox}
-              label={intl.formatMessage({ id: 'File.ExpandMergedCells' })}
+              label={intl.formatMessage({ id: "File.ExpandMergedCells" })}
               {...hasMergedCells}
             />
           </div>
         </div>
         <div style={styles.row}>
-          <FieldWithError label={intl.formatMessage({ id: 'File.SheetName' })} {...sheetName}>
-            <TextField {...sheetName} style={styles.textField}/>
+          <FieldWithError
+            label={intl.formatMessage({ id: "File.SheetName" })}
+            {...sheetName}
+          >
+            <TextField {...sheetName} style={styles.textField} />
           </FieldWithError>
         </div>
-        <hr style={divider}/>
+        <hr style={divider} />
       </div>
     );
   }
@@ -69,19 +79,19 @@ export default class XLSFormatForm extends Component {
 
 const styles = {
   row: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    marginBottom: 10
+    display: "flex",
+    flexWrap: "wrap",
+    marginBottom: 10,
   },
   textField: {
-    width: 180
+    width: 180,
   },
   options: {
-    display: 'flex',
-    alignItems: 'center',
-    height: 28
+    display: "flex",
+    alignItems: "center",
+    height: 28,
   },
   checkbox: {
-    marginRight: 10
-  }
+    marginRight: 10,
+  },
 };

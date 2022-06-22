@@ -13,43 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import { formatMessage } from 'utils/locale';
-import { typeToIconType, typeToFormatMessageId } from '@app/constants/DataTypes';
-import Art from '@app/components/Art';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import { formatMessage } from "utils/locale";
 import {
-  name as nameCls,
-  icon as iconCls,
-  wrapper
-} from './DataColumn.less';
+  typeToIconType,
+  typeToFormatMessageId,
+} from "@app/constants/DataTypes";
+import Art from "@app/components/Art";
+import { name as nameCls, icon as iconCls, wrapper } from "./DataColumn.less";
 
 export const columnPropTypes = {
   type: PropTypes.string, //see constants/DataTypes for the list of available types
-  name: PropTypes.string
+  name: PropTypes.string,
 };
 
 export class DataColumn extends PureComponent {
   static propTypes = {
     ...columnPropTypes,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   render() {
-    const {
-      type,
-      name,
-      className
-    } = this.props;
+    const { type, name, className } = this.props;
 
-    return (<div className={classNames(wrapper, className)}>
-      <Art
-        src={`types/${typeToIconType[type]}.svg`}
-        alt={formatMessage(`${typeToFormatMessageId[type]}`)}
-        className={iconCls}
-      />
-      <div className={nameCls}>{name}</div>
-    </div>);
+    return (
+      <div className={classNames(wrapper, className)}>
+        <Art
+          src={`types/${typeToIconType[type]}.svg`}
+          alt={formatMessage(`${typeToFormatMessageId[type]}`)}
+          className={iconCls}
+        />
+        <div className={nameCls}>{name}</div>
+      </div>
+    );
   }
 }

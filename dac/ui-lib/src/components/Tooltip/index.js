@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { default } from './Tooltip.tsx';
+export { default } from "./Tooltip.tsx";

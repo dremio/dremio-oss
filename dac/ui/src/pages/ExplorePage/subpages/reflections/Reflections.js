@@ -13,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
-import AccelerationController from 'components/Acceleration/AccelerationController';
+import PropTypes from "prop-types";
+import AccelerationController from "components/Acceleration/AccelerationController";
 
-import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
-
+import FormUnsavedRouteLeave from "components/Forms/FormUnsavedRouteLeave";
 
 export class Reflections extends PureComponent {
-
   static propTypes = {
     datasetId: PropTypes.string,
 
     //from FormUnsavedRouteLeave
     updateFormDirtyState: PropTypes.func,
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   render() {
@@ -42,7 +40,6 @@ export class Reflections extends PureComponent {
       />
     );
   }
-
 }
 
 export default FormUnsavedRouteLeave(Reflections);

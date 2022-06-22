@@ -302,7 +302,7 @@ public class HiveTableOperations extends BaseMetastoreTableOperations {
     if (updateHiveTable) {
       EnvironmentContext envContext = new EnvironmentContext(
         ImmutableMap.of(StatsSetupConst.DO_NOT_UPDATE_STATS, StatsSetupConst.TRUE));
-        ALTER_TABLE.invoke(client, database, tableName, hmsTable, envContext);
+        ALTER_TABLE.invoke(client.getMetastoreClient(), database, tableName, hmsTable, envContext);
     } else {
       client.createTable(hmsTable);
     }

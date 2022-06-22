@@ -48,9 +48,9 @@ abstract class BaseNdvAccumulatorNoSpill implements AccumulatorNoSpill {
      * Sliced buffer size (64K) is used, there will be 3496 bytes (6%) wastage for each ArrowBuf).
      * Also large ArrowBuf means, less number of ByteBuffers to be maintained.
      */
-    static private final int SKETCH_BUF_SIZE = 2 * 1024 * 1024;
-    static private final int sketchSize = HllSketch.getMaxUpdatableSerializationBytes(StatisticsAggrFunctions.HLL_ACCURACY, TgtHllType.HLL_8);
-    static private final int SKETCHES_PER_BUF = SKETCH_BUF_SIZE / sketchSize;
+    private static final int SKETCH_BUF_SIZE = 2 * 1024 * 1024;
+    private static final int sketchSize = HllSketch.getMaxUpdatableSerializationBytes(StatisticsAggrFunctions.HLL_ACCURACY, TgtHllType.HLL_8);
+    private static final int SKETCHES_PER_BUF = SKETCH_BUF_SIZE / sketchSize;
     private boolean reduceNdvHeap;
     private final int count;
     private ByteBuffer[] accumAddresses;

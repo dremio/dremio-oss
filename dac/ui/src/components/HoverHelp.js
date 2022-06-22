@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import classNames from 'classnames';
+import { createRef, PureComponent } from "react";
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FontIcon from 'components/Icon/FontIcon';
-import { Tooltip } from 'components/Tooltip';
+import FontIcon from "components/Icon/FontIcon";
+import { Tooltip } from "components/Tooltip";
 
 export default class HoverHelp extends PureComponent {
-
   static propTypes = {
     style: PropTypes.object,
     iconStyle: PropTypes.object,
@@ -32,60 +31,79 @@ export default class HoverHelp extends PureComponent {
     className: PropTypes.string,
     placement: PropTypes.string,
     wantedIconType: PropTypes.string,
-    theme: PropTypes.object
+    theme: PropTypes.object,
+    container: PropTypes.any,
   };
 
   constructor(props) {
     super(props);
-    this.state = {hover: false};
+    this.targetRef = createRef();
+    this.state = { hover: false };
     this.onMouseEnter = this.onMouseEnter.bind(this);
     this.onMouseLeave = this.onMouseLeave.bind(this);
   }
 
   onMouseEnter() {
-    this.setState({hover: true});
+    this.setState({ hover: true });
   }
 
   onMouseLeave() {
-    this.setState({hover: false});
+    this.setState({ hover: false });
   }
 
   getIconType(hover, wantedIconType) {
     if (!wantedIconType) {
-      return hover ? 'InfoCircleSolid' : 'InfoCircle';
+      return hover ? "InfoCircleSolid" : "InfoCircle";
     } else {
       return wantedIconType;
     }
   }
 
   render() {
-    const { style, iconStyle, theme, wantedIconType, content, tooltipStyle, tooltipInnerStyle, className, placement } = this.props;
-    const {hover} = this.state;
-    const finalInnerStyle = {...styles.defaultInnerStyle, ...tooltipInnerStyle};
+    const {
+      style,
+      iconStyle,
+      theme,
+      wantedIconType,
+      content,
+      tooltipStyle,
+      tooltipInnerStyle,
+      className,
+      placement,
+      container,
+    } = this.props;
+    const { hover } = this.state;
+    const finalInnerStyle = {
+      ...styles.defaultInnerStyle,
+      ...tooltipInnerStyle,
+    };
     const iconType = this.getIconType(hover, wantedIconType);
 
-    return <div
-      className={classNames(['hover-help', className])}
-      style={{position:'relative', ...style}}>
-      <FontIcon
-        type={iconType}
-        ref='target'
-        iconStyle={{...styles.iconStyle, ...iconStyle}}
-        onMouseEnter={this.onMouseEnter}
-        onMouseLeave={this.onMouseLeave}
-        theme={theme}
-      />
-      <Tooltip
-        container={this}
-        placement={placement || 'bottom-start'}
-        target={() => hover ? this.refs.target : null}
-        type='status'
-        style={tooltipStyle}
-        tooltipInnerStyle={finalInnerStyle}
+    return (
+      <div
+        className={classNames(["hover-help", className])}
+        style={{ position: "relative", ...style }}
       >
-        {content}
-      </Tooltip>
-    </div>;
+        <FontIcon
+          type={iconType}
+          ref={this.targetRef}
+          iconStyle={{ ...styles.iconStyle, ...iconStyle }}
+          onMouseEnter={this.onMouseEnter}
+          onMouseLeave={this.onMouseLeave}
+          theme={theme}
+        />
+        <Tooltip
+          container={container ? container : this}
+          placement={placement || "bottom-start"}
+          target={() => (hover ? this.targetRef.current : null)}
+          type="status"
+          style={tooltipStyle}
+          tooltipInnerStyle={finalInnerStyle}
+        >
+          {content}
+        </Tooltip>
+      </div>
+    );
   }
 }
 
@@ -94,11 +112,11 @@ const styles = {
     width: 24,
     height: 24,
     marginLeft: 3,
-    marginBottom: -3
+    marginBottom: -3,
   },
   defaultInnerStyle: {
     borderRadius: 5,
     padding: 10,
-    width: 300
-  }
+    width: 300,
+  },
 };

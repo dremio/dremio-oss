@@ -13,26 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import deepEqual from 'deep-equal';
-import Immutable from 'immutable';
-import uuid from 'uuid';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import deepEqual from "deep-equal";
+import Immutable from "immutable";
+import uuid from "uuid";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
 
-import { getExploreState } from '@app/selectors/explore';
-import { parseTextToDataType } from '@app/constants/DataTypes';
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
-import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import ReplaceValues from '../ContentWithoutCards/ReplaceValues';
-import TransformForm, { formWrapperProps } from '../../../forms/TransformForm';
-import ReplaceFooter from './../ReplaceFooter';
+import { getExploreState } from "@app/selectors/explore";
+import { parseTextToDataType } from "@app/constants/DataTypes";
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
+import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import ReplaceValues from "../ContentWithoutCards/ReplaceValues";
+import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
+import ReplaceFooter from "./../ReplaceFooter";
 
 const SECTIONS = [ReplaceValues, NewFieldSection, ReplaceFooter];
 
 export class ReplaceValuesForm extends Component {
-
   static propTypes = {
     submit: PropTypes.func,
     transform: PropTypes.instanceOf(Immutable.Map),
@@ -47,14 +46,14 @@ export class ReplaceValuesForm extends Component {
     sqlSize: PropTypes.number,
     dataset: PropTypes.instanceOf(Immutable.Map),
     values: PropTypes.object,
-    dirty: PropTypes.bool
+    dirty: PropTypes.bool,
   };
 
   onValuesChange = (newValues, oldValues) => {
     if (!deepEqual(newValues.replaceValues, oldValues.replaceValues)) {
       this.runLoadTransformValues(newValues.replaceValues);
     }
-  }
+  };
 
   runLoadTransformValues(transformValues) {
     this.props.loadTransformValuesPreview(transformValues);
@@ -62,7 +61,7 @@ export class ReplaceValuesForm extends Component {
 
   submit = (values, submitType) => {
     const { columnType } = this.props;
-    const transformType = this.props.transform.get('transformType');
+    const transformType = this.props.transform.get("transformType");
     let { replaceValues, replacementValue } = values;
     replacementValue = parseTextToDataType(replacementValue, columnType);
 
@@ -73,43 +72,54 @@ export class ReplaceValuesForm extends Component {
       // and need to transmit as separate field
       replaceNull = true;
     }
-    replaceValues = [...replaceValuesSet].map((value) => parseTextToDataType(value, columnType));
+    replaceValues = [...replaceValuesSet].map((value) =>
+      parseTextToDataType(value, columnType)
+    );
 
     if (!replaceValues.length && !replaceNull) {
-      return Promise.reject({_error: {
-        message: la('Please select at least one value.'),
-        id: uuid.v4()
-      }});
+      return Promise.reject({
+        _error: {
+          message: la("Please select at least one value."),
+          id: uuid.v4(),
+        },
+      });
     }
 
     const mapValues = {
       ...values,
       replacementValue,
       replaceValues,
-      replaceNull
+      replaceNull,
     };
 
-    const data = transformType === 'replace'
-      ? {
-        ...fieldsMappers.getCommonValues(mapValues, this.props.transform),
-        fieldTransformation: {
-          type: 'ReplaceValue',
-          ...fieldsMappers.getReplaceValues(mapValues, columnType)
-        }
-      }
-      : {
-        ...filterMappers.getCommonFilterValues(mapValues, this.props.transform),
-        filter: filterMappers.mapFilterExcludeValues(mapValues, this.props.columnType)
-      };
+    const data =
+      transformType === "replace"
+        ? {
+            ...fieldsMappers.getCommonValues(mapValues, this.props.transform),
+            fieldTransformation: {
+              type: "ReplaceValue",
+              ...fieldsMappers.getReplaceValues(mapValues, columnType),
+            },
+          }
+        : {
+            ...filterMappers.getCommonFilterValues(
+              mapValues,
+              this.props.transform
+            ),
+            filter: filterMappers.mapFilterExcludeValues(
+              mapValues,
+              this.props.columnType
+            ),
+          };
 
     return this.props.submit(data, submitType);
-  }
+  };
 
   render() {
     const { fields, transform, submitForm, valueOptions, sqlSize } = this.props;
     return (
       <TransformForm
-        {...formWrapperProps({...this.props})}
+        {...formWrapperProps({ ...this.props })}
         onFormSubmit={this.submit}
         onValuesChange={this.onValuesChange}
       >
@@ -118,42 +128,52 @@ export class ReplaceValuesForm extends Component {
           sqlSize={sqlSize}
           valueOptions={valueOptions}
         />
-        {transform.get('transformType') === 'replace' &&
+        {transform.get("transformType") === "replace" && (
           <ReplaceFooter
-            tabId='replace'
+            tabId="replace"
             fields={fields}
             submitForm={submitForm}
             transform={transform}
           />
-        }
+        )}
       </TransformForm>
     );
   }
 }
 
 function mapStateToProps(state, props) {
-  const columnName = props.transform.get('columnName');
-  const transformType = props.transform.get('transformType');
-  const columnType = props.transform.get('columnType');
-  const cellText = props.transform.getIn(['selection', 'cellText']);
+  const columnName = props.transform.get("columnName");
+  const transformType = props.transform.get("transformType");
+  const columnType = props.transform.get("columnType");
+  const cellText = props.transform.getIn(["selection", "cellText"]);
   const explorePageState = getExploreState(state);
-  const valueOptions = explorePageState.recommended.getIn(['transform', transformType, 'Values', 'values']);
+  const valueOptions = explorePageState.recommended.getIn([
+    "transform",
+    transformType,
+    "Values",
+    "values",
+  ]);
   return {
     columnType,
     valueOptions,
-    sqlSize: explorePageState.ui.get('sqlSize'),
+    sqlSize: explorePageState.ui.get("sqlSize"),
     initialValues: {
-      replacementValue: '',
+      replacementValue: "",
       newFieldName: columnName,
       dropSourceField: true,
       replaceValues: cellText !== undefined ? [cellText] : [],
-      replaceType: 'VALUE',
-      replaceSelectionType: 'VALUE'
-    }
+      replaceType: "VALUE",
+      replaceSelectionType: "VALUE",
+    },
   };
 }
 
-export default connectComplexForm({
-  form: 'replaceValues',
-  overwriteOnInitialValuesChange: false
-}, SECTIONS, mapStateToProps, null)(ReplaceValuesForm);
+export default connectComplexForm(
+  {
+    form: "replaceValues",
+    overwriteOnInitialValuesChange: false,
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(ReplaceValuesForm);

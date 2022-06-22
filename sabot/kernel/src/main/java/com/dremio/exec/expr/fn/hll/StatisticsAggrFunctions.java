@@ -696,4 +696,3 @@ public class StatisticsAggrFunctions {
     }
   }
 }
-

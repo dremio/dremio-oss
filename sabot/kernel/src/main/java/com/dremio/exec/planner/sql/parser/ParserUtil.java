@@ -18,10 +18,14 @@ package com.dremio.exec.planner.sql.parser;
 
 import java.util.List;
 
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlWriterConfig;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 
 import com.google.common.collect.Lists;
 
@@ -45,4 +49,13 @@ public class ParserUtil {
     return SqlParserUtil.toTree(listCondition);
   }
 
+  public static String unparseIdentifier(SqlIdentifier identifier) {
+    StringBuilder buf = new StringBuilder();
+    SqlWriterConfig config = SqlPrettyWriter.config()
+        .withDialect(CalciteSqlDialect.DEFAULT)
+        .withQuoteAllIdentifiers(false);
+    SqlPrettyWriter writer = new SqlPrettyWriter(config, buf);
+    identifier.unparse(writer, 0, 0);
+    return buf.toString();
+  }
 }

@@ -43,7 +43,7 @@ import com.google.common.collect.Maps;
  * Holds record batch loaded from record batch message.
  */
 public class RecordBatchLoader implements VectorAccessible, Iterable<VectorWrapper<?>>, AutoCloseable {
-  private final static Logger logger = LoggerFactory.getLogger(RecordBatchLoader.class);
+  private static final Logger logger = LoggerFactory.getLogger(RecordBatchLoader.class);
 
   private final BufferAllocator allocator;
   private VectorContainer container;

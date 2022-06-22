@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const APP_KEY = 'globalApp';
-const WIKI_SIZE_KEY = 'WIKI_SIZE';
+const APP_KEY = "globalApp";
+const WIKI_SIZE_KEY = "WIKI_SIZE";
 
 const emptyApp = {
   home: {
-    recentDatasetsToken: '',
-    readonlyLinks: '',
-    pinnedItems: {}
+    recentDatasetsToken: "",
+    readonlyLinks: "",
+    pinnedItems: {},
   },
   explore: {
     tasks: [],
     transform: {
-      info: {}
-    }
+      info: {},
+    },
   },
   customData: {},
-  SSOLogin: 'SSO'
+  SSOLogin: "SSO",
 };
 
 export function useProjectContext() {
@@ -45,17 +45,20 @@ export class LocalStorageUtils {
   }
 
   renderSSOLoginScreen() {
-    return localStorage.getItem('SSOLogin');
+    return localStorage.getItem("SSOLogin");
   }
 
   setSSOLoginChoice() {
-    localStorage.getItem('SSOLogin') === 'SSO' ? localStorage.setItem('SSOLogin', 'nameAndPassword') : localStorage.setItem('SSOLogin', 'SSO');
+    localStorage.getItem("SSOLogin") === "SSO"
+      ? localStorage.setItem("SSOLogin", "nameAndPassword")
+      : localStorage.setItem("SSOLogin", "SSO");
   }
 
-  getUserData() { // todo: no fake objects: return null if no user
+  getUserData() {
+    // todo: no fake objects: return null if no user
     try {
-      const userData = JSON.parse(localStorage.getItem('user'));
-      if (typeof userData !== 'object') {
+      const userData = JSON.parse(localStorage.getItem("user"));
+      if (typeof userData !== "object") {
         return {};
       }
       return userData;
@@ -65,11 +68,11 @@ export class LocalStorageUtils {
   }
 
   setUserData(user) {
-    return localStorage.setItem('user', JSON.stringify(user));
+    return localStorage.setItem("user", JSON.stringify(user));
   }
 
   clearUserData() {
-    return localStorage.removeItem('user');
+    return localStorage.removeItem("user");
   }
 
   getAuthToken() {
@@ -87,6 +90,11 @@ export class LocalStorageUtils {
   isUserAnAdmin() {
     const isAdmin = this.getUserData();
     return isAdmin !== null ? isAdmin.admin : null;
+  }
+
+  getUserPermissions() {
+    const user = this.getUserData();
+    return user?.permissions;
   }
 
   getApp() {
@@ -137,19 +145,19 @@ export class LocalStorageUtils {
   }
 
   setDefaultSqlState(sqlState) {
-    this._safeSave('sqlState', sqlState);
+    this._safeSave("sqlState", sqlState);
   }
 
   getDefaultSqlState() {
-    return localStorage.getItem('sqlState') === 'true';
+    return localStorage.getItem("sqlState") === "true";
   }
 
   setWikiVisibleState(isWikiVisible) {
-    this._safeSave('isWikiVisible', isWikiVisible);
+    this._safeSave("isWikiVisible", isWikiVisible);
   }
 
   getWikiVisibleState() {
-    return localStorage.getItem('isWikiVisible') === 'true'; // false is default value
+    return localStorage.getItem("isWikiVisible") === "true"; // false is default value
   }
 
   getWikiSize() {
@@ -161,18 +169,18 @@ export class LocalStorageUtils {
   }
 
   setDefaultSqlHeight(sqlHeight) {
-    this._safeSave('sqlHeight', sqlHeight);
+    this._safeSave("sqlHeight", sqlHeight);
   }
 
   getDefaultSqlHeight() {
-    return +localStorage.getItem('sqlHeight') || 0;
+    return +localStorage.getItem("sqlHeight") || 0;
   }
 
   _safeParse(data) {
     try {
       return JSON.parse(data) || emptyApp;
     } catch (err) {
-      console.error('INVALID DATA TO PARSE');
+      console.error("INVALID DATA TO PARSE");
       return emptyApp;
     }
   }
@@ -196,50 +204,77 @@ export class LocalStorageUtils {
 
   getTransformValue(columnType, toType) {
     const app = this.getApp();
-    return app.transform && app.transform[columnType] && app.transform[columnType][toType]
+    return app.transform &&
+      app.transform[columnType] &&
+      app.transform[columnType][toType]
       ? app.transform[columnType][toType]
       : {};
   }
 
   getInstanceId() {
-    return sessionStorage.getItem('instanceId');
+    return sessionStorage.getItem("instanceId");
   }
 
   setJobColumns(columns) {
-    this._safeSave('columns', columns);
+    this._safeSave("columns", columns);
   }
 
   getJobColumns() {
-    return localStorage.getItem('columns') && JSON.parse(localStorage.getItem('columns'));
+    return (
+      localStorage.getItem("columns") &&
+      JSON.parse(localStorage.getItem("columns"))
+    );
   }
 
   setSqlThemeContrast(theme) {
-    this._safeSave('isContrast', theme);
+    this._safeSave("isContrast", theme);
   }
 
   getSqlThemeContrast() {
-    return localStorage.getItem('isContrast') && JSON.parse(localStorage.getItem('isContrast'));
+    return (
+      localStorage.getItem("isContrast") &&
+      JSON.parse(localStorage.getItem("isContrast"))
+    );
+  }
+
+  setSqlAutocomplete(theme) {
+    this._safeSave("isAutocomplete", theme);
+  }
+
+  getSqlAutocomplete() {
+    // to show icon or not is handled by support flag so we can make this true by default
+    if (localStorage.getItem("isAutocomplete") === null) {
+      return true;
+    }
+    return (
+      localStorage.getItem("isAutocomplete") &&
+      JSON.parse(localStorage.getItem("isAutocomplete"))
+    );
   }
 
   isSideNavWide() {
-    const sideNavWide = localStorage.getItem('sideNavWide');
+    const sideNavWide = localStorage.getItem("sideNavWide");
     if (sideNavWide === null) {
       return false;
     }
 
-    return sideNavWide === 'true';
+    return sideNavWide === "true";
   }
 
   setSideNavWide(isWide) {
-    localStorage.setItem('sideNavWide', isWide);
+    localStorage.setItem("sideNavWide", isWide);
   }
 
   setIsQVJobs(isQVJob) {
-    localStorage.setItem('isQVJob', isQVJob);
+    localStorage.setItem("isQVJob", isQVJob);
   }
 
   getIsQVJobs() {
-    return localStorage.getItem('isQVJob') && localStorage.getItem('isQVJob') !== 'undefined' && JSON.parse(localStorage.getItem('isQVJob'));
+    return (
+      localStorage.getItem("isQVJob") &&
+      localStorage.getItem("isQVJob") !== "undefined" &&
+      JSON.parse(localStorage.getItem("isQVJob"))
+    );
   }
 
   isDataPlaneOnly() {
@@ -248,6 +283,7 @@ export class LocalStorageUtils {
 }
 
 // todo: this shouldn't export `undefined` - it should use an in-memory only store
-const localStorageUtils = typeof localStorage !== 'undefined' ? new LocalStorageUtils() : undefined;
+const localStorageUtils =
+  typeof localStorage !== "undefined" ? new LocalStorageUtils() : undefined;
 
 export default localStorageUtils;

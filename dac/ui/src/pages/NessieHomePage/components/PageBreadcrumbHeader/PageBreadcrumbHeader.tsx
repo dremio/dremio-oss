@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useIntl } from 'react-intl';
+import { useIntl } from "react-intl";
 
 //@ts-ignore
-import { CopyToClipboard } from 'dremio-ui-lib';
-import BranchPicker from '@app/pages/HomePage/components/BranchPicker/BranchPicker';
-import NessieBreadcrumb from '../NessieBreadcrumb/NessieBreadcrumb';
-import { useNessieContext } from '../../utils/context';
+import { CopyToClipboard } from "dremio-ui-lib";
+import BranchPicker from "@app/pages/HomePage/components/BranchPicker/BranchPicker";
+import NessieBreadcrumb from "../NessieBreadcrumb/NessieBreadcrumb";
+import { useNessieContext } from "../../utils/context";
 
-import './PageBreadcrumbHeader.less';
+import "./PageBreadcrumbHeader.less";
 
 function PageBreadcrumbHeader({
   path,
   rightContent,
-  hasBranchPicker = true
+  hasBranchPicker = true,
 }: {
   path?: string[];
   rightContent?: any;
@@ -36,20 +36,18 @@ function PageBreadcrumbHeader({
   const { source } = useNessieContext();
 
   return (
-    <div className='pageBreadcrumbHeader'>
-      <span className='pageBreadcrumbHeader-crumbContainer'>
+    <div className="pageBreadcrumbHeader">
+      <span className="pageBreadcrumbHeader-crumbContainer">
         <NessieBreadcrumb path={path} />
-        {hasBranchPicker && <BranchPicker />}
-        <span className='pageBreadcrumbHeader-copyButton'>
+        {hasBranchPicker && <BranchPicker redirectUrl="/" />}
+        <span className="pageBreadcrumbHeader-copyButton">
           <CopyToClipboard
-            tooltipText={intl.formatMessage({ id: 'Common.PathCopied' })}
-            value={[source.name, ...(path || [])].join('.')}
+            tooltipText={intl.formatMessage({ id: "Common.PathCopied" })}
+            value={[source.name, ...(path || [])].join(".")}
           />
         </span>
       </span>
-      <span className='pageBreadcrumbHeader-rightContent'>
-        {rightContent}
-      </span>
+      <span className="pageBreadcrumbHeader-rightContent">{rightContent}</span>
     </div>
   );
 }

@@ -13,24 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { loadSpaceListData, ALL_SPACES_VIEW_ID } from '@app/actions/resources/spaces';
-import { getViewState } from '@app/selectors/resources';
-import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import {
+  loadSpaceListData,
+  ALL_SPACES_VIEW_ID,
+} from "@app/actions/resources/spaces";
+import { getViewState } from "@app/selectors/resources";
+import { KeyChangeTrigger } from "@app/components/KeyChangeTrigger";
 
 /**
  * Indicates if load process in progress. Used to not send several requests at a time
  */
 let isInProgress = false;
 
-const mapStateToProps = state => ({
-  isDataInvalidated: getViewState(state, ALL_SPACES_VIEW_ID).get('invalidated') || false
+const mapStateToProps = (state) => ({
+  isDataInvalidated:
+    getViewState(state, ALL_SPACES_VIEW_ID).get("invalidated") || false,
 });
 
 const mapDispatchToProps = {
-  loadSpaceListData
+  loadSpaceListData,
 };
 
 /**
@@ -41,7 +45,7 @@ const mapDispatchToProps = {
 export class SpacesLoader extends PureComponent {
   static propTypes = {
     isDataInvalidated: PropTypes.bool.isRequired,
-    loadSpaceListData: PropTypes.func.isRequired
+    loadSpaceListData: PropTypes.func.isRequired,
   };
 
   componentDidMount() {
@@ -55,26 +59,30 @@ export class SpacesLoader extends PureComponent {
     if (isInvalidated) {
       this.load();
     }
-  }
+  };
 
   load() {
     if (!isInProgress) {
       isInProgress = true;
-      this.props.loadSpaceListData()
+      this.props
+        .loadSpaceListData()
         .then((result) => {
           isInProgress = false;
           return result;
-        }).catch(() => {
+        })
+        .catch(() => {
           isInProgress = false;
         });
     }
   }
 
   render() {
-    return <KeyChangeTrigger
-      keyValue={this.props.isDataInvalidated}
-      onChange={this.onViewStateInvalidateChange}
-    />;
+    return (
+      <KeyChangeTrigger
+        keyValue={this.props.isDataInvalidated}
+        onChange={this.onViewStateInvalidateChange}
+      />
+    );
   }
 }
 

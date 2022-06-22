@@ -13,115 +13,126 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import { Component } from 'react';
+import { shallow } from "enzyme";
+import { Component } from "react";
 
-import FormDirtyStateWatcher from './FormDirtyStateWatcher';
+import FormDirtyStateWatcher from "./FormDirtyStateWatcher";
 
-describe('FormDirtyStateWatcher', () => {
-
+describe("FormDirtyStateWatcher", () => {
   const MockFormComponent = class extends Component {
     render() {
-      return (<div>Fake Form</div>);
+      return <div>Fake Form</div>;
     }
   };
 
-  const TestComponent = FormDirtyStateWatcher(MockFormComponent, ['arrayBar', 'foo']);
+  const TestComponent = FormDirtyStateWatcher(MockFormComponent, [
+    "arrayBar",
+    "foo",
+  ]);
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       dirty: false,
-      initialValuesForDirtyStateWatcher: { // added by connectComplexForm
-        arrayBar: []
+      initialValuesForDirtyStateWatcher: {
+        // added by connectComplexForm
+        arrayBar: [],
       },
       values: {
-        arrayBar: []
+        arrayBar: [],
       },
       handleSubmit: sinon.spy(),
-      updateFormDirtyState: sinon.spy()
+      updateFormDirtyState: sinon.spy(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should set state dirty to true when form is dirty', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should set state dirty to true when form is dirty", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     const instance = wrapper.instance();
     wrapper.setProps({
-      dirty: true
+      dirty: true,
     });
     expect(instance.state.dirty).to.be.true;
   });
 
-  it('should call updateFormDirtyState with true when form is dirty', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should call updateFormDirtyState with true when form is dirty", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     wrapper.setProps({
-      dirty: true
+      dirty: true,
     });
     expect(minimalProps.updateFormDirtyState.calledWith(true)).to.be.true;
   });
 
-  it('should set state dirty to true when arrayBar value has changed', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  it("should set state dirty to true when arrayBar value has changed", () => {
+    const wrapper = shallow(<TestComponent {...minimalProps} />);
     const instance = wrapper.instance();
     wrapper.setProps({
       values: {
-        arrayBar: [{}]
-      }
+        arrayBar: [{}],
+      },
     });
     expect(instance.state.dirty).to.be.true;
   });
 
-  describe('#areArrayFieldsDirty', () => {
+  describe("#areArrayFieldsDirty", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<TestComponent {...minimalProps}/>);
+      wrapper = shallow(<TestComponent {...minimalProps} />);
       instance = wrapper.instance();
     });
 
-    it('should return true when value has been changed', () => {
+    it("should return true when value has been changed", () => {
       wrapper.setProps({
         values: {
-          arrayBar: [{}]
-        }
+          arrayBar: [{}],
+        },
       });
       expect(instance.areArrayFieldsDirty(wrapper.props())).to.be.true;
     });
 
-    it('should return false when value has not been changed', () => {
+    it("should return false when value has not been changed", () => {
       expect(instance.areArrayFieldsDirty(wrapper.props())).to.be.false;
     });
 
-    it('should ignore undefined fields when comparing', () => {
-      wrapper = shallow(<TestComponent {...minimalProps} initialValuesForDirtyStateWatcher={{
-        arrayBar: [{id: undefined, value: '1'}, {value: '2'}]
-      }} />);
+    it("should ignore undefined fields when comparing", () => {
+      wrapper = shallow(
+        <TestComponent
+          {...minimalProps}
+          initialValuesForDirtyStateWatcher={{
+            arrayBar: [{ id: undefined, value: "1" }, { value: "2" }],
+          }}
+        />
+      );
       wrapper.setProps({
         values: {
-          arrayBar: [{value: '1'}, {id: undefined, value: '2'}]
-        }
+          arrayBar: [{ value: "1" }, { id: undefined, value: "2" }],
+        },
       });
-      expect(wrapper.instance().areArrayFieldsDirty(wrapper.props())).to.be.false;
+      expect(wrapper.instance().areArrayFieldsDirty(wrapper.props())).to.be
+        .false;
     });
   });
 
-  describe('#_removeKeysWithUndefinedValue', () => {
-    it('should replace undefined values inside objects, change undefined to null, and keep nonobjects the same', () => {
-      const wrapper = shallow(<TestComponent {...minimalProps}/>);
+  describe("#_removeKeysWithUndefinedValue", () => {
+    it("should replace undefined values inside objects, change undefined to null, and keep nonobjects the same", () => {
+      const wrapper = shallow(<TestComponent {...minimalProps} />);
       const instance = wrapper.instance();
       const valuesList = [
-        {key1: 'foo'},
-        {key2: undefined},
+        { key1: "foo" },
+        { key2: undefined },
         null,
         1,
-        undefined
+        undefined,
       ];
-      const expected = [{key1: 'foo'}, {}, null, 1, null];
-      expect(instance._removeKeysWithUndefinedValue(valuesList)).to.be.eql(expected);
+      const expected = [{ key1: "foo" }, {}, null, 1, null];
+      expect(instance._removeKeysWithUndefinedValue(valuesList)).to.be.eql(
+        expected
+      );
     });
   });
 });

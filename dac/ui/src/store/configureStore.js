@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { isProduction } from '@app/utils/config';
+import { isProduction } from "@app/utils/config";
 
-import { createStore, applyMiddleware, compose } from 'redux';
-import thunk from 'redux-thunk';
-import createLogger from 'redux-logger';
-import { apiMiddleware } from 'redux-api-middleware';
-import { browserHistory } from 'react-router';
-import { routerMiddleware } from 'react-router-redux';
-import { mockApiMiddleware } from 'mockApi';
-import createSagaMiddleware from 'redux-saga';
+import { createStore, applyMiddleware, compose } from "redux";
+import thunk from "redux-thunk";
+import createLogger from "redux-logger";
+import { apiMiddleware } from "redux-api-middleware";
+import { browserHistory } from "react-router";
+import { routerMiddleware } from "react-router-redux";
+import { mockApiMiddleware } from "mockApi";
+import createSagaMiddleware from "redux-saga";
 
-import rootReducer from 'reducers';
+import rootReducer from "reducers";
 
-import headerMiddleware from './headerMiddleware';
-import lastResponseMiddleware from './lastResponseMiddleware';
-import authMiddleware from './authMiddleware';
-import serverStatusMiddleware from './serverStatusMiddleware';
-import serverErrorMiddleware from './serverErrorMiddleware';
-import runSaga from './runSaga';
+import headerMiddleware from "./headerMiddleware";
+import lastResponseMiddleware from "./lastResponseMiddleware";
+import authMiddleware from "./authMiddleware";
+import serverStatusMiddleware from "./serverStatusMiddleware";
+import serverErrorMiddleware from "./serverErrorMiddleware";
+import runSaga from "./runSaga";
+import { setStore } from "./store";
 
 // todo: actually filter dev-only stuff from prod builds
 
@@ -49,28 +50,27 @@ const middleWares = [
   serverStatusMiddleware,
   sagaMiddleware,
   isDev && createLogger({ collapsed: true }),
-  routerMiddleware(browserHistory)
+  routerMiddleware(browserHistory),
 ].filter(Boolean);
 
 const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
-const finalCreateStore = composeEnhancers(...[
-  applyMiddleware(...middleWares)
-].filter(Boolean))(createStore);
-
-export let store;
+const finalCreateStore = composeEnhancers(
+  ...[applyMiddleware(...middleWares)].filter(Boolean)
+)(createStore);
 
 export default function configureStore(initialState) {
-  store = finalCreateStore(rootReducer, initialState);
+  const store = finalCreateStore(rootReducer, initialState);
   runSaga(sagaMiddleware);
 
   if (isDev && module.hot) {
     // Enable Webpack hot module replacement for reducers
-    module.hot.accept('../reducers', () => {
-      const nextRootReducer = require('../reducers');
+    module.hot.accept("../reducers", () => {
+      const nextRootReducer = require("../reducers");
       store.replaceReducer(nextRootReducer);
     });
   }
 
+  setStore(store);
   return store;
 }

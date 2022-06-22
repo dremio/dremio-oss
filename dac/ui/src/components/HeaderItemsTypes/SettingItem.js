@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import './SettingItem.less';
+import "./SettingItem.less";
 
 export default class SettingItem extends Component {
   static propTypes = {
-    onClick: PropTypes.func
-  }
+    onClick: PropTypes.func,
+  };
 
   constructor(props) {
     super(props);
@@ -30,9 +30,9 @@ export default class SettingItem extends Component {
 
   render() {
     return (
-      <div className='setting-item' onClick={this.props.onClick}>
-        <i className='fa fa-cog'></i>
-        <i className='fa fa-angle-down'></i>
+      <div className="setting-item" onClick={this.props.onClick}>
+        <i className="fa fa-cog"></i>
+        <i className="fa fa-angle-down"></i>
       </div>
     );
   }

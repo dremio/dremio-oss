@@ -19,6 +19,7 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.server.ApiErrorModel;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -34,38 +35,42 @@ public class InitialPreviewResponse {
   private final String paginationUrl;
   private final History history;
   private final JobId jobId;
+  private final SessionId sessionId;
   // initial preview can fail when the source being queried has become unavailable
   private final ApiErrorModel error;
 
   @JsonCreator
   public InitialPreviewResponse(
-      @JsonProperty("dataset") DatasetUI dataset,
-      @JsonProperty("data") JobDataFragment data,
-      @JsonProperty("paginationUrl") String paginationUrl,
-      @JsonProperty("approximate") boolean isApproximate,
-      @JsonProperty("jobId") JobId jobId,
-      @JsonProperty("history") History history,
-      @JsonProperty("error") ApiErrorModel error) {
+    @JsonProperty("dataset") DatasetUI dataset,
+    @JsonProperty("data") JobDataFragment data,
+    @JsonProperty("paginationUrl") String paginationUrl,
+    @JsonProperty("approximate") boolean isApproximate,
+    @JsonProperty("jobId") JobId jobId,
+    @JsonProperty("sessionId") SessionId sessionId,
+    @JsonProperty("history") History history,
+    @JsonProperty("error") ApiErrorModel error) {
     this.dataset = dataset;
     this.data = data;
     this.isApproximate = isApproximate;
     this.paginationUrl = paginationUrl;
     this.history = history;
     this.jobId = jobId;
+    this.sessionId = sessionId;
     this.error = error;
   }
 
-  public static InitialPreviewResponse of(DatasetUI dataset, JobId jobId, JobDataFragment data, boolean isApproximate,
-      History history, ApiErrorModel error) {
+  public static InitialPreviewResponse of(DatasetUI dataset, JobId jobId, SessionId sessionId,
+                                          JobDataFragment data, boolean isApproximate,
+                                          History history, ApiErrorModel error) {
 
     return new InitialPreviewResponse(dataset, data, JobResource.getPaginationURL(jobId),
-      isApproximate, jobId, history, error);
+      isApproximate, jobId, sessionId, history, error);
   }
 
   public static InitialPreviewResponse of(DatasetUI dataset, boolean isApproximate,
                                           History history, ApiErrorModel error) {
     return new InitialPreviewResponse(dataset, null, null,
-      isApproximate, null, history, error);
+      isApproximate, null, null, history, error);
   }
 
   /**
@@ -74,6 +79,14 @@ public class InitialPreviewResponse {
    */
   public JobId getJobId(){
     return jobId;
+  }
+
+  /**
+   * Get session id for preview.
+   * @return
+   */
+  public SessionId getSessionId(){
+    return sessionId;
   }
 
   /**

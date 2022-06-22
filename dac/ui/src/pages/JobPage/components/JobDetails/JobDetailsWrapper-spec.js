@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { JobDetailsWrapper } from './JobDetailsWrapper';
+import { JobDetailsWrapper } from "./JobDetailsWrapper";
 
-describe('JobDetailsWrapper', () => {
-
+describe("JobDetailsWrapper", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -27,63 +26,65 @@ describe('JobDetailsWrapper', () => {
       cancelJob: sinon.spy(),
       downloadFile: sinon.spy(),
       askGnarly: sinon.spy(),
-      viewState: Immutable.Map()
+      viewState: Immutable.Map(),
     };
     commonProps = {
       ...minimalProps,
-      jobId: '123',
-      jobDetails: Immutable.fromJS({state: 'COMPLETED', attemptDetails: []}),
+      jobId: "123",
+      jobDetails: Immutable.fromJS({ state: "COMPLETED", attemptDetails: [] }),
       viewStateWrapper: Immutable.Map(),
       location: {},
-      updateViewState: sinon.stub()
+      updateViewState: sinon.stub(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<JobDetailsWrapper {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<JobDetailsWrapper {...minimalProps} />);
     expect(wrapper).to.have.length(1);
     wrapper.instance().componentWillUnmount();
   });
 
-  it('should render JobDetails', () => {
-    const wrapper = shallow(<JobDetailsWrapper {...commonProps}/>);
-    expect(wrapper.find('JobDetails')).to.have.length(1);
+  it("should render JobDetails", () => {
+    const wrapper = shallow(<JobDetailsWrapper {...commonProps} />);
+    expect(wrapper.find("JobDetails")).to.have.length(1);
     wrapper.instance().componentWillUnmount();
   });
 
-  describe('componentWillReceiveProps', () => {
-    it('should call loadJobDetails when jobId changes', () => {
-      const wrapper = shallow(<JobDetailsWrapper {...commonProps}/>);
+  describe("componentWillReceiveProps", () => {
+    it("should call loadJobDetails when jobId changes", () => {
+      const wrapper = shallow(<JobDetailsWrapper {...commonProps} />);
       expect(commonProps.loadJobDetails).to.be.calledOnce;
 
-      wrapper.setProps({jobId: commonProps.jobId});
+      wrapper.setProps({ jobId: commonProps.jobId });
       expect(commonProps.loadJobDetails).to.be.calledOnce;
-      wrapper.setProps({jobId: '456'});
+      wrapper.setProps({ jobId: "456" });
       expect(commonProps.loadJobDetails).to.be.calledTwice;
       wrapper.instance().componentWillUnmount();
     });
   });
 
-  describe('load', () => {
-    it('should handle 404 responses and call updateViewState', (done) => {
+  describe("load", () => {
+    it("should handle 404 responses and call updateViewState", (done) => {
       const props = {
         ...commonProps,
-        loadJobDetails: sinon.stub().returns(Promise.resolve({
-          meta: {
-            jobId: commonProps.jobId
-          },
-          error: true,
-          payload: {
-            status: 404
-          }
-        })),
+        loadJobDetails: sinon.stub().returns(
+          Promise.resolve({
+            meta: {
+              jobId: commonProps.jobId,
+            },
+            error: true,
+            payload: {
+              status: 404,
+            },
+          })
+        ),
         updateViewState: () => {
           // we expect updateViewState to get called
           done();
-        }
+        },
       };
 
-      const wrapper = shallow(<JobDetailsWrapper {...props}/>);
+      const wrapper = shallow(<JobDetailsWrapper {...props} />);
       wrapper.instance().componentWillUnmount();
     });
   });

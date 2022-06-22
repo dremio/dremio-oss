@@ -91,7 +91,7 @@ public class GandivaRegistryWrapper {
     }
 
     //blacklisted while upgrading arrow and DX-44699
-    String[] blacklisted_funcs = {"castVARBINARY", "regexp_replace", "castINTERVALDAY", "castNULLABLEINTERVALDAY","castINTERVALYEAR", "castNULLABLEINTERVALYEAR", "castBIT", "castBOOLEAN", "left", "right", "is true", "isnotfalse", "is not false", "is false", "isnottrue", "is not true", "to_timestamp", "unhex", "from_hex", "soundex", "concat_ws", "datediff"};
+    String[] blacklisted_funcs = {"castVARBINARY", "regexp_replace", "castINTERVALDAY", "castNULLABLEINTERVALDAY","castINTERVALYEAR", "castNULLABLEINTERVALYEAR", "castBIT", "castBOOLEAN", "to_timestamp", "soundex"};
 
     for(String str: blacklisted_funcs) {
       if (signature.getName().equalsIgnoreCase(str)) {

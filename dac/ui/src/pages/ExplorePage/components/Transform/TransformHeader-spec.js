@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
 import {
   TransformHeader,
@@ -21,65 +21,67 @@ import {
   SPLIT_TAB,
   REPLACE_TAB,
   KEEP_ONLY_TAB,
-  EXCLUDE_TAB
-} from './TransformHeader';
+  EXCLUDE_TAB,
+} from "./TransformHeader";
 
-describe('TransformHeader', () => {
-
+describe("TransformHeader", () => {
   let commonProps;
   let context;
   beforeEach(() => {
     commonProps = {
       transform: Immutable.Map({
-        column: 'foo'
+        column: "foo",
       }),
       closeIconHandler: sinon.spy(),
       closeIcon: true,
-      separator: ' ',
-      text: 'text',
+      separator: " ",
+      text: "text",
       location: {
         query: {
-          hasSelection: true
+          hasSelection: true,
         },
         state: {
-          listOfItems: '',
-          columnType: 'TEXT'
-        }
-      }
+          listOfItems: "",
+          columnType: "TEXT",
+        },
+      },
     };
     context = {
-      router : {push: sinon.spy()}
+      router: { push: sinon.spy() },
     };
   });
 
-  it('should render .raw-wizard-header', () => {
-    const wrapper = shallow(<TransformHeader {...commonProps}/>, {context});
+  it("should render .raw-wizard-header", () => {
+    const wrapper = shallow(<TransformHeader {...commonProps} />, { context });
     const children = wrapper.children();
     const content = children.at(0);
 
-    const {location, transform} = commonProps;
-    expect(content.hasClass('raw-wizard-header')).to.equal(true);
-    expect(content.find('Link').length).to.equal(3);
-    expect(content.find('Link').at(0).props().to).to.eql(
-      {...location, state: {...transform.toJS(), transformType: 'replace'}}
-    );
+    const { location, transform } = commonProps;
+    expect(content.hasClass("raw-wizard-header")).to.equal(true);
+    expect(content.find("Link").length).to.equal(3);
+    expect(content.find("Link").at(0).props().to).to.eql({
+      ...location,
+      state: { ...transform.toJS(), transformType: "replace" },
+    });
   });
 
-  describe('#isTabEnabled', () => {
-    it('should return true if id=extract and type of column is LIST or MAP', () => {
+  describe("#isTabEnabled", () => {
+    it("should return true if id=extract and type of column is LIST or MAP", () => {
       const props = {
         ...commonProps,
         transform: Immutable.Map({
-          column: 'foo',
-          columnType: 'LIST'
-        })
+          column: "foo",
+          columnType: "LIST",
+        }),
       };
-      const wrapper = shallow(<TransformHeader {...props}/>, {context});
+      const wrapper = shallow(<TransformHeader {...props} />, { context });
       const instance = wrapper.instance();
 
       expect(instance.isTabEnabled(EXTRACT_TAB)).to.eql(true);
 
-      wrapper.setProps({ transform: Immutable.Map({ column: 'foo', columnType: 'MAP'}) });
+      wrapper.setProps({
+        transform: Immutable.Map({ column: "foo", columnType: "MAP" }),
+      });
 
       expect(instance.isTabEnabled(EXTRACT_TAB)).to.eql(true);
       expect(instance.isTabEnabled(REPLACE_TAB)).to.eql(false);
@@ -88,16 +90,16 @@ describe('TransformHeader', () => {
       expect(instance.isTabEnabled(EXCLUDE_TAB)).to.eql(false);
     });
 
-    it('should return true if id=replace/keeponly/exclude and type of column is not TEXT type', () => {
+    it("should return true if id=replace/keeponly/exclude and type of column is not TEXT type", () => {
       const props = {
         ...commonProps,
         transform: Immutable.Map({
-          column: 'foo',
-          columnType: 'INTEGER'
-        })
+          column: "foo",
+          columnType: "INTEGER",
+        }),
       };
 
-      const wrapper = shallow(<TransformHeader {...props}/>, {context});
+      const wrapper = shallow(<TransformHeader {...props} />, { context });
       const instance = wrapper.instance();
 
       expect(instance.isTabEnabled(SPLIT_TAB)).to.eql(false);
@@ -107,16 +109,16 @@ describe('TransformHeader', () => {
       expect(instance.isTabEnabled(EXCLUDE_TAB)).to.eql(true);
     });
 
-    it('should return true for all tabs if type of column is TEXT', () => {
+    it("should return true for all tabs if type of column is TEXT", () => {
       const props = {
         ...commonProps,
         transform: Immutable.Map({
-          column: 'foo',
-          columnType: 'TEXT'
-        })
+          column: "foo",
+          columnType: "TEXT",
+        }),
       };
 
-      const wrapper = shallow(<TransformHeader {...props}/>, {context});
+      const wrapper = shallow(<TransformHeader {...props} />, { context });
       const instance = wrapper.instance();
 
       expect(instance.isTabEnabled(SPLIT_TAB)).to.eql(true);

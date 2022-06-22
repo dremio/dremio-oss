@@ -13,36 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { showConfirmationDialog } from 'actions/confirmation';
-import menuUtils from 'utils/menuUtils';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { showConfirmationDialog } from "actions/confirmation";
+import menuUtils from "utils/menuUtils";
+import { withRouter } from "react-router";
+import { compose } from "redux";
 
-import { removeSource } from 'actions/resources/sources';
-import AllSourcesMenuMixin from 'dyn-load/components/Menus/HomePage/AllSourcesMenuMixin';
+import { removeSource } from "actions/resources/sources";
+import AllSourcesMenuMixin from "dyn-load/components/Menus/HomePage/AllSourcesMenuMixin";
 
 @AllSourcesMenuMixin
 export class AllSourcesMenu extends PureComponent {
-
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     closeMenu: PropTypes.func.isRequired,
     removeItem: PropTypes.func.isRequired,
-    showConfirmationDialog: PropTypes.func.isRequired
-  }
+    showConfirmationDialog: PropTypes.func.isRequired,
+    location: PropTypes.object,
+    router: PropTypes.object,
+  };
   static contextTypes = {
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   handleRemoveSource = () => {
     menuUtils.showConfirmRemove(this.props);
-  }
+  };
 }
 
-export default connect(null, {
-  removeItem: removeSource,
-  showConfirmationDialog
-})(AllSourcesMenu);
-
+export default compose(
+  connect(null, {
+    removeItem: removeSource,
+    showConfirmationDialog,
+  }),
+  withRouter
+)(AllSourcesMenu);

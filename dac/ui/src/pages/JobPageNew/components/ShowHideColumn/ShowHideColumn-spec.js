@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import ShowHideColumn from './ShowHideColumn';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import ShowHideColumn from "./ShowHideColumn";
 
-describe('ShowHideColumn', () => {
-
+describe("ShowHideColumn", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       columnFilterSelect: sinon.spy(),
       columnFilterUnSelect: sinon.spy(),
-      defaultValue: Immutable.fromJS([])
+      defaultValue: Immutable.fromJS([]),
     };
   });
 
-  it.skip('should render with minimal props without exploding', () => {
+  it.skip("should render with minimal props without exploding", () => {
     const wrapper = shallow(<ShowHideColumn {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-
 });

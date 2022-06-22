@@ -35,7 +35,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.DirectorySupportLackingFileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
@@ -49,7 +49,7 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
  * Plugin for Google Cloud Storage.
  */
 @Options
-public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
+public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin<GCSConf> {
   private static final Logger logger = LoggerFactory.getLogger(GoogleStoragePlugin.class);
 
   public static final BooleanValidator ASYNC_READS = new BooleanValidator("store.gcs.async", true);

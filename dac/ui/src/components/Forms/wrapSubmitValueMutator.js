@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
-
+import PropTypes from "prop-types";
 
 /**
  * A HOC that wraps redux form and overrides handleSubmit to call {@see mutateSubmitValues} before passing
@@ -29,15 +28,18 @@ import PropTypes from 'prop-types';
 export default function wrapSubmitValueMutator(mutateSubmitValues, Form) {
   const Wrapper = class extends Component {
     static propTypes = {
-      handleSubmit: PropTypes.func.isRequired // from redux-form
-    }
+      handleSubmit: PropTypes.func.isRequired, // from redux-form
+    };
 
     handleSubmit = (onSubmit) => {
+      if (!onSubmit) {
+        return this.props.handleSubmit;
+      }
       return this.props.handleSubmit((values) => {
         mutateSubmitValues(values, this.props);
         return onSubmit(values);
       });
-    }
+    };
 
     render() {
       return <Form {...this.props} handleSubmit={this.handleSubmit} />;

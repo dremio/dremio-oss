@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -40,6 +41,7 @@ import com.dremio.datastore.indexed.doughnut.Doughnut;
 import com.dremio.datastore.indexed.doughnut.DoughnutIndexKeys;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -56,6 +58,7 @@ public abstract class AbstractTestIndexedStore {
   private final Doughnut d1 = new Doughnut("original", "glazed", 1.29);
   private final Doughnut d2 = new Doughnut("custard", "bavarian creme with chocolate icing", 1.39);
   private final Doughnut d3 = new Doughnut("sourdough", "cake with glaze", 1.10);
+  private final Map<String, Doughnut> doughnutMap = ImmutableMap.of("a", d1, "b", d2, "c", d3);
 
   private List<Integer> getCounts(String... filters) {
     List<SearchQuery> queries = Lists.transform(Arrays.asList(filters), new Function<String, SearchQuery>() {
@@ -398,6 +401,18 @@ public abstract class AbstractTestIndexedStore {
     verifyDoughnutsRetrieved(ImmutableList.of(), toListOfDoughnuts(kvStore.find(condition)));
   }
 
+  @Test
+  public void version(){
+    kvStore.put("a", d1);
+    kvStore.put("b", d2);
+    kvStore.put("c", d3);
+
+    final SearchQuery termQuery = SearchQueryUtils.newTermQuery("version", kvStore.version());
+    final FindByCondition condition = new ImmutableFindByCondition.Builder().setCondition(termQuery).build();
+    final List<Doughnut> doughnuts = toListOfDoughnuts(kvStore.find(condition));
+    verifyDoughnutsRetrieved(new ArrayList<>(doughnutMap.values()), toListOfDoughnuts(kvStore.find(condition)));
+  }
+
   private void addData(int numDoughnuts) {
     for (int i = 0; i < numDoughnuts; i++) {
       final String name = Integer.toString(i);
@@ -413,9 +428,7 @@ public abstract class AbstractTestIndexedStore {
   }
 
   protected void addDoughnutsToStore() {
-    kvStore.put("a", d1);
-    kvStore.put("b", d2);
-    kvStore.put("c", d3);
+    doughnutMap.forEach( (key, value) -> kvStore.put(key, value));
   }
 
   private void checkFindByName(Doughnut d) {
@@ -457,5 +470,26 @@ public abstract class AbstractTestIndexedStore {
     return StreamSupport.stream(docs.spliterator(), false)
       .map(doc -> doc.getValue())
       .collect(Collectors.toList());
+  }
+
+
+  @Test
+  public void wildcard() {
+    addDoughnutsToStore();
+    final Doughnut e = new Doughnut("rigi", "strawberry", 4.5, 2, 3L);
+    kvStore.put("e", e);
+    final SearchQuery containsQuery = SearchQueryUtils.newWildcardQuery("name", "rigi");
+    final FindByCondition condition = new ImmutableFindByCondition.Builder().setCondition(containsQuery).build();
+    verifyDoughnutsRetrieved(ImmutableList.of(e), toListOfDoughnuts(kvStore.find(condition)));
+  }
+
+  @Test
+  public void wildcardLeadingTrailing() {
+    addDoughnutsToStore();
+    final Doughnut e = new Doughnut("rigi", "strawberry", 4.5, 2, 3L);
+    kvStore.put("e", e);
+    final SearchQuery containsQuery = SearchQueryUtils.newWildcardQuery("name", "*rigi*");
+    final FindByCondition condition = new ImmutableFindByCondition.Builder().setCondition(containsQuery).build();
+    verifyDoughnutsRetrieved(ImmutableList.of(getD1(), e), toListOfDoughnuts(kvStore.find(condition)));
   }
 }

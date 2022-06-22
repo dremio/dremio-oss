@@ -13,42 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import { injectIntl } from "react-intl";
 
-import { getLocation } from 'selectors/routing';
+import { getLocation } from "selectors/routing";
 
-import Menu from 'components/Menus/Menu';
-import MenuItemLink from 'components/Menus/MenuItemLink';
-import AdditionalHelpMenu from '@inject/components/AdditionalHelpMenu';
+import Menu from "components/Menus/Menu";
+import MenuItemLink from "components/Menus/MenuItemLink";
+import AdditionalHelpMenu from "@inject/components/AdditionalHelpMenu";
 
 @injectIntl
 export class HelpMenu extends Component {
   static propTypes = {
     closeMenu: PropTypes.func.isRequired,
     location: PropTypes.object.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
     const { closeMenu, location, intl } = this.props;
 
-    return <Menu>
-      <MenuItemLink href={intl.formatMessage({ id: 'HeaderMenu.Documentation.Link' })} external newWindow closeMenu={closeMenu}
-        text={intl.formatMessage({ id: 'HeaderMenu.Documentation' })} />
-      <MenuItemLink href='https://community.dremio.com' external newWindow closeMenu={closeMenu}
-        text={intl.formatMessage({ id: 'HeaderMenu.CommunitySite' })} />
-      <MenuItemLink href={{...location, state: {modal: 'AboutModal'}}} closeMenu={closeMenu}
-        text={intl.formatMessage({ id: 'App.AboutHeading' })} />
-      {AdditionalHelpMenu && <AdditionalHelpMenu closeMenu={closeMenu}/>}
-    </Menu>;
+    return (
+      <Menu>
+        <MenuItemLink
+          href={intl.formatMessage({ id: "HeaderMenu.Documentation.Link" })}
+          external
+          newWindow
+          closeMenu={closeMenu}
+          text={intl.formatMessage({ id: "HeaderMenu.Documentation" })}
+        />
+        <MenuItemLink
+          href="https://community.dremio.com"
+          external
+          newWindow
+          closeMenu={closeMenu}
+          text={intl.formatMessage({ id: "HeaderMenu.CommunitySite" })}
+        />
+        <MenuItemLink
+          href={{ ...location, state: { modal: "AboutModal" } }}
+          closeMenu={closeMenu}
+          text={intl.formatMessage({ id: "App.AboutHeading" })}
+        />
+        {AdditionalHelpMenu && <AdditionalHelpMenu closeMenu={closeMenu} />}
+      </Menu>
+    );
   }
 }
 
-const mapStateToProps = state => ({
-  location: getLocation(state)
+const mapStateToProps = (state) => ({
+  location: getLocation(state),
 });
 
 export default connect(mapStateToProps)(HelpMenu);

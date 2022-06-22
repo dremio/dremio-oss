@@ -13,22 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import param from 'jquery-param';
+import param from "jquery-param";
 
 // history needs current location because its resourcePath is not enough to get client href
 //eg /dataset/tmp.UNTITLED/version/00a7024a0e8d4519
 
 class HistoryResourcePathUtils {
   toFullPath(resourcePath) {
-    const parts = resourcePath.split('/');
+    const parts = resourcePath.split("/");
     return parts[2];
   }
 
   toHref(resourcePath, previousLocation) {
-    const resourcePathParts = resourcePath.split('/');
+    const resourcePathParts = resourcePath.split("/");
 
-    return previousLocation.pathname + '?' + param(
-      {...previousLocation.query, version: resourcePathParts[4], history: true}
+    return (
+      previousLocation.pathname +
+      "?" +
+      param({
+        ...previousLocation.query,
+        version: resourcePathParts[4],
+        history: true,
+      })
     );
   }
 }

@@ -13,51 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import DocumentTitle from 'react-document-title';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import DocumentTitle from "react-document-title";
 
-import { page } from 'uiTheme/radium/general';
-import config from '@inject/utils/config';
+import { page } from "uiTheme/radium/general";
+import config from "@inject/utils/config";
 
-import getSectionsConfig from '@inject/pages/AdminPage/navSections';
-import AdminMixin from 'dyn-load/pages/AdminPage/AdminMixin.js';
+import getSectionsConfig from "@inject/pages/AdminPage/navSections";
+import AdminMixin from "dyn-load/pages/AdminPage/AdminMixin.js";
 
-import AdminPageView from './AdminPageView';
+import AdminPageView from "./AdminPageView";
 
 @AdminMixin
 class AdminPage extends PureComponent {
-
   static propTypes = {
     location: PropTypes.object.isRequired,
     routeParams: PropTypes.object,
-    children: PropTypes.node
-  }
+    children: PropTypes.node,
+  };
 
   constructor(props) {
     super(props);
 
     this.state = {
-      sections: []
+      sections: [],
     };
 
-    getSectionsConfig(config).then((sections) => {
-      this.setState({sections});
-    }).catch((e) => {
-      this.handleMenuCatchBlock(e);
-    });
+    getSectionsConfig(config)
+      .then((sections) => {
+        this.setState({ sections });
+        return null;
+      })
+      .catch((e) => {
+        this.handleMenuCatchBlock(e);
+      });
   }
 
   render() {
     const { routeParams, location, children } = this.props;
     return (
-      <DocumentTitle title={la('Settings')}>
+      <DocumentTitle title={la("Settings")}>
         <AdminPageView
           routeParams={routeParams}
           sections={this.state.sections}
           style={page}
           location={location}
-          children={children} />
+        >
+          {children}
+        </AdminPageView>
       </DocumentTitle>
     );
   }

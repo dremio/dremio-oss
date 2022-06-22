@@ -13,39 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { routerReducer } from 'react-router-redux';
-import { combineReducers } from 'redux';
-import { reducer as formReducer } from 'redux-form';
-import { get } from 'lodash';
+import { routerReducer } from "react-router-redux";
+import { combineReducers } from "redux";
+import { reducer as formReducer } from "redux-form";
+import { get } from "lodash";
 
-import { LOGOUT_USER_START, NO_USERS_ERROR } from 'actions/account';
-import developmentOptions from 'dyn-load/reducers/developmentOptions';
-import account from '@inject/reducers/account';
-import admin from '@inject/reducers/admin';
-import roles from '@inject/reducers/roles';
-import init from '@app/reducers/init';
-import user from '@inject/reducers/user';
-import additionalReducers from '@inject/reducers/additionalReducers';
-import { getExploreState } from '@app/selectors/explore';
-import { log } from '@app/utils/logger';
+import { LOGOUT_USER_START, NO_USERS_ERROR } from "actions/account";
+import developmentOptions from "dyn-load/reducers/developmentOptions";
+import account from "@inject/reducers/account";
+import admin from "@inject/reducers/admin";
+import roles from "@inject/reducers/roles";
+import init from "@app/reducers/init";
+import user from "@inject/reducers/user";
+import featureFlag from "@inject/reducers/featureFlag";
+import additionalReducers from "@inject/reducers/additionalReducers";
+import { getExploreState } from "@app/selectors/explore";
+import { log } from "@app/utils/logger";
 
-import search from './search';
+import search from "./search";
 
-import home from './home/home';
-import ui from './ui/ui';
-import nessie from './nessie/nessie';
+import home from "./home/home";
+import ui from "./ui/ui";
+import nessie from "./nessie/nessie";
+import supportFlags from "./supportFlags";
 
-import jobs from './jobs/index';
-import modals from './modals/index';
-import { passDataBetweenModalTabs } from './modals/passDataBetweenModalTabs.js';
+import jobs from "./jobs/index";
+import modals from "./modals/index";
+import { passDataBetweenModalTabs } from "./modals/passDataBetweenModalTabs.js";
 
-import serverStatus from './serverStatus';
+import serverStatus from "./serverStatus";
 
-import resources from './resources';
-import notification from './notification';
-import confirmation from './confirmation';
-import prodError, { getError, getErrorId } from './prodError';
-import modulesState, { getData, isInitialized } from './modulesState';
+import resources from "./resources";
+import notification from "./notification";
+import confirmation from "./confirmation";
+import prodError, { getError, getErrorId } from "./prodError";
+import modulesState, { getData, isInitialized } from "./modulesState";
 
 const appReducers = combineReducers({
   resources,
@@ -69,23 +71,25 @@ const appReducers = combineReducers({
   passDataBetweenModalTabs,
   user,
   nessie,
-  ...additionalReducers
+  supportFlags,
+  featureFlag,
+  ...additionalReducers,
 });
 
 const actionCancelGroups = {};
 
-const cancelAction = reducer => (state, action) => {
+const cancelAction = (reducer) => (state, action) => {
   const {
     actionGroup, // group name
     abortController, // if abortController is provided, the action is abortable/cancellable
-    startTime
-  } = get(action, 'meta.abortInfo', {});
+    startTime,
+  } = get(action, "meta.abortInfo", {});
 
   if (actionGroup) {
-    log('==> ActionCancelGroup: ', actionGroup);
+    log("==> ActionCancelGroup: ", actionGroup);
     const group = actionCancelGroups[actionGroup];
-    const groupAbortController = get(group, 'abortController');
-    const { message: payloadMessage } = get(action, 'payload') || {};
+    const groupAbortController = get(group, "abortController");
+    const { message: payloadMessage } = get(action, "payload") || {};
 
     // to ignore an aborted request the proper way is to catch promise error:
     // fetch....then(....)
@@ -95,19 +99,30 @@ const cancelAction = reducer => (state, action) => {
     //       }
     // but since the fetch is buried deep in layers of 3rd party middleware libraries,
     // we check the abort message here with 'Aborted' for IE and Edge and longer message fro Chrome family
-    if (payloadMessage === 'The user aborted a request.' || payloadMessage === 'Aborted') {
+    if (
+      payloadMessage === "The user aborted a request." ||
+      payloadMessage === "Aborted"
+    ) {
       return state;
     }
 
-    if (groupAbortController) { // cancellation is needed for previous action
-      log(`==> Action ${JSON.stringify(group.action, null, 2)} was cancelled by action ${JSON.stringify(action, null, 2)}`);
+    if (groupAbortController) {
+      // cancellation is needed for previous action
+      log(
+        `==> Action ${JSON.stringify(
+          group.action,
+          null,
+          2
+        )} was cancelled by action ${JSON.stringify(action, null, 2)}`
+      );
       groupAbortController.abort(); // abort fetch request which throws 'AbortError'
     }
-    if (abortController) { // new action is abortable -> update saved cancel group
+    if (abortController) {
+      // new action is abortable -> update saved cancel group
       actionCancelGroups[actionGroup] = {
-        action,  // used here only for logging and debugging
+        action, // used here only for logging and debugging
         abortController,
-        startTime
+        startTime,
       };
     } else {
       actionCancelGroups[actionGroup] = null; // remove previous abortable action from the groups
@@ -116,7 +131,6 @@ const cancelAction = reducer => (state, action) => {
 
   return reducer(state, action);
 };
-
 
 export default cancelAction(function rootReducer(state, action) {
   let nextState = state;
@@ -135,16 +149,18 @@ export default cancelAction(function rootReducer(state, action) {
   return result;
 });
 
-export const getIsExplorePreviewMode = state => {
+export const getIsExplorePreviewMode = (state) => {
   const exploreState = getExploreState(state);
   return exploreState ? exploreState.view.isPreviewMode : false;
 };
-export const getIsDatasetMetadataLoaded = state => {
+export const getIsDatasetMetadataLoaded = (state) => {
   const exploreState = getExploreState(state);
   return exploreState ? exploreState.view.isDatasetMetadataLoaded : false;
 };
-export const getUser = state => state.account.get('user');
-export const isModuleInitialized = (state, moduleKey) => isInitialized(state.modulesState, moduleKey);
-export const getModuleState = (state, moduleKey) => getData(state.modulesState, moduleKey);
-export const getAppError = state => getError(state.appError);
-export const getAppErrorId = state => getErrorId(state.appError);
+export const getUser = (state) => state.account.get("user");
+export const isModuleInitialized = (state, moduleKey) =>
+  isInitialized(state.modulesState, moduleKey);
+export const getModuleState = (state, moduleKey) =>
+  getData(state.modulesState, moduleKey);
+export const getAppError = (state) => getError(state.appError);
+export const getAppErrorId = (state) => getErrorId(state.appError);

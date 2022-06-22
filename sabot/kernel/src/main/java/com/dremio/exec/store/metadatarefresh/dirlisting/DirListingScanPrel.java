@@ -34,12 +34,13 @@ import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 
 @Options
-public class DirListingScanPrel extends ScanPrelBase {
+public class DirListingScanPrel extends ScanPrelBase implements RowCountEstimator {
   public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.dir_listing.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.dir_listing.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
@@ -85,18 +86,15 @@ public class DirListingScanPrel extends ScanPrelBase {
   }
 
   @Override
-  public double estimateRowCount(RelMetadataQuery mq) {
-    if(estimateRowCountFn == null) {
-      return defaultRowCountEstimates();
+  public Function<RelMetadataQuery, Double> getEstimateRowCountFn() {
+    if (estimateRowCountFn == null) {
+      Function<RelMetadataQuery, Double> function = (Function<RelMetadataQuery, Double>) relMetadataQuery -> {
+        if(tableMetadata.getReadDefinition().getManifestScanStats() != null) {
+          return Double.valueOf(tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount());
+        }
+        return 1000_000.0;
+      };
     }
-
-    return estimateRowCountFn.apply(mq);
-  }
-
-  private double defaultRowCountEstimates() {
-    if(tableMetadata.getReadDefinition().getManifestScanStats() != null) {
-      return tableMetadata.getReadDefinition().getManifestScanStats().getRecordCount();
-    }
-    return 1000_000;
+    return estimateRowCountFn;
   }
 }

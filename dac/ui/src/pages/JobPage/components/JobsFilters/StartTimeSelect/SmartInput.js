@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import { bodySmall } from 'uiTheme/radium/typography';
+import { PureComponent, forwardRef } from "react";
+import PropTypes from "prop-types";
 
-import {FORMAT_HASH} from './MaskedInput';
+import { FORMAT_HASH } from "./MaskedInput";
 
-const SYMBOL_WIDTH = 7;
+import * as classes from "./SmartInput.module.less";
 
-@Radium
+const SYMBOL_WIDTH = 9;
+
 class SmartInput extends PureComponent {
   static propTypes = {
     index: PropTypes.number.isRequired,
@@ -33,8 +32,9 @@ class SmartInput extends PureComponent {
     changeInputFocus: PropTypes.func.isRequired,
     onBlur: PropTypes.func.isRequired,
     onChange: PropTypes.func.isRequired,
-    showPlaceholder: PropTypes.bool.isRequired
-  }
+    showPlaceholder: PropTypes.bool.isRequired,
+    innerRef: PropTypes.any,
+  };
 
   constructor(props) {
     super(props);
@@ -44,57 +44,47 @@ class SmartInput extends PureComponent {
   }
 
   onBlur(e) {
-    const { placeholder, onBlur, index, inputValue} = this.props;
+    const { placeholder, onBlur, index, inputValue } = this.props;
     const showPlaceholder = !e.target.value || e.target.value === placeholder;
-    const newInputValue = showPlaceholder
-      ? placeholder
-      : inputValue;
+    const newInputValue = showPlaceholder ? placeholder : inputValue;
     onBlur(index, showPlaceholder, newInputValue);
   }
 
   onChange(e) {
-    const {onChange, index, mask} = this.props;
-    const inputArray = e.target.value.slice((-1) * mask.length).split('');
-    const inputValue = inputArray.filter((item, ind) => {
-      return FORMAT_HASH.get(mask[ind])(item);
-    }).join('');
+    const { onChange, index, mask } = this.props;
+    const inputArray = e.target.value.slice(-1 * mask.length).split("");
+    const inputValue = inputArray
+      .filter((item, ind) => {
+        return FORMAT_HASH.get(mask[ind])(item);
+      })
+      .join("");
     onChange(index, inputValue, inputValue.length === mask.length);
   }
 
   onFocus() {
     const showPlaceholder = false;
-    const { onFocus, index} = this.props;
-    onFocus(index, showPlaceholder, '');
+    const { onFocus, index } = this.props;
+    onFocus(index, showPlaceholder, "");
   }
 
   render() {
-    const {mask, showPlaceholder, inputValue} = this.props;
-    const width = inputValue.length * SYMBOL_WIDTH || mask.length * SYMBOL_WIDTH;
-    const styles = [style.base, {width}, bodySmall];
-    if (showPlaceholder) {
-      styles.push(style.placeholder);
-    }
+    const { mask, inputValue } = this.props;
+    const width =
+      inputValue.length * SYMBOL_WIDTH || mask.length * SYMBOL_WIDTH;
     return (
       <input
-        style = {styles}
-        value = {inputValue}
-        tabIndex='-1'
-        onBlur = {this.onBlur}
-        onFocus = {this.onFocus}
-        onChange = {this.onChange}/>
+        ref={this.props.innerRef}
+        className={classes["smart-input"]}
+        style={{ width }}
+        value={inputValue}
+        tabIndex="-1"
+        onBlur={this.onBlur}
+        onFocus={this.onFocus}
+        onChange={this.onChange}
+      />
     );
   }
 }
-
-const style = {
-  'base': {
-    'border': 'none',
-    'backgroundColor': 'inherit',
-    'width': 20,
-    ':focus':{
-      'outline': 'none'
-    }
-  }
-};
-
-export default SmartInput;
+export default forwardRef((props, ref) => (
+  <SmartInput innerRef={ref} {...props} />
+));

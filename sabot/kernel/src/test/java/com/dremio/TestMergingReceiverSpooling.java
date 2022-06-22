@@ -31,7 +31,7 @@ import com.dremio.exec.proto.UserBitShared;
  */
 public class TestMergingReceiverSpooling extends BaseTestQuery {
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
 
   @Test
   public void tpch18() throws Exception{

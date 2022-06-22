@@ -45,38 +45,36 @@ SqlNode SqlUseVersion() :
 }
 
 /**
- * SHOW BRANCHES IN source
+ * SHOW BRANCHES [ IN sourceName ]
  */
 SqlNode SqlShowBranches() :
 {
   SqlParserPos pos;
-  SqlIdentifier source;
+  SqlIdentifier sourceName = null;
 }
 {
   <SHOW> { pos = getPos(); }
   <BRANCHES>
-  <IN>
-  source = SimpleIdentifier()
+  [ <IN> { sourceName = SimpleIdentifier(); } ]
   {
-    return new SqlShowBranches(pos, source);
+    return new SqlShowBranches(pos, sourceName);
   }
 }
 
 /**
- * SHOW TAGS IN source
+ * SHOW TAGS [ IN sourceName ]
  */
 SqlNode SqlShowTags() :
 {
   SqlParserPos pos;
-  SqlIdentifier source;
+  SqlIdentifier sourceName = null;
 }
 {
   <SHOW> { pos = getPos(); }
   <TAGS>
-  <IN>
-  source = SimpleIdentifier()
+  [ <IN> { sourceName = SimpleIdentifier(); } ]
   {
-    return new SqlShowTags(pos, source);
+    return new SqlShowTags(pos, sourceName);
   }
 }
 
@@ -191,7 +189,9 @@ SqlNode SqlCreateTag() :
 }
 
 /**
- * DROP BRANCH [ IF EXISTS ] branchName [ AT COMMIT commitHash | FORCE ] IN source
+ * DROP BRANCH [ IF EXISTS ] branchName
+ * ( AT COMMIT commitHash | FORCE )
+ * [ IN sourceName ]
  */
 SqlNode SqlDropBranch() :
 {
@@ -200,27 +200,28 @@ SqlNode SqlDropBranch() :
   SqlIdentifier branchName;
   SqlIdentifier commitHash = null;
   SqlLiteral forceDrop = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
-  SqlIdentifier source;
+  SqlIdentifier sourceName = null;
 }
 {
   <DROP> { pos = getPos(); }
   <BRANCH>
   [ <IF> <EXISTS> { existenceCheck = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
   branchName = SimpleIdentifier()
-  [
+  (
     <AT> <COMMIT> { commitHash = SimpleIdentifier(); }
     |
     <FORCE> { forceDrop = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
-  ]
-  <IN>
-  source = SimpleIdentifier()
+  )
+  [ <IN> { sourceName = SimpleIdentifier(); } ]
   {
-    return new SqlDropBranch(pos, existenceCheck, branchName, commitHash, forceDrop, source);
+    return new SqlDropBranch(pos, existenceCheck, branchName, commitHash, forceDrop, sourceName);
   }
 }
 
 /**
- * DROP TAG [ IF EXISTS ] tagName [ AT COMMIT commitHash | FORCE ] IN source
+ * DROP TAG [ IF EXISTS ] tagName
+ * ( AT COMMIT commitHash | FORCE )
+ * [ IN sourceName ]
  */
 SqlNode SqlDropTag() :
 {
@@ -229,102 +230,96 @@ SqlNode SqlDropTag() :
   SqlIdentifier tagName;
   SqlIdentifier commitHash = null;
   SqlLiteral forceDrop = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
-  SqlIdentifier source;
+  SqlIdentifier sourceName = null;
 }
 {
   <DROP> { pos = getPos(); }
   <TAG>
   [ <IF> <EXISTS> { existenceCheck = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
   tagName = SimpleIdentifier()
-  [
+  (
     <AT> <COMMIT> { commitHash = SimpleIdentifier(); }
     |
     <FORCE> { forceDrop = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); }
-  ]
-  <IN>
-  source = SimpleIdentifier()
+  )
+  [ <IN> { sourceName = SimpleIdentifier(); } ]
   {
-    return new SqlDropTag(pos, existenceCheck, tagName, commitHash, forceDrop, source);
+    return new SqlDropTag(pos, existenceCheck, tagName, commitHash, forceDrop, sourceName);
   }
 }
 
 /**
- * ALTER BRANCH [...] IN source
+ * MERGE BRANCH sourceBranchName
+ * [INTO targetBranchName]
+ * [IN <sourceName>]
  */
-SqlNode SqlAlterBranch() :
+SqlNode SqlMergeBranch() :
 {
   SqlParserPos pos;
+  SqlIdentifier sourceBranchName;
+  SqlIdentifier targetBranchName = null;
+  SqlIdentifier sourceName = null;
+}
+{
+  <MERGE> { pos = getPos(); }
+  <BRANCH>
+  sourceBranchName = SimpleIdentifier()
+  [ <INTO> { targetBranchName = SimpleIdentifier(); } ]
+  [ <IN> { sourceName = SimpleIdentifier(); } ]
+  {
+    return new SqlMergeBranch(pos, sourceBranchName, targetBranchName, sourceName);
+  }
+}
+
+/**
+ * ALTER BRANCH branchName ASSIGN
+ * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * [ IN sourceName ]
+ */
+SqlNode SqlAssignBranch() :
+{
+
+  SqlParserPos pos;
+  SqlIdentifier branchName;
+  ReferenceType refType;
+  SqlIdentifier refValue;
+  SqlIdentifier sourceName = null;
 }
 {
   <ALTER> { pos = getPos(); }
   <BRANCH>
-  (
-    <MERGE>
-    (
-      { return SqlMergeBranch(pos); }
-    )
-    |
-    {
-      return SqlAssignBranch(pos);
-    }
-  )
-}
-
-/**
- * ALTER BRANCH MERGE sourceBranchName [INTO targetBranchName] IN source
- */
-SqlNode SqlMergeBranch(SqlParserPos pos) :
-{
-  SqlIdentifier sourceBranchName;
-  SqlIdentifier targetBranchName = null;
-  SqlIdentifier source;
-}
-{
-  sourceBranchName = SimpleIdentifier()
-  [ <INTO> { targetBranchName = SimpleIdentifier(); } ]
-  <IN>
-  source = SimpleIdentifier()
-  {
-    return new SqlMergeBranch(pos, sourceBranchName, targetBranchName, source);
-  }
-}
-
-/**
- * ALTER BRANCH branchName ASSIGN (BRANCH|TAG) reference IN source
- */
-SqlNode SqlAssignBranch(SqlParserPos pos) :
-{
-  SqlIdentifier branchName;
-  ReferenceType refType;
-  SqlIdentifier reference;
-  SqlIdentifier source;
-}
-{
   branchName = SimpleIdentifier()
   <ASSIGN>
   (
+    <REF> { refType = ReferenceType.REFERENCE; }
+    |
+    <REFERENCE> { refType = ReferenceType.REFERENCE; }
+    |
     <BRANCH> { refType = ReferenceType.BRANCH; }
     |
     <TAG> { refType = ReferenceType.TAG; }
+    |
+    <COMMIT> {refType = ReferenceType.COMMIT; }
   )
-  reference = SimpleIdentifier()
-  <IN>
-  source = SimpleIdentifier()
+  refValue = SimpleIdentifier()
+  [<IN> {sourceName = SimpleIdentifier(); }]
   {
-    return new SqlAssignBranch(pos, branchName, refType, reference, source);
+    return new SqlAssignBranch(pos, branchName, refType, refValue, sourceName);
   }
 }
 
 /**
- * ALTER TAG tagName ASSIGN (BRANCH|TAG) reference IN source
+ * ALTER TAG tagName ASSIGN
+ * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * [ IN sourceName ]
  */
 SqlNode SqlAssignTag() :
 {
   SqlParserPos pos;
   SqlIdentifier tagName;
   ReferenceType refType;
-  SqlIdentifier reference;
-  SqlIdentifier source;
+  SqlIdentifier refValue;
+  SqlIdentifier sourceName = null;
 }
 {
   <ALTER> { pos = getPos(); }
@@ -332,27 +327,31 @@ SqlNode SqlAssignTag() :
   tagName = SimpleIdentifier()
   <ASSIGN>
   (
+    <REF> { refType = ReferenceType.REFERENCE; }
+    |
+    <REFERENCE> { refType = ReferenceType.REFERENCE; }
+    |
     <BRANCH> { refType = ReferenceType.BRANCH; }
     |
     <TAG> { refType = ReferenceType.TAG; }
+    |
+    <COMMIT> {refType = ReferenceType.COMMIT; }
   )
-  reference = SimpleIdentifier()
-  <IN>
-  source = SimpleIdentifier()
+  refValue = SimpleIdentifier()
+  [<IN> { sourceName = SimpleIdentifier();}]
   {
-    return new SqlAssignTag(pos, tagName, refType, reference, source);
+    return new SqlAssignTag(pos, tagName, refType, refValue, sourceName);
   }
 }
 
 /**
  * Table version specification - can occur after either a table identifier or a TABLE() function call.
  *
- * (AT|BEFORE) [SNAPSHOT|BRANCH|TAG|COMMIT|REF] version-specifier
+ * AT [SNAPSHOT|BRANCH|TAG|COMMIT|REF] version-specifier
  */
 SqlNode TableWithVersionContext(SqlNode tableRef) :
 {
     SqlParserPos pos;
-    TableVersionOperator op;
     TableVersionType type;
     SqlIdentifier simpleId;
     SqlIdentifier tableId;
@@ -364,15 +363,7 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
     List<String> timeTravelFunctionName = TableMacroNames.TIME_TRAVEL;
 }
 {
-    (
-        <AT> { op = TableVersionOperator.AT; }
-    |
-        <BEFORE> { op = TableVersionOperator.BEFORE; }
-    )
-    {
-        pos = getPos();
-    }
-
+    <AT> { pos = getPos(); }
     (
         <SNAPSHOT> specifier = StringLiteral() { type = TableVersionType.SNAPSHOT_ID; }
     |
@@ -399,8 +390,10 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
             type = TableVersionType.REFERENCE;
             specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
         }
+    /* DX-52073: disable timestamp-based time travel until DX-51980 is fixed
     |
         specifier = Expression(ExprContext.ACCEPT_NON_QUERY) { type = TableVersionType.TIMESTAMP; }
+    */
     )
     {
         if (tableRef.getKind() == SqlKind.IDENTIFIER) {
@@ -409,11 +402,11 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
             // which is the table identifier converted to a string.  The function call itself must be
             // wrapped in a SqlVersionedTableMacroCall as this is the vehicle for passing along version info.
             tableId = (SqlIdentifier) tableRef;
-            list.add(SqlLiteral.createCharString(tableId.toString(), tableId.getParserPosition()));
+            list.add(SqlLiteral.createCharString(ParserUtil.unparseIdentifier(tableId), tableId.getParserPosition()));
             call = createCall(new SqlIdentifier(timeTravelFunctionName, tableId.getParserPosition()),
                 tableId.getParserPosition(), SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION, null, list);
             call = new SqlVersionedTableMacroCall(call.getOperator(), call.getOperandList().toArray(new SqlNode[0]),
-                type, op, specifier, tableId.getComponent(tableId.names.size() - 1), tableId.getParserPosition());
+                type, specifier, tableId.getComponent(tableId.names.size() - 1), tableId.getParserPosition());
             return SqlStdOperatorTable.COLLECTION_TABLE.createCall(pos, call);
         } else if (tableRef.getKind() == SqlKind.COLLECTION_TABLE) {
             // for the case where our tableRef is a TABLE(function()) call, we want to rewrite the call
@@ -421,7 +414,7 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
             collectionTableCall = (SqlBasicCall) tableRef;
             functionCall = collectionTableCall.operand(0);
             collectionTableCall.setOperand(0, new SqlVersionedTableMacroCall(functionCall.getOperator(),
-                functionCall.getOperands(), type, op, specifier, null, functionCall.getParserPosition()));
+                functionCall.getOperands(), type, specifier, null, functionCall.getParserPosition()));
             return collectionTableCall;
         } else {
             throw generateParseException();

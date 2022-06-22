@@ -13,67 +13,80 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import Immutable from 'immutable';
-import jobsUtils from '@app/utils/jobsUtils';
-import Art from '@app/components/Art';
-import timeUtils from 'utils/timeUtils';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import Immutable from "immutable";
+import jobsUtils from "@app/utils/jobsUtils";
+import Art from "@app/components/Art";
+import timeUtils from "utils/timeUtils";
 
-import './Reflection.less';
+import "./Reflection.less";
 
 const renderIcon = (iconName, className) => {
-  return (<Art src={iconName} alt='Reflection' title='Reflection' className={className} />);
+  return (
+    <Art
+      src={iconName}
+      alt="Reflection"
+      title="Reflection"
+      className={className}
+    />
+  );
 };
 
 const getReflectionIcon = (reflectionType) => {
-  const reflectionCreatedIcon = reflectionType === 'RAW'
-    ? 'ReflectionCreatedRaw.svg' : 'ReflectionCreatedAgg.svg';
-  return renderIcon(reflectionCreatedIcon, 'reflectionIcon');
+  const reflectionCreatedIcon =
+    reflectionType === "RAW"
+      ? "ReflectionCreatedRaw.svg"
+      : "ReflectionCreatedAgg.svg";
+  return renderIcon(reflectionCreatedIcon, "reflectionIcon");
 };
 
 const ReflectionsCreated = (props) => {
   const {
     reflections,
-    intl: {
-      formatMessage
-    },
-    location
+    intl: { formatMessage },
+    location,
   } = props;
 
   return (
     <div>
-      {reflections.size > 0 && <div className='reflection-header'>
-        <div className='reflection-header__title'>
-          {formatMessage({ id: 'Reflections.ReflectionCreated' })}
+      {reflections.size > 0 && (
+        <div className="reflection-header">
+          <div className="reflection-header__title">
+            {formatMessage({ id: "Reflections.ReflectionCreated" })}
+          </div>
         </div>
-      </div>}
-      {
-        reflections && reflections.map((item, index) => {
-          const reflectionAge = item.get('reflectionCreated') && item.get('reflectionCreated');
+      )}
+      {reflections &&
+        reflections.map((item, index) => {
+          const reflectionAge =
+            item.get("reflectionCreated") && item.get("reflectionCreated");
           return (
-            <div className='jobsDetailsReflections' key={`reflections-${index}`} data-qa='reflectionsTestCase'>
-              <span className='jobsDetailsReflections__contentWrapper'>
-                {
-                  getReflectionIcon(item.get('reflectionType'))
-                }
-                <span className='jobsDetailsReflections__contentWrapper'>
-                  <div className='jobsDetailsReflections__contentWrapper__header'>
-                    { jobsUtils.getReflectionsLink(item, location) }
+            <div
+              className="jobsDetailsReflections"
+              key={`reflections-${index}`}
+              data-qa="reflectionsTestCase"
+            >
+              <span className="jobsDetailsReflections__contentWrapper">
+                {getReflectionIcon(item.get("reflectionType"))}
+                <span className="jobsDetailsReflections__contentWrapper">
+                  <div className="jobsDetailsReflections__contentWrapper__header">
+                    {jobsUtils.getReflectionsLink(item, location)}
                   </div>
-                  <div className='jobsDetailsReflections__contentWrapper__path'>
-                    {item.get('reflectionDatasetPath')}
+                  <div className="jobsDetailsReflections__contentWrapper__path">
+                    {item.get("reflectionDatasetPath")}
                   </div>
                 </span>
               </span>
-              {reflectionAge && <span className='jobsDetailsReflections__age'>
-                {formatMessage({ id: 'Reflections.Age' })}
-                {timeUtils.toNow(Number(reflectionAge))}
-              </span>}
+              {reflectionAge && (
+                <span className="jobsDetailsReflections__age">
+                  {formatMessage({ id: "Reflections.Age" })}
+                  {timeUtils.toNow(Number(reflectionAge))}
+                </span>
+              )}
             </div>
           );
-        })
-      }
+        })}
     </div>
   );
 };
@@ -82,6 +95,6 @@ ReflectionsCreated.propTypes = {
   intl: PropTypes.object.isRequired,
   isAcceleration: PropTypes.bool,
   reflections: PropTypes.instanceOf(Immutable.List),
-  location: PropTypes.object
+  location: PropTypes.object,
 };
 export default injectIntl(ReflectionsCreated);

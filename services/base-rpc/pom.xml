@@ -21,13 +21,12 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
   <artifactId>dremio-services-base-rpc</artifactId>
   <name>Services - Base RPC</name>
 
   <dependencies>
-
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
@@ -45,6 +44,7 @@
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -114,9 +114,7 @@
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
-
 
   <build>
     <plugins>
@@ -124,13 +122,10 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
-          <configLocation>src/main/checkstyle/checkstyle-config.xml</configLocation>
-          <suppressionsLocation>src/main/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
+          <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
         </configuration>
       </plugin>
     </plugins>
   </build>
-
-
 
 </project>

@@ -13,31 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Art from 'components/Art';
-import { actionBtn, actionIcon } from './actionButtons.less';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Art from "components/Art";
+import { actionBtn, actionIcon } from "./actionButtons.less";
 
 export class DeleteButton extends Component {
   static propTypes = {
     onClick: PropTypes.func,
     title: PropTypes.string,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
   };
 
   static defaultProps = {
     //todo loc
-    title: 'Delete'
-  }
+    title: "Delete",
+  };
 
   render() {
     const { title, onClick, dataQa } = this.props;
 
     return (
-      <button className={actionBtn} onClick={onClick}
-        title={title} data-qa={dataQa}
+      <button
+        className={actionBtn}
+        onClick={onClick}
+        title={title}
+        data-qa={dataQa}
       >
-        <Art className={actionIcon} alt={title} src='Delete.svg' />
+        <Art className={actionIcon} alt={title} src="Delete.svg" />
       </button>
     );
   }

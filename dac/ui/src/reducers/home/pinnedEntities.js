@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import invariant from "invariant";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
 // actions
-const SET_ENTITY_ACTIVE_STATE = 'SET_ENTITY_ACTIVE_STATE';
+const SET_ENTITY_ACTIVE_STATE = "SET_ENTITY_ACTIVE_STATE";
 export const setEntityActiveState = (id, isActive) => ({
   type: SET_ENTITY_ACTIVE_STATE,
   id,
-  isActive
+  isActive,
 });
 
 /**
@@ -31,33 +31,33 @@ export const setEntityActiveState = (id, isActive) => ({
  *   id, **value** - active state
  * @param {object} action
  */
-export const pinnedEntities = (state = localStorageUtils.getPinnedItems(), {
-  type,
-  id,
-  isActive
-}) => {
+export const pinnedEntities = (
+  state = localStorageUtils.getPinnedItems(),
+  { type, id, isActive }
+) => {
   switch (type) {
-  case SET_ENTITY_ACTIVE_STATE: {
-    invariant(id, 'id must be provided');
-    let newState = state;
-    if (isActive) {
-      newState = {
-        ...state,
-        [id]: true
-      };
-    } else if (state.hasOwnProperty(id)) { // need change the state only ifu id is presented in a state
-      const {
-        [id]: toRemove, // eslint-disable-line @typescript-eslint/no-unused-vars
-        ...rest
-      } = state;
-      newState = rest;
-    }
+    case SET_ENTITY_ACTIVE_STATE: {
+      invariant(id, "id must be provided");
+      let newState = state;
+      if (isActive) {
+        newState = {
+          ...state,
+          [id]: true,
+        };
+      } else if (Object.prototype.hasOwnProperty.call(state, id)) {
+        // need change the state only ifu id is presented in a state
+        const {
+          [id]: toRemove, // eslint-disable-line @typescript-eslint/no-unused-vars
+          ...rest
+        } = state;
+        newState = rest;
+      }
 
-    localStorageUtils.updatePinnedItemState(newState);
-    return newState;
-  }
-  default:
-    return state;
+      localStorageUtils.updatePinnedItemState(newState);
+      return newState;
+    }
+    default:
+      return state;
   }
 };
 

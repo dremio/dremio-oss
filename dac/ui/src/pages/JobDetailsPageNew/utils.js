@@ -15,64 +15,63 @@
  */
 
 export const getFormatMessageIdForQueryType = (jobDetails) => {
+  const requestType = jobDetails.get("requestType");
+  const isPrepareCreate = requestType === "CREATE_PREPARE";
+  const isPrepareExecute = requestType === "EXECUTE_PREPARE";
 
-  const requestType = jobDetails.get('requestType');
-  const isPrepareCreate = requestType === 'CREATE_PREPARE';
-  const isPrepareExecute = requestType === 'EXECUTE_PREPARE';
-
-  switch (jobDetails.get('queryType')) {
-  case 'UI_RUN':
-    return 'Job.UIRun';
-  case 'UI_PREVIEW':
-    return 'Job.UIPreview';
-  case 'UI_INTERNAL_PREVIEW':
-  case 'UI_INTERNAL_RUN':
-  case 'UI_INITIAL_PREVIEW':
-  case 'PREPARE_INTERNAL':
-    return 'Job.Internal';
-  case 'UI_EXPORT':
-    return 'Job.UIDownload';
-  case 'ODBC':
-    if (isPrepareCreate) {
-      return 'Job.ODBCCreate';
-    } else if (isPrepareExecute) {
-      return 'Job.ODBCExecute';
-    }
-    return 'Job.ODBCClient';
-  case 'JDBC':
-    if (isPrepareCreate) {
-      return 'Job.JDBCCreate';
-    } else if (isPrepareExecute) {
-      return 'Job.JDBCExecute';
-    }
-    return 'Job.JDBCClient';
-  case 'REST':
-    return 'Job.RESTApp';
-  case 'ACCELERATOR_CREATE':
-    return 'Job.AcceleratorCreation';
-  case 'ACCELERATOR_EXPLAIN':
-    return 'Job.AcceleratorRefresh';
-  case 'ACCELERATOR_DROP':
-    return 'Job.AcceleratorRemoval';
-  case 'FLIGHT':
-    if (isPrepareCreate) {
-      return 'Job.FlightCreate';
-    } else if (isPrepareExecute) {
-      return 'Job.FlightExecute';
-    }
-    return 'Job.FlightClient';
-  case 'METADATA_REFRESH':
-    return 'Job.MetadataRefresh';
-  case 'INTERNAL_ICEBERG_METADATA_DROP':
-    return 'Job.InternalIcebergMetadataRemoval';
-  case 'UNKNOWN':
-  default:
-    return 'File.Unknown';
+  switch (jobDetails.get("queryType")) {
+    case "UI_RUN":
+      return "Job.UIRun";
+    case "UI_PREVIEW":
+      return "Job.UIPreview";
+    case "UI_INTERNAL_PREVIEW":
+    case "UI_INTERNAL_RUN":
+    case "UI_INITIAL_PREVIEW":
+    case "PREPARE_INTERNAL":
+      return "Job.Internal";
+    case "UI_EXPORT":
+      return "Job.UIDownload";
+    case "ODBC":
+      if (isPrepareCreate) {
+        return "Job.ODBCCreate";
+      } else if (isPrepareExecute) {
+        return "Job.ODBCExecute";
+      }
+      return "Job.ODBCClient";
+    case "JDBC":
+      if (isPrepareCreate) {
+        return "Job.JDBCCreate";
+      } else if (isPrepareExecute) {
+        return "Job.JDBCExecute";
+      }
+      return "Job.JDBCClient";
+    case "REST":
+      return "Job.RESTApp";
+    case "ACCELERATOR_CREATE":
+      return "Job.AcceleratorCreation";
+    case "ACCELERATOR_EXPLAIN":
+      return "Job.AcceleratorRefresh";
+    case "ACCELERATOR_DROP":
+      return "Job.AcceleratorRemoval";
+    case "FLIGHT":
+      if (isPrepareCreate) {
+        return "Job.FlightCreate";
+      } else if (isPrepareExecute) {
+        return "Job.FlightExecute";
+      }
+      return "Job.FlightClient";
+    case "METADATA_REFRESH":
+      return "Job.MetadataRefresh";
+    case "INTERNAL_ICEBERG_METADATA_DROP":
+      return "Job.InternalIcebergMetadataRemoval";
+    case "UNKNOWN":
+    default:
+      return "File.Unknown";
   }
 };
 
 export const getQueueInfo = (jobDetails) => {
-  return { label: 'Common.Queue', content: jobDetails.get('wlmQueue') };
+  return { label: "Common.Queue", content: jobDetails.get("wlmQueue") };
 };
 
 export const GetIsSocketForSingleJob = () => true;

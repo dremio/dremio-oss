@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import './colorConstants.scss';
-@import './fontConstants.scss';
+@import "./colorConstants.scss";
+@import "./fontConstants.scss";
 
 // Small tablets and large smartphones (landscape view)
 $screen-sm-min: 576px;
@@ -28,9 +28,26 @@ $screen-lg-min: 992px;
 // Large tablets and desktops
 $screen-xl-min: 1200px;
 
-$gutter-sizes: (none: 0px, quarter: 2px, half: 4px, full: 8px, double: 16px, triple: 24px, quadruple: 32px, octuple: 64px);
+$gutter-sizes: (
+  none: 0px,
+  quarter: 2px,
+  half: 4px,
+  full: 8px,
+  double: 16px,
+  triple: 24px,
+  quadruple: 32px,
+  octuple: 64px,
+);
 
-$font-weights: (thin: 100, semi-light: 200, light: 300, regular: 400, medium: 500, semi-bold: 600, bold: 700);
+$font-weights: (
+  thin: 100,
+  semi-light: 200,
+  light: 300,
+  regular: 400,
+  medium: 500,
+  semi-bold: 600,
+  bold: 700,
+);
 
 $input-height: 32px;
 
@@ -49,4 +66,3 @@ $input-border-radius: 4px;
   font-size: $font-s !important;
   background-color: $white !important;
 }
-

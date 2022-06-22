@@ -13,71 +13,71 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import TransformCard from './TransformCard';
+import TransformCard from "./TransformCard";
 
-describe('TransformCard', () => {
-
+describe("TransformCard", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
   let instance;
   beforeEach(() => {
-    minimalProps = {
-    };
+    minimalProps = {};
     commonProps = {
       ...minimalProps,
-      front: <section className='front'/>,
-      back: <section className='back'/>,
+      front: <section className="front" />,
+      back: <section className="back" />,
       card: Immutable.Map(),
       active: true,
-      onClick: sinon.spy()
+      onClick: sinon.spy(),
     };
-    wrapper = shallow(<TransformCard {...commonProps}/>);
+    wrapper = shallow(<TransformCard {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<TransformCard {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<TransformCard {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should set state.editing to !hasExamples', () => {
+  it("should set state.editing to !hasExamples", () => {
     expect(wrapper.state().editing).to.be.true;
 
     const cardWithExamples = Immutable.fromJS({
-      examplesList: ['example']
+      examplesList: ["example"],
     });
-    wrapper = shallow(<TransformCard {...commonProps} card={cardWithExamples} />);
+    wrapper = shallow(
+      <TransformCard {...commonProps} card={cardWithExamples} />
+    );
     expect(wrapper.state().editing).to.be.false;
   });
 
-  it('should render CardFooter', () => {
-    expect(wrapper.find('CardFooter')).to.have.length(1);
+  it("should render CardFooter", () => {
+    expect(wrapper.find("CardFooter")).to.have.length(1);
   });
 
-  it('should render front or back backed on state.editing', () => {
-    wrapper.setState({editing: false});
-    expect(wrapper.find('section').first().props().className).to.eql('front');
+  it("should render front or back backed on state.editing", () => {
+    wrapper.setState({ editing: false });
+    expect(wrapper.find("section").first().props().className).to.eql("front");
 
-    wrapper.setState({editing: true});
-    expect(wrapper.find('section').first().props().className).to.eql('back');
+    wrapper.setState({ editing: true });
+    expect(wrapper.find("section").first().props().className).to.eql("back");
   });
 
-  it('should render edit button only if front exists', () => {
-    expect(wrapper.find('FontIcon')).to.have.length(1);
-    wrapper.setProps({front: undefined});
-    expect(wrapper.find('FontIcon')).to.have.length(0);
+  it("should render edit button only if front exists", () => {
+    expect(wrapper.find("FontIcon")).to.have.length(1);
+    wrapper.setProps({ front: undefined });
+    expect(wrapper.find("FontIcon")).to.have.length(0);
   });
 
-  describe('#componentWillReceiveProps', () => {
-    it('should set state.editing=false only if !active', () => {
-      wrapper.setState({editing: true});
+  describe("#componentWillReceiveProps", () => {
+    it("should set state.editing=false only if !active", () => {
+      wrapper.setState({ editing: true });
       instance.componentWillReceiveProps(commonProps);
       expect(wrapper.state().editing).to.be.true;
 
-      wrapper.setProps({active: false});
+      wrapper.setProps({ active: false });
       expect(wrapper.state().editing).to.be.false;
     });
   });

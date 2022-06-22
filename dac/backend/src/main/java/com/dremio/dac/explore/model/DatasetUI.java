@@ -30,6 +30,7 @@ import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.dataset.Derivation;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.util.DatasetUIUtils;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
@@ -70,6 +71,7 @@ public class DatasetUI {
   private final DatasetType datasetType;
   private final Map<String, String> links;
   private final Map<String, String> apiLinks;
+  private final Map<String, VersionContextReq> references;
 
   public static DatasetUI newInstance(
     VirtualDatasetUI vds,
@@ -116,11 +118,13 @@ public class DatasetUI {
       entityId = namespaceService.getEntityIdByPath(new NamespaceKey(displayFullPath));
     }
 
+    Map<String, VersionContextReq> versionContextReqMap = DatasetUIUtils.createVersionContextMap(vds.getReferencesList());
+
     return new DatasetUI(vds.getId(), sql, context, fullPath, displayFullPath, vds.getSavedTag(), vds.getVersion(),
         null, null, canReapply, datasetType,
         createLinks(fullPath, displayFullPath, vds.getVersion(), isUnsavedDirectPhysicalDataset),
         createApiLinks(fullPath, displayFullPath, datasetType, vds.getVersion(), isUnsaved, isDerivedDirectly),
-        /* entityId */ entityId);
+        /* entityId */ entityId, versionContextReqMap);
   }
 
   @JsonCreator
@@ -138,7 +142,8 @@ public class DatasetUI {
       @JsonProperty("datasetType") DatasetType datasetType,
       @JsonProperty("links") Map<String, String> links,
       @JsonProperty("apiLinks") Map<String, String> apiLinks,
-      @JsonProperty("entityId") String entityId) {
+      @JsonProperty("entityId") String entityId,
+      @JsonProperty("references") Map<String, VersionContextReq> references) {
     this.id = id;
     this.sql = sql;
     this.context = context;
@@ -153,6 +158,7 @@ public class DatasetUI {
     this.links = links != null ? ImmutableMap.copyOf(links) : ImmutableMap.<String, String> of();
     this.apiLinks = apiLinks != null ? ImmutableMap.copyOf(apiLinks) : ImmutableMap.<String, String> of();
     this.entityId = entityId;
+    this.references = references != null ? ImmutableMap.copyOf(references) : ImmutableMap.<String, VersionContextReq> of();
   }
 
   /**
@@ -161,6 +167,14 @@ public class DatasetUI {
    */
   public String getSql() {
     return sql;
+  }
+
+  /**
+   * Returns the references.
+   * @return
+   */
+  public Map<String, VersionContextReq> getReferences() {
+    return references;
   }
 
   /**

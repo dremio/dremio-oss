@@ -59,7 +59,8 @@ public class KeyFairSliceCalculator {
         int numValidityBytes = (numKeys + numBooleanKeys + 7) / 8;
         int numValueBytes = maxTotalSize - numValidityBytes;
 
-        checkArgument(numValueBytes >= numNonBooleanKeys,"Not possible to fit %d keys (%d boolean) in %d bytes", numKeys, numBooleanKeys, maxTotalSize);
+        checkArgument(numValueBytes >= numNonBooleanKeys,
+          "Not possible to fit %d keys (%d boolean) in %d bytes", numKeys, numBooleanKeys, maxTotalSize);
 
         Collections.sort(listKeySizes, VALUE_COMPARATOR); // Assuming Collections.sort will maintain original order when values are equal
 

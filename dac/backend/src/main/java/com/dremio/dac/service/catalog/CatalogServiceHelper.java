@@ -508,7 +508,7 @@ public class CatalogServiceHelper {
               .setContainerType(CatalogItem.ContainerSubType.FOLDER)
               .build();
           } catch (NamespaceException e) {
-            logger.warn("Can not find item with path [%s]", entityPath, e);
+            logger.warn("Can not find item with path [{}]", entityPath, e);
           }
         } else {
           catalogItem = new CatalogItem.Builder()
@@ -533,7 +533,7 @@ public class CatalogServiceHelper {
             .setDatasetType(CatalogItem.DatasetSubType.PROMOTED)
             .build();
         } catch (NamespaceException e) {
-          logger.warn("Can not find item with path [%s]", entityPath, e);
+          logger.warn("Can not find item with path [{}]", entityPath, e);
         }
         break;
       }
@@ -789,7 +789,7 @@ public class CatalogServiceHelper {
       List<String> path = dataset.getPath();
 
       View view = new View(path.get(path.size() - 1), dataset.getSql(), Collections.emptyList(), null, virtualDataset.getContextList(), false);
-      catalog.updateView(namespaceKey, view, attributes);
+      catalog.updateView(namespaceKey, view, null, attributes); // ViewOption will be null because this is unrelated to version context
     }
   }
 

@@ -22,6 +22,7 @@ import java.util.List;
 import javax.inject.Provider;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
@@ -73,6 +74,9 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
 
   @Tag(11)
   public String externalId = null;
+
+  @Tag(12)
+  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.PARQUET;
 
   @Override
   public Path getPath() {
@@ -196,5 +200,9 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
 
   public boolean isPdfsBased() {
     return uri.get().getScheme().equals("pdfs");
+  }
+
+  public String getDefaultCtasFormat(){
+    return  defaultCtasFormat.getDefaultCtasFormat();
   }
 }

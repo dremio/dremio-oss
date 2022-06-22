@@ -15,13 +15,18 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.DataFile;
+import org.apache.iceberg.ContentFile;
+import org.apache.iceberg.DremioManifestReaderUtils;
+import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
@@ -36,7 +41,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
-import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
+import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.VectorAccessible;
@@ -59,12 +64,13 @@ public class ManifestFileProcessor implements AutoCloseable {
   private final OperatorContext context;
   private final String datasourcePluginUID;
   private final OperatorStats operatorStats;
-  private final DatafileProcessor datafileProcessor;
+  private final ManifestEntryProcessor manifestEntryProcessor;
   private final Configuration conf;
+  private final ManifestContent manifestContent;
 
-  private DataFile currentFile;
-  private CloseableIterator<DataFile> iterator;
-  private ManifestReader<DataFile> manifestReader;
+  private ManifestEntryWrapper<?> currentManifestEntry;
+  private CloseableIterator<? extends ManifestEntryWrapper<?>> iterator;
+  private ManifestReader<?> manifestReader;
   private Expression icebergAnyColExpression;
   private Map<Integer, PartitionSpec> partitionSpecMap;
 
@@ -79,13 +85,20 @@ public class ManifestFileProcessor implements AutoCloseable {
     this.operatorStats = context.getStats();
     this.dataset = getDataset(functionConfig);
     this.datasourcePluginUID = getDatasourcePluginId(functionConfig.getFunctionContext());
-    this.datafileProcessor = new DatafileProcessorFactory(fec, props, context).getDatafileProcessor(functionConfig);
-    if(((SplitGenManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getPartitionSpecMap() != null){
-      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(((SplitGenManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getPartitionSpecMap().toByteArray());
+    this.manifestEntryProcessor = new ManifestEntryProcessorFactory(fec, props, context).getManifestEntryProcessor(functionConfig);
+    ManifestScanTableFunctionContext functionContext =
+        functionConfig.getFunctionContext(ManifestScanTableFunctionContext.class);
+    if (functionContext.getJsonPartitionSpecMap() != null) {
+      partitionSpecMap = IcebergSerDe.deserializeJsonPartitionSpecMap(deserializedJsonAsSchema(
+          functionContext.getIcebergSchema()),
+          functionContext.getJsonPartitionSpecMap().toByteArray());
+    } else if (functionContext.getPartitionSpecMap() != null){
+      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(functionContext.getPartitionSpecMap().toByteArray());
     }
+    this.manifestContent = functionContext.getManifestContent();
 
     try {
-      this.icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((SplitGenManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
+      this.icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((ManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
     } catch (IOException e) {
       throw new RuntimeIOException(e, "failed to deserialize Iceberg Expression");
     } catch (ClassNotFoundException e) {
@@ -94,7 +107,7 @@ public class ManifestFileProcessor implements AutoCloseable {
   }
 
   public void setup(VectorAccessible incoming, VectorContainer outgoing) {
-    datafileProcessor.setup(incoming, outgoing);
+    manifestEntryProcessor.setup(incoming, outgoing);
   }
 
   public void setupManifestFile(ManifestFile manifestFile) {
@@ -103,17 +116,17 @@ public class ManifestFileProcessor implements AutoCloseable {
       manifestReader.filterRows(icebergAnyColExpression);
     }
 
-    iterator = manifestReader.iterator();
-    datafileProcessor.initialise(manifestReader.spec());
+    iterator = DremioManifestReaderUtils.liveManifestEntriesIterator(manifestReader).iterator();
+    manifestEntryProcessor.initialise(manifestReader.spec());
   }
 
   public int process(int startOutIndex, int maxOutputCount) throws Exception {
     int currentOutputCount = 0;
-    while ((currentFile != null || iterator.hasNext()) && currentOutputCount < maxOutputCount) {
-      if (currentFile == null) {
+    while ((currentManifestEntry != null || iterator.hasNext()) && currentOutputCount < maxOutputCount) {
+      if (currentManifestEntry == null) {
         nextDataFile();
       }
-      int outputRecords = datafileProcessor.processDatafile(currentFile,
+      int outputRecords = manifestEntryProcessor.processManifestEntry(currentManifestEntry,
         startOutIndex + currentOutputCount,
         maxOutputCount - currentOutputCount);
       if (outputRecords == 0) {
@@ -131,12 +144,16 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(datafileProcessor);
+    AutoCloseables.close(manifestEntryProcessor);
   }
 
   @VisibleForTesting
-  ManifestReader<DataFile> getManifestReader(ManifestFile manifestFile) {
-    return ManifestFiles.read(manifestFile, getFileIO(manifestFile), partitionSpecMap);
+  ManifestReader<? extends ContentFile<?>> getManifestReader(ManifestFile manifestFile) {
+    if (manifestContent == ManifestContent.DATA) {
+      return ManifestFiles.read(manifestFile, getFileIO(manifestFile), partitionSpecMap);
+    } else {
+      return ManifestFiles.readDeleteManifest(manifestFile, getFileIO(manifestFile), partitionSpecMap);
+    }
   }
 
   private DremioFileIO getFileIO(ManifestFile manifestFile) {
@@ -149,13 +166,13 @@ public class ManifestFileProcessor implements AutoCloseable {
 
 
   private void nextDataFile() {
-    currentFile = iterator.next();
+    currentManifestEntry = iterator.next();
     operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_DATA_FILE, 1);
   }
 
   private void resetCurrentDataFile() {
-    currentFile = null;
-    datafileProcessor.closeDatafile();
+    currentManifestEntry = null;
+    manifestEntryProcessor.closeManifestEntry();
   }
 
   private static StoragePluginId getPluginId(TableFunctionContext functionContext) {
@@ -198,5 +215,4 @@ public class ManifestFileProcessor implements AutoCloseable {
       throw UserException.ioExceptionError(e).buildSilently();
     }
   }
-
 }

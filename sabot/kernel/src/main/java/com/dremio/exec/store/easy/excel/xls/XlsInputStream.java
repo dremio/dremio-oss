@@ -35,7 +35,7 @@ public class XlsInputStream extends InputStream {
     ArrowBuf allocate(int size);
   }
 
-  private final static int DEFAULT_BUFFER_SIZE = 4096*8;
+  private static final int DEFAULT_BUFFER_SIZE = 4096*8;
 
   private final BufferManager bufferManager;
   private final InputStream in;

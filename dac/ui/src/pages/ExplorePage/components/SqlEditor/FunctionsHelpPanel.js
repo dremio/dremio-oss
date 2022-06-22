@@ -13,29 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import HelpFunctions from './HelpFunctions';
+import { createRef, PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
+import HelpFunctions from "./HelpFunctions";
 
-import './FunctionsHelpPanel.less';
-
+import "./FunctionsHelpPanel.less";
 
 const HEADER_LIST_OF_FUNCS = 36;
-@Radium
-export default class FunctionsHelpPanel extends PureComponent {
+
+class FunctionsHelpPanel extends PureComponent {
   static propTypes = {
     height: PropTypes.number,
     dragType: PropTypes.string.isRequired,
     isVisible: PropTypes.bool.isRequired,
     addFuncToSqlEditor: PropTypes.func,
-    handleSidebarCollapse: PropTypes.func
+    handleSidebarCollapse: PropTypes.func,
   };
 
   constructor(props) {
     super(props);
+    this.sqlHelpPanelRef = createRef();
     this.state = {
-      heightPanel: 110
+      heightPanel: 110,
     };
   }
 
@@ -44,28 +44,37 @@ export default class FunctionsHelpPanel extends PureComponent {
   }
 
   componentWillReceiveProps() {
-    if (this.refs.sqlHelpPanel && this.state.heightPanel !== this.refs.sqlHelpPanel.offsetHeight) {
+    const { current: { offsetHeight } = {} } = this.sqlHelpPanelRef;
+    if (offsetHeight && this.state.heightPanel !== offsetHeight) {
       this.setPanelHeight();
     }
   }
 
   setPanelHeight() {
-    this.setState({ heightPanel: this.refs.sqlHelpPanel.offsetHeight - HEADER_LIST_OF_FUNCS});
+    const { current: { offsetHeight } = {} } = this.sqlHelpPanelRef;
+    this.setState({
+      heightPanel: offsetHeight - HEADER_LIST_OF_FUNCS,
+    });
   }
 
   render() {
-    const {isVisible, dragType, height} = this.props;
+    const { isVisible, dragType, height } = this.props;
     return (
-      <div className='sql-help-panel'
-        onClick={e => e.preventDefault()}
-        style={[{height}]}
-        ref='sqlHelpPanel'>
-        {isVisible &&
-        <HelpFunctions
-          dragType={dragType}
-          heightPanel={this.state.heightPanel}
-          addFuncToSqlEditor={this.props.addFuncToSqlEditor}/>}
+      <div
+        className="sql-help-panel"
+        onClick={(e) => e.preventDefault()}
+        style={[{ height }]}
+        ref={this.sqlHelpPanelRef}
+      >
+        {isVisible && (
+          <HelpFunctions
+            dragType={dragType}
+            heightPanel={this.state.heightPanel}
+            addFuncToSqlEditor={this.props.addFuncToSqlEditor}
+          />
+        )}
       </div>
     );
   }
 }
+export default Radium(FunctionsHelpPanel);

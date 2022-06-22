@@ -24,7 +24,7 @@ import org.apache.arrow.vector.FieldVector;
 import io.netty.util.internal.PlatformDependent;
 
 public class CountOneAccumulator extends BaseSingleAccumulator {
-  private final static int ACCUMULATOR_WIDTH = 8;
+  private static final int ACCUMULATOR_WIDTH = 8;
 
   public CountOneAccumulator(FieldVector input, FieldVector output,
                              FieldVector transferVector, int maxValuesPerBatch,

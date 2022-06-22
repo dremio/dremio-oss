@@ -79,6 +79,7 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataFragmentImpl;
 import com.dremio.service.jobs.RecordBatches;
 import com.dremio.test.AllocatorRule;
@@ -100,6 +101,7 @@ import com.google.common.collect.Lists;
 @RunWith(Parameterized.class)
 public class TestData extends DremioTest {
   private static final JobId TEST_JOB_ID = new JobId("testJobId");
+  private static final SessionId TEST_SESSION_ID = new SessionId().setId("testSessionId");
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   static {
     SimpleModule module = new SimpleModule();
@@ -313,7 +315,7 @@ public class TestData extends DremioTest {
     RecordBatchData batch = createRecordBatch(vv);
 
     return new JobDataFragmentWrapper(0,  new JobDataFragmentImpl(
-        new RecordBatches(asList(newRecordBatchHolder(batch, 0, batch.getRecordCount()))), 0, TEST_JOB_ID));
+        new RecordBatches(asList(newRecordBatchHolder(batch, 0, batch.getRecordCount()))), 0, TEST_JOB_ID, TEST_SESSION_ID));
   }
 
 
@@ -984,7 +986,7 @@ public class TestData extends DremioTest {
         newRecordBatchHolder(batch1, 0, 5),
         newRecordBatchHolder(batch2, 0, 5),
         newRecordBatchHolder(batch3, 0, 5)
-      )), 0, TEST_JOB_ID))) {
+      )), 0, TEST_JOB_ID, TEST_SESSION_ID))) {
       DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(dataInput), DataPOJO.class);
       assertEquals(dataInput.getColumns().toString(), dataOutput.getColumns().toString());
       assertEquals(dataInput.getReturnedRowCount(), dataOutput.getReturnedRowCount());
@@ -1014,7 +1016,7 @@ public class TestData extends DremioTest {
         newRecordBatchHolder(batch1, 0, 5),
         newRecordBatchHolder(batch2, 0, 5),
         newRecordBatchHolder(batch3, 0, 5)
-      )), 0, TEST_JOB_ID))) {
+      )), 0, TEST_JOB_ID, TEST_SESSION_ID))) {
       DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(dataInput), DataPOJO.class);
       assertEquals(dataInput.getColumns().toString(), dataOutput.getColumns().toString());
       assertEquals(dataInput.getReturnedRowCount(), dataOutput.getReturnedRowCount());
@@ -1044,7 +1046,7 @@ public class TestData extends DremioTest {
     recordBatches.add(newRecordBatchHolder(data3, 0, data3.getRecordCount()));
 
     try (JobDataFragment jdf = new JobDataFragmentWrapper(0, new JobDataFragmentImpl(
-      new RecordBatches(recordBatches), 0, TEST_JOB_ID))) {
+      new RecordBatches(recordBatches), 0, TEST_JOB_ID, TEST_SESSION_ID))) {
 
       String value = jdf.extractString("colVarChar", 3);
       assertEquals(null, value);
@@ -1068,7 +1070,7 @@ public class TestData extends DremioTest {
           newRecordBatchHolder(data1, 2, 5),
           newRecordBatchHolder(data2, 1, 3),
           newRecordBatchHolder(data3, 0, 4)
-        )), 0, TEST_JOB_ID))) {
+        )), 0, TEST_JOB_ID, TEST_SESSION_ID))) {
         value = jdf2.extractString("colVarChar", 0); // should be element #2 from first batch
         assertEquals("long long long long value", value);
         value = jdf2.extractString("colVarChar", 3); // will not fit first batch - will be 1st element of the 2nd batch which element 1

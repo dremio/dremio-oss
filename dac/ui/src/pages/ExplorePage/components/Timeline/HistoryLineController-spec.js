@@ -13,37 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { HistoryLineController } from './HistoryLineController';
+import { HistoryLineController } from "./HistoryLineController";
 
-describe('HistoryLineController', () => {
-
+describe("HistoryLineController", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       location: {},
       dataset: Immutable.fromJS({
-        tipVersion: '12345',
-        datasetVersion: '12345'
-      })
+        tipVersion: "12345",
+        datasetVersion: "12345",
+      }),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<HistoryLineController {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<HistoryLineController {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render HistoryLine', () => {
-    const wrapper = shallow(<HistoryLineController {...commonProps}/>);
-    expect(wrapper.find('HistoryLine')).to.have.length(1);
-    const props = wrapper.find('HistoryLine').first().props();
-    expect(props.tipVersion).to.equal(commonProps.dataset.get('tipVersion'));
-    expect(props.activeVersion).to.equal(commonProps.dataset.get('datasetVersion'));
+  it("should render HistoryLine", () => {
+    const wrapper = shallow(<HistoryLineController {...commonProps} />);
+    expect(wrapper.find("HistoryLine")).to.have.length(1);
+    const props = wrapper.find("HistoryLine").first().props();
+    expect(props.tipVersion).to.equal(commonProps.dataset.get("tipVersion"));
+    expect(props.activeVersion).to.equal(
+      commonProps.dataset.get("datasetVersion")
+    );
   });
 });

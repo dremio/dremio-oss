@@ -26,14 +26,14 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -47,9 +47,9 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
 
   private final String tempLocation;
   private final String finalLocation;
-  private final FileSystemPlugin<?> plugin;
+  private final MutablePlugin plugin;
   private final String userName;
-  private final FileSystemCreateTableEntry fileSystemCreateTableEntry;
+  private final CreateTableEntry createTableEntry;
   private final Optional<DatasetConfig> datasetConfig;
   private final boolean isPartialRefresh;
   private final boolean readSignatureEnabled;
@@ -59,11 +59,11 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode child,
-      FileSystemPlugin<?> plugin,
+      MutablePlugin plugin,
       String tempLocation,
       String finalLocation,
       String userName,
-      FileSystemCreateTableEntry fileSystemCreateTableEntry,
+      CreateTableEntry createTableEntry,
       Optional<DatasetConfig> datasetConfig,
       boolean partialRefresh,
       boolean readSignatureEnabled,
@@ -74,7 +74,7 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
     this.finalLocation = finalLocation;
     this.plugin = plugin;
     this.userName = userName;
-    this.fileSystemCreateTableEntry = fileSystemCreateTableEntry;
+    this.createTableEntry = createTableEntry;
     this.datasetConfig = datasetConfig;
     this.isPartialRefresh = partialRefresh;
     this.readSignatureEnabled = readSignatureEnabled;
@@ -85,23 +85,23 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode child,
-      FileSystemPlugin<?> plugin,
+      MutablePlugin plugin,
       String tempLocation,
       String finalLocation,
       String userName,
-      FileSystemCreateTableEntry fileSystemCreateTableEntry,
+      CreateTableEntry createTableEntry,
       Optional<DatasetConfig> datasetConfig,
       boolean partialRefresh,
       boolean readSignatureEnabled
   ) {
-    this(cluster, traits, child, plugin, tempLocation, finalLocation, userName, fileSystemCreateTableEntry,
+    this(cluster, traits, child, plugin, tempLocation, finalLocation, userName, createTableEntry,
         datasetConfig, partialRefresh, readSignatureEnabled, null);
   }
 
   @Override
   public WriterCommitterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName,
-        fileSystemCreateTableEntry, datasetConfig, isPartialRefresh, readSignatureEnabled, sourceTablePluginId);
+        createTableEntry, datasetConfig, isPartialRefresh, readSignatureEnabled, sourceTablePluginId);
   }
 
   @Override
@@ -119,8 +119,8 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
         creator.props(this, userName, RecordWriter.SCHEMA, RESERVE, LIMIT),
         tempLocation,
         finalLocation,
-        fileSystemCreateTableEntry.getIcebergTableProps(),
-        fileSystemCreateTableEntry.getDatasetPath(),
+        createTableEntry.getIcebergTableProps(),
+        createTableEntry.getDatasetPath(),
         datasetConfig,
         childPop,
         plugin,

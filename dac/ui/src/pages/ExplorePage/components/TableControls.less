@@ -13,27 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .table-viewer-short{
-    .table-controls{
+  .table-viewer-short {
+    .table-controls {
       width: ~"calc(100% - 275px)";
+      background-color: @FIGMA_NEUTRAL_100;
+      display: flex;
+      height: 48px;
+      flex-direction: row;
+      align-items: center;
+      padding: 8px;
     }
   }
 
   .table-controls {
-    align-items: center;
+    background-color: @FIGMA_NEUTRAL_100;
     display: flex;
-    height: 52px;
-    flex-shrink: 0; // do not allow to reduce the height
-    justify-content: flex-end;
-    padding: 0 10px;
-    position: relative;
+    height: 48px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    margin: 0 8px 0 8px;
     user-select: none;
 
     input {
       user-select: none;
+    }
+
+    &__actions {
+      align-items: center;
+      display: flex;
+      font-size: 1.4rem;
+      justify-content: space-between;
+      margin-right: 1rem;
+      padding-right: 1rem;
+      white-space: nowrap;
     }
 
     .tooltip-warn {
@@ -63,17 +83,17 @@
 
       .run-again {
         margin-top: 10px;
-        color: #0096FF;
+        color: #0096ff;
         cursor: pointer;
       }
     }
 
     .active-data-graph {
-      background-color: darken(#EFEFEF, 10%) !important;
+      background-color: darken(#efefef, 10%) !important;
     }
 
     .columns-text {
-      color: #0096FF;
+      color: #0096ff;
       cursor: pointer;
     }
 
@@ -90,7 +110,7 @@
       min-width: 521px;
       justify-content: flex-end;
 
-      &.inactive-element{
+      &.inactive-element {
         background-color: transparent;
         opacity: 0.4;
 
@@ -114,7 +134,7 @@
       height: 28px;
       margin-right: 0;
 
-      &.inactive-element{
+      &.inactive-element {
         background-color: transparent;
         opacity: 0.4;
         cursor: default;
@@ -133,11 +153,11 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: #EFEFEF;
+      background-color: #efefef;
       font-size: 14px;
       margin-left: 15px;
 
-      &.inactive-element{
+      &.inactive-element {
         background-color: transparent;
         opacity: 0.4;
 
@@ -160,14 +180,14 @@
       }
 
       &:hover {
-        background-color: darken(#EFEFEF, 10%);
+        background-color: darken(#efefef, 10%);
       }
 
       &.data-graph-button {
         cursor: pointer;
         margin-left: 20px;
         min-width: 120px;
-        background-color: #FFFFFF;
+        background-color: #ffffff;
 
         .fa {
           font-size: 17px;
@@ -178,17 +198,17 @@
       }
 
       &.blue-button {
-        background-color: #0094FB;
+        background-color: #0094fb;
         color: #fff;
-        border-color: #0094FB;
+        border-color: #0094fb;
 
         &:hover {
-          background-color: darken(#0094FB, 10%);
+          background-color: darken(#0094fb, 10%);
         }
       }
 
       &:hover {
-        background-color: darken(#EFEFEF, 10%);
+        background-color: darken(#efefef, 10%);
       }
     }
 
@@ -200,13 +220,67 @@
       display: flex;
       align-items: center; // make sure all the buttons line up nicely
       flex: 1;
-      gap: 5px;
+      gap: 8px;
     }
 
     .left-controls {
       display: flex;
       align-items: center;
       flex: 1;
+
+      .controls {
+        button,
+        input {
+          font-size: 14px;
+        }
+
+        &-addField,
+        &-groupBy {
+          width: 102px;
+        }
+
+        &-join {
+          width: 69px;
+          min-width: 0;
+        }
+
+        &-addField,
+        &-groupBy,
+        &-join {
+          &-icon {
+            height: 20px;
+            width: 20px;
+            color: var(--dremio--color--neutral--600);
+          }
+
+          &-icon--disabled {
+            height: 20px;
+            width: 20px;
+            color: var(--dremio--color--neutral--200);
+          }
+        }
+      }
+
+      .table-controls__right {
+        .dropdownMenu {
+          cursor: pointer;
+
+          &:hover {
+            .dropdownMenu__iconWrap,
+            .fa {
+              .gray-icon-hover();
+            }
+          }
+        }
+
+        & > span {
+          margin: 5px 10px 0 !important;
+
+          &:hover {
+            .gray-icon-hover();
+          }
+        }
+      }
     }
 
     .right-controls {

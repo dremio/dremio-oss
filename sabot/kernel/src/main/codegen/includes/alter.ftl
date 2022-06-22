@@ -36,6 +36,9 @@
     SqlLiteral enableSchemaLearning = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
     SqlNodeList filesList = SqlNodeList.EMPTY;
     SqlNodeList partitionList = SqlNodeList.EMPTY;
+    SqlPartitionTransform partitionTransform;
+    SqlPolicy sqlPolicy;
+
 }
 {
     <ALTER> { pos = getPos(); }
@@ -68,14 +71,32 @@
         )
       )
       |
-      (<TABLE> | <VDS> | <PDS> | <DATASET>)
+      (<TABLE> | <VDS> | <VIEW> | <PDS> | <DATASET>)
         tblName = CompoundIdentifier()
         (
+          <ADD> <ROW> <ACCESS> <POLICY> sqlPolicy = Policy()
+          { return new SqlAlterTableAddRowAccessPolicy(pos, tblName, sqlPolicy); }
+          |
+          <DROP> <ROW> <ACCESS> <POLICY> sqlPolicy = Policy()
+          { return new SqlAlterTableDropRowAccessPolicy(pos, tblName, sqlPolicy); }
+          |
+          <ADD> <PRIMARY> <KEY> { return new SqlAlterTableAddPrimaryKey(pos, tblName, ParseRequiredFieldList("Primary Key")); }
+          |
+          <DROP> <PRIMARY> <KEY> { return new SqlAlterTableDropPrimaryKey(pos, tblName); }
+          |
           <ROUTE> (
             (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.TABLE, pos)); }
           )
           |
-          <ADD> <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList()); }
+          <ADD> (
+            <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList()); }
+            |
+            <PARTITION> <FIELD> partitionTransform = ParsePartitionTransform()
+            {
+              return new SqlAlterTablePartitionColumns(pos, tblName,
+                SqlLiteral.createSymbol(SqlAlterTablePartitionColumns.Mode.ADD, pos), partitionTransform);
+            }
+          )
           |
           (<CHANGE> | <ALTER> | <MODIFY>)
             [<COLUMN>]
@@ -86,11 +107,27 @@
             (
               typedElement = TypedElement() { return new SqlAlterTableChangeColumn(pos, tblName, columnName, typedElement); }
             |
+              (
+                <SET> <MASKING> <POLICY> sqlPolicy = Policy()
+                { return new SqlAlterTableSetColumnMasking(pos, tblName, columnName, sqlPolicy); }
+              )
+            |
+              (
+                <UNSET> <MASKING> <POLICY>  sqlPolicy = PolicyWithoutArgs()
+                { return new SqlAlterTableUnsetColumnMasking(pos, tblName, columnName, sqlPolicy); }
+              )
+            |
               { return new SqlAlterTableChangeColumnSetOption(pos, tblName, columnName, SqlSetOption(Span.of(), "COLUMN")); }
             )
           |
           <DROP> (
             <REFLECTION> {return SqlDropReflection(pos, tblName);}
+            |
+            <PARTITION> <FIELD> partitionTransform = ParsePartitionTransform()
+            {
+              return new SqlAlterTablePartitionColumns(pos, tblName,
+                SqlLiteral.createSymbol(SqlAlterTablePartitionColumns.Mode.DROP, pos), partitionTransform);
+            }
             |
             (
               <COLUMN>
@@ -272,8 +309,6 @@ SqlNodeList KeyValuePair() :
    [ DISTRIBUTE BY (field1, field2, ..) ]
    [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ LOCALSORT BY (field1, field2, ..) ]
-   [ PARTITION BY (field1, field2, ..) ]
-   [ LOCALSORT BY (field1, field2, ..) ]
  */
 SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name) :
 {
@@ -430,15 +465,15 @@ void MeasureList(List<SqlNode> measures) :
    ADD RAW REFLECTION name
    USING
    DISPLAY (field1, field2)
-   [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ DISTRIBUTE BY (field1, field2, ..) ]
+   [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ LOCALSORT BY (field1, field2, ..) ]
  */
 SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name) :
 {
     SqlNodeList displayList;
-    SqlNodeList partitionList;
     SqlNodeList distributionList;
+    SqlNodeList partitionList;
     SqlNodeList sortList;
     SqlLiteral arrowCachingEnabled;
     PartitionDistributionStrategy partitionDistributionStrategy;
@@ -546,6 +581,57 @@ SqlNode SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName
   }
 }
 
+SqlPolicy Policy() :
+{
+    SqlIdentifier name;
+    SqlNodeList columns = SqlNodeList.EMPTY;
+}
+{
+  name = CompoundIdentifier()
+  columns = ParseColumns()
+  {
+    return new SqlPolicy(getPos(), name, columns);
+  }
+}
+
+SqlPolicy PolicyWithoutArgs() :
+{
+    SqlIdentifier name;
+    SqlNodeList columns = SqlNodeList.EMPTY;
+}
+{
+  name = CompoundIdentifier()
+  {
+    return new SqlPolicy(getPos(), name, SqlNodeList.EMPTY);
+  }
+}
+
+SqlNodeList ParseColumns() :
+ {
+     SqlNodeList columnList = new SqlNodeList(getPos());
+ }
+ {
+     <LPAREN>
+     IdentifierCommaList(columnList.getList())
+     <RPAREN>
+     {
+         return columnList;
+     }
+ }
+
+ void IdentifierCommaList(List<SqlNode> list) :
+ {
+     SqlNode literal;
+ }
+ {
+     literal = SimpleIdentifier() { list.add(literal); }
+     (
+         <COMMA> literal = SimpleIdentifier() {
+             list.add(literal);
+         }
+     )*
+ }
+
 SqlColumnDeclaration TypedElement() :
 {
     final SqlIdentifier id;
@@ -558,7 +644,7 @@ SqlColumnDeclaration TypedElement() :
     type = DataType()
     nullable = NullableOptDefaultTrue()
     {
-        return new SqlColumnDeclaration(s.add(id).end(this), id,
+        return new SqlColumnDeclaration(s.add(id).end(this), new SqlColumnPolicyPair(id.getParserPosition(), id, null),
                 new SqlComplexDataTypeSpec(type.withNullable(nullable)), null);
     }
 }

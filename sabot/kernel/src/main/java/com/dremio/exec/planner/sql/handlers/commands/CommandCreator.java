@@ -27,6 +27,7 @@ import org.apache.calcite.sql.SqlSetOption;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -34,6 +35,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.AccelAddExternalReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelCreateReflectionHandler;
@@ -42,13 +44,17 @@ import com.dremio.exec.planner.sql.handlers.direct.AccelToggleHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AddColumnsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterClearPlanCacheHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableChangeColumnSetOptionHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AlterTablePartitionSpecHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableSetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AnalyzeTableStatisticsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ChangeColumnHandler;
 import com.dremio.exec.planner.sql.handlers.direct.CreateEmptyTableHandler;
+import com.dremio.exec.planner.sql.handlers.direct.CreateFunctionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.CreateViewHandler;
+import com.dremio.exec.planner.sql.handlers.direct.DescribeFunctionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DescribeTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropColumnHandler;
+import com.dremio.exec.planner.sql.handlers.direct.DropFunctionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropViewHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ExplainHandler;
@@ -58,17 +64,20 @@ import com.dremio.exec.planner.sql.handlers.direct.RefreshSourceStatusHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetApproxHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetOptionHandler;
+import com.dremio.exec.planner.sql.handlers.direct.ShowFunctionsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowSchemasHandler;
-import com.dremio.exec.planner.sql.handlers.direct.ShowTablesHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SqlAlterTableToggleSchemaLearningHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.TruncateTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.UseSchemaHandler;
 import com.dremio.exec.planner.sql.handlers.query.CreateTableHandler;
+import com.dremio.exec.planner.sql.handlers.query.DeleteHandler;
 import com.dremio.exec.planner.sql.handlers.query.InsertTableHandler;
+import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
 import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
 import com.dremio.exec.planner.sql.parser.SqlAlterClearPlanCache;
@@ -76,19 +85,24 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
+import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableToggleSchemaLearning;
 import com.dremio.exec.planner.sql.parser.SqlAnalyzeTableStatistics;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
+import com.dremio.exec.planner.sql.parser.SqlCreateFunction;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
+import com.dremio.exec.planner.sql.parser.SqlCreateTable;
+import com.dremio.exec.planner.sql.parser.SqlDescribeFunction;
+import com.dremio.exec.planner.sql.parser.SqlDropFunction;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
+import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
-import com.dremio.exec.planner.sql.parser.SqlShowTables;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
 import com.dremio.exec.planner.sql.parser.SqlVersionBase;
@@ -111,8 +125,8 @@ import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -214,17 +228,12 @@ public class CommandCreator {
                   preparedPlans.invalidate(handle);
                 }
 
-                // we need to verify that client provided valid handle.
-                Preconditions.checkArgument(plan.getQuery().equals(preparedStatement.getSqlQuery()),
-                  "Prepared statement's sql query doesn't match what sent when prepared statement was created.");
-                if(plan.getUsername() != null){
-                  Preconditions.checkArgument(
-                    plan.getUsername()
-                        .equals(context.getSession()
-                            .getCredentials()
-                            .getUserName()));
+                // Only reuse the cached prepared plan if the query and username match
+                final boolean queryMatches = plan.getQuery().equals(preparedStatement.getSqlQuery());
+                final boolean usernameMatches = plan.getUsername() == null || plan.getUsername().equals(context.getSession().getCredentials().getUserName());
+                if (queryMatches && usernameMatches) {
+                  return new PrepareToExecution(plan, observer);
                 }
-                return new PrepareToExecution(plan, observer);
               }
             }
 
@@ -285,15 +294,14 @@ public class CommandCreator {
           context.getRelMetadataQuerySupplier());
 
       injector.injectChecked(context.getExecutionControls(), "sql-parsing", ForemanSetupException.class);
-      final DremioCatalogReader reader = parser.getCatalogReader();
       final Catalog catalog = context.getCatalog();
       final SqlNode sqlNode = parser.parse(sql);
       final SqlHandlerConfig config = new SqlHandlerConfig(context, parser, observer, parser.getMaterializations());
 
-      validateCommand(sqlNode);
-
       final DirectBuilder direct = new DirectBuilder(sql, sqlNode, prepareMetadataType);
       final AsyncBuilder async = new AsyncBuilder(sql, sqlNode, prepareMetadataType);
+
+      validateCommand(sqlNode);
 
       //TODO DX-10976 refactor all handlers to use similar Creator interfaces
       if(sqlNode instanceof SqlToPlanHandler.Creator) {
@@ -314,37 +322,56 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlAlterTableChangeColumnSetOption) {
           return direct.create(new AlterTableChangeColumnSetOptionHandler(catalog));
         } else if (sqlNode instanceof SqlSetOption) {
+          checkIfAllowedToSetOption(sqlNode);
           return direct.create(new SetOptionHandler(context));
         }
 
       case DESCRIBE_TABLE:
-        return direct.create(new DescribeTableHandler(reader));
+        SqlValidatorAndToRelContext sqlValidatorAndToRelContext = SqlValidatorAndToRelContext.builder(parser).build();
+        final DremioCatalogReader reader = sqlValidatorAndToRelContext.getDremioCatalogReader();
+        return direct.create(DescribeTableHandler.create(reader, context));
 
       case CREATE_VIEW:
-        return direct.create(new CreateViewHandler(config));
+        return direct.create(CreateViewHandler.create(config));
 
       case DROP_TABLE:
         return direct.create(new DropTableHandler(catalog, context.getSession()));
 
       case DROP_VIEW:
-        return direct.create(new DropViewHandler(catalog));
+        return direct.create(new DropViewHandler(config));
 
       case CREATE_TABLE:
-        return async.create(new CreateTableHandler(), config);
+        NamespaceKey tableKey = catalog.resolveSingle(((SqlCreateTable) sqlNode).getPath());
+        DremioTable table = catalog.getTableNoResolve(tableKey);
+        if (table != null && ((SqlCreateTable) sqlNode).getIfNotExists()) {
+            return direct.create(CreateEmptyTableHandler.create(catalog, config, context.getSession(), ((SqlCreateTable) sqlNode).getIfNotExists()));
+        }
+        return async.create(CreateTableHandler.create(), config);
 
       case ALTER_TABLE:
         if (sqlNode instanceof SqlAlterTableAddColumns) {
           return direct.create(new AddColumnsHandler(catalog, config));
         } else if (sqlNode instanceof SqlAlterTableChangeColumn) {
-          return direct.create(new ChangeColumnHandler(catalog, config));
+          return direct.create(ChangeColumnHandler.create(catalog, config));
         } else if (sqlNode instanceof SqlAlterTableDropColumn) {
-          return direct.create(new DropColumnHandler(catalog, config));
+          return direct.create(DropColumnHandler.create(catalog, config));
         } else if (sqlNode instanceof SqlAlterTableToggleSchemaLearning) {
-            return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog, config));
+          return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTablePartitionColumns) {
+          return direct.create(new AlterTablePartitionSpecHandler(catalog, config));
         }
 
       case INSERT:
         return async.create(new InsertTableHandler(), config);
+
+      case DELETE:
+        return async.create(new DeleteHandler(), config);
+
+      case MERGE:
+        return async.create(new MergeHandler(), config);
+
+      case UPDATE:
+        return async.create(new UpdateHandler(), config);
 
       case OTHER:
       case OTHER_DDL:
@@ -352,8 +379,6 @@ public class CommandCreator {
           return direct.create(new ShowSchemasHandler(catalog));
         } else if (sqlNode instanceof SqlExplainJson) {
           return direct.create(new ExplainJsonHandler(config));
-        } else if (sqlNode instanceof SqlShowTables) {
-          return direct.create(new ShowTablesHandler(catalog));
         } else if (sqlNode instanceof SqlUseSchema) {
           return direct.create(new UseSchemaHandler(context.getSession(), catalog));
         } else if (sqlNode instanceof SqlCreateReflection) {
@@ -376,7 +401,7 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlSetApprox) {
           return direct.create(new SetApproxHandler(catalog));
         } else if (sqlNode instanceof SqlCreateEmptyTable) {
-          return direct.create(new CreateEmptyTableHandler(catalog, config, context.getSession()));
+          return direct.create(CreateEmptyTableHandler.create(catalog, config, context.getSession(), ((SqlCreateEmptyTable) sqlNode).getIfNotExists()));
         } else if (sqlNode instanceof SqlTruncateTable) {
           return direct.create(new TruncateTableHandler(config));
         } else if (sqlNode instanceof SqlAlterClearPlanCache) {
@@ -385,6 +410,14 @@ public class CommandCreator {
           return direct.create(new AnalyzeTableStatisticsHandler(catalog, config, context.getStatisticsAdministrationFactory()));
         } else if (sqlNode instanceof SqlVersionBase) {
           return direct.create(((SqlVersionBase) sqlNode).toDirectHandler(context));
+        } else if (sqlNode instanceof SqlCreateFunction) {
+          return direct.create(new CreateFunctionHandler(context));
+        } else if (sqlNode instanceof SqlDropFunction) {
+          return direct.create(new DropFunctionHandler(context));
+        } else if(sqlNode instanceof SqlDescribeFunction){
+          return direct.create(DescribeFunctionHandler.create(context));
+        } else if (sqlNode instanceof SqlShowFunctions){
+          return direct.create(new ShowFunctionsHandler(context));
         }
 
         // fallthrough
@@ -401,6 +434,10 @@ public class CommandCreator {
           .addContext(SqlExceptionHelper.SQL_QUERY_CONTEXT, sql)
           .build(logger);
     }
+  }
+
+  protected void checkIfAllowedToSetOption(SqlNode sqlNode) throws ForemanSetupException {
+    // no-op. This is overridden in derived classes
   }
 
   private class DirectBuilder {

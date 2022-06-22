@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import AdjustWorkersForm from './AdjustWorkersForm';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import AdjustWorkersForm from "./AdjustWorkersForm";
 
-describe('AdjustWorkersForm', () => {
+describe("AdjustWorkersForm", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
@@ -25,23 +25,23 @@ describe('AdjustWorkersForm', () => {
     commonProps = {
       ...minimalProps,
       fields: {
-        containerCount: { value: 1 }
+        containerCount: { value: 1 },
       },
       handleSubmit: sinon.spy(),
       onCancel: sinon.spy(),
       changeWorkersSize: sinon.spy(),
       viewState: Immutable.fromJS({
-        viewId: 'AdjustWorkersForm'
+        viewId: "AdjustWorkersForm",
       }),
-      entity: Immutable.Map()
+      entity: Immutable.Map(),
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AdjustWorkersForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AdjustWorkersForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AdjustWorkersForm {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<AdjustWorkersForm {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

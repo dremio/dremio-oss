@@ -56,12 +56,15 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
+import com.dremio.exec.store.parquet.BigIntAutoIncrementer;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -105,11 +108,13 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   // See DRILL-4203
   private SchemaDerivationHelper schemaHelper;
   private VectorizedBasedFilter vectorizedBasedFilter;
+  private final BatchSchema tableSchema;
+  private final BigIntAutoIncrementer rowIndexGenerator;
 
   public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec,
-                             boolean readEvenIfSchemaChanges) {
+                             boolean readEvenIfSchemaChanges, BatchSchema tableSchema) {
     super(context, projectedColumns.getBatchSchemaProjectedColumns(), deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
@@ -120,24 +125,29 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     this.codec = codec;
     this.projectedColumns = projectedColumns;
     this.readEvenIfSchemaChanges = readEvenIfSchemaChanges;
+    this.tableSchema = tableSchema;
+    this.rowIndexGenerator = tableSchema != null && tableSchema.findFieldIgnoreCase(ColumnUtils.ROW_INDEX_COLUMN_NAME).isPresent()
+      ? new BigIntAutoIncrementer(ColumnUtils.ROW_INDEX_COLUMN_NAME,  context.getTargetBatchSize(), deltas)
+      : null;
   }
 
   public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                             SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec) {
-    this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, deltas, inputStreamProvider, codec, false);
-  }
-
-  public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
-                             ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                             InputStreamProvider inputStreamProvider, CompressionCodecFactory codec) {
-    this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, null, inputStreamProvider, codec);
+                             SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec, BatchSchema tableSchema) {
+    this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, deltas, inputStreamProvider, codec, false, tableSchema);
   }
 
   public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              InputStreamProvider inputStreamProvider, CompressionCodecFactory codec, boolean readEvenIfSchemaChanges) {
-    this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, null, inputStreamProvider, codec, readEvenIfSchemaChanges);
+    this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, null, inputStreamProvider, codec, readEvenIfSchemaChanges, null);
+  }
+
+  public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
+                             ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
+                             InputStreamProvider inputStreamProvider, CompressionCodecFactory codec, boolean readEvenIfSchemaChanges,
+                             BatchSchema tableSchema) {
+    this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, null, inputStreamProvider, codec, readEvenIfSchemaChanges, tableSchema);
   }
 
   public static SchemaPath convertColumnDescriptor(ParquetColumnResolver columnResolver, final MessageType schema, final ColumnDescriptor columnDescriptor) {
@@ -307,9 +317,20 @@ public class ParquetRowiseReader extends AbstractParquetReader {
           recordReader = null;
         }
       }
+      setupRowIndexGenerator(output);
     } catch (Exception e) {
       handleAndRaise("Failure in setting up reader", e);
     }
+  }
+
+  private void setupRowIndexGenerator(OutputMutator output) {
+    if (rowIndexGenerator == null) {
+      return;
+    }
+    long accumulatedRowCount = footer.getAccumulatedRowCount(rowGroupIndex);
+    logger.debug("Row group {}, accumulated row count {}", rowGroupIndex, accumulatedRowCount);
+    rowIndexGenerator.setRowIndexBase(accumulatedRowCount);
+    rowIndexGenerator.setup(output);
   }
 
   private void verifyDecimalTypesAreSame(OutputMutator output, ParquetColumnResolver columnResolver) {
@@ -482,24 +503,28 @@ public class ParquetRowiseReader extends AbstractParquetReader {
           footer.getBlocks().get(rowGroupIndex).getRowCount() == 0) {
         return 0;
       }
+
+      maxRecordCount = numRowsPerBatch;
+      if (deltas != null) {
+        maxRecordCount = deltas.getValueCount();
+        if (vectorizedBasedFilter != null) {
+          vectorizedBasedFilter.reset();
+        }
+      }
+
       // No columns found in the file were selected, simply return a full batch of null records for each column requested
       if (noColumnsFound) {
         if (mockRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount()) {
           return 0;
         }
         long recordsToRead = 0;
-        recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
+        recordsToRead = Math.min(maxRecordCount, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
         writer.setValueCount((int)recordsToRead);
         mockRecordsRead += recordsToRead;
         totalRead += recordsToRead;
         return (int) recordsToRead;
       }
 
-      maxRecordCount = numRowsPerBatch;
-      if (deltas != null) {
-        maxRecordCount = deltas.getValueCount();
-        vectorizedBasedFilter.reset();
-      }
       while (count < maxRecordCount && totalRead < recordCount) {
         recordMaterializer.setPosition(count);
         recordReader.read();
@@ -513,6 +538,9 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         for (final ValueVector vv : nullFilledVectors) {
           vv.setValueCount(count);
         }
+      }
+      if (rowIndexGenerator != null) {
+        rowIndexGenerator.populate(count);
       }
       return count;
     } catch (Throwable t) {

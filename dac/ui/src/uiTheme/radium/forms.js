@@ -13,108 +13,131 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { GREY } from 'uiTheme/radium/colors';
-import typography from './typography';
+import { GREY } from "uiTheme/radium/colors";
+import typography from "./typography";
 
 export const form = {
-  height: '100%'
+  height: "100%",
 };
 
 export const formBody = {
-  padding: '20px 15px'
+  padding: "20px 15px",
 };
 
 export const modalFormBody = {
-  height: '100%',
+  height: "100%",
   flexGrow: 1,
-  minHeight: 0
+  minHeight: 0,
 };
 
 export const modalFormWrapper = {
-  height: '100%'
+  height: "100%",
 };
 
 export const modalForm = {
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%'
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
 };
 
 export const section = {
-  marginBottom: 20
+  marginBottom: 20,
 };
 
 export const sectionTitle = {
-  marginBottom: 6
+  marginBottom: 6,
 };
 
 export const subSectionTitle = {
   fontSize: 14,
   marginBottom: 6,
-  fontWeight: 'bold'
+  fontWeight: "bold",
 };
 
 export const formRow = {
-  marginBottom: 16
+  marginBottom: 16,
 };
 
 export const label = {
   ...typography.formLabel,
-  color: '#7F8B95',
-  fontWeight: 400
+  color: "#202124",
+  fontWeight: 400,
 };
 
 export const textInput = {
   ...typography.formDefault,
-  borderRadius: '4px',
-  padding: '8px',
-  width: '310px'
+  borderRadius: "4px",
+  padding: "8px",
+  width: "310px",
 };
 
 export const textInputError = {
-  border: '1px solid #DA3030'
+  border: "1px solid #CA3F32",
 };
 
 export const textInputDisabled = {
   ...typography.formDescription,
-  background: '#E5E5E5',
-  border: '1px solid #E5E5E5',
-  color: '#7f8b95'
+  background: "#EEEFF1",
+  border: "1px solid var(--dremio--color--neutral--200)",
+  color: "#B0B7BF",
 };
 
 export const textInputSmall = {
-  height: '24px',
-  width: '180px'
+  height: "24px",
+  width: "180px",
 };
 
 export const textArea = {
   ...textInput,
-  height: '56px',
-  width: '100%',
-  display: 'block'
+  height: "56px",
+  width: "100%",
+  display: "block",
+  border: "1px solid var(--dremio--color--neutral--200)",
+
+  ":hover": {
+    borderColor: "var(--dremio--color--neutral--300)",
+  },
+
+  ":focus": {
+    outline: "none",
+    borderColor: "var(--dremio--color--primary--500)",
+  },
+
+  ":disabled": {
+    background: "var(--dremio--color--neutral--150)",
+    color: "var(--dremio--color--text--disabled)",
+  },
 };
 
 export const description = {
   ...typography.formDescription,
   ...formRow,
-  width: '630px'
+  width: "630px",
 };
 
 export const divider = {
-  borderTop: '1px solid rgba(0,0,0,0.1)',
-  borderBottom: 'none',
-  margin: '10px 0'
+  borderTop: "1px solid rgba(0,0,0,0.1)",
+  borderBottom: "none",
+  margin: "10px 0",
 };
 
 export const checkboxFocus = {
-  outline: `1px dotted ${GREY}`
+  outline: `1px dotted ${GREY}`,
 };
 
 // currently only used by Radio/Checkbox/Select:
 export const fieldDisabled = {
-  opacity: 0.67 // passes contrast checks
+  opacity: 0.67, // passes contrast checks
 };
 
 export default {
-  label, textInput, textInputError, textInputDisabled, textInputSmall, textArea, description, divider, fieldDisabled
+  label,
+  textInput,
+  textInputError,
+  textInputDisabled,
+  textInputSmall,
+  textArea,
+  description,
+  divider,
+  fieldDisabled,
 };

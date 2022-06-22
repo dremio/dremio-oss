@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import { fixedWidthBold } from 'uiTheme/radium/typography';
+import { fixedWidthBold } from "uiTheme/radium/typography";
 
 //TODO andrey, here we not sure what data we ger, need to improve architecture
-@Radium
-export default class ContentHeader extends PureComponent {
-
+class ContentHeader extends PureComponent {
   static propTypes = {
     type: PropTypes.string.isRequired,
-    data: PropTypes.instanceOf(Immutable.Map)
+    data: PropTypes.instanceOf(Immutable.Map),
   };
 
   constructor(props) {
@@ -38,7 +36,7 @@ export default class ContentHeader extends PureComponent {
     return (
       <div style={[styles.extract]}>
         <span style={[fixedWidthBold]}>On:&nbsp;</span>
-        <span style={[fixedWidthBold]}>{data.get('description')}</span>
+        <span style={[fixedWidthBold]}>{data.get("description")}</span>
       </div>
     );
   }
@@ -47,6 +45,7 @@ export default class ContentHeader extends PureComponent {
 const styles = {
   extract: {
     marginLeft: 10,
-    marginTop: 10
-  }
+    marginTop: 10,
+  },
 };
+export default Radium(ContentHeader);

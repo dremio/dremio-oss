@@ -14,26 +14,38 @@
  * limitations under the License.
  */
 
-import { pick } from 'lodash/object';
-import { SHARING_TAB_JSON_TEMPLATE } from 'dyn-load/constants/sourceTypes';
-import { DEFAULT_VLHF_DETAIL } from 'dyn-load/constants/vlh';
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormConfig from 'utils/FormUtils/FormConfig';
-import FormTabConfig from 'utils/FormUtils/FormTabConfig';
-import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import CheckEnabledContainerConfig from 'utils/FormUtils/CheckEnabledContainerConfig';
-import ContainerSelectionConfig from 'utils/FormUtils/ContainerSelectionConfig';
-import CredentialsConfig from 'utils/FormUtils/CredentialsConfig';
-import DataFreshnessConfig from 'utils/FormUtils/DataFreshnessConfig';
-import HostListConfig from 'utils/FormUtils/HostListConfig';
-import MetadataRefreshConfig from 'utils/FormUtils/MetadataRefreshConfig';
-import PropertListConfig from 'utils/FormUtils/PropertyListConfig';
-import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
-import ValueListConfig from 'utils/FormUtils/ValueListConfig';
-import { isCME } from 'dyn-load/utils/versionUtils';
-import { PASSWORD_FIELD, SECRET_RESOURCE_URL_FIELD, USER_NAME_FIELD, KERBEROS_FIELD, PROFILE_NAME_FIELD, DB_USER_FIELD } from '@app/components/Forms/Credentials';
-import addAlwaysPresent, { LOOSE_ELEMENT_IGNORE_LIST } from '@inject/utils/FormUtils/globalSourceConfigUtil';
+import { pick } from "lodash/object";
+import {
+  NESSIE,
+  SHARING_TAB_JSON_TEMPLATE,
+} from "dyn-load/constants/sourceTypes";
+import { DEFAULT_VLHF_DETAIL } from "dyn-load/constants/vlh";
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormConfig from "utils/FormUtils/FormConfig";
+import FormTabConfig from "utils/FormUtils/FormTabConfig";
+import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import CheckEnabledContainerConfig from "utils/FormUtils/CheckEnabledContainerConfig";
+import ContainerSelectionConfig from "utils/FormUtils/ContainerSelectionConfig";
+import CredentialsConfig from "utils/FormUtils/CredentialsConfig";
+import DataFreshnessConfig from "utils/FormUtils/DataFreshnessConfig";
+import HostListConfig from "utils/FormUtils/HostListConfig";
+import MetadataRefreshConfig from "utils/FormUtils/MetadataRefreshConfig";
+import PropertListConfig from "utils/FormUtils/PropertyListConfig";
+import SharingWidgetConfig from "utils/FormUtils/SharingWidgetConfig";
+import ValueListConfig from "utils/FormUtils/ValueListConfig";
+import { isCME } from "dyn-load/utils/versionUtils";
+import {
+  PASSWORD_FIELD,
+  SECRET_RESOURCE_URL_FIELD,
+  USER_NAME_FIELD,
+  KERBEROS_FIELD,
+  PROFILE_NAME_FIELD,
+  DB_USER_FIELD,
+} from "@app/components/Forms/Credentials";
+import addAlwaysPresent, {
+  LOOSE_ELEMENT_IGNORE_LIST,
+} from "@inject/utils/FormUtils/globalSourceConfigUtil";
 
 export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
@@ -53,8 +65,10 @@ export default class SourceFormJsonPolicy {
 
     // for each entry in loadedList
     //   if found in default list, update entry properties with decorators
-    return loadedList.map(loadedEntry => {
-      const defaultEntry = defaultList.find(entry => entry.sourceType === loadedEntry.sourceType);
+    return loadedList.map((loadedEntry) => {
+      const defaultEntry = defaultList.find(
+        (entry) => entry.sourceType === loadedEntry.sourceType
+      );
 
       // label is optional, use sourceType if not present
       if (!loadedEntry.label) {
@@ -63,12 +77,11 @@ export default class SourceFormJsonPolicy {
 
       if (defaultEntry) {
         // mutates defaultEntry
-        return {...loadedEntry, ...defaultEntry};
+        return { ...loadedEntry, ...defaultEntry };
       }
       return loadedEntry;
     });
   }
-
 
   //== Source Detail support
 
@@ -78,9 +91,18 @@ export default class SourceFormJsonPolicy {
    */
   static getCombinedConfig(typeCode, typeConfig) {
     // Sources can provide their own UI config
-    const uiConfig = (typeConfig.uiConfig ? typeConfig.uiConfig : DEFAULT_VLHF_DETAIL[typeCode]);
-    const combinedConfig = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(typeConfig, uiConfig);
-    return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(combinedConfig, typeConfig);
+    const uiConfig = typeConfig.uiConfig
+      ? typeConfig.uiConfig
+      : DEFAULT_VLHF_DETAIL[typeCode];
+    const combinedConfig =
+      SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(
+        typeConfig,
+        uiConfig
+      );
+    return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(
+      combinedConfig,
+      typeConfig
+    );
   }
 
   /**
@@ -90,27 +112,38 @@ export default class SourceFormJsonPolicy {
    * @param uiConfig
    * @return {*}
    */
-  static combineFunctionalAndPresentationalSourceTypeConfig(functionalConfig, uiConfig) {
+  static combineFunctionalAndPresentationalSourceTypeConfig(
+    functionalConfig,
+    uiConfig
+  ) {
     // if no functional, return empty uiConfig shell w/o elements
     if (!functionalConfig) return this.makeEmptyUiConfig(uiConfig);
 
     // if no uiConfig, return functional
-    if (!uiConfig) return this.makeCombinedFromFunctionalConfig(functionalConfig);
+    if (!uiConfig)
+      return this.makeCombinedFromFunctionalConfig(functionalConfig);
 
     // add any always preset source options
     addAlwaysPresent(functionalConfig, uiConfig);
 
     // combine high level form properties
-    const mergedMetaConfig = this.mergeFormMetadataConfig(uiConfig, functionalConfig);
+    const mergedMetaConfig = this.mergeFormMetadataConfig(
+      uiConfig,
+      functionalConfig
+    );
 
     // make all properties of joined config FormXxxConfig objects
-    const joinedConfig = this.convertJsonConfigToObjects(mergedMetaConfig, functionalConfig);
+    const joinedConfig = this.convertJsonConfigToObjects(
+      mergedMetaConfig,
+      functionalConfig
+    );
 
     // add functional elements, not found in ui config, to un-decorated list of direct form member elements
     for (const element of functionalConfig.elements) {
       if (!element.foundInUiConfig) {
         const elementJson = this.makeConfigFromFunctional(element);
-        const directElementConfig = this.convertElementConfigJsonToObject(elementJson);
+        const directElementConfig =
+          this.convertElementConfigJsonToObject(elementJson);
         directElementConfig.setFoundInFunctionalConfig(true);
         joinedConfig.form.addDirectElement(directElementConfig);
       }
@@ -123,42 +156,57 @@ export default class SourceFormJsonPolicy {
   }
 
   static makeEmptyUiConfig(uiConfig) {
-    return (uiConfig) ? {
-      sourceType: uiConfig.sourceType,
-      metadataRefresh: uiConfig.metadataRefresh,
-      form: new FormConfig()
-    } : null;
+    return uiConfig
+      ? {
+          sourceType: uiConfig.sourceType,
+          metadataRefresh: uiConfig.metadataRefresh,
+          form: new FormConfig(),
+        }
+      : null;
   }
 
   static makeCombinedFromFunctionalConfig(loadedFunctionalConfig) {
-    return (loadedFunctionalConfig) ? {
-      label: loadedFunctionalConfig.label,
-      icon: loadedFunctionalConfig.icon,
-      sourceType: loadedFunctionalConfig.sourceType,
-      form: new FormConfig({
-        elements: loadedFunctionalConfig.elements.map(element => this.makeConfigFromFunctional(element))
-      })
-    } : null;
+    return loadedFunctionalConfig
+      ? {
+          label: loadedFunctionalConfig.label,
+          icon: loadedFunctionalConfig.icon,
+          sourceType: loadedFunctionalConfig.sourceType,
+          form: new FormConfig({
+            elements: loadedFunctionalConfig.elements.map((element) =>
+              this.makeConfigFromFunctional(element)
+            ),
+          }),
+        }
+      : null;
   }
 
   static joinConfigsAndConvertElementToObj(elementJson, functionalElements) {
     if (functionalElements) {
       // find functional element for elementJson
       const functionalElement = functionalElements.find(
-        element => element.propertyName === FormUtils.dropTrailingBrackets(elementJson.propName));
+        (element) =>
+          element.propertyName ===
+          FormUtils.dropTrailingBrackets(elementJson.propName)
+      );
 
       // join configs potentialy mutates both
       this.joinElementConfigs(elementJson, functionalElement);
     }
     // convert to objects
-    return this.convertElementConfigJsonToObject(elementJson, functionalElements);
+    return this.convertElementConfigJsonToObject(
+      elementJson,
+      functionalElements
+    );
   }
 
   static joinElementConfigs(uiElementConfig, functionalElementConfig) {
     if (functionalElementConfig) {
       // mark functional as found, since not-found will be later added to a default section
       functionalElementConfig.foundInUiConfig = true;
-      this.setFunctionalPropsInUiElement(uiElementConfig, functionalElementConfig);
+      this.setFunctionalPropsInUiElement(
+        uiElementConfig,
+        functionalElementConfig
+      );
     } else {
       uiElementConfig.type = uiElementConfig.type || uiElementConfig.uiType;
     }
@@ -168,7 +216,7 @@ export default class SourceFormJsonPolicy {
     const elementJson = {
       ...functionalElement,
       type: this.convertElementTypeForUi(functionalElement.type),
-      propName: functionalElement.propertyName
+      propName: functionalElement.propertyName,
     };
     if (functionalElement.defaultValue) {
       elementJson.value = functionalElement.defaultValue;
@@ -176,16 +224,18 @@ export default class SourceFormJsonPolicy {
     if (functionalElement.secret) {
       elementJson.secure = true;
     }
-    if (elementJson.type === 'value_list') {
-      if (!elementJson.propName.endsWith('[]')) {
-        elementJson.propName = elementJson.propName + '[]';
+    if (elementJson.type === "value_list") {
+      if (!elementJson.propName.endsWith("[]")) {
+        elementJson.propName = elementJson.propName + "[]";
       }
     }
     return elementJson;
   }
 
   static setFunctionalPropsInUiElement(elementJson, functionalElement) {
-    elementJson.type = elementJson.uiType || this.convertElementTypeForUi(functionalElement.type) ||
+    elementJson.type =
+      elementJson.uiType ||
+      this.convertElementTypeForUi(functionalElement.type) ||
       elementJson.type;
     elementJson.propertyName = functionalElement.propertyName;
     elementJson.foundInFunctionalConfig = true;
@@ -194,13 +244,18 @@ export default class SourceFormJsonPolicy {
       elementJson.label = functionalElement.label;
     }
     if (functionalElement.defaultValue) {
-      elementJson.value = elementJson.defaultValue ? elementJson.defaultValue : functionalElement.defaultValue;
+      elementJson.value = elementJson.defaultValue
+        ? elementJson.defaultValue
+        : functionalElement.defaultValue;
     }
     if (functionalElement.secret) {
       elementJson.secure = true;
     }
     if (functionalElement.options) {
-      elementJson.options = this.joinOptions(elementJson.options, functionalElement.options);
+      elementJson.options = this.joinOptions(
+        elementJson.options,
+        functionalElement.options
+      );
     }
   }
 
@@ -208,9 +263,12 @@ export default class SourceFormJsonPolicy {
     if (!uiOptions || !uiOptions.length) return functionalOptions;
     if (!functionalOptions || !functionalOptions.length) return uiOptions;
     //merge based on option value - make sure uiOptions wins any overrides
-    let map = uiOptions.reduce((accum, option) => ({...accum, ...{[option.value]: option}}), {});
+    let map = uiOptions.reduce(
+      (accum, option) => ({ ...accum, ...{ [option.value]: option } }),
+      {}
+    );
     map = functionalOptions.reduce((accum, option) => {
-      accum[option.value] = {...option, ...accum[option.value]};
+      accum[option.value] = { ...option, ...accum[option.value] };
       return accum;
     }, map);
     return Object.values(map);
@@ -218,32 +276,32 @@ export default class SourceFormJsonPolicy {
 
   static convertElementConfigJsonToObject(elementJson, functionalElements) {
     switch (elementJson.type) {
-    /* eslint-disable indent */
-      case 'credentials':
+      /* eslint-disable indent */
+      case "credentials":
         return new CredentialsConfig(elementJson);
-      case 'data_freshness':
+      case "data_freshness":
         return new DataFreshnessConfig(elementJson);
-      case 'value_list':
+      case "value_list":
         return new ValueListConfig(elementJson);
-      case 'property_list':
+      case "property_list":
         return new PropertListConfig(elementJson);
-      case 'host_list':
+      case "host_list":
         return new HostListConfig(elementJson);
-      case 'metadata_refresh':
+      case "metadata_refresh":
         return new MetadataRefreshConfig(elementJson);
-      case 'check_enabled_container':
+      case "check_enabled_container":
         return new CheckEnabledContainerConfig(elementJson, functionalElements);
-      case 'container_selection':
+      case "container_selection":
         return new ContainerSelectionConfig(elementJson, functionalElements);
-      case 'sharing_widget':
+      case "sharing_widget":
         return new SharingWidgetConfig(elementJson);
-      case 'text':
-      case 'number':
-      case 'textarea':
-      case 'checkbox':
-      case 'duration':
-      case 'select':
-      case 'radio':
+      case "text":
+      case "number":
+      case "textarea":
+      case "checkbox":
+      case "duration":
+      case "select":
+      case "radio":
       default:
         return new FormElementConfig(elementJson);
       /* eslint-enable indent */
@@ -254,9 +312,13 @@ export default class SourceFormJsonPolicy {
     // start with a copy of uiConfig, which parts will be used in final config
     const joinedConfig = this.deepCopyConfig(uiConfig);
 
-    joinedConfig.label = (functionalConfig && functionalConfig.label) ? functionalConfig.label : joinedConfig.sourceType;
+    joinedConfig.label =
+      functionalConfig && functionalConfig.label
+        ? functionalConfig.label
+        : joinedConfig.sourceType;
     // currently tags property is defined in uiConfig, which is already in joined
-    joinedConfig.icon = joinedConfig.icon || (functionalConfig && functionalConfig.icon) || '';
+    joinedConfig.icon =
+      joinedConfig.icon || (functionalConfig && functionalConfig.icon) || "";
     return joinedConfig;
   }
 
@@ -270,11 +332,13 @@ export default class SourceFormJsonPolicy {
   static convertJsonConfigToObjects(jsonConfig, functionalConfig) {
     if (!jsonConfig) return jsonConfig;
 
-    jsonConfig.form = new FormConfig(jsonConfig.form, functionalConfig.elements);
+    jsonConfig.form = new FormConfig(
+      jsonConfig.form,
+      functionalConfig.elements
+    );
 
     return jsonConfig;
   }
-
 
   /**
    * apply default convention to form configuration
@@ -290,45 +354,54 @@ export default class SourceFormJsonPolicy {
     if (!config && !functionalConfig) return config;
 
     const COMMON_SECTION_JSON_TEMPLATE = {
-      icon: '',
+      icon: "",
       elements: [
         {
-          type: 'text',
-          propName: 'name',
-          label: 'Name',
+          type: "text",
+          propName: "name",
+          label: "Name",
           focus: true,
-          validate: {isRequired: true}
-        }
-      ]
+          validate: { isRequired: true },
+        },
+      ],
     };
     const ACCELERATION_TAB_JSON_TEMPLATE = {
-      name: 'Reflection Refresh',
-      title: 'Refresh Policy',
-      tooltip: 'How often reflections are refreshed and how long data can be served before expiration.',
+      name: "Reflection Refresh",
+      title: "Refresh Policy",
+      tooltip:
+        "How often reflections are refreshed and how long data can be served before expiration.",
       sections: [
         {
           elements: [
             {
-              type: 'data_freshness'
-            }
-          ]
-        }
-      ]
+              type: "data_freshness",
+            },
+          ],
+        },
+      ],
     };
 
     const functionalElements = functionalConfig.elements || [];
 
     // add Global tab section with name and description
-    this.addGeneralTab(config, COMMON_SECTION_JSON_TEMPLATE, functionalElements);
+    this.addGeneralTab(
+      config,
+      COMMON_SECTION_JSON_TEMPLATE,
+      functionalElements
+    );
 
-    // add Acceleration tab
-    config.form.addTab(new FormTabConfig(ACCELERATION_TAB_JSON_TEMPLATE, functionalElements));
+    if (config.sourceType !== NESSIE) {
+      // add Acceleration tab
+      config.form.addTab(
+        new FormTabConfig(ACCELERATION_TAB_JSON_TEMPLATE, functionalElements)
+      );
 
-    // add Reflection Refresh tab based on config.metadataRefresh
-    this.addReflectionRefreshTab(config, functionalElements);
+      // add Reflection Refresh tab based on config.metadataRefresh
+      this.addReflectionRefreshTab(config, functionalElements);
+    }
 
     // add Sharing tab
-    const notCME = (!isCME || !isCME());
+    const notCME = !isCME || !isCME();
     if (SHARING_TAB_JSON_TEMPLATE.name && notCME) {
       const sharingTabJson = this.deepCopyConfig(SHARING_TAB_JSON_TEMPLATE);
       config.form.addTab(new FormTabConfig(sharingTabJson, functionalElements));
@@ -336,26 +409,31 @@ export default class SourceFormJsonPolicy {
     return config;
   }
 
-
   static addGeneralTab(config, commonSectionTemplate, functionalElements) {
     // mutates config adding a tab to it
 
     const form = config.form;
     // find tab in config, which is marked isGeneral
-    let generalTab = form.getTabs().find(tab => tab.isGeneral());
+    let generalTab = form.getTabs().find((tab) => tab.isGeneral());
     // if not found, add an empty general tab to config
     if (!generalTab) {
-      generalTab = new FormTabConfig({name: 'General', isGeneral: true, sections: []}, functionalElements);
-      config.form.addTab(generalTab, 'head');
+      generalTab = new FormTabConfig(
+        { name: "General", isGeneral: true, sections: [] },
+        functionalElements
+      );
+      config.form.addTab(generalTab, "head");
     }
     // add section with icon, name, and description
     const commonSection = commonSectionTemplate;
-    commonSection.icon = (config.icon) ? config.icon : `${config.sourceType}.svg`;
-    generalTab.addSection(new FormSectionConfig(commonSection, functionalElements), 'head');
+    commonSection.icon = config.icon ? config.icon : `${config.sourceType}.svg`;
+    generalTab.addSection(
+      new FormSectionConfig(commonSection, functionalElements),
+      "head"
+    );
 
     // move loose sections to general tab
     const looseSections = form.getDirectSections();
-    looseSections.forEach(section => {
+    looseSections.forEach((section) => {
       generalTab.addSection(section);
       form.removeDirectSections();
     });
@@ -364,7 +442,7 @@ export default class SourceFormJsonPolicy {
 
     // if we have credentials, remove username/password/secretUrl/kerberos from loose elements
     const hasCredentials = functionalElements.find((elem) => {
-      return elem.type === 'credentials';
+      return elem.type === "credentials";
     });
 
     // Filtering out fields which are only rendered when there is a mapping for it in the uiConfig
@@ -378,58 +456,73 @@ export default class SourceFormJsonPolicy {
       looseElements = looseElements.filter((elem) => {
         const propName = elem.getConfig().propertyName;
 
-        return [
-          USER_NAME_FIELD,
-          PASSWORD_FIELD,
-          SECRET_RESOURCE_URL_FIELD,
-          KERBEROS_FIELD,
-          PROFILE_NAME_FIELD,
-          DB_USER_FIELD
-        ].indexOf(propName) === -1;
+        return (
+          [
+            USER_NAME_FIELD,
+            PASSWORD_FIELD,
+            SECRET_RESOURCE_URL_FIELD,
+            KERBEROS_FIELD,
+            PROFILE_NAME_FIELD,
+            DB_USER_FIELD,
+          ].indexOf(propName) === -1
+        );
       });
     }
 
     if (looseElements.length) {
-      const addedSection = new FormSectionConfig({name: ''}, functionalElements);
+      const addedSection = new FormSectionConfig(
+        { name: "" },
+        functionalElements
+      );
       addedSection.addElements(looseElements);
       generalTab.addSection(addedSection);
       form.removeDirectElements();
     }
   }
 
-
   static addReflectionRefreshTab(config, functionalElements) {
-    const isFileSystemSource = config.metadataRefresh && config.metadataRefresh.isFileSystemSource;
+    const isFileSystemSource =
+      config.metadataRefresh && config.metadataRefresh.isFileSystemSource;
 
     const metadataRefreshEl = {
-      type: 'metadata_refresh'
+      type: "metadata_refresh",
     };
     const tabTemplate = {
-      name: 'Metadata',
+      name: "Metadata",
       sections: [
         {
-          name: 'Dataset Handling',
-          elements: [{
-            type: 'checkbox',
-            label: la('Remove dataset definitions if underlying data is unavailable.'),
-            propName: 'metadataPolicy.deleteUnavailableDatasets',
-            value: true
-          }, isFileSystemSource && {
-            type: 'checkbox',
-            label: la('Automatically format files into physical datasets when users issue queries.'),
-            propName: 'metadataPolicy.autoPromoteDatasets',
-            value: false
-          }].filter(Boolean)
+          name: "Dataset Handling",
+          elements: [
+            {
+              type: "checkbox",
+              label: la(
+                "Remove dataset definitions if underlying data is unavailable."
+              ),
+              propName: "metadataPolicy.deleteUnavailableDatasets",
+              value: true,
+            },
+            isFileSystemSource && {
+              type: "checkbox",
+              label: la(
+                "Automatically format files into physical datasets when users issue queries."
+              ),
+              propName: "metadataPolicy.autoPromoteDatasets",
+              value: false,
+            },
+          ].filter(Boolean),
         },
         {
-          name: 'Metadata Refresh',
-          elements: [metadataRefreshEl]
-        }
-      ]
+          name: "Metadata Refresh",
+          elements: [metadataRefreshEl],
+        },
+      ],
     };
 
     // Take only supported options
-    const policyInfo = pick(config.metadataRefresh, ['datasetDiscovery', 'authorization']);
+    const policyInfo = pick(config.metadataRefresh, [
+      "datasetDiscovery",
+      "authorization",
+    ]);
 
     const tab = tabTemplate;
     // we should alter object by reference, that is why Object.assign is used
@@ -439,20 +532,17 @@ export default class SourceFormJsonPolicy {
     config.form.addTab(tabConfig);
   }
 
-
   static convertElementTypeForUi(type) {
     switch (type) {
-    /* eslint-disable indent */
-      case 'boolean':
-        return 'checkbox';
-      case 'selection':
-      case 'enum':
-        return 'radio';
+      /* eslint-disable indent */
+      case "boolean":
+        return "checkbox";
+      case "selection":
+      case "enum":
+        return "radio";
       default:
         return type;
       /* eslint-enable indent */
     }
   }
-
-
 }

@@ -13,38 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import ReactDOM from 'react-dom';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import uuid from 'uuid';
-import deepEqual from 'deep-equal';
+import { Component } from "react";
+import ReactDOM from "react-dom";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import uuid from "uuid";
+import deepEqual from "deep-equal";
 
 import {
   connectComplexForm,
   FormBody,
   ModalForm,
-  modalFormProps
-} from '@app/components/Forms';
-import reflectionActions from '@app/actions/resources/reflection';
-import { getListErrorsFromNestedReduxFormErrorEntity } from '@app/utils/validation';
+  modalFormProps,
+} from "@app/components/Forms";
+import reflectionActions from "@app/actions/resources/reflection";
+import { getListErrorsFromNestedReduxFormErrorEntity } from "@app/utils/validation";
 import {
   areReflectionFormValuesBasic,
   areReflectionFormValuesUnconfigured,
   createReflectionFormValues,
   fixupReflection,
-  forceChangesForDatasetChange
-} from '@app/utils/accelerationUtils';
-import ApiUtils from '@app/utils/apiUtils/apiUtils';
+  forceChangesForDatasetChange,
+} from "@app/utils/accelerationUtils";
+import ApiUtils from "@app/utils/apiUtils/apiUtils";
 
-import { DEFAULT_ERR_MSG } from '@inject/constants/errors';
+import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
 
-import '@app/uiTheme/less/commonModifiers.less';
-import '@app/uiTheme/less/Acceleration/Acceleration.less';
-import { AccelerationFormWithMixin } from '@inject/components/Acceleration/AccelerationFormMixin.js';
-import Message from '../Message';
-import AccelerationBasic from './Basic/AccelerationBasic';
-import AccelerationAdvanced from './Advanced/AccelerationAdvanced';
+import "@app/uiTheme/less/commonModifiers.less";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import { AccelerationFormWithMixin } from "@inject/components/Acceleration/AccelerationFormMixin.js";
+import Message from "../Message";
+import AccelerationBasic from "./Basic/AccelerationBasic";
+import AccelerationAdvanced from "./Advanced/AccelerationAdvanced";
 
 const SECTIONS = [AccelerationBasic, AccelerationAdvanced];
 
@@ -69,19 +69,20 @@ export class AccelerationForm extends Component {
 
     putReflection: PropTypes.func.isRequired,
     postReflection: PropTypes.func.isRequired,
-    deleteReflection: PropTypes.func.isRequired
+    deleteReflection: PropTypes.func.isRequired,
+    reloadReflections: PropTypes.func,
   };
 
   static defaultProps = {
     canSubmit: true,
     errors: {},
     fields: {},
-    acceleration: Immutable.Map()
+    acceleration: Immutable.Map(),
   };
 
   static childContextTypes = {
     reflectionSaveErrors: PropTypes.instanceOf(Immutable.Map).isRequired,
-    lostFieldsByReflection: PropTypes.object.isRequired
+    lostFieldsByReflection: PropTypes.object.isRequired,
   };
 
   initialValues = null;
@@ -94,28 +95,28 @@ export class AccelerationForm extends Component {
     if (
       error &&
       Immutable.Map.isMap(error.message) &&
-      error.message.get('code') === 'COMBINED_REFLECTION_SAVE_ERROR'
+      error.message.get("code") === "COMBINED_REFLECTION_SAVE_ERROR"
     ) {
       reflectionSaveErrors = error.message
-        .get('details')
-        .get('reflectionSaveErrors');
+        .get("details")
+        .get("reflectionSaveErrors");
     }
     return {
       reflectionSaveErrors,
-      lostFieldsByReflection: this.lostFieldsByReflection
+      lostFieldsByReflection: this.lostFieldsByReflection,
     };
   }
 
   constructor(props) {
     super(props);
 
-    const mode = this.getMustBeInAdvancedMode() ? 'ADVANCED' : 'BASIC';
+    const mode = this.getMustBeInAdvancedMode() ? "ADVANCED" : "BASIC";
 
     this.state = {
       mode,
       waitingForRecommendations: false,
       saving: false,
-      formIsDirty: false
+      formIsDirty: false,
     };
   }
 
@@ -129,7 +130,8 @@ export class AccelerationForm extends Component {
   }
 
   initializeForm() {
-    let { reflections, dataset } = this.props;
+    let { dataset } = this.props;
+    const { reflections } = this.props;
     dataset = dataset.toJS();
 
     const lostFieldsByReflection = {};
@@ -140,7 +142,7 @@ export class AccelerationForm extends Component {
         forceChangesForDatasetChange(reflection, dataset);
       if (lostFields) lostFieldsByReflection[fixedReflection.id] = lostFields;
 
-      if (fixedReflection.type === 'RAW') {
+      if (fixedReflection.type === "RAW") {
         rawReflectionValues.push(createReflectionFormValues(fixedReflection));
       } else {
         aggregationReflectionValues.push(
@@ -152,7 +154,7 @@ export class AccelerationForm extends Component {
 
     const { rawReflections, aggregationReflections } = this.props.fields;
 
-    if (this.state.mode === 'BASIC' && !aggregationReflectionValues.length) {
+    if (this.state.mode === "BASIC" && !aggregationReflectionValues.length) {
       this.fetchRecommendations();
     }
 
@@ -161,17 +163,17 @@ export class AccelerationForm extends Component {
     // can't do this in mapStateToProps it puts redux-form in a render loop
     if (!aggregationReflectionValues.length) {
       const firstAgg = createReflectionFormValues({
-        type: 'AGGREGATION',
-        enabled: defaultToEnabled
+        type: "AGGREGATION",
+        enabled: defaultToEnabled,
       });
       aggregationReflectionValues.push(firstAgg);
     }
     if (!rawReflectionValues.length) {
       const firstRaw = createReflectionFormValues({
-        type: 'RAW',
-        enabled: defaultToEnabled
+        type: "RAW",
+        enabled: defaultToEnabled,
       });
-      if (this.state.mode === 'BASIC') {
+      if (this.state.mode === "BASIC") {
         firstRaw.displayFields = dataset.fields.map(({ name }) => ({ name }));
       }
       this.suggestions[firstRaw.id] = firstRaw;
@@ -191,7 +193,7 @@ export class AccelerationForm extends Component {
   fetchRecommendations() {
     this.setState({ waitingForRecommendations: true });
     const endpoint = `dataset/${encodeURIComponent(
-      this.props.dataset.get('id')
+      this.props.dataset.get("id")
     )}/reflection/recommendation`;
 
     return ApiUtils.fetchJson(
@@ -201,9 +203,9 @@ export class AccelerationForm extends Component {
         ReactDOM.unstable_batchedUpdates(() => {
           if (!this.state.waitingForRecommendations || this.unmounted) return;
           if (
-            this.state.mode === 'ADVANCED' ||
+            this.state.mode === "ADVANCED" ||
             !reflections.length ||
-            !reflections.some((r) => r.type === 'AGGREGATION')
+            !reflections.some((r) => r.type === "AGGREGATION")
           ) {
             // protect - ensure we get at least one agg or if user switched to advanced mode
             this.setState({ waitingForRecommendations: false });
@@ -216,7 +218,7 @@ export class AccelerationForm extends Component {
           );
 
           for (const reflection of reflections) {
-            if (reflection.type !== 'AGGREGATION') continue;
+            if (reflection.type !== "AGGREGATION") continue;
             // we want to disable recommendations
             reflection.enabled = false;
             const values = createReflectionFormValues(reflection);
@@ -226,9 +228,9 @@ export class AccelerationForm extends Component {
 
           this.setState({ waitingForRecommendations: false });
           this.updateInitialValues([
-            'aggregationReflections',
-            'columnsDimensions',
-            'columnsMeasures'
+            "aggregationReflections",
+            "columnsDimensions",
+            "columnsMeasures",
           ]);
         });
       },
@@ -238,7 +240,7 @@ export class AccelerationForm extends Component {
         console.error(error);
         this.setState({ waitingForRecommendations: false });
       },
-      { method: 'POST' }
+      { method: "POST" }
     );
   }
 
@@ -288,12 +290,8 @@ export class AccelerationForm extends Component {
       this.syncBasicToAdvanced(nextProps);
     }
 
-    if (
-      this.state.mode === 'BASIC' &&
-      this.getMustBeInAdvancedMode(nextProps)
-    ) {
-      this.setState({ mode: 'ADVANCED' });
-    }
+    if (this.state.mode === "BASIC" && this.getMustBeInAdvancedMode(nextProps))
+      this.setState({ mode: "ADVANCED" });
 
     // manually calculate the dirty state depending on if values equals the initial values we computed in componentWillMount
     // TODO: not sure why an initializeForm call doesn't work property to reset the redux-form's state.  Sadly we
@@ -331,24 +329,22 @@ export class AccelerationForm extends Component {
     const measureSet = new Set(columnsMeasuresValues.map((v) => v.column));
 
     firstAgg.dimensionFields.forEach(({ name }, i) => {
-      if (!dimensionSet.delete(name.value)) {
+      if (!dimensionSet.delete(name.value))
         firstAgg.dimensionFields.removeField(i);
-      }
     });
     firstAgg.measureFields.forEach(({ name }, i) => {
       if (!measureSet.delete(name.value)) firstAgg.measureFields.removeField(i);
     });
 
-    for (const name of dimensionSet) {
+    for (const name of dimensionSet)
       firstAgg.dimensionFields.addField({ name });
-    }
     for (const name of measureSet) firstAgg.measureFields.addField({ name });
   }
 
   toggleMode = () => {
     const { mode } = this.state;
     this.setState({
-      mode: mode === 'BASIC' ? 'ADVANCED' : 'BASIC'
+      mode: mode === "BASIC" ? "ADVANCED" : "BASIC",
     });
   };
 
@@ -360,24 +356,26 @@ export class AccelerationForm extends Component {
 
   prepare(values) {
     const { mode } = this.state;
+    const { aggregationReflections, rawReflections } = values;
 
-    let reflections = [
-      ...values.aggregationReflections,
-      ...values.rawReflections
-    ];
+    if (aggregationReflections[0]) {
+      aggregationReflections[0].measureFields =
+        aggregationReflections[0].measureFields.filter((field) => field.name);
+    }
 
+    let reflections = [...aggregationReflections, ...rawReflections];
     for (const reflection of reflections) {
       if (
-        mode === 'BASIC' &&
-        reflection.type === 'RAW' &&
+        mode === "BASIC" &&
+        reflection.type === "RAW" &&
         !reflection.enabled
       ) {
         reflection.shouldDelete = true;
       }
 
       if (
-        mode === 'BASIC' &&
-        reflection.type === 'AGGREGATION' &&
+        mode === "BASIC" &&
+        reflection.type === "AGGREGATION" &&
         !reflection.enabled &&
         areReflectionFormValuesUnconfigured(reflection)
       ) {
@@ -403,13 +401,13 @@ export class AccelerationForm extends Component {
     for (const reflection of reflections) {
       if (reflection.shouldDelete || !reflection.enabled) continue;
 
-      if (reflection.type === 'RAW') {
+      if (reflection.type === "RAW") {
         if (!reflection.displayFields.length) {
           errors[reflection.id] = la(
-            'At least one display field per raw Reflection is required.'
+            "At least one display field per raw Reflection is required."
           );
         }
-      } else if (reflection.type === 'AGGREGATION') {
+      } else {
         // AGGREGATION
         if (
           !reflection.dimensionFields.length &&
@@ -417,7 +415,7 @@ export class AccelerationForm extends Component {
         ) {
           // eslint-disable-line no-lonely-if
           errors[reflection.id] = la(
-            'At least one dimension or measure field per aggregation Reflection is required.'
+            "At least one dimension or measure field per aggregation Reflection is required."
           );
         }
       }
@@ -438,6 +436,7 @@ export class AccelerationForm extends Component {
   }
 
   submitForm = (values) => {
+    const { reloadReflections } = this.props;
     const { reflections, errors } = this.prepare(values);
 
     this.setState({ saving: true });
@@ -450,7 +449,7 @@ export class AccelerationForm extends Component {
       delete reflection.shouldDelete;
 
       // add the datasetid before we send the reflections out
-      reflection.datasetId = this.props.dataset.get('id');
+      reflection.datasetId = this.props.dataset.get("id");
 
       let promise;
       let cleanup;
@@ -468,8 +467,8 @@ export class AccelerationForm extends Component {
         cleanup = () => {
           this.updateReflection(reflectionId, {
             // it's now new
-            tag: '',
-            id: uuid.v4()
+            tag: "",
+            id: uuid.v4(),
           });
         };
       } else {
@@ -486,7 +485,7 @@ export class AccelerationForm extends Component {
           if (!action || !action.error) {
             const newData =
               action.payload &&
-              action.payload.get('entities').get('reflection').first().toJS();
+              action.payload.get("entities").get("reflection").first().toJS();
             cleanup(newData); // make it so that if some reflection saving succeeds and some fail the user can correct issues and resubmit safely
             return action;
           }
@@ -508,20 +507,21 @@ export class AccelerationForm extends Component {
           return action;
         })
         .catch((error) => {
-          errors[reflectionId] = 'Request Error: ' + error.statusText; // todo: loc
+          errors[reflectionId] = "Request Error: " + error.statusText; // todo: loc
         });
     });
 
     return Promise.all(promises).then(() => {
       this.setState({ saving: false });
       this.updateInitialValues();
+      reloadReflections();
 
-      if (Object.keys(errors).length) {
+      if (Object.keys(errors).length)
         return this.createSubmitErrorWrapper(
           errors,
           [...values.aggregationReflections, ...values.rawReflections].length
         );
-      }
+      return null;
     });
   };
 
@@ -529,7 +529,7 @@ export class AccelerationForm extends Component {
     reflectionSaveErrors = Immutable.Map(reflectionSaveErrors).map((message) =>
       Immutable.fromJS({
         id: uuid.v4(),
-        message
+        message,
       })
     );
     return Promise.reject({
@@ -537,13 +537,13 @@ export class AccelerationForm extends Component {
         id: uuid.v4(),
         message: Immutable.fromJS({
           // no #message needed, code used
-          code: 'COMBINED_REFLECTION_SAVE_ERROR',
+          code: "COMBINED_REFLECTION_SAVE_ERROR",
           details: {
             reflectionSaveErrors,
-            totalCount
-          }
-        })
-      }
+            totalCount,
+          },
+        }),
+      },
     });
   }
 
@@ -559,7 +559,7 @@ export class AccelerationForm extends Component {
     // out of sync is not in form data, so we check independently
     if (
       this.props.reflections.some(
-        (reflection) => reflection.get('status').get('config') === 'INVALID'
+        (reflection) => reflection.get("status").get("config") === "INVALID"
       )
     ) {
       return true;
@@ -574,7 +574,7 @@ export class AccelerationForm extends Component {
   // used to update the dirty state properly for AccelerationAdvanced instead of updateFormDirtyState
   updateDirtyState = (isDirty) => {
     this.setState({
-      formIsDirty: isDirty
+      formIsDirty: isDirty,
     });
   };
 
@@ -586,11 +586,11 @@ export class AccelerationForm extends Component {
       updateFormDirtyState,
       dataset,
       reflections,
-      canAlter
+      canAlter,
     } = this.props;
     const { mode, waitingForRecommendations } = this.state;
 
-    if (mode === 'BASIC') {
+    if (mode === "BASIC") {
       return (
         <AccelerationBasic
           canAlter={canAlter}
@@ -602,7 +602,7 @@ export class AccelerationForm extends Component {
           skipRecommendations={this.skipRecommendations}
         />
       );
-    } else if (mode === 'ADVANCED') {
+    } else if (mode === "ADVANCED") {
       return (
         <AccelerationAdvanced
           canAlter={canAlter}
@@ -627,9 +627,9 @@ export class AccelerationForm extends Component {
           {listOfErrors.map((errorMessage, i) => (
             <Message
               key={errorMessage}
-              messageType='error'
+              messageType="error"
               message={errorMessage}
-              messageId={'' + i}
+              messageId={"" + i}
             />
           ))}
         </div>
@@ -647,11 +647,11 @@ export class AccelerationForm extends Component {
       if (!found) {
         messages.push(
           <Message
-            key='not-found'
-            messageType='warning'
-            message={Immutable.Map({ code: 'REQUESTED_REFLECTION_MISSING' })}
+            key="not-found"
+            messageType="warning"
+            message={Immutable.Map({ code: "REQUESTED_REFLECTION_MISSING" })}
             isDismissable={false}
-            className={'AccelerationForm__extraError'}
+            className={"AccelerationForm__extraError"}
           />
         );
       }
@@ -659,18 +659,18 @@ export class AccelerationForm extends Component {
 
     if (
       this.props.reflections.some(
-        (reflection) => reflection.get('status').get('config') === 'INVALID'
+        (reflection) => reflection.get("status").get("config") === "INVALID"
       )
     ) {
       messages.push(
         <Message
-          key='version-mismatch'
-          messageType='warning'
+          key="version-mismatch"
+          messageType="warning"
           message={Immutable.Map({
-            code: 'COMBINED_REFLECTION_CONFIG_INVALID'
+            code: "COMBINED_REFLECTION_CONFIG_INVALID",
           })}
           isDismissable={false}
-          className={'AccelerationForm__extraError'}
+          className={"AccelerationForm__extraError"}
         />
       );
     }
@@ -688,7 +688,7 @@ export class AccelerationForm extends Component {
     const { formIsDirty, waitingForRecommendations } = this.state;
     const modalFormStyle = isModal ? {} : modalStyles.noModalForm;
     const confirmStyle = isModal ? {} : modalStyles.noModalConfirmCancel;
-    const cancelText = isModal ? la('Cancel') : la('Revert');
+    const cancelText = isModal ? la("Cancel") : la("Revert");
     const onCancelClick = isModal ? onCancel : this.resetForm;
     const updatedCanSubmit =
       canSubmit && (isModal ? true : formIsDirty && !waitingForRecommendations);
@@ -697,7 +697,7 @@ export class AccelerationForm extends Component {
       : formIsDirty && !waitingForRecommendations;
 
     return (
-      <div className={'AccelerationForm'}>
+      <div className={"AccelerationForm"}>
         <ModalForm
           isModal={isModal}
           {...modalFormProps(this.props)}
@@ -712,8 +712,8 @@ export class AccelerationForm extends Component {
           {this.renderFormErrorMessage()}
           {this.renderExtraErrorMessages()}
           <FormBody
-            className={'AccelerationForm__formBody'}
-            dataQa='acceleration-form'
+            className={"AccelerationForm__formBody"}
+            dataQa="acceleration-form"
           >
             {this.renderHeader()}
             {this.renderAccelerationMode()}
@@ -726,31 +726,31 @@ export class AccelerationForm extends Component {
 
 const modalStyles = {
   noModalForm: {
-    width: '100%',
-    height: '100%',
-    flexWrap: 'nowrap'
+    width: "100%",
+    height: "100%",
+    flexWrap: "nowrap",
   },
   noModalConfirmCancel: {
-    margin: '10px 11px 30px 0'
-  }
+    margin: "10px 11px 30px 0",
+  },
 };
 
 function mapStateToProps(state) {
   return {
-    location: state.routing.locationBeforeTransitions
+    location: state.routing.locationBeforeTransitions,
   };
 }
 
 export default connectComplexForm(
   {
-    form: 'accelerationForm',
-    skipDirtyFields: ['columnsDimensions', 'columnsMeasures']
+    form: "accelerationForm",
+    skipDirtyFields: ["columnsDimensions", "columnsMeasures"],
   },
   SECTIONS,
   mapStateToProps,
   {
     putReflection: reflectionActions.put.dispatch,
     postReflection: reflectionActions.post.dispatch,
-    deleteReflection: reflectionActions.delete.dispatch
+    deleteReflection: reflectionActions.delete.dispatch,
   }
 )(AccelerationFormWithMixin(AccelerationForm));

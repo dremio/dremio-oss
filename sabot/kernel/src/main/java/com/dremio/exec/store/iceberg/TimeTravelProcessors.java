@@ -45,20 +45,7 @@ public final class TimeTravelProcessors {
   ) {
     final long millis = timestampRequest.getTimestampMillis();
 
-    final Predicate<HistoryEntry> entryPredicate;
-    switch (timestampRequest.getTimeTravelSpecifier()) {
-    case AT:
-      entryPredicate = historyEntry -> historyEntry.timestampMillis() <= millis;
-      break;
-
-    case BEFORE:
-      entryPredicate = historyEntry -> historyEntry.timestampMillis() < millis;
-      break;
-
-    default:
-      throw new IllegalArgumentException("Unsupported specifier: " + timestampRequest.getTimeTravelSpecifier());
-    }
-
+    final Predicate<HistoryEntry> entryPredicate = historyEntry -> historyEntry.timestampMillis() <= millis;
     return table -> {
       Long lastSnapshotId = null;
       for (HistoryEntry logEntry : getLogEntries(table)) {
@@ -84,26 +71,7 @@ public final class TimeTravelProcessors {
       SnapshotIdRequest snapshotIdRequest
   ) {
     final long snapshotId = Long.parseLong(snapshotIdRequest.getSnapshotId());
-
-    switch (snapshotIdRequest.getTimeTravelSpecifier()) {
-    case AT:
-      return table -> getTableSnapshotAtId(tablePath, table, snapshotId);
-
-    case BEFORE:
-      return table -> {
-        final Snapshot snapshot = getTableSnapshotAtId(tablePath, table, snapshotId);
-        if (snapshot.parentId() == null) {
-          throw UserException.validationError()
-              .message("For table '%s', the provided snapshot ID '%d' does not have a parent snapshot",
-                  tablePath, snapshotId)
-              .buildSilently();
-        }
-        return getTableSnapshotAtId(tablePath, table, snapshot.parentId());
-      };
-
-    default:
-      throw new IllegalArgumentException("Unsupported specifier: " + snapshotIdRequest.getTimeTravelSpecifier());
-    }
+    return table -> getTableSnapshotAtId(tablePath, table, snapshotId);
   }
 
   private static Snapshot getTableSnapshotAtId(
@@ -140,6 +108,27 @@ public final class TimeTravelProcessors {
 
     return Table::currentSnapshot;
   }
+
+  /**
+   * Provide an appropriate {@link TableSchemaProvider} given a {@link TimeTravelRequest}. If time travel request is
+   * null, return current table schema provider.
+   *
+   * @param timeTravelRequest time travel request
+   * @return table schema provider
+   */
+  public static TableSchemaProvider getTableSchemaProvider(
+          TimeTravelRequest timeTravelRequest
+  ) {
+    if (timeTravelRequest instanceof TimestampRequest || timeTravelRequest instanceof SnapshotIdRequest) {
+      return  (table, snapshot) -> {
+        final Integer schemaId = snapshot.schemaId();
+        return schemaId != null ? table.schemas().get(schemaId) : table.schema();
+      };
+    } else {
+      return (table, snapshot) -> table.schema();
+    }
+  }
+
 
   private TimeTravelProcessors() {
   }

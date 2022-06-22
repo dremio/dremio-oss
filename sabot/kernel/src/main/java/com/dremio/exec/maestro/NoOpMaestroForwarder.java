@@ -21,6 +21,7 @@ import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.service.jobresults.JobResultsRequest;
+import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 
 /**
  * NoOp implementation of MaestroForwarder
@@ -53,6 +54,12 @@ public class NoOpMaestroForwarder implements MaestroForwarder {
   }
 
   @Override
+  public void dataArrived(JobResultsRequestWrapper request, ResponseSender sender) {
+    logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.",
+      QueryIdHelper.getQueryId(request.getHeader().getQueryId()));
+  }
+
+  @Override
   public void resultsCompleted(String queryId) {
     logger.debug("No-op forwarder got results. Dropping it for query {}", queryId);
   }
@@ -60,5 +67,9 @@ public class NoOpMaestroForwarder implements MaestroForwarder {
   @Override
   public void resultsError(String queryId, Throwable exception) {
     logger.debug("No-op forwarder got results error. Dropping it for query {}", queryId);
+  }
+
+  @Override
+  public void close() throws Exception {
   }
 }

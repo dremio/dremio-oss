@@ -14,32 +14,26 @@
  * limitations under the License.
  */
 
-import React, { useState, useRef, useMemo } from 'react';
-import PropTypes from 'prop-types';
-import clsx from 'clsx';
-import get from 'lodash.get';
-import _debouce from 'lodash.debounce';
-import Checkbox from '@material-ui/core/Checkbox';
-import Chip from '@material-ui/core/Chip';
-import Menu from '@material-ui/core/Menu';
-import MenuItem from '@material-ui/core/MenuItem';
-import { makeStyles } from '@material-ui/core/styles';
+import React, { useState, useRef, useMemo } from "react";
+import PropTypes from "prop-types";
+import clsx from "clsx";
+import { get, debounce } from "lodash";
+import Checkbox from "@material-ui/core/Checkbox";
+import Chip from "@material-ui/core/Chip";
+import Menu from "@material-ui/core/Menu";
+import MenuItem from "@material-ui/core/MenuItem";
+import { makeStyles } from "@material-ui/core/styles";
 
-import { ReactComponent as XIcon } from '../../art/XLarge.svg';
+import { ReactComponent as XIcon } from "../../art/XLarge.svg";
 
-import Label from '../Label';
+import Label from "../Label";
 
-import './SearchableMultiSelect.scss';
+import "./SearchableMultiSelect.scss";
 
 const SearchableMultiSelect = (props) => {
-
   const {
     classes,
-    form: {
-      errors,
-      touched,
-      setFieldValue
-    } = {},
+    form: { errors, touched, setFieldValue } = {},
     handleChange,
     label,
     limitTags,
@@ -48,66 +42,67 @@ const SearchableMultiSelect = (props) => {
     placeholder,
     typeAhead,
     onSearchChange,
-    disabled
+    disabled,
   } = props;
 
-  const getMenuClass = (anchor) => makeStyles(() => {
-    const {
-      clientWidth: width
-    } = anchor || {};
-    return {
-      list: {
-        width
-      }
-    };
-  })();
+  const getMenuClass = (anchor) =>
+    makeStyles(() => {
+      const { clientWidth: width } = anchor || {};
+      return {
+        list: {
+          width,
+        },
+      };
+    })();
 
   const [showMenu, setShowMenu] = useState(false);
-  const [filterText, setFilterText] = useState('');
+  const [filterText, setFilterText] = useState("");
   const inputRef = useRef(null);
   const valueContainerRef = useRef(null);
-  const debounceFn = useRef(_debouce(handleDebounceFn, 1000));
+  const debounceFn = useRef(debounce(handleDebounceFn, 1000));
 
-  const visibleValues = useMemo(() => (
-    limitTags && !showMenu ? value.slice(0, limitTags) : value
-  ), [value, limitTags, showMenu]);
+  const visibleValues = useMemo(
+    () => (limitTags && !showMenu ? value.slice(0, limitTags) : value),
+    [value, limitTags, showMenu]
+  );
 
   const hasError = get(touched, name) && get(errors, name);
-  const rootClass = clsx(
-    'SearchableMultiSelect',
-    { [classes.root]: classes.root }
-  );
+  const rootClass = clsx("SearchableMultiSelect", {
+    [classes.root]: classes.root,
+  });
   const valueClass = clsx(
-    'SearchableMultiSelect__value',
-    { '--error': hasError },
-    { '--disabled': disabled },
+    "SearchableMultiSelect__value",
+    { "--error": hasError },
+    { "--disabled": disabled },
     { [classes.value]: classes.value }
   );
 
-  const inputClass = clsx(
-    'SearchableMultiSelect__input',
-    'margin-top',
-    { [classes.input]: classes.input }
-  );
+  const inputClass = clsx("SearchableMultiSelect__input", "margin-top", {
+    [classes.input]: classes.input,
+  });
 
-  const labelClass = clsx('SearchableMultiSelect__label', { [classes.label]: classes.label });
+  const labelClass = clsx("SearchableMultiSelect__label", {
+    [classes.label]: classes.label,
+  });
 
   const updateValue = (updatedValue) => {
-    if (setFieldValue && typeof setFieldValue === 'function') {
+    if (setFieldValue && typeof setFieldValue === "function") {
       setFieldValue(name, updatedValue, true);
     }
-    if (handleChange && typeof handleChange === 'function') {
+    if (handleChange && typeof handleChange === "function") {
       handleChange(updatedValue);
     }
   };
 
   const removeValue = (deleteValue) => {
-    const updatedValue = value.filter((selectedVal) => selectedVal.value !== deleteValue);
+    const updatedValue = value.filter(
+      (selectedVal) => selectedVal.value !== deleteValue
+    );
     updateValue(updatedValue);
   };
 
   const addValue = (addedLabel, addedValue) => {
-    const updatedValue = [...value, { label:addedLabel, value: addedValue }];
+    const updatedValue = [...value, { label: addedLabel, value: addedValue }];
     updateValue(updatedValue);
   };
 
@@ -116,7 +111,7 @@ const SearchableMultiSelect = (props) => {
     event.stopPropagation();
   };
 
-  const handleOpen = (e) => {
+  const handleOpen = () => {
     setShowMenu(true);
     inputRef.current.focus();
   };
@@ -127,13 +122,15 @@ const SearchableMultiSelect = (props) => {
   };
 
   const handleMenuItemClick = (selectedLabel, selectedValue) => {
-    const isValueExist = value.find((valueObject) => valueObject.value === selectedValue);
+    const isValueExist = value.find(
+      (valueObject) => valueObject.value === selectedValue
+    );
     if (!isValueExist) {
       addValue(selectedLabel, selectedValue);
     } else {
       removeValue(selectedValue);
     }
-    setFilterText('');
+    setFilterText("");
     inputRef.current.focus();
   };
 
@@ -152,22 +149,22 @@ const SearchableMultiSelect = (props) => {
   }
 
   const handleInputKeyDown = (e) => {
-    const noFilterText = !filterText || filterText === '';
-    if (noFilterText &&
-      value &&
-      value.length > 0 &&
-      e.key === 'Backspace'
-    ) {
+    const noFilterText = !filterText || filterText === "";
+    if (noFilterText && value && value.length > 0 && e.key === "Backspace") {
       removeValue(value[value.length - 1]);
     }
 
-    if (!noFilterText &&
+    if (
+      !noFilterText &&
       options.length === 1 &&
-      e.key === 'Enter' &&
-      value.findIndex((selectedVal) => selectedVal.value.toLowerCase() === options[0].value.toLowerCase()) === -1
+      e.key === "Enter" &&
+      value.findIndex(
+        (selectedVal) =>
+          selectedVal.value.toLowerCase() === options[0].value.toLowerCase()
+      ) === -1
     ) {
       addValue(options[0].label, options[0].value);
-      setFilterText('');
+      setFilterText("");
     }
 
     if (!showMenu) {
@@ -183,17 +180,13 @@ const SearchableMultiSelect = (props) => {
   const renderValue = () => {
     const hasValue = value && value.length > 0;
     return (
-      <div
-        ref={valueContainerRef}
-        className={valueClass}
-        onClick={handleOpen}
-      >
-        <div className='SearchableMultiSelect__inputContainer'>
+      <div ref={valueContainerRef} className={valueClass} onClick={handleOpen}>
+        <div className="SearchableMultiSelect__inputContainer">
           {visibleValues.map((selectedVal) => (
             <Chip
               classes={{
-                root: 'multiSelect__chip',
-                icon: 'icon --md multiSelect__chip__icon'
+                root: "multiSelect__chip",
+                icon: "icon --md multiSelect__chip__icon",
               }}
               key={selectedVal.value}
               label={selectedVal.label}
@@ -202,31 +195,33 @@ const SearchableMultiSelect = (props) => {
               deleteIcon={<XIcon />}
             />
           ))}
-          {
-            (visibleValues.length < value.length) && (
-              <div className='margin-right margin-top'>
-                + {value.length - visibleValues.length} More
-              </div>
-            )
-          }
-          {typeAhead && <input
-            name={`${name}_typeahead`}
-            onChange={handleTypeAhead}
-            className={inputClass}
-            value={filterText}
-            ref={inputRef}
-            onKeyDown={handleInputKeyDown}
-            autoComplete='off'
-            placeholder={placeholder && !hasValue ? placeholder : null}
-          />}
+          {visibleValues.length < value.length && (
+            <div className="margin-right margin-top">
+              + {value.length - visibleValues.length} More
+            </div>
+          )}
+          {typeAhead && (
+            <input
+              name={`${name}_typeahead`}
+              onChange={handleTypeAhead}
+              className={inputClass}
+              value={filterText}
+              ref={inputRef}
+              onKeyDown={handleInputKeyDown}
+              autoComplete="off"
+              placeholder={placeholder && !hasValue ? placeholder : null}
+            />
+          )}
         </div>
-        <div className='SearchableMultiSelect__iconContainer'>
-          {hasValue && <span
-            className='SearchableMultiSelect__clearIcon'
-            onClick={handleClear}
-          >
-            <XIcon/>
-          </span>}
+        <div className="SearchableMultiSelect__iconContainer">
+          {hasValue && (
+            <span
+              className="SearchableMultiSelect__clearIcon"
+              onClick={handleClear}
+            >
+              <XIcon />
+            </span>
+          )}
         </div>
       </div>
     );
@@ -234,14 +229,11 @@ const SearchableMultiSelect = (props) => {
 
   const renderMenuItems = () => {
     if (options.length === 0) {
-      return (
-        <MenuItem>
-          No values
-        </MenuItem>
-      );
+      return <MenuItem>No values</MenuItem>;
     }
     return options.map(({ label: optionLabel, value: optionValue }, idx) => {
-      const isSelected = value.findIndex(option => option.value === optionValue) !== -1;
+      const isSelected =
+        value.findIndex((option) => option.value === optionValue) !== -1;
       return (
         <MenuItem
           key={idx}
@@ -249,15 +241,17 @@ const SearchableMultiSelect = (props) => {
           onClick={() => handleMenuItemClick(optionLabel, optionValue)}
           selected={isSelected}
           classes={{
-            root: 'SearchableMultiSelect__option',
-            selected: 'SearchableMultiSelect__option --selected'
+            root: "SearchableMultiSelect__option",
+            selected: "SearchableMultiSelect__option --selected",
           }}
         >
           {/* Todo: Use font icons for checkboxes */}
           <Checkbox
             checked={isSelected}
-            color='primary'
-            classes={{ root: 'gutter--none gutter-right--half' }}
+            color="primary"
+            classes={{
+              root: "SearchableMultiSelect__optionCheckbox gutter--none gutter-right--half",
+            }}
           />
           {optionLabel}
         </MenuItem>
@@ -267,7 +261,13 @@ const SearchableMultiSelect = (props) => {
 
   return (
     <div className={rootClass}>
-      {label && <Label value={label} className={labelClass} id={`select-label-${name}`}/>}
+      {label && (
+        <Label
+          value={label}
+          className={labelClass}
+          id={`select-label-${name}`}
+        />
+      )}
       {renderValue()}
       <Menu
         anchorEl={valueContainerRef.current}
@@ -278,14 +278,14 @@ const SearchableMultiSelect = (props) => {
         disableAutoFocus
         disableEnforceFocus
         getContentAnchorEl={null}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        transformOrigin={{ vertical: "top", horizontal: "center" }}
         transitionDuration={{
-          exit: 0
+          exit: 0,
         }}
         MenuListProps={{
           disablePadding: true,
-          className: 'SearchableMultiSelect__menuList'
+          className: "SearchableMultiSelect__menuList",
         }}
       >
         {renderMenuItems()}
@@ -299,13 +299,15 @@ SearchableMultiSelect.propTypes = {
     root: PropTypes.string,
     value: PropTypes.string,
     input: PropTypes.string,
-    label: PropTypes.string
+    label: PropTypes.string,
   }),
   value: PropTypes.array,
-  options: PropTypes.arrayOf(PropTypes.shape({
-    label: PropTypes.string,
-    value: PropTypes.string
-  })).isRequired,
+  options: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.string,
+      value: PropTypes.string,
+    })
+  ).isRequired,
   handleChange: PropTypes.func,
   style: PropTypes.object,
   label: PropTypes.string,
@@ -317,7 +319,7 @@ SearchableMultiSelect.propTypes = {
   placeholder: PropTypes.string,
   enableSearch: PropTypes.bool,
   onSearchChange: PropTypes.func,
-  disabled: PropTypes.bool
+  disabled: PropTypes.bool,
 };
 
 SearchableMultiSelect.defaultProps = {
@@ -325,10 +327,10 @@ SearchableMultiSelect.defaultProps = {
   value: [],
   style: {},
   label: null,
-  name: '',
+  name: "",
   typeAhead: true,
   enableSearch: true,
-  disabled: false
+  disabled: false,
 };
 
 export default SearchableMultiSelect;

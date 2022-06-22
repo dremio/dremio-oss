@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
 function getId(physicalDataset) {
   return physicalDataset.datasetConfig.id;
 }
 
-const physicalDataset = new Schema('physicalDataset', {
-  idAttribute: getId
+const physicalDataset = new Schema("physicalDataset", {
+  idAttribute: getId,
 });
 
 export default physicalDataset;

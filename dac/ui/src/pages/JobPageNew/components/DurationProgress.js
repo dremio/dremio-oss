@@ -13,38 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import jobsUtils from '@app/utils/jobsUtils';
-import './DurationProgress.less';
+import PropTypes from "prop-types";
+import jobsUtils from "@app/utils/jobsUtils";
+import "./DurationProgress.less";
 
-const DurationProgress = (
-  {
-    title,
-    time,
-    timePercentage,
-    progressPercentage,
-    startsFrom,
-    durationTitleClass
-  }
-) => {
+const DurationProgress = ({
+  title,
+  time,
+  timePercentage,
+  progressPercentage,
+  startsFrom,
+  durationTitleClass,
+}) => {
   return (
-    <div className='durationProgress'>
-      {
-        title && time && <div className='durationProgress-content'>
-          <span className={durationTitleClass || 'durationProgress-content__title'}>
+    <div className="durationProgress">
+      {title && time && (
+        <div className="durationProgress-content">
+          <span
+            className={durationTitleClass || "durationProgress-content__title"}
+          >
             {title}
           </span>
           <span
-            data-qa='duration-breakdown-value'
-            className='durationProgress-content__value'>
-            {time < 1 ? '<1s ' : `${jobsUtils.formatJobDuration(time * 1000)} `}({timePercentage}%)
+            data-qa="duration-breakdown-value"
+            className="durationProgress-content__value dremio-typography-tabular-numeric"
+          >
+            {time < 1 ? "<1s " : `${jobsUtils.formatJobDuration(time * 1000)} `}
+            ({timePercentage}%)
           </span>
         </div>
-      }
-      <div className='durationProgress-progress'>
+      )}
+      <div className="durationProgress-progress">
         <div
-          className='durationProgress-progress__value'
-          style={{ width: `${progressPercentage}%`, marginLeft: startsFrom ? `${startsFrom}%` : 0 }} />
+          className="durationProgress-progress__value"
+          style={{
+            width: `${progressPercentage}%`,
+            marginLeft: startsFrom ? `${startsFrom}%` : 0,
+          }}
+        />
       </div>
     </div>
   );
@@ -56,16 +62,15 @@ DurationProgress.propTypes = {
   timePercentage: PropTypes.string,
   progressPercentage: PropTypes.string,
   startsFrom: PropTypes.string,
-  durationTitleClass: PropTypes.string
+  durationTitleClass: PropTypes.string,
 };
 
 DurationProgress.defaultProps = {
-  title: '',
+  title: "",
   time: 0,
-  timePercentage: '',
-  progressPercentage: '',
-  startsFrom: ''
+  timePercentage: "",
+  progressPercentage: "",
+  startsFrom: "",
 };
 
 export default DurationProgress;
-

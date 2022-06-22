@@ -13,12 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { TextArea } from 'dremio-ui-lib';
-import FieldWithError from 'components/Fields/FieldWithError';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import { TextArea } from "dremio-ui-lib";
+import FieldWithError from "components/Fields/FieldWithError";
+import PropTypes from "prop-types";
 
-import { flexContainer, fieldWithError, textFieldWrapper, textAreaBody } from './FormWrappers.less';
+import {
+  flexContainer,
+  fieldWithError,
+  textFieldWrapper,
+  textAreaBody,
+} from "./FormWrappers.less";
 
 export default class TextareaWrapper extends Component {
   static propTypes = {
@@ -26,21 +31,25 @@ export default class TextareaWrapper extends Component {
     fields: PropTypes.object,
     field: PropTypes.object,
     disabled: PropTypes.bool,
-    editing: PropTypes.bool
+    editing: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, field} = this.props;
+    const { elementConfig, field } = this.props;
     const { tooltip, enableCopy } = elementConfig.getConfig();
 
-    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ? {disabled: true} : null;
+    const isDisabled =
+      elementConfig.getConfig().disabled || this.props.disabled
+        ? { disabled: true }
+        : null;
     const label = elementConfig.getConfig().label;
     return (
       <div className={flexContainer}>
         <FieldWithError
           {...field}
           name={elementConfig.getPropName()}
-          className={fieldWithError}>
+          className={fieldWithError}
+        >
           <div className={textFieldWrapper}>
             <TextArea
               {...field}
@@ -50,7 +59,7 @@ export default class TextareaWrapper extends Component {
               maxLines={4}
               classes={{
                 root: textAreaBody,
-                container: textAreaBody
+                container: textAreaBody,
               }}
               enableCopy={enableCopy}
               noResize

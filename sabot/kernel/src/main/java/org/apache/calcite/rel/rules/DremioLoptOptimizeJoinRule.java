@@ -55,6 +55,7 @@ import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.mapping.IntPair;
 
+import com.dremio.exec.planner.cost.RelMdRowCount;
 import com.google.common.collect.Lists;
 
 /**
@@ -77,11 +78,15 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     Config.DEFAULT.withFindOnlyOneOrdering(true).toRule();
 
   private final boolean findOnlyOneOrdering;
+  private final boolean useCardinalityForNextFactor;
+  private final boolean rotateFactors;
 
   /** Creates a LoptOptimizeJoinRule. */
   public DremioLoptOptimizeJoinRule(Config config) {
     super(config);
     this.findOnlyOneOrdering = config.isFindOnlyOneOrdering();
+    this.useCardinalityForNextFactor = config.useCardinalityForNextFactor();
+    this.rotateFactors = config.rotateFactors();
   }
 
 
@@ -613,8 +618,14 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     if (joinKeys.isEmpty()) {
       return null;
     } else {
-      return mq.getDistinctRowCount(semiJoinOpt.getChosenSemiJoin(factor),
-        joinKeys.build(), null);
+      if (useCardinalityForNextFactor) {
+        RelNode rel = semiJoinOpt.getChosenSemiJoin(factor);
+        ImmutableBitSet jk = joinKeys.build();
+        return RelMdRowCount.isKey(rel, jk, mq) ? 1.0 : 0;
+      } else {
+        return mq.getDistinctRowCount(semiJoinOpt.getChosenSemiJoin(factor),
+          joinKeys.build(), null);
+      }
     }
   }
 
@@ -687,6 +698,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       new ArrayList<>(multiJoin.getJoinFilters());
 
     int prevFactor = -1;
+    int iter = 0;
     while (factorsToAdd.cardinality() > 0) {
       int nextFactor;
       boolean selfJoin = false;
@@ -712,7 +724,8 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
               factorsAdded,
               semiJoinOpt,
               joinTree,
-              filtersToAdd);
+              filtersToAdd,
+              iter++);
         }
       }
 
@@ -767,14 +780,28 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
     BitSet factorsAdded,
     LoptSemiJoinOptimizer semiJoinOpt,
     LoptJoinTree joinTree,
-    List<RexNode> filtersToAdd) {
+    List<RexNode> filtersToAdd,
+    int iteration) {
     // iterate through the remaining factors and determine the
     // best one to add next
     int nextFactor = -1;
     int bestWeight = 0;
     Double bestCardinality = null;
     int [][] factorWeights = multiJoin.getFactorWeights();
-    for (int factor : BitSets.toIter(factorsToAdd)) {
+    List<Integer> factorList = BitSets.toList(factorsToAdd);
+    List<Integer> rotatedList;
+    if (rotateFactors) {
+      rotatedList = new ArrayList<>();
+      int startIdx = iteration % factorsToAdd.cardinality();
+      rotatedList.addAll(factorList.subList(startIdx, factorList.size()));
+      rotatedList.addAll(factorList.subList(0, startIdx));
+    } else {
+      rotatedList = factorList;
+    }
+    for (int factor : rotatedList) {
+      if (nextFactor == -1) {
+        nextFactor = factor;
+      }
       // if the factor corresponds to a dimension table whose
       // join we can remove, make sure the the corresponding fact
       // table is in the current join tree
@@ -2081,13 +2108,31 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
       .as(Config.class);
 
     /**
-     * Whether to push down aggregate functions, default false.
+     * Whether to only use the first ordering found
      */
     @ImmutableBeans.Property
     @ImmutableBeans.BooleanDefault(false)
     boolean isFindOnlyOneOrdering();
 
     Config withFindOnlyOneOrdering(boolean findOnlyOneOrdering);
+
+    /**
+     * Whether to push down aggregate functions, default false.
+     */
+    @ImmutableBeans.Property
+    @ImmutableBeans.BooleanDefault(true)
+    boolean useCardinalityForNextFactor();
+
+    Config withUseCardinalityForNextFactor(boolean useCardinalityForNextFactor);
+
+    /**
+     * Whether to rotate the factors list before deciding next factor. default true
+     */
+    @ImmutableBeans.Property
+    @ImmutableBeans.BooleanDefault(true)
+    boolean rotateFactors();
+
+    Config withRotateFactors(boolean rotateFactors);
 
     @Override
     default DremioLoptOptimizeJoinRule toRule() {

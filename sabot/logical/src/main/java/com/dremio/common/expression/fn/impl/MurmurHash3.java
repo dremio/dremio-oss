@@ -17,8 +17,6 @@ package com.dremio.common.expression.fn.impl;
 
 import org.apache.arrow.memory.ArrowBuf;
 
-import com.dremio.common.expression.fn.impl.HashBase;
-
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -276,4 +274,3 @@ public final class MurmurHash3 extends HashBase {
   }
 
 }
-

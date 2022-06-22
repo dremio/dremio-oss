@@ -13,24 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FieldValues from 'components/Fields/FieldValues';
-import { SECONDARY_BORDER, WHITE } from 'uiTheme/radium/colors';
-import './Progress.less';
-import {
-  title,
-  rowMargin
-} from '@app/uiTheme/less/forms.less';
+import FieldValues from "components/Fields/FieldValues";
+import { SECONDARY_BORDER, WHITE } from "uiTheme/radium/colors";
+import "./Progress.less";
+import { title, rowMargin } from "@app/uiTheme/less/forms.less";
 
-@Radium
-export default class NonMatchingValues extends Component {
+class NonMatchingValues extends Component {
   static propTypes = {
     nonMatchingCount: PropTypes.number.isRequired,
-    values: PropTypes.array.isRequired
+    values: PropTypes.array.isRequired,
   };
 
   constructor(props) {
@@ -40,13 +35,13 @@ export default class NonMatchingValues extends Component {
   render() {
     const { values } = this.props;
     if (values && values.length === 0) {
-      return <div/>;
+      return <div />;
     }
     return (
-      <div className='clean-data-area'>
+      <div className="clean-data-area">
         <div className={title}>Available Non-matching Values</div>
         <div className={rowMargin} style={styles.values}>
-          <FieldValues options={values}/>
+          <FieldValues options={values} />
         </div>
       </div>
     );
@@ -57,10 +52,11 @@ const styles = {
   values: {
     maxWidth: 600,
     height: 215,
-    position: 'relative',
+    position: "relative",
     padding: 5,
     border: `1px solid ${SECONDARY_BORDER}`,
-    overflowY: 'scroll',
-    backgroundColor: WHITE
-  }
+    overflowY: "scroll",
+    backgroundColor: WHITE,
+  },
 };
+export default NonMatchingValues;

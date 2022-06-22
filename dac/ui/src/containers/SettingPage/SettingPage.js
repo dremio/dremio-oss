@@ -13,17 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import './settingPage.less';
+import "./settingPage.less";
 
 const SettingPage = (props) => {
-  const {
-    className,
-    style,
-    id,
-    children
-  } = props;
+  const { className, style, id, children } = props;
 
   // Todo: Revisit after side nav changes to include the UserNavigation as part of this
   return (
@@ -37,7 +32,7 @@ SettingPage.propTypes = {
   className: PropTypes.string,
   style: PropTypes.object,
   id: PropTypes.string,
-  children: PropTypes.node
+  children: PropTypes.node,
 };
 
 export default SettingPage;

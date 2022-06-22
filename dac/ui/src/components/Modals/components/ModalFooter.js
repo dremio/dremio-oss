@@ -13,20 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-@Radium
 class ModalFooter extends PureComponent {
   static propTypes = {
-    children: PropTypes.node
-  }
+    children: PropTypes.node,
+  };
 
   render() {
     return (
-      <div style={styles.base} className='general-modal-footer'>
+      <div style={styles.base} className="general-modal-footer">
         {this.props.children}
       </div>
     );
@@ -35,17 +34,18 @@ class ModalFooter extends PureComponent {
 
 const styles = {
   base: {
-    position: 'absolute',
+    position: "absolute",
     borderRadius: 3,
-    borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+    borderTop: "1px solid rgba(0, 0, 0, 0.1)",
     bottom: 0,
     height: 48,
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'flex-end',
-    padding: '0 10px 0 0',
-    alignItems: 'center'
-  }
+    width: "100%",
+    display: "flex",
+    justifyContent: "flex-end",
+    padding: "0 10px 0 0",
+    alignItems: "center",
+    background: "#ffffff",
+  },
 };
 
-export default ModalFooter;
+export default Radium(ModalFooter);

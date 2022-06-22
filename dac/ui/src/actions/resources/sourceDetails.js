@@ -13,35 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import sourceSchema from 'dyn-load/schemas/source';
-import schemaUtils from 'utils/apiUtils/schemaUtils';
-import { APIV2Call } from '@app/core/APICall';
+import sourceSchema from "dyn-load/schemas/source";
+import schemaUtils from "utils/apiUtils/schemaUtils";
+import { APIV2Call } from "@app/core/APICall";
 
-export const LOAD_SOURCE_STARTED = 'LOAD_SOURCE_STARTED';
-export const LOAD_SOURCE_SUCCESS = 'LOAD_SOURCE_SUCCESS';
-export const LOAD_SOURCE_FAILURE = 'LOAD_SOURCE_FAILURE';
+export const LOAD_SOURCE_STARTED = "LOAD_SOURCE_STARTED";
+export const LOAD_SOURCE_SUCCESS = "LOAD_SOURCE_SUCCESS";
+export const LOAD_SOURCE_FAILURE = "LOAD_SOURCE_FAILURE";
 
 function fetchSourceData(href) {
   const resourcePath = href;
   const meta = { resourcePath };
-  const uiPropsForEntity = [{key: 'resourcePath', value: resourcePath}];
+  const uiPropsForEntity = [{ key: "resourcePath", value: resourcePath }];
 
-  const apiCall = new APIV2Call()
-    .paths(resourcePath)
-    .uncachable();
+  const apiCall = new APIV2Call().paths(resourcePath).uncachable();
 
   return {
     [RSAA]: {
       types: [
-        { type: LOAD_SOURCE_STARTED, meta},
-        schemaUtils.getSuccessActionTypeWithSchema(LOAD_SOURCE_SUCCESS, sourceSchema, meta, uiPropsForEntity),
-        { type: LOAD_SOURCE_FAILURE, meta}
+        { type: LOAD_SOURCE_STARTED, meta },
+        schemaUtils.getSuccessActionTypeWithSchema(
+          LOAD_SOURCE_SUCCESS,
+          sourceSchema,
+          meta,
+          uiPropsForEntity
+        ),
+        { type: LOAD_SOURCE_FAILURE, meta },
       ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 }
 

@@ -19,7 +19,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.dremio.common.expression.PathSegment;
 import com.dremio.test.DremioTest;
 
 public class PathSegmentTest extends DremioTest {

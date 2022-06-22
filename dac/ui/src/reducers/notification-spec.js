@@ -13,76 +13,96 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import notification from './notification';
+import notification from "./notification";
 
-describe('notification reducer', () => {
+describe("notification reducer", () => {
+  const initialState = { message: "old", level: "bad" };
 
-  const initialState =  {message: 'old', level: 'bad'};
-
-  it('should return unaltered state by default', () => {
-    const result = notification(initialState, {type: 'bla'});
+  it("should return unaltered state by default", () => {
+    const result = notification(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  it('should replace notification if present in meta', () => {
-    const result = notification(initialState, {type: 'bla', meta: {notification: {message: 'foo'}}});
-    expect(result).to.eql({message: 'foo'});
-  });
-
-  it('should set notification if present in meta and type is function', () => {
-    const result = notification(initialState, {type: 'bla', meta: {notification: () => ({message: 'foo'})}});
-    expect(result).to.eql({message: 'foo'});
-  });
-
-  it('should set notification from errorMessage and default moreInfo if error = true and notification = true', () => {
-    const defaultMoreInfo = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
+  it("should replace notification if present in meta", () => {
     const result = notification(initialState, {
-      type: 'bla',
+      type: "bla",
+      meta: { notification: { message: "foo" } },
+    });
+    expect(result).to.eql({ message: "foo" });
+  });
+
+  it("should set notification if present in meta and type is function", () => {
+    const result = notification(initialState, {
+      type: "bla",
+      meta: { notification: () => ({ message: "foo" }) },
+    });
+    expect(result).to.eql({ message: "foo" });
+  });
+
+  it("should set notification from errorMessage and default moreInfo if error = true and notification = true", () => {
+    const defaultMoreInfo =
+      "Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html";
+    const result = notification(initialState, {
+      type: "bla",
       error: true,
-      payload: {errorMessage: 'message'},
-      meta: {notification: true}
+      payload: { errorMessage: "message" },
+      meta: { notification: true },
     });
     expect(result).to.eql({
-      message: Immutable.Map({ message: 'message', moreInfo: defaultMoreInfo }),
-      level: 'error'
+      message: Immutable.Map({ message: "message", moreInfo: defaultMoreInfo }),
+      level: "error",
     });
   });
 
-  it('should set notification from payload.response if error = true and notification = true', () => {
+  it("should set notification from payload.response if error = true and notification = true", () => {
     const result = notification(initialState, {
-      type: 'bla',
+      type: "bla",
       error: true,
-      payload: { response: { errorMessage: 'message', moreInfo: 'more info' } },
-      meta: {notification: true}
+      payload: { response: { errorMessage: "message", moreInfo: "more info" } },
+      meta: { notification: true },
     });
-    expect(result).to.eql({ message: Immutable.Map({ message: 'message', moreInfo: 'more info' }), level: 'error' });
+    expect(result).to.eql({
+      message: Immutable.Map({ message: "message", moreInfo: "more info" }),
+      level: "error",
+    });
   });
 
-  it('should return unaltered state if notification is true but no error', () => {
-    const result = notification(initialState, {type: 'bla', meta: { notification: true }});
+  it("should return unaltered state if notification is true but no error", () => {
+    const result = notification(initialState, {
+      type: "bla",
+      meta: { notification: true },
+    });
     expect(result).to.equal(initialState);
   });
 
-  it('should set notification with default message when error = true and notification = true', () => {
-    const defaultMessage = 'Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html';
+  it("should set notification with default message when error = true and notification = true", () => {
+    const defaultMessage =
+      "Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html";
     const result = notification(initialState, {
-      type: 'bla',
+      type: "bla",
       error: true,
-      meta: {notification: true}
+      meta: { notification: true },
     });
-    expect(result).to.eql({ message: Immutable.Map({ message: defaultMessage }), level: 'error' });
+    expect(result).to.eql({
+      message: Immutable.Map({ message: defaultMessage }),
+      level: "error",
+    });
   });
 
   it('should set default message to "data has changed" when status = 409', () => {
-    const defaultMessage409 = 'The data has been changed since you last accessed it. Please reload the page.';
+    const defaultMessage409 =
+      "The data has been changed since you last accessed it. Please reload the page.";
     const result = notification(initialState, {
-      type: 'bla',
+      type: "bla",
       payload: {
-        status: 409
+        status: 409,
       },
       error: true,
-      meta: {notification: true}
+      meta: { notification: true },
     });
-    expect(result).to.eql({ message: Immutable.Map({ message: defaultMessage409 }), level: 'error' });
+    expect(result).to.eql({
+      message: Immutable.Map({ message: defaultMessage409 }),
+      level: "error",
+    });
   });
 });

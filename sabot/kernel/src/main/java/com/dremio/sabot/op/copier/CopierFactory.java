@@ -30,11 +30,23 @@ public interface CopierFactory {
   /**
    * Assigns 2 byte copiers for the pairs of vectors in the inputs and outputs list
    *
+   * @param inputs                  Input List
+   * @param outputs                 Output List
+   * @param isTargetVectorZeroedOut true if the target vector is zeroed out before copy
+   * @return List containing the assigned copiers
+   */
+  List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs, boolean isTargetVectorZeroedOut);
+
+  /**
+   * Assigns 2 byte copiers for the pairs of vectors in the inputs and outputs list
+   *
    * @param inputs  Input List
    * @param outputs Output List
    * @return List containing the assigned copiers
    */
-  List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs);
+  default List<FieldBufferCopier> getTwoByteCopiers(List<FieldVector> inputs, List<FieldVector> outputs) {
+    return getTwoByteCopiers(inputs, outputs, true);
+  }
 
   /**
    * Assigns 4 byte copiers for the pairs of vectors in the inputs and outputs list

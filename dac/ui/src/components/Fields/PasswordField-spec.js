@@ -13,64 +13,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import PasswordField from './PasswordField';
+import PasswordField from "./PasswordField";
 
-describe('PasswordField', () => {
-
+describe("PasswordField", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
-    minimalProps = {
-    };
+    minimalProps = {};
     commonProps = {
       ...minimalProps,
       initialFocus: true,
-      error: '',
+      error: "",
       onChange: sinon.spy(),
       touched: false,
       disabled: false,
-      default: '',
+      default: "",
       style: {},
-      value:''
+      value: "",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<PasswordField {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
+  it("should render with common props without exploding", () => {
     const wrapper = shallow(<PasswordField {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render TextField with common props', () => {
+  it("should render TextField with common props", () => {
     const wrapper = shallow(<PasswordField {...commonProps} />);
-    expect(wrapper.find('TextField')).to.have.length(1);
+    expect(wrapper.find("TextField")).to.have.length(1);
   });
 
-  it('should render eye icon when value not empty', () => {
-    const props = {...commonProps, value: 'val1'};
+  it("should render eye icon when value not empty", () => {
+    const props = { ...commonProps, value: "val1" };
     const wrapper = shallow(<PasswordField {...props} />);
-    expect(wrapper.find('FontIcon')).to.have.length(1);
+    expect(wrapper.find("FontIcon")).to.have.length(1);
   });
 
-  it('should not render eye icon when value is empty', () => {
+  it("should not render eye icon when value is empty", () => {
     const wrapper = shallow(<PasswordField {...commonProps} />);
-    expect(wrapper.find('FontIcon')).to.have.length(0);
+    expect(wrapper.find("FontIcon")).to.have.length(0);
   });
 
-  it('should render TextField with text upon toggle (and back again)', () => {
+  it("should render TextField with text upon toggle (and back again)", () => {
     const wrapper = shallow(<PasswordField {...commonProps} />);
-    expect(wrapper.find('TextField').props().type).to.equal('password');
+    expect(wrapper.find("TextField").props().type).to.equal("password");
     wrapper.instance().togglePassView();
     wrapper.update();
-    expect(wrapper.find('TextField').props().type).to.equal('text');
+    expect(wrapper.find("TextField").props().type).to.equal("text");
     wrapper.instance().togglePassView();
     wrapper.update();
-    expect(wrapper.find('TextField').props().type).to.equal('password');
+    expect(wrapper.find("TextField").props().type).to.equal("password");
   });
 });

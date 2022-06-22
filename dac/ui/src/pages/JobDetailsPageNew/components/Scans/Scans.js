@@ -13,30 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import ScanItem from './ScanItem';
-import './Scans.less';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import ScanItem from "./ScanItem";
+import "./Scans.less";
 
 const Scans = ({ scans, scansForFilter, intl: { formatMessage } }) => {
   return (
-    <div className='scans'>
-      {scans.size > 0 && <div className='scans-title'>
-        {formatMessage({ id: 'Scans' })}
-      </div>}
+    <div className="scans">
+      {scans.size > 0 && (
+        <div className="scans-title">{formatMessage({ id: "Scans" })}</div>
+      )}
 
-      {
-        scans.map((scan, index) => {
-          return (
-            <ScanItem
-              key={`scans-${index}`}
-              scan={scan}
-              scansForFilter={scansForFilter}
-            />
-          );
-        })
-      }
+      {scans.map((scan, index) => {
+        return (
+          <ScanItem
+            key={`scans-${index}`}
+            scan={scan}
+            scansForFilter={scansForFilter}
+          />
+        );
+      })}
     </div>
   );
 };
@@ -44,6 +42,6 @@ const Scans = ({ scans, scansForFilter, intl: { formatMessage } }) => {
 Scans.propTypes = {
   intl: PropTypes.object.isRequired,
   scansForFilter: PropTypes.array,
-  scans: PropTypes.instanceOf(Immutable.List).isRequired
+  scans: PropTypes.instanceOf(Immutable.List).isRequired,
 };
 export default injectIntl(Scans);

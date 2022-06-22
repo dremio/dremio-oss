@@ -39,9 +39,9 @@ import com.google.common.base.Preconditions;
 @NotThreadSafe
 public class PagePool implements AutoCloseable {
 
-  // The default batch size is 1MB. Making this smaller than that value will cause a proportionate increase in the
+  // The default batch size is 256K. Making this smaller than that value will cause a proportionate increase in the
   // heap footprint (ArrowBuf/ValueVector).
-  private static final int DEFAULT_PAGE_SIZE = 1024 * 1024;
+  public static final int DEFAULT_PAGE_SIZE = 256 * 1024;
 
   private enum State {NEW, INIT, CLOSED}
   private State state = State.NEW;

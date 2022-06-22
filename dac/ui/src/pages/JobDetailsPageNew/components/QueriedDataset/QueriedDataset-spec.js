@@ -13,29 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import QueriedDataset from './QueriedDataset';
+import { shallow } from "enzyme";
+import QueriedDataset from "./QueriedDataset";
 
-describe('QueriedDataset', () => {
-
+describe("QueriedDataset", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
-      queriedDataSet: new Immutable.List()
+      queriedDataSet: new Immutable.List(),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<QueriedDataset {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('renders child correctly', () => {
+  it("renders child correctly", () => {
     const queriedDataSet = Immutable.List([
-      Immutable.fromJS({ icon: 'VirtualDataset.svg', datasetName: 'Scrubbed_Transactions', datasetPath: 'transaction_analysis.base_views.scrubbed' }),
-      Immutable.fromJS({ icon: 'VirtualDataset.svg', datasetName: 'Customers', datasetPath: 'transaction_analysis.base_views.customer' }),
-      Immutable.fromJS({ icon: 'PhysicalDataset.svg', datasetName: 'Account_Types', datasetPath: 'lake_source.lookup_tables.account_types' })
+      Immutable.fromJS({
+        icon: "VirtualDataset.svg",
+        datasetName: "Scrubbed_Transactions",
+        datasetPath: "transaction_analysis.base_views.scrubbed",
+      }),
+      Immutable.fromJS({
+        icon: "VirtualDataset.svg",
+        datasetName: "Customers",
+        datasetPath: "transaction_analysis.base_views.customer",
+      }),
+      Immutable.fromJS({
+        icon: "PhysicalDataset.svg",
+        datasetName: "Account_Types",
+        datasetPath: "lake_source.lookup_tables.account_types",
+      }),
     ]);
     const wrapper = shallow(<QueriedDataset queriedDataSet={queriedDataSet} />);
-    expect(wrapper.find('.queriedDataset-dataWrapper__wrapper').length).equal(queriedDataSet.size);
+    expect(wrapper.find(".queriedDataset-dataWrapper__wrapper").length).equal(
+      queriedDataSet.size
+    );
   });
 });

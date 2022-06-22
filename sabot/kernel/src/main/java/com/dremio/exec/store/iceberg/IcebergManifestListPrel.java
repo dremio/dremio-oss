@@ -28,6 +28,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
@@ -60,22 +61,30 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
     private final List<SchemaPath> projectedColumns;
     private final RelDataType relDataType;
     private final Expression icebergExpression;
+    private final ManifestContent manifestContent;
 
-    public IcebergManifestListPrel(RelOptCluster cluster, RelTraitSet traitSet, TableMetadata tableMetadata,
-                                   BatchSchema schema,
-                                   List<SchemaPath> projectedColumns,
-                                   RelDataType relDataType, Expression icebergExpression) {
+    public IcebergManifestListPrel(
+        RelOptCluster cluster,
+        RelTraitSet traitSet,
+        TableMetadata tableMetadata,
+        BatchSchema schema,
+        List<SchemaPath> projectedColumns,
+        RelDataType relDataType,
+        Expression icebergExpression,
+        ManifestContent manifestContent) {
+
         super(cluster, traitSet);
         this.tableMetadata = tableMetadata;
         this.schema = schema;
         this.projectedColumns = projectedColumns;
         this.relDataType = relDataType;
         this.icebergExpression = icebergExpression;
+        this.manifestContent = manifestContent;
     }
 
     @Override
     public double estimateRowCount(RelMetadataQuery mq) {
-        return 1;
+      return 1;
     }
 
     @Override
@@ -86,14 +95,17 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
     @Override
     public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
         return new IcebergGroupScan(
-                creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
-                tableMetadata,
-                projectedColumns, icebergExpression);
+            creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
+            tableMetadata,
+            projectedColumns,
+            icebergExpression,
+            manifestContent);
     }
 
     @Override
     public Prel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, schema, projectedColumns, relDataType, icebergExpression);
+        return new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, schema, projectedColumns,
+            relDataType, icebergExpression, manifestContent);
     }
 
     @Override
@@ -158,6 +170,8 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
       if (icebergExpression != null) {
           pw.item("ManifestList Filter Expression ", icebergExpression.toString());
       }
+      pw.item("manifestContent", manifestContent);
+
       return pw;
   }
 }

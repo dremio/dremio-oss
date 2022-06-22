@@ -24,9 +24,8 @@ class UserUtils {
   }
 
   isAdmin(userData) {
-    return userData.get('admin');
+    return userData.get("admin");
   }
 }
-
 
 export default new UserUtils();

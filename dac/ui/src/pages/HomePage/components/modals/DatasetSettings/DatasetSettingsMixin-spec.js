@@ -13,120 +13,107 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import {
-  DatasetSettings as DatasetSettingsBase
-} from './DatasetSettings';
-import DatasetSettingsMixin from './DatasetSettingsMixin';
+import { DatasetSettings as DatasetSettingsBase } from "./DatasetSettings";
+import DatasetSettingsMixin from "./DatasetSettingsMixin";
 
 @DatasetSettingsMixin
 class DatasetSettings extends DatasetSettingsBase {}
 
-
-describe('DatasetSettingsMixin', () => {
+describe("DatasetSettingsMixin", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       viewState: Immutable.Map(),
-      location: {state: { tab: '' }},
+      location: { state: { tab: "" } },
       loadDatasetForDatasetType: sinon.spy(),
       updateFormDirtyState: sinon.spy(),
-      showUnsavedChangesConfirmDialog: sinon.spy()
+      showUnsavedChangesConfirmDialog: sinon.spy(),
     };
     commonProps = {
       ...minimalProps,
       entity: Immutable.fromJS({
-        id: '1',
-        entityType: 'file'
+        id: "1",
+        entityType: "file",
       }),
       viewState: Immutable.fromJS({
-        isInProgress: false
-      })
+        isInProgress: false,
+      }),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<DatasetSettings {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<DatasetSettings {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#getTabs', () => {
+  describe("#getTabs", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<DatasetSettings {...minimalProps}/>);
+      wrapper = shallow(<DatasetSettings {...minimalProps} />);
       instance = wrapper.instance();
     });
 
-    it('should return correct tabs when dataset type is file|folder and not queryable', () => {
+    it("should return correct tabs when dataset type is file|folder and not queryable", () => {
       wrapper.setProps({
         entity: commonProps.entity.merge({
-          entityType: 'file',
-          queryable: false
-        })
+          entityType: "file",
+          queryable: false,
+        }),
       });
-      const expectedTabs = [
-        'format'
-      ];
+      const expectedTabs = ["format"];
       expect(instance.getTabs().keySeq().toJS()).to.be.eql(expectedTabs);
     });
 
-    it('should return correct tabs when dataset type is file|folder and queryable', () => {
+    it("should return correct tabs when dataset type is file|folder and queryable", () => {
       wrapper.setProps({
         location: {
-          pathname: '/share'
+          pathname: "/share",
         },
         entity: commonProps.entity.merge({
-          entityType: 'file',
-          queryable: true
-        })
-      });
-      const expectedTabs = [
-        'overview',
-        'format',
-        'acceleration',
-        'accelerationUpdates'
-      ];
-      expect(instance.getTabs().keySeq().toJS()).to.be.eql(expectedTabs);
-    });
-
-    it('should return correct tabs when dataset type is file|folder and queryable in home', () => {
-      wrapper.setProps({
-        location: {
-          pathname: '/share'
-        },
-        entity: commonProps.entity.merge({
-          entityType: 'file',
+          entityType: "file",
           queryable: true,
-          isHomeFile: true
-        })
+        }),
       });
       const expectedTabs = [
-        'overview',
-        'format',
-        'acceleration'
+        "overview",
+        "format",
+        "acceleration",
+        "accelerationUpdates",
       ];
       expect(instance.getTabs().keySeq().toJS()).to.be.eql(expectedTabs);
     });
 
-    it('should return correct tabs when dataset type is not file|folder', () => {
+    it("should return correct tabs when dataset type is file|folder and queryable in home", () => {
       wrapper.setProps({
         location: {
-          pathname: '/share'
+          pathname: "/share",
         },
         entity: commonProps.entity.merge({
-          entityType: 'physicalDataset'
-        })
+          entityType: "file",
+          queryable: true,
+          isHomeFile: true,
+        }),
+      });
+      const expectedTabs = ["overview", "format", "acceleration"];
+      expect(instance.getTabs().keySeq().toJS()).to.be.eql(expectedTabs);
+    });
+
+    it("should return correct tabs when dataset type is not file|folder", () => {
+      wrapper.setProps({
+        location: {
+          pathname: "/share",
+        },
+        entity: commonProps.entity.merge({
+          entityType: "physicalDataset",
+        }),
       });
 
-      const expectedTabs = [
-        'overview',
-        'acceleration',
-        'accelerationUpdates'
-      ];
+      const expectedTabs = ["overview", "acceleration", "accelerationUpdates"];
       expect(instance.getTabs().keySeq().toJS()).to.be.eql(expectedTabs);
     });
   });

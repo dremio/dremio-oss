@@ -18,9 +18,11 @@ package com.dremio.exec.store.iceberg.model;
 import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
+import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -31,9 +33,10 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
  * This interface is the entry point to Iceberg tables
  */
 public interface IcebergModel {
-    IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
-                                               BatchSchema batchSchema,
-                                               List<String> partitionColumnNames, OperatorStats operatorStats);
+
+  IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
+                                             BatchSchema batchSchema,
+                                             List<String> partitionColumnNames, OperatorStats operatorStats, PartitionSpec partitionSpec);
 
   /**
      * Get Iceberg Op committer for Insert command
@@ -57,7 +60,7 @@ public interface IcebergModel {
   IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
                                                      String tableUuid, IcebergTableIdentifier tableIdentifier,
                                                      BatchSchema batchSchema, List<String> partitionColumnNames,
-                                                     DatasetConfig datasetConfig, OperatorStats operatorStats);
+                                                     DatasetConfig datasetConfig, OperatorStats operatorStats, PartitionSpec partitionSpec);
 
   /**
    * Get Iceberg Op committer for Metadata Incremental Refresh command
@@ -86,8 +89,25 @@ public interface IcebergModel {
    IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
                                                    String columnName, List<Field> columnTypes);
 
+  /**
+   * Iceberg Op committer for DML (Delete, Merge, Update) commands
+   * @param operatorStats
+   * @param tableIdentifier
+   * @param datasetConfig
+   * @return
+   */
+  IcebergOpCommitter getDmlCommitter(OperatorStats operatorStats, IcebergTableIdentifier tableIdentifier, DatasetConfig datasetConfig);
 
   /**
+   * Get Iceberg Op committer for primary key command
+   *
+   * @param tableIdentifier Table identifier
+   * @param columns         Primary key column fields
+   * @return Primary key update committer
+   */
+  IcebergOpCommitter getPrimaryKeyUpdateCommitter(IcebergTableIdentifier tableIdentifier, List<Field> columns);
+
+    /**
      * Truncate a table
      * @param tableIdentifier table identifier
      */
@@ -95,6 +115,8 @@ public interface IcebergModel {
 
 
     void deleteTable(IcebergTableIdentifier tableIdentifier);
+
+    void alterTable(IcebergTableIdentifier tableIdentifier, AlterTableOption alterTableOption);
 
     void deleteTableRootPointer(IcebergTableIdentifier tableIdentifier);
 
@@ -133,7 +155,14 @@ public interface IcebergModel {
      */
     String renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName);
 
-    /**
+  /**
+   * @param tableIdentifier table identifier
+   * @param columns         primary key column fields
+   * @return New root pointer for iceberg table
+   */
+  String updatePrimaryKey(IcebergTableIdentifier tableIdentifier, List<Field> columns);
+
+  /**
      * Load and return an Iceberg table
      * @param tableIdentifier table identifier
      * @return Iceberg table

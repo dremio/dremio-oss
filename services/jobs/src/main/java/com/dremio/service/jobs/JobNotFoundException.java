@@ -31,12 +31,12 @@ public class JobNotFoundException extends JobException {
   }
 
   public JobNotFoundException(JobId jobId, Exception error) {
-    super(jobId, "Missing job " + jobId, error);
+    super(jobId, "Missing job " + jobId.getId(), error);
     this.jobId = jobId;
   }
 
   public JobNotFoundException(JobId jobId) {
-    super(jobId, "Missing job " + jobId);
+    super(jobId, "Missing job " + jobId.getId());
     this.jobId = jobId;
   }
 

@@ -13,47 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import Tooltip from '@material-ui/core/Tooltip';
-import { FormattedMessage } from 'react-intl';
+import React from "react";
+import Tooltip from "@material-ui/core/Tooltip";
+// @ts-ignore
+import { FormattedMessage } from "react-intl";
 
 type TooltipMuiTypes = {
-  arrow?: boolean,
-  enterDelay?: number,
-  enterNextDelay?: number,
-  title: string,
-  interactive?: boolean,
-  children: any
+  arrow?: boolean;
+  enterDelay?: number;
+  enterNextDelay?: number;
+  title: string | React.ReactNode;
+  interactive?: boolean;
+  children: any;
 };
 
-const TooltipMui = ({arrow = true, enterDelay = 500, enterNextDelay = 500, title = '', interactive = false, children, ...props}: TooltipMuiTypes) => {
-
+const TooltipMui = ({
+  arrow = true,
+  enterDelay = 500,
+  enterNextDelay = 500,
+  title = "",
+  interactive = false,
+  children,
+  ...props
+}: TooltipMuiTypes) => {
   return (
-    !interactive ? // to handle links and other interactions inside tootip
     <Tooltip
-      title={<FormattedMessage id={title} defaultMessage={title} />}
+      title={
+        interactive || typeof title !== "string" ? (
+          title
+        ) : (
+          <FormattedMessage id={title} defaultMessage={title} />
+        )
+      }
       enterDelay={enterDelay}
       enterNextDelay={enterNextDelay}
       arrow={arrow}
+      interactive={interactive}
       {...props}
     >
       {children}
-    </Tooltip> :
-    <Tooltip
-    title={title}
-    enterDelay={enterDelay}
-    enterNextDelay={enterNextDelay}
-    arrow={arrow}
-    interactive={interactive}
-    {...props}
-  >
-    {children}
-  </Tooltip>
+    </Tooltip>
   );
 };
 
 export default TooltipMui;
-
-
-
-

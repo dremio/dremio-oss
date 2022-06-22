@@ -104,6 +104,8 @@ message ListMaterializationsResponse {
   optional string failure_msg = 11;
   optional string data_partitions = 12;
   optional google.protobuf.Timestamp last_refresh_from_pds = 13;
+  optional google.protobuf.Timestamp last_refresh_finished = 14;
+  optional int64 last_refresh_duration_millis = 15;
 }
 
 message ListMaterializationsRequest {

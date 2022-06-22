@@ -49,7 +49,7 @@ public class ITTestDateTypesWeekFormatsJodaTime extends ElasticBaseTestQuery {
   private final FormatterAndType formatter;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   public ITTestDateTypesWeekFormatsJodaTime(String format) {
     this.format = format;

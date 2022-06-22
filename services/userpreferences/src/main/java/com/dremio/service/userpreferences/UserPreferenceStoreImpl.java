@@ -42,12 +42,11 @@ import com.google.common.base.Suppliers;
 public class UserPreferenceStoreImpl implements UserPreferenceStore {
 
   private static final String STORE_NAME = "user_preference";
-  private final Provider<KVStoreProvider> kvStoreProvider;
-  private Supplier<IndexedStore<String, UserPreference>> store;
-
   private static final IndexKey USER_ID = IndexKey.newBuilder("userId", "USER_ID", String.class)
     .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.STRING)
     .build();
+  private final Provider<KVStoreProvider> kvStoreProvider;
+  private Supplier<IndexedStore<String, UserPreference>> store;
 
   @Inject
   public UserPreferenceStoreImpl(Provider<KVStoreProvider> kvStoreProvider) {

@@ -21,8 +21,10 @@ import java.util.Map;
 import java.util.function.Function;
 
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.PartitionNotFoundException;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -30,7 +32,7 @@ import com.dremio.service.namespace.NamespaceKey;
  * Interface used to retrieve virtual and physical datasets. This is always contextualized to a single user and
  * default schema. Implementations must be thread-safe
  */
-public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog, InformationSchemaCatalog, VersionedCatalog {
+public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog, InformationSchemaCatalog, VersionContextResolver {
   /**
    * @return all tables that have been requested from this catalog.
    */
@@ -65,13 +67,23 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
   MetadataStatsCollector getMetadataStatsCollector();
 
   //TODO(DX-21034): Rework View Creator
-  void createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException;
+  void createView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException;
 
   //TODO(DX-21034): Rework View Creator
-  void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException;
+  void updateView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException;
 
   //TODO(DX-21034): Rework View Creator
-  void dropView(final NamespaceKey key) throws IOException;
+  void dropView(final NamespaceKey key, ViewOptions viewOptions) throws IOException;
+
+  void createFunction(NamespaceKey key, UserDefinedFunction userDefinedFunction, NamespaceAttribute...attributes) throws IOException;
+
+  void updateFunction(NamespaceKey key, UserDefinedFunction userDefinedFunction, NamespaceAttribute...attributes) throws IOException;
+
+  void dropFunction(NamespaceKey key) throws IOException;
+
+  UserDefinedFunction getFunction(NamespaceKey key) throws IOException;
+
+  Iterable<UserDefinedFunction> getAllFunctions() throws IOException;
 
   Iterable<String> getSubPartitions(NamespaceKey key, List<String> partitionColumns, List<String> partitionValues) throws PartitionNotFoundException;
 

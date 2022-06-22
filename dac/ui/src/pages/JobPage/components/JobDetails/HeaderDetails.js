@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import Radium from 'radium';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import { Link } from 'react-router';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import { Link } from "react-router";
+import { injectIntl } from "react-intl";
 
-import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import Button from 'components/Buttons/Button';
-import Art from 'components/Art';
-import datasetPathUtils from 'utils/resourcePathUtils/dataset';
-import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
-import { getViewState } from 'selectors/resources';
-import JobsUtils, { JobState } from '@app/utils/jobsUtils';
-import headerDetailsConfig from '@inject/pages/JobPage/components/JobDetails/headerDetailsConfig';
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import Button from "components/Buttons/Button";
+import Art from "components/Art";
+import datasetPathUtils from "utils/resourcePathUtils/dataset";
+import {
+  constructFullPathAndEncode,
+  constructResourcePath,
+} from "utils/pathUtils";
+import { getViewState } from "selectors/resources";
+import JobsUtils, { JobState } from "@app/utils/jobsUtils";
+import headerDetailsConfig from "@inject/pages/JobPage/components/JobDetails/headerDetailsConfig";
 
-import JobStateIcon from '../JobStateIcon';
+import JobStateIcon from "../JobStateIcon";
 
-@injectIntl
-@Radium
 class HeaderDetails extends PureComponent {
   static propTypes = {
     cancelJob: PropTypes.func,
@@ -42,12 +42,12 @@ class HeaderDetails extends PureComponent {
     jobDetails: PropTypes.instanceOf(Immutable.Map).isRequired,
     downloadViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     downloadFile: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   static contextTypes = {
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   constructor(props) {
     super(props);
@@ -57,62 +57,80 @@ class HeaderDetails extends PureComponent {
 
   getButton() {
     const { jobDetails, jobId, intl } = this.props;
-    const currentJobState = jobDetails.get('state');
+    const currentJobState = jobDetails.get("state");
 
     // if the query is running or pending, expose the cancel button.
-    if (JobsUtils.getRunning(currentJobState) || currentJobState === JobState.ENQUEUED
-        || currentJobState === JobState.PLANNING) {
+    if (
+      JobsUtils.getRunning(currentJobState) ||
+      currentJobState === JobState.ENQUEUED ||
+      currentJobState === JobState.PLANNING
+    ) {
       return (
         <Button
           type={ButtonTypes.CUSTOM}
-          text={intl.formatMessage({id: 'Common.Cancel'})}
+          text={intl.formatMessage({ id: "Common.Cancel" })}
           onClick={this.cancelJob}
-          styles={[styles.button]}/>);
+          styles={[styles.button]}
+        />
+      );
     }
 
     if (headerDetailsConfig.hideOpenResultsButton) {
       return null;
     }
 
-    const queryType = jobDetails.get('queryType');
+    const queryType = jobDetails.get("queryType");
     // don't show the open results link if there are no results available or if not a completed UI query.
     // TODO: show a message if the results are not available (DX-7459)
-    if (!jobDetails.get('resultsAvailable') || currentJobState !== JobState.COMPLETED
-        || (queryType !== 'UI_PREVIEW' && queryType !== 'UI_RUN')) {
+    if (
+      !jobDetails.get("resultsAvailable") ||
+      currentJobState !== JobState.COMPLETED ||
+      (queryType !== "UI_PREVIEW" && queryType !== "UI_RUN")
+    ) {
       return null;
     }
 
     // determine the full path of the item. If we have a root datasetPathList, use that. If not, use the first parent's
     // datasetPathList.
-    const datasetFullPath = jobDetails.get('datasetPathList')
-        || jobDetails.getIn(['parentsList', 0, 'datasetPathList']);
+    const datasetFullPath =
+      jobDetails.get("datasetPathList") ||
+      jobDetails.getIn(["parentsList", 0, "datasetPathList"]);
     let fullPath;
     if (datasetFullPath && datasetFullPath.size > 0) {
       // Todo: This is a temporary fix to avoid double quotes around Space. DX-27492
-      fullPath = `${datasetFullPath.get(0)}.${constructFullPathAndEncode(datasetFullPath.slice(1))}`;
+      fullPath = `${datasetFullPath.get(0)}.${constructFullPathAndEncode(
+        datasetFullPath.slice(1)
+      )}`;
     } else {
       fullPath = constructFullPathAndEncode(datasetFullPath);
     }
-    const resourcePath  = constructResourcePath(fullPath);
+    const resourcePath = constructResourcePath(fullPath);
     const nextLocation = {
       // Setting pathname as temp/UNTITLED in case we dont have a datasetPath available
-      pathname: datasetFullPath ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
-      query: {jobId, version: jobDetails.get('datasetVersion'),  openResults: 'true'}
+      pathname: datasetFullPath
+        ? datasetPathUtils.toHref(resourcePath)
+        : "tmp/UNTITLED",
+      query: {
+        jobId,
+        version: jobDetails.get("datasetVersion"),
+        openResults: "true",
+      },
     };
 
     // make sure we get back into the right mode for "edit" queries
-    if (jobDetails.get('datasetPathList')) {
-      nextLocation.query.mode = 'edit';
+    if (jobDetails.get("datasetPathList")) {
+      nextLocation.query.mode = "edit";
     }
 
     return (
       <span style={styles.openResults}>
         <Art
-          src={'VirtualDataset.svg'}
-          alt={intl.formatMessage({id: 'Dataset.VirtualDataset'})}
-          style={styles.virtualDatasetIcon} />
-        <Link data-qa='open-results-link' to={nextLocation}>
-          {intl.formatMessage({id: 'Job.OpenResults'})} »
+          src={"VirtualDataset.svg"}
+          alt={intl.formatMessage({ id: "Dataset.VirtualDataset" })}
+          style={styles.virtualDatasetIcon}
+        />
+        <Link data-qa="open-results-link" to={nextLocation}>
+          {intl.formatMessage({ id: "Job.OpenResults" })} »
         </Link>
       </span>
     );
@@ -127,87 +145,109 @@ class HeaderDetails extends PureComponent {
   render() {
     const { style, jobDetails, intl } = this.props;
 
-    if (!jobDetails.get('state')) {
+    if (!jobDetails.get("state")) {
       return null;
     }
 
-    const flame = jobDetails.get('snowflakeAccelerated') ? 'FlameSnowflake.svg' : 'Flame.svg';
-    const flameAlt = jobDetails.get('snowflakeAccelerated') ? 'Job.AcceleratedHoverSnowFlake' : 'Job.AcceleratedHover';
+    const flame = jobDetails.get("snowflakeAccelerated")
+      ? "FlameSnowflake.svg"
+      : "Flame.svg";
+    const flameAlt = jobDetails.get("snowflakeAccelerated")
+      ? "Job.AcceleratedHoverSnowFlake"
+      : "Job.AcceleratedHover";
 
     return (
-      <header className='details-header' style={[styles.detailsHeader, style]}>
+      <header
+        className="details-header"
+        style={{ ...styles.detailsHeader, ...(style || {}) }}
+      >
         <div style={styles.stateHolder}>
-          <JobStateIcon state={jobDetails.get('state')} />
-          <div className='state'>
-            <span className='h4' style={[styles.state]}>
-              {intl.formatMessage({id: 'Job.State.' + jobDetails.get('state')})}
+          <JobStateIcon state={jobDetails.get("state")} />
+          <div className="state">
+            <span className="h4" style={styles.state}>
+              {intl.formatMessage({
+                id: "Job.State." + jobDetails.get("state"),
+              })}
             </span>
           </div>
-          {jobDetails.get('accelerated') &&
-            <Art src={flame} alt={intl.formatMessage({id: flameAlt})} style={styles.flameIcon} title/>}
-          {jobDetails.get('spilled') &&
-            <Art src='DiskSpill.svg' alt={intl.formatMessage({id: 'Job.SpilledHover'})} style={styles.flameIcon} title/>}
+          {jobDetails.get("accelerated") && (
+            <Art
+              src={flame}
+              alt={intl.formatMessage({ id: flameAlt })}
+              style={styles.flameIcon}
+              title
+            />
+          )}
+          {jobDetails.get("spilled") && (
+            <Art
+              src="DiskSpill.svg"
+              alt={intl.formatMessage({ id: "Job.SpilledHover" })}
+              style={styles.flameIcon}
+              title
+            />
+          )}
         </div>
-        <div style={[styles.rightPart]}>
-          {this.getButton()}
-        </div>
+        <div style={styles.rightPart}>{this.getButton()}</div>
       </header>
     );
   }
 }
 const styles = {
   button: {
-    'display': 'inline-flex',
-    'float': 'right',
-    'margin': '0 0 0 10px',
-    'width': 120,
-    'height': 28
+    display: "inline-flex",
+    float: "right",
+    margin: "0 0 0 10px",
+    width: 120,
+    height: 28,
   },
   state: {
-    marginBottom: '0'
+    marginBottom: "0",
   },
   openResults: {
-    display: 'flex',
-    alignItems: 'center',
-    margin: '0 0 0 5px'
+    display: "flex",
+    alignItems: "center",
+    margin: "0 0 0 5px",
   },
   stateHolder: {
-    display: 'flex',
-    alignItems: 'center'
+    display: "flex",
+    alignItems: "center",
   },
   rightPart: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginLeft: 'auto'
+    display: "flex",
+    justifyContent: "flex-end",
+    marginLeft: "auto",
   },
   detailsHeader: {
     height: 38,
-    background: 'rgba(0,0,0,.05)',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 10px 0 5px'
+    background: "rgba(0,0,0,.05)",
+    display: "flex",
+    alignItems: "center",
+    padding: "0 10px 0 5px",
   },
   stateIcon: {
     width: 24,
-    height: 24
+    height: 24,
   },
   virtualDatasetIcon: {
     width: 24,
     height: 24,
-    marginTop: -4
+    marginTop: -4,
   },
   flameIcon: {
     width: 20,
     height: 20,
     marginLeft: 5,
-    marginTop: -2
-  }
+    marginTop: -2,
+  },
 };
 
 function mapStateToProps(state, props) {
   return {
-    downloadViewState: getViewState(state, `DOWNLOAD_JOB_RESULTS-${props.jobId}`)
+    downloadViewState: getViewState(
+      state,
+      `DOWNLOAD_JOB_RESULTS-${props.jobId}`
+    ),
   };
 }
 
-export default connect(mapStateToProps)(HeaderDetails);
+export default connect(mapStateToProps)(injectIntl(HeaderDetails));

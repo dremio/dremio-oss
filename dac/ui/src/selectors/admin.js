@@ -13,34 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import userUtils from 'utils/userUtils';
-import { createSelector } from 'reselect';
+import userUtils from "utils/userUtils";
+import { createSelector } from "reselect";
 
 // USERS
 
 export function getUsers(state) {
-  return state.admin.get('users').map((userId) => state.resources.entities.getIn(['user', userId]));
+  return state.admin
+    .get("users")
+    .map((userId) => state.resources.entities.getIn(["user", userId]));
 }
 
-export function getUser(state, userName) { // todo: really need to normalize userName v username
-  console.warn('using deprecated selectors/admin getUser(state, userName) API - should reference users by id instead');
-  return state.resources.entities.get('user').find(user => user.get('userName') === userName);
+export function getUser(state, userName) {
+  // todo: really need to normalize userName v username
+  console.warn(
+    "using deprecated selectors/admin getUser(state, userName) API - should reference users by id instead"
+  );
+  return state.resources.entities
+    .get("user")
+    .find((user) => user.get("userName") === userName);
 }
 
 export function getIsLoggedInUserAdmin(state) {
-  return userUtils.isAdmin(state.account.get('user'));
+  return userUtils.isAdmin(state.account.get("user"));
 }
 
 function getAccelerationsList(state) {
   const { entities } = state.resources;
-  const accelerations = state.admin.get('accelerations');
-  return accelerations.map(accelerationId => {
-    return entities.getIn(['acceleration', accelerationId]);
+  const accelerations = state.admin.get("accelerations");
+  return accelerations.map((accelerationId) => {
+    return entities.getIn(["acceleration", accelerationId]);
   });
 }
 
 export const getAccelerations = createSelector(
   [getAccelerationsList],
-  acceleration => acceleration
+  (acceleration) => acceleration
 );
-

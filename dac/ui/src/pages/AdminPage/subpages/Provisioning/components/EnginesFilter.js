@@ -13,30 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {PureComponent, Fragment} from 'react';
-import PropTypes from 'prop-types';
-import FilterSelectMenuWrapper from '@app/components/Fields/FilterSelectMenuWrapper';
-import EnginesFilterMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/EnginesFilterMixin';
+import { PureComponent, Fragment } from "react";
+import PropTypes from "prop-types";
+import FilterSelectMenuWrapper from "@app/components/Fields/FilterSelectMenuWrapper";
+import EnginesFilterMixin from "dyn-load/pages/AdminPage/subpages/Provisioning/components/EnginesFilterMixin";
 
 import {
   availableFilters,
   ENGINE_FILTER_LABEL,
-  DEFAULT_ENGINE_FILTER_SELECTIONS
-} from 'dyn-load/constants/provisioningPage/provisioningConstants';
+  DEFAULT_ENGINE_FILTER_SELECTIONS,
+} from "dyn-load/constants/provisioningPage/provisioningConstants";
 //import { styles } from '@app/pages/HomePage/components/MainInfo';
 
 @EnginesFilterMixin
 export default class EnginesFilter extends PureComponent {
   static propTypes = {
     filterState: PropTypes.shape({
-      filters: PropTypes.object //key: filter type, value: array of selected filter values
+      filters: PropTypes.object, //key: filter type, value: array of selected filter values
     }),
     onUpdateFilterState: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   onUpdated = (newFilters) => {
-    this.props.onUpdateFilterState({filters: newFilters});
+    this.props.onUpdateFilterState({ filters: newFilters });
   };
 
   getShownFilters = () => {
@@ -44,7 +44,7 @@ export default class EnginesFilter extends PureComponent {
   };
 
   renderSelectMenu = (menuType) => {
-    const {filterState} = this.props;
+    const { filterState } = this.props;
     return (
       <FilterSelectMenuWrapper
         filterStateFilters={filterState.filters}
@@ -59,16 +59,26 @@ export default class EnginesFilter extends PureComponent {
 
   render() {
     const shownFilters = this.getShownFilters();
-    const {filterState} = this.props;
+    const { filterState } = this.props;
 
     return (
-      <div style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
-        <div style={{...styles.base, ...this.props.style}}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ ...styles.base, ...this.props.style }}>
           {shownFilters.map((filterName, idx) => {
-            return <Fragment key={idx}>
-              {this.renderSelectMenu(filterName)}
-              {(idx < (shownFilters.length - 1)) && <div style={styles.divider}/>}
-            </Fragment>;
+            return (
+              <Fragment key={idx}>
+                {this.renderSelectMenu(filterName)}
+                {idx < shownFilters.length - 1 && (
+                  <div style={styles.divider} />
+                )}
+              </Fragment>
+            );
           })}
         </div>
         <div style={styles.searchBox}>
@@ -81,22 +91,19 @@ export default class EnginesFilter extends PureComponent {
 
 const styles = {
   base: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    height: 33,
-    paddingTop: 6
+    display: "flex",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    padding: "8px 0",
   },
   searchBox: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    height: 33,
-    paddingTop: 6
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
   divider: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     height: 16,
-    width: 16
-  }
+    width: 16,
+  },
 };

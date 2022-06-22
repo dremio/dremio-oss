@@ -73,7 +73,6 @@ public class DatasetRetrievalOptions {
         .setRefreshDataset(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
         .setMaxNestedLevel(DEFAULT_MAX_NESTED_LEVEL)
-        .setVersionedDatasetAccessOptions(VersionedDatasetAccessOptions.DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS)
         .build();
 
     IGNORE_AUTHZ_ERRORS =
@@ -90,7 +89,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Integer> maxMetadataLeafColumns;
   private final Optional<Integer> maxNestedLevel;
   private final Optional<MetadataRefreshQuery> refreshQuery;
-  private final Optional<VersionedDatasetAccessOptions> versionedDatasetAccessOptions;
+  private final VersionedDatasetAccessOptions versionedDatasetAccessOptions;
   private final TimeTravelRequest timeTravelRequest;
 
   private DatasetRetrievalOptions fallback;
@@ -107,7 +106,7 @@ public class DatasetRetrievalOptions {
     this.maxMetadataLeafColumns = Optional.ofNullable(builder.maxMetadataLeafColumns);
     this.maxNestedLevel = Optional.ofNullable(builder.maxNestedLevel);
     this.refreshQuery = Optional.ofNullable(builder.refreshQuery);
-    this.versionedDatasetAccessOptions = Optional.ofNullable(builder.versionedDatasetAccessOptions);
+    this.versionedDatasetAccessOptions = builder.versionedDatasetAccessOptions;
     this.timeTravelRequest = builder.travelRequest;
   }
 
@@ -145,7 +144,7 @@ public class DatasetRetrievalOptions {
   }
 
   public VersionedDatasetAccessOptions versionedDatasetAccessOptions() {
-    return versionedDatasetAccessOptions.orElseGet(() -> fallback.versionedDatasetAccessOptions());
+    return versionedDatasetAccessOptions;
   }
 
   public DatasetRetrievalOptions withFallback(DatasetRetrievalOptions fallback) {
@@ -155,15 +154,15 @@ public class DatasetRetrievalOptions {
 
   public Builder toBuilder() {
     return newBuilder()
-      .setIgnoreAuthzErrors(ignoreAuthzErrors.orElse(null))
-      .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
-      .setAutoPromote(autoPromote.orElse(null))
-      .setForceUpdate(forceUpdate.orElse(null))
-      .setRefreshDataset(refreshDataset.orElse(null))
-      .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
-      .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
-      .setRefreshQuery(refreshQuery.orElse(null))
-      .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions.orElse(VersionedDatasetAccessOptions.DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS))
+        .setIgnoreAuthzErrors(ignoreAuthzErrors.orElse(null))
+        .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
+        .setAutoPromote(autoPromote.orElse(null))
+        .setForceUpdate(forceUpdate.orElse(null))
+        .setRefreshDataset(refreshDataset.orElse(null))
+        .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
+        .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
+        .setRefreshQuery(refreshQuery.orElse(null))
+        .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
       .setTimeTravelRequest(timeTravelRequest);
   }
 
@@ -328,7 +327,11 @@ public class DatasetRetrievalOptions {
 
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
     options.add(new MaxNestedFieldLevels(maxNestedLevel()));
-    options.add(versionedDatasetAccessOptions());
+
+    VersionedDatasetAccessOptions versionedDatasetAccessOptions = versionedDatasetAccessOptions();
+    if (versionedDatasetAccessOptions != null) {
+      options.add(versionedDatasetAccessOptions);
+    }
 
     if (timeTravelRequest != null) {
       options.add(TimeTravelOption.newTimeTravelOption(timeTravelRequest));
@@ -357,6 +360,15 @@ public class DatasetRetrievalOptions {
 
     if (refreshDataset()) {
       options.add(new DirListInputSplitType());
+    }
+
+    VersionedDatasetAccessOptions versionedDatasetAccessOptions = versionedDatasetAccessOptions();
+    if (versionedDatasetAccessOptions != null) {
+      options.add(versionedDatasetAccessOptions);
+    }
+
+    if (timeTravelRequest != null) {
+      options.add(TimeTravelOption.newTimeTravelOption(timeTravelRequest));
     }
 
     addCustomOptions(options);

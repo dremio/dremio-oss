@@ -13,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { RECOMMENDED_JOIN, CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
-import { JoinHeader } from './JoinHeader';
+import {
+  RECOMMENDED_JOIN,
+  CUSTOM_JOIN,
+} from "@app/constants/explorePage/joinTabs";
+import { JoinHeader } from "./JoinHeader";
 
-describe('JoinHeader', () => {
-
+describe("JoinHeader", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
   beforeEach(() => {
     minimalProps = {
       closeIconHandler: sinon.spy(),
-      viewState: Immutable.Map()
-
+      viewState: Immutable.Map(),
     };
     commonProps = {
       hasRecommendations: false,
@@ -36,21 +37,21 @@ describe('JoinHeader', () => {
       setJoinTab: sinon.spy(),
       joinTab: CUSTOM_JOIN,
       clearJoinDataset: sinon.spy(),
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<JoinHeader {...commonProps}/>);
+    wrapper = shallow(<JoinHeader {...commonProps} />);
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<JoinHeader {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<JoinHeader {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render two tabs', () => {
-    expect(wrapper.find('.transform-tab')).to.have.length(2);
+  it("should render two tabs", () => {
+    expect(wrapper.find(".transform-tab")).to.have.length(2);
   });
 
-  it('#setActiveTab', () => {
+  it("#setActiveTab", () => {
     const instance = wrapper.instance();
 
     instance.setActiveTab(RECOMMENDED_JOIN);

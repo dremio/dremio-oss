@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useEffect, useState } from 'react';
-import Proptypes from 'prop-types';
+import React, { useEffect, useState } from "react";
+import Proptypes from "prop-types";
 
-import clsx from 'clsx';
+import clsx from "clsx";
 
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles } from "@material-ui/core/styles";
 
-import { ReactComponent as  Expand } from '../../art/ArrowRight.svg';
-import { ReactComponent as  Collapse } from '../../art/ArrowDown.svg';
+import { ReactComponent as Expand } from "../../art/ArrowRight.svg";
+import { ReactComponent as Collapse } from "../../art/ArrowDown.svg";
 
-import './expandableText.scss';
+import "./expandableText.scss";
 
 const ExpandableText = (props) => {
   const {
@@ -35,7 +35,7 @@ const ExpandableText = (props) => {
     label,
     indentChildren,
     onClick,
-    onToggle
+    onToggle,
   } = props;
 
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -47,25 +47,19 @@ const ExpandableText = (props) => {
   }, [open]);
 
   const useStylesBase = makeStyles((theme) => {
-    const {
-      palette: {
-        primary: {
-          main
-        } = {}
-      } = {}
-    } = theme || {};
+    const { palette: { primary: { main } = {} } = {} } = theme || {};
 
     return {
       label: {
-        color: main
-      }
+        color: main,
+      },
     };
   });
 
   const handleIconClick = (event) => {
     if (hideOnlyOnIcon && expanded) {
       setExpanded(!expanded);
-      if (onToggle && typeof onToggle === 'function') {
+      if (onToggle && typeof onToggle === "function") {
         onToggle(!expanded);
       }
       event.stopPropagation();
@@ -77,34 +71,46 @@ const ExpandableText = (props) => {
     if (!hideOnlyOnIcon || !expanded) {
       updatedIsExpanded = !expanded;
       setExpanded(updatedIsExpanded);
-      if (onToggle && typeof onToggle === 'function') {
+      if (onToggle && typeof onToggle === "function") {
         onToggle(updatedIsExpanded);
       }
     }
-    if (onClick && typeof onClick === 'function') {
+    if (onClick && typeof onClick === "function") {
       onClick(updatedIsExpanded);
     }
   };
 
   const classesBase = useStylesBase();
 
-  const rootClasses = clsx('expandable-text-root', { [classes.root]: classes.root });
-  const labelContainerClasses = clsx('expandable-text-label-container', 'noselect', { [classes.labelContainer]: classes.labelContainer });
-  const labelClasses = clsx('expandable-text-label', classesBase.label, { [classes.label]: classes.label });
-  const collapsableContainerClasses = clsx('collapsable-container', { 'indented-collapsable-container': indentChildren }, { [classes.collapsableContainer]: classes.collapsableContainer });
+  const rootClasses = clsx("expandable-text-root", {
+    [classes.root]: classes.root,
+  });
+  const labelContainerClasses = clsx(
+    "expandable-text-label-container",
+    "noselect",
+    { [classes.labelContainer]: classes.labelContainer }
+  );
+  const labelClasses = clsx("expandable-text-label", classesBase.label, {
+    [classes.label]: classes.label,
+  });
+  const collapsableContainerClasses = clsx(
+    "collapsable-container",
+    { "indented-collapsable-container": indentChildren },
+    { [classes.collapsableContainer]: classes.collapsableContainer }
+  );
 
   const Icon = expanded ? Collapse : Expand;
   return (
     <div className={rootClasses}>
       <div className={labelContainerClasses} onClick={handleLabelClick}>
-        <div className='expandable-text-label-icon' onClick={handleIconClick}><Icon fontSize='small'/></div>
+        <div className="expandable-text-label-icon" onClick={handleIconClick}>
+          <Icon fontSize="small" />
+        </div>
         <div className={labelClasses}>{label}</div>
       </div>
-      {
-        expanded && <div className={collapsableContainerClasses}>
-          {children}
-        </div>
-      }
+      {expanded && (
+        <div className={collapsableContainerClasses}>{children}</div>
+      )}
     </div>
   );
 };
@@ -114,12 +120,12 @@ ExpandableText.propTypes = {
     root: Proptypes.string,
     labelContainer: Proptypes.string,
     label: Proptypes.string,
-    collapsableContainer: Proptypes.string
+    collapsableContainer: Proptypes.string,
   }),
   children: Proptypes.oneOfType([
     Proptypes.string,
     Proptypes.node,
-    Proptypes.arrayOf(Proptypes.node)
+    Proptypes.arrayOf(Proptypes.node),
   ]).isRequired,
   defaultExpanded: Proptypes.bool,
   hideOnlyOnIcon: Proptypes.bool,
@@ -129,19 +135,16 @@ ExpandableText.propTypes = {
   label: Proptypes.oneOfType([
     Proptypes.string,
     Proptypes.node,
-    Proptypes.arrayOf(Proptypes.node)
+    Proptypes.arrayOf(Proptypes.node),
   ]).isRequired,
-  open: Proptypes.oneOfType([
-    Proptypes.bool,
-    Proptypes.object
-  ])
+  open: Proptypes.oneOfType([Proptypes.bool, Proptypes.object]),
 };
 
 ExpandableText.defaultProps = {
   classes: {},
   defaultExpanded: false,
   hideOnlyOnIcon: false,
-  indentChildren: false
+  indentChildren: false,
 };
 
 export default ExpandableText;

@@ -13,48 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import RecommendedJoinItem from './RecommendedJoinItem';
+import { RecommendedJoinItem } from "./RecommendedJoinItem";
 
-describe('RecommendedJoinItem', () => {
+describe("RecommendedJoinItem", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       selectJoin: sinon.spy(),
       recommendation: Immutable.fromJS({
-        joinType: 'INNER',
+        joinType: "INNER",
         matchingKeys: {
-          age: 'user'
+          age: "user",
         },
-        rightTableFullPathList: ['Prod-Sample', 'ds1']
-      })
+        rightTableFullPathList: ["Prod-Sample", "ds1"],
+      }),
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<RecommendedJoinItem {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<RecommendedJoinItem {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#goToCustomTab', () => {
-    it('should navigate to custom join tab', () => {
+  describe("#goToCustomTab", () => {
+    it("should navigate to custom join tab", () => {
       const event = { stopPropagation: sinon.spy() };
-      shallow(<RecommendedJoinItem {...commonProps}/>).instance().goToCustomTab(event);
-      expect(commonProps.selectJoin).to.be.calledWith(commonProps.recommendation, true);
+      shallow(<RecommendedJoinItem {...commonProps} />)
+        .instance()
+        .goToCustomTab(event);
+      expect(commonProps.selectJoin).to.be.calledWith(
+        commonProps.recommendation,
+        true
+      );
     });
   });
 
-  describe('#selectRecommendation', () => {
-    it('should activate clicked item', () => {
+  describe("#selectRecommendation", () => {
+    it("should activate clicked item", () => {
       const event = { stopPropagation: sinon.spy() };
-      shallow(<RecommendedJoinItem {...commonProps}/>, {context}).instance().selectRecommendation(event);
-      expect(commonProps.selectJoin).to.be.calledWith(commonProps.recommendation, false);
+      shallow(<RecommendedJoinItem {...commonProps} />, { context })
+        .instance()
+        .selectRecommendation(event);
+      expect(commonProps.selectJoin).to.be.calledWith(
+        commonProps.recommendation,
+        false
+      );
     });
   });
 });

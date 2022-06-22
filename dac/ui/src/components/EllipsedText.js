@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import './EllipsedText.css';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import "./EllipsedText.css";
 
 export default class EllipsedText extends Component {
-
   static propTypes = {
     text: PropTypes.string,
     className: PropTypes.string,
     children: PropTypes.node,
-    title: PropTypes.any
+    title: PropTypes.any,
   };
 
   render() {
     const { text, children, className, title, ...props } = this.props;
-    return <div
-      className={'EllipsedText ' + (className || '')}
-      title={title}
-      {...props}
-    >
-      {children || text}
-    </div>;
+    return (
+      <div
+        className={"EllipsedText " + (className || "")}
+        title={title}
+        {...props}
+      >
+        {children || text}
+      </div>
+    );
   }
 }
-

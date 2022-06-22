@@ -31,8 +31,8 @@ import com.dremio.service.jobAnalysis.proto.PhaseData;
 
 public class TestJobProfileVisualizerUI extends BaseTestServer {
 
-  UserBitShared.QueryProfile queryProfile;
-  JobProfileVisualizerUI jobProfileVisualizerUI;
+  private UserBitShared.QueryProfile queryProfile;
+  private JobProfileVisualizerUI jobProfileVisualizerUI;
 
   @Before
   public void setUp() throws Exception {

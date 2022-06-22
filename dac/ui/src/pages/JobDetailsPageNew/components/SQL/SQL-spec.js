@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import SQL from './SQL';
-describe('SQL', () => {
+import { shallow } from "enzyme";
+import SQL from "./SQL";
+describe("SQL", () => {
   const minimalProps = {
-    title: 'SQL title',
-    sqlString: 'select * from test',
+    title: "SQL title",
+    sqlString: "select * from test",
     contrast: true,
     showContrast: true,
-    sqlClass: 'classname'
+    sqlClass: "classname",
   };
   const wrapper = shallow(<SQL {...minimalProps} />);
-  it('should render with minimal props without exploding', () => {
+  it("should render with minimal props without exploding", () => {
     expect(wrapper).to.have.length(1);
   });
-  it('user click button', () => {
-    expect(wrapper.find('#toggle-icon')).to.have.length(1);
+  it("user click button", () => {
+    expect(wrapper.find("#toggle-icon")).to.have.length(1);
   });
 });

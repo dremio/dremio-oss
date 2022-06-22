@@ -157,7 +157,7 @@ public class TestServerTracing extends BaseTestServer {
     }
   }
 
-  public static class OpenTelemetrySetup extends ExternalResource {
+  public static final class OpenTelemetrySetup extends ExternalResource {
 
     /**
      * Returns a {@link OpenTelemetrySetup} with a default SDK initialized with an in-memory span

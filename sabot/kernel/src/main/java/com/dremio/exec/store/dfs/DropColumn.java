@@ -31,12 +31,13 @@ import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.ImmutableList;
 
 public class DropColumn extends ColumnOperations {
 
-  public DropColumn(NamespaceKey table, SabotContext context,  SchemaConfig schemaConfig, IcebergModel model, Path path, StoragePlugin storagePlugin) {
-    super(table, context, schemaConfig, model, path, storagePlugin);
+  public DropColumn(NamespaceKey table, SabotContext context, DatasetConfig datasetConfig, SchemaConfig schemaConfig, IcebergModel model, Path path, StoragePlugin storagePlugin) {
+    super(table, context, datasetConfig, schemaConfig, model, path, storagePlugin);
   }
 
   public void performOperation(String columnToDrop) {
@@ -56,7 +57,7 @@ public class DropColumn extends ColumnOperations {
     computeDroppedAndUpdatedColumns(newSchema);
 
     if (internalIcebergTable) {
-      String metadataTableName = getMetadataTableName(context, datasetConfig);
+      String metadataTableName = getMetadataTableName();
       FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
 
       IcebergModel icebergModel = metaStoragePlugin.getIcebergModel();
@@ -65,7 +66,7 @@ public class DropColumn extends ColumnOperations {
 
       IcebergOpCommitter opCommitter = icebergModel.getAlterTableCommitter(tableIdentifier, AlterOperationType.DROP, newDroppedCols, newModifiedCols, columnToDrop, ImmutableList.of());
       Snapshot snapshot = opCommitter.commit();
-      updateDatasetConfigWithIcebergMetadata(opCommitter.getRootPointer(), snapshot.snapshotId(), opCommitter.getCurrentSpecMap());
+      updateDatasetConfigWithIcebergMetadata(opCommitter.getRootPointer(), snapshot.snapshotId(), opCommitter.getCurrentSpecMap(), opCommitter.getCurrentSchema());
 
       Table icebergTable = ((AlterTableCommitter) opCommitter).getIcebergTable();
       reloadSchemaAndDroppedAndUpdatedColumns(icebergTable);

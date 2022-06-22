@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import AutoStatus from './AutoStatus';
+import { shallow } from "enzyme";
+import AutoStatus from "./AutoStatus";
 
-describe('AutoStatus', () => {
+describe("AutoStatus", () => {
   const minimalProps = {};
-  const commonProps = {value: true};
+  const commonProps = { value: true };
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AutoStatus {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AutoStatus {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<AutoStatus {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<AutoStatus {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

@@ -19,6 +19,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 
 /**
  * Table function config
@@ -27,18 +28,27 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 public class TableFunctionConfig {
   public enum FunctionType {
     UNKNOWN,
-    METADATA_REFRESH_MANIFEST_SCAN,
+    METADATA_MANIFEST_FILE_SCAN,
     SPLIT_GEN_MANIFEST_SCAN,
     DATA_FILE_SCAN,
     SPLIT_GENERATION,
     FOOTER_READER,
     SCHEMA_AGG,
     SPLIT_ASSIGNMENT,
-    BOOST_TABLE_FUNCTION
+    BOOST_TABLE_FUNCTION,
+    ICEBERG_PARTITION_TRANSFORM,
+    DELETED_DATA_FILES_METADATA,
+    ICEBERG_SPLIT_GEN,
+    ICEBERG_MANIFEST_SCAN,
+    ICEBERG_DELETE_FILE_AGG,
+    ICEBERG_DML_MERGE_DUPLICATE_CHECK
   }
   private final FunctionType type;
   private final TableFunctionContext functionContext;
   private final boolean fillBatch;
+  private long minWidth = -1;
+  private long maxWidth = -1;
+
   public TableFunctionConfig(
     @JsonProperty("type") FunctionType type,
     @JsonProperty("fillBatch") boolean fillBatch,
@@ -57,6 +67,11 @@ public class TableFunctionConfig {
     return functionContext;
   }
 
+  public <T extends TableFunctionContext> T getFunctionContext(Class<T> clazz) {
+    Preconditions.checkArgument(clazz.isInstance(functionContext));
+    return clazz.cast(functionContext);
+  }
+
   public boolean getFillBatch() {
     return fillBatch;
   }
@@ -72,4 +87,19 @@ public class TableFunctionConfig {
     return functionContext.getTableSchema();
   }
 
+  public long getMinWidth() {
+    return minWidth;
+  }
+
+  public long getMaxWidth() {
+    return maxWidth;
+  }
+
+  public void setMinWidth(long minWidth) {
+    this.minWidth = minWidth;
+  }
+
+  public void setMaxWidth(long maxWidth) {
+    this.maxWidth = maxWidth;
+  }
 }

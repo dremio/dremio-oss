@@ -100,6 +100,25 @@ public interface Operator extends AutoCloseable {
   }
 
   /**
+   * A type of operator that can shrink their memory usage on request
+   */
+  interface ShrinkableOperator extends Operator {
+
+    /**
+     * Report the maximum amount of memory that can potentially be shrunk
+     * @return amount in bytes that can be shrunk
+     */
+    long shrinkableMemory();
+
+    /**
+     * Informs the operator to shrink its memory usage
+     * @param size (bytes) - the operator must try to shrink by atleast this amount
+     * @return the amount of memory actually shrunk.
+     */
+    long shrinkMemory(long size);
+  }
+
+  /**
    * A visitor pattern used to visit the four core operator types.
    *
    * @param <RETURN> A configurable return type.

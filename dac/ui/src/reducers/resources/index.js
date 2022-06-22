@@ -13,16 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { combineReducers } from 'redux';
+import { combineReducers } from "redux";
 
-import entities from 'dyn-load/reducers/resources/entities';
-import view from './view';
-import sourceList from './sourceList';
-import scripts from './scripts';
+import entities from "dyn-load/reducers/resources/entities";
+import privilegesList from "dyn-load/reducers/resources/privilegesList";
+import view from "./view";
+import sourceList from "./sourceList";
+import scripts from "./scripts";
+import stars from "./stars";
 
 export default combineReducers({
   entities,
   view,
   sourceList,
-  scripts
+  scripts,
+  stars,
+  privilegesList,
 });

@@ -19,30 +19,17 @@ package com.dremio.exec.store.iceberg;
 import java.io.Serializable;
 
 /**
- * Holds Iceberg metadata file information and type of metadata file
+ * Holds Iceberg metadata file information
  */
 public class IcebergMetadataInformation implements Serializable {
 
-  public enum IcebergMetadataFileType {
-    ADD_DATAFILE,
-    DELETE_DATAFILE,
-    MANIFEST_FILE;
-  }
-
   private final byte[] icebergMetadataFileByte;
-  private final IcebergMetadataFileType icebergMetadataFileType;
 
-  public IcebergMetadataInformation(byte[] icebergMetadataFileByte, IcebergMetadataFileType icebergMetadataFileType) {
+  public IcebergMetadataInformation(byte[] icebergMetadataFileByte) {
     this.icebergMetadataFileByte = icebergMetadataFileByte;
-    this.icebergMetadataFileType = icebergMetadataFileType;
   }
-
 
   public byte[] getIcebergMetadataFileByte() {
     return icebergMetadataFileByte;
-  }
-
-  public IcebergMetadataFileType getIcebergMetadataFileType() {
-    return icebergMetadataFileType;
   }
 }

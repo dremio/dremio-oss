@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import { LINE_CENTER_CENTER } from 'uiTheme/radium/flexStyle.js';
-import { formLabel } from 'uiTheme/radium/typography';
+import { LINE_CENTER_CENTER } from "uiTheme/radium/flexStyle.js";
+import { formLabel } from "uiTheme/radium/typography";
 
-import TextField from 'components/Fields/TextField';
+import TextField from "components/Fields/TextField";
 
-@Radium
-export default class ExtractMap extends PureComponent {
-
+class ExtractMap extends PureComponent {
   static propTypes = {
-    path: PropTypes.object.isRequired
+    path: PropTypes.object.isRequired,
   };
 
   constructor(props) {
@@ -34,10 +32,10 @@ export default class ExtractMap extends PureComponent {
   }
 
   render() {
-    const {path} = this.props;
+    const { path } = this.props;
     return (
       <div style={styles.base}>
-        <TextField {...path} style={styles.input}/>
+        <TextField {...path} style={styles.input} />
       </div>
     );
   }
@@ -45,13 +43,14 @@ export default class ExtractMap extends PureComponent {
 
 const styles = {
   base: {
-    width: '100%',
+    width: "100%",
     marginTop: 10,
-    ...LINE_CENTER_CENTER
+    ...LINE_CENTER_CENTER,
   },
   input: {
-    width: '100%',
-    margin: '0 10px 0 10px',
-    ...formLabel
-  }
+    width: "100%",
+    margin: "0 10px 0 10px",
+    ...formLabel,
+  },
 };
+export default Radium(ExtractMap);

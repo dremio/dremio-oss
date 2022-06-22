@@ -38,7 +38,7 @@ public class TypeConvertingSqlAccessorTest {
    * Base test stub(?) for accessors underlying TypeConvertingSqlAccessor.
    * Carries type and (Object form of) one value.
    */
-  private static abstract class BaseStubAccessor extends AbstractSqlAccessor implements SqlAccessor {
+  private abstract static class BaseStubAccessor extends AbstractSqlAccessor implements SqlAccessor {
     private final MajorType type;
     private final Object value;
 

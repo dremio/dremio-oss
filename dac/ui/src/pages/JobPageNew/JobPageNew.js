@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import DocumentTitle from 'react-document-title';
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
+import DocumentTitle from "react-document-title";
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
 
-import SideNav from '@app/components/SideNav/SideNav';
-import './JobPageNew.less';
+import SideNav from "@app/components/SideNav/SideNav";
+import "./JobPageNew.less";
 
 const JobsPage = (props) => {
-  const { intl:{
-    formatMessage
-  }, children } = props;
+  const {
+    intl: { formatMessage },
+    children,
+  } = props;
   return (
-    <div >
-      <DocumentTitle title={formatMessage({ id: 'Job.Jobs' })} />
-      <div className={'jobsPageBody'}>
+    <div>
+      <DocumentTitle title={formatMessage({ id: "Job.Jobs" })} />
+      <div className={"jobsPageBody"}>
         <SideNav />
-        <div className={'jobPageContentDiv'}>
-          {children}
-        </div>
+        <div className={"jobPageContentDiv"}>{children}</div>
       </div>
     </div>
   );
@@ -39,7 +38,7 @@ const JobsPage = (props) => {
 
 JobsPage.propTypes = {
   intl: PropTypes.object.isRequired,
-  children: PropTypes.object.isRequired
+  children: PropTypes.object.isRequired,
 };
 
 export default injectIntl(JobsPage);

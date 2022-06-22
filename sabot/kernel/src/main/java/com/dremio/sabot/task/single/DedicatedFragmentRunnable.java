@@ -46,7 +46,11 @@ public class DedicatedFragmentRunnable implements Runnable {
       // put try inside the run loop so we don't lose threads with uncaught exceptions.
       try {
         barrier.closeBarrier();
-        task.run();
+        try {
+          task.run();
+        } finally {
+          task.getAsyncTask().postRunUpdate();
+        }
 
         switch(task.getState()){
         case BLOCKED_ON_DOWNSTREAM:

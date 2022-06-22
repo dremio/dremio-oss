@@ -1,0 +1,148 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "USING"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING^ "
+   - "  AGGREGATE REFLECTION CREATE: "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DIMENSIONS FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD)"
+   - "MEASURES(FIELD)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD ) MEASURES ( FIELD ) ^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD ) MEASURES ( FIELD ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD ) "
+   - "    MEASURES: ( FIELD ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DIMENSIONS FIELD BY DAY"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD BY DAY)"
+   - "MEASURES(FIELD)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD BY DAY ) MEASURES ( FIELD ) ^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD BY DAY ) MEASURES ( FIELD ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD BY DAY ) "
+   - "    MEASURES: ( FIELD ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "DIMENSIONS MIXED"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD BY DAY, FIELD2)"
+   - "MEASURES(FIELD)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD BY DAY , FIELD2 ) MEASURES ( FIELD ) ^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD BY DAY , FIELD2 ) MEASURES ( FIELD ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD BY DAY , FIELD2 ) "
+   - "    MEASURES: ( FIELD ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "MEASURES FIELD"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD)"
+   - "MEASURES(FIELD)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD ) MEASURES ( FIELD ) ^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD ) MEASURES ( FIELD ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD ) "
+   - "    MEASURES: ( FIELD ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "MEASURES WITH ANNOTATIONS"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD)"
+   - "MEASURES(FIELD (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT))"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD ) MEASURES ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) ) ^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD ) MEASURES ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD ) "
+   - "    MEASURES: ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "MEASURES MIXED"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD)"
+   - "MEASURES(FIELD (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), FIELD2)"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD ) MEASURES ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) , FIELD2 ) ^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD ) MEASURES ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) , FIELD2 ) ^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD ) "
+   - "    MEASURES: ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."
+ -
+  description: "EVERYTHING"
+  input:
+   - "ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection"
+   - "USING "
+   - "DIMENSIONS(FIELD BY DAY, FIELD2)"
+   - "MEASURES(FIELD (COUNT, MIN, MAX, SUM, APPROXIMATE COUNT DISTINCT), FIELD2)"
+   - "DISTRIBUTE BY(FIELD, FIELD2)"
+   - "PARTITION BY(FIELD, FIELD2)"
+   - "LOCALSORT BY(FIELD, FIELD2)"
+   - "ARROW CACHE true"
+  output:
+   - "ALTER: ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection USING DIMENSIONS ( FIELD BY DAY , FIELD2 ) MEASURES ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "  AGGREGATE REFLECTION CREATE: DIMENSIONS ( FIELD BY DAY , FIELD2 ) MEASURES ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) , FIELD2 ) DISTRIBUTE BY ( FIELD , FIELD2 ) PARTITION BY ( FIELD , FIELD2 ) LOCALSORT BY ( FIELD , FIELD2 ) ARROW CACHE true^ "
+   - "    CATALOG PATH: myTable."
+   - "    NAME: myReflection"
+   - "    DIMENSIONS: ( FIELD BY DAY , FIELD2 ) "
+   - "    MEASURES: ( FIELD ( COUNT , MIN , MAX , SUM , APPROXIMATE COUNT DISTINCT ) , FIELD2 ) "
+   - "    DISTRIBUTE: ( FIELD , FIELD2 ) "
+   - "    PARTITION: ( FIELD , FIELD2 ) "
+   - "    LOCALSORT: ( FIELD , FIELD2 ) "
+   - "  TYPE: TABLE"
+   - "  CATALOG PATH: myTable."

@@ -28,6 +28,8 @@ import org.apache.curator.utils.CloseableExecutorService;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
@@ -52,6 +54,8 @@ import com.dremio.sabot.exec.rpc.ExecProtocol;
 import com.dremio.sabot.exec.rpc.ExecTunnel;
 import com.dremio.sabot.exec.rpc.FabricExecTunnel;
 import com.dremio.sabot.exec.rpc.InProcessExecTunnel;
+import com.dremio.sabot.memory.MemoryArbiter;
+import com.dremio.sabot.memory.MemoryArbiterFactory;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -86,6 +90,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   private ThreadsStatsCollector statsCollectorThread;
 
   private final Provider<TaskPool> pool;
+  private final MemoryArbiter memoryArbiter;
   private FragmentExecutors fragmentExecutors;
   private MaestroProxy maestroProxy;
   private SabotContext bitContext;
@@ -104,6 +109,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   public FragmentWorkManager(
     final BootStrapContext context,
+    final SabotConfig sabotConfig,
     Provider<NodeEndpoint> identity,
     final Provider<SabotContext> dbContext,
     final Provider<FabricService> fabricServiceProvider,
@@ -115,6 +121,7 @@ public class FragmentWorkManager implements Service, SafeExit {
     final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
     final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
     this.context = context;
+    this.memoryArbiter = MemoryArbiterFactory.newInstance(sabotConfig, (DremioRootAllocator) context.getAllocator());
     this.identity = identity;
     this.sources = sources;
     this.fabricServiceProvider = fabricServiceProvider;
@@ -312,7 +319,7 @@ public class FragmentWorkManager implements Service, SafeExit {
       jobTelemetryClientFactoryProvider,
       bitContext.getClusterCoordinator(),
       bitContext.getEndpoint(), bitContext.getOptionManager());
-    fragmentExecutors = new FragmentExecutors(maestroProxy, callback, pool.get(), bitContext.getOptionManager());
+    fragmentExecutors = new FragmentExecutors(maestroProxy, callback, pool.get(), bitContext.getOptionManager(), this.memoryArbiter);
 
     final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),
       bitContext.getOptionManager());

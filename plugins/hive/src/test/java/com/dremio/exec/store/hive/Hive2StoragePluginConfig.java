@@ -25,8 +25,6 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.serialization.kryo.serializers.SourceConfigAwareConnectionConfDeserializer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.hive.Hive2PluginCreator;
-import com.dremio.exec.store.hive.HiveStoragePluginConfig;
 import com.dremio.exec.store.hive.pf4j.NativeLibPluginManager;
 
 /**

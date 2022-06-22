@@ -17,6 +17,7 @@ package com.dremio.dac.resource;
 
 import java.io.IOException;
 import java.security.AccessControlException;
+import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
 
@@ -36,6 +37,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.DatasetsResource;
@@ -44,6 +46,7 @@ import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
+import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.sources.FormatTools;
@@ -224,6 +227,26 @@ public class SourceResource extends BaseResourceWithAllocator {
       refType,
       refValue);
   }
+
+  @POST
+  @Path("/folder/{path: .*}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Folder createFolder(
+      @PathParam("path") String path,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue,
+      /* body */ FolderName name) {
+    final String fullPath = PathUtils.toFSPathString(Arrays.asList(path, name.toString()));
+    final SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, fullPath);
+
+    return sourceService.createFolder(
+      sourceName,
+      folderPath,
+      securityContext.getUserPrincipal().getName(),
+      refType,
+      refValue);
+ }
 
   @GET
   @Path("/dataset/{path: .*}")

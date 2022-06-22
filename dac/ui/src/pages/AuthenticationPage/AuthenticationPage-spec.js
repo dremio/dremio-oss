@@ -13,28 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import LoginFormContainer from './components/LoginFormContainer';
-import { AuthenticationPage } from './AuthenticationPage';
+import LoginFormContainer from "./components/LoginFormContainer";
+import { AuthenticationPage } from "./AuthenticationPage";
 
-describe('AuthenticationPage', () => {
-
+describe("AuthenticationPage", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
       checkAuth: sinon.spy(),
       checkForFirstUser: sinon.spy(),
-      location: {}
+      location: {},
     };
   });
 
-  it('should render loginForm or UnsupportedBrowserForm depending on state.showLoginForm', () => {
-    const wrapper = shallow(<AuthenticationPage {...commonProps}/>);
-    wrapper.setState({showLoginForm: true});
+  it("should render loginForm or UnsupportedBrowserForm depending on state.showLoginForm", () => {
+    const wrapper = shallow(<AuthenticationPage {...commonProps} />);
+    wrapper.setState({ showLoginForm: true });
     expect(wrapper.find(LoginFormContainer)).to.have.length(1);
-    wrapper.setState({showLoginForm: false});
-    expect(wrapper.name()).to.equal('UnsupportedBrowserForm');
-
+    wrapper.setState({ showLoginForm: false });
+    expect(wrapper.name()).to.equal("UnsupportedBrowserForm");
   });
 });

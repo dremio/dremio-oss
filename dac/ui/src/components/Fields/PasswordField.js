@@ -13,17 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FontIcon from 'components/Icon/FontIcon';
-import TextField from './TextField';
+import FontIcon from "components/Icon/FontIcon";
+import TextField from "./TextField";
 
-@Radium
-export default class PasswordField extends Component {
-
+class PasswordField extends Component {
   static propTypes = {
     initialFocus: PropTypes.bool,
     error: PropTypes.string,
@@ -32,29 +29,31 @@ export default class PasswordField extends Component {
     disabled: PropTypes.bool,
     default: PropTypes.string,
     style: PropTypes.object,
-    value: PropTypes.string
+    value: PropTypes.string,
   };
 
   state = {
-    showPass: false
+    showPass: false,
   };
 
   togglePassView = () => {
     this.setState((state) => ({
-      showPass: !state.showPass
+      showPass: !state.showPass,
     }));
-  }
+  };
 
   render() {
-    const type = this.state.showPass ? 'text' : 'password';
+    const type = this.state.showPass ? "text" : "password";
     return (
-      <div className='field' style={{ marginRight: 10 }}>
-        <TextField {...this.props} type={type} style={{ marginRight: 0 }}/>
-        {this.props.value && <FontIcon
-          type='fa-eye'
-          style={styles.eyeIcon}
-          onClick={this.togglePassView}/>
-        }
+      <div className="field" style={{ marginRight: 10 }}>
+        <TextField {...this.props} type={type} style={{ marginRight: 0 }} />
+        {this.props.value && (
+          <FontIcon
+            type="fa-eye"
+            style={styles.eyeIcon}
+            onClick={this.togglePassView}
+          />
+        )}
       </div>
     );
   }
@@ -62,9 +61,10 @@ export default class PasswordField extends Component {
 
 const styles = {
   eyeIcon: {
-    position: 'absolute',
-    cursor: 'pointer',
+    position: "absolute",
+    cursor: "pointer",
     right: 10,
-    top: 22
-  }
+    top: 22,
+  },
 };
+export default PasswordField;

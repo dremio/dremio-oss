@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import Immutable from "immutable";
 
-import reflectionActions from 'actions/resources/reflection';
-import { getViewState } from 'selectors/resources';
-import { loadDataset } from 'actions/resources/dataset';
-import ViewStateWrapper from '../ViewStateWrapper';
-import AccelerationForm from './AccelerationForm';
+import sentryUtil from "@app/utils/sentryUtil";
+import reflectionActions from "actions/resources/reflection";
+import ApiPolling from "@app/utils/apiUtils/apiPollingUtils";
+import { getViewState } from "selectors/resources";
+import { loadDataset } from "actions/resources/dataset";
+import { getReflectionUiStatus } from "utils/accelerationUtils";
+import ViewStateWrapper from "../ViewStateWrapper";
+import AccelerationForm from "./AccelerationForm";
 
-const VIEW_ID = 'AccelerationModal';
+const VIEW_ID = "AccelerationModal";
 
 export class AccelerationController extends Component {
   static propTypes = {
@@ -42,13 +45,23 @@ export class AccelerationController extends Component {
     onDone: PropTypes.func,
     viewState: PropTypes.instanceOf(Immutable.Map),
     resetViewState: PropTypes.func,
-    updateFormDirtyState: PropTypes.func
+    updateFormDirtyState: PropTypes.func,
   };
 
-  state = {
-    canSubmit: true,
-    getComplete: false // need to track ourselves because viewState initial state looks the same as loaded-success
-  };
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      canSubmit: true,
+      getComplete: false, // need to track ourselves because viewState initial state looks the same as loaded-success
+    };
+
+    this.handleReflectionLoadFailure =
+      this.handleReflectionLoadFailure.bind(this);
+    this.handleReflectionLoadSuccess =
+      this.handleReflectionLoadSuccess.bind(this);
+    this.reloadReflections = this.reloadReflections.bind(this);
+  }
 
   componentDidMount() {
     this.loadReflections();
@@ -60,17 +73,83 @@ export class AccelerationController extends Component {
     }
   }
 
-  loadReflections = () => {
-    const { getReflections, datasetId, getDataset } = this.props;
-    if (!datasetId) return;
+  handleReflectionLoadFailure = (error) => {
+    const failedErrorLog = sentryUtil.logException(error);
+    if (failedErrorLog) {
+      console.error(
+        "An error has occurred while making a call in the acceleration controller:",
+        error
+      ); //specifically for instances of logErrorsToSentry & outsideCommunicationDisabled not allowing a sentry error log to be created
+    }
+    if (error.payload instanceof Error) return; // legacy error handling
+  };
 
+  handleReflectionLoadSuccess = (response) => {
+    const reflections =
+      response && response.payload.getIn(["entities", "reflection"]);
+    const hasReflectionsStillRunning =
+      reflections &&
+      reflections.some((reflection) => {
+        const reflectionStatusMap = getReflectionUiStatus(reflection);
+        const statusIconForReflection = reflectionStatusMap.get("icon");
+        return (
+          statusIconForReflection === "Loader" ||
+          statusIconForReflection === "Ellipsis"
+        );
+      });
+
+    if (hasReflectionsStillRunning) {
+      return false;
+    } else {
+      this.setState({
+        isPolling: false,
+      });
+      return true;
+    }
+  };
+
+  makeReflectionsCall() {
+    const { getReflections, datasetId } = this.props;
     return getReflections(
-      {viewId: VIEW_ID},
+      { viewId: VIEW_ID },
       { path: `dataset/${encodeURIComponent(datasetId)}/reflection` }
-    ).then((response) => {
-      if (response.payload instanceof Error) return;
-      return getDataset(datasetId, VIEW_ID);
-    }).then(() => this.setState({getComplete: true}));
+    );
+  }
+
+  loadReflections = () => {
+    const { datasetId, getDataset } = this.props;
+    if (!datasetId) return;
+    return this.makeReflectionsCall()
+      .then((response) => {
+        if (response && response.payload instanceof Error) return;
+        const noReflectionsStillUpdating =
+          this.handleReflectionLoadSuccess(response);
+        if (!noReflectionsStillUpdating) {
+          this.reloadReflections(5);
+        }
+        return getDataset(datasetId, VIEW_ID);
+      })
+      .then(() => this.setState({ getComplete: true }));
+  };
+
+  reloadReflections = (startWaitTime = 0) => {
+    const { datasetId } = this.props;
+    if (!datasetId) return;
+    this.setState({
+      isPolling: true,
+    });
+
+    return setTimeout(
+      () =>
+        ApiPolling({
+          apiCallFunc: () => this.makeReflectionsCall(),
+          handleFailure: this.handleReflectionLoadFailure,
+          handleSuccess: this.handleReflectionLoadSuccess,
+          intervalSec: 5,
+          timeoutSec: 600,
+        }),
+      startWaitTime
+    );
   };
 
   handleSubmitSuccess = () => {
@@ -86,32 +165,36 @@ export class AccelerationController extends Component {
       onCancel,
       isModal = true,
       canAlter,
-      canSubmit
+      canSubmit,
     } = this.props;
 
-    if (!this.state.getComplete || viewState.get('isFailed')) {
+    if (!this.state.getComplete || viewState.get("isFailed")) {
       return null; // AccelerationForm expects to only be created after data is ready
     }
 
     if (!dataset || !reflections) return null; // teardown guard
 
-    return <AccelerationForm
-      canAlter={canAlter}
-      canSubmit={canSubmit}
-      isModal={isModal}
-      updateFormDirtyState={this.props.updateFormDirtyState}
-      onCancel={onCancel}
-      onSubmitSuccess={this.handleSubmitSuccess}
-      dataset={dataset}
-      reflections={reflections}
-    />;
+    return (
+      <AccelerationForm
+        canAlter={canAlter}
+        canSubmit={canSubmit}
+        isModal={isModal}
+        updateFormDirtyState={this.props.updateFormDirtyState}
+        onCancel={onCancel}
+        onSubmitSuccess={this.handleSubmitSuccess}
+        dataset={dataset}
+        reflections={reflections}
+        reloadReflections={this.reloadReflections}
+      />
+    );
   }
 
   render() {
     const { viewState } = this.props;
+    const { isPolling } = this.state;
 
     return (
-      <ViewStateWrapper viewState={viewState}>
+      <ViewStateWrapper viewState={viewState} hideSpinner={isPolling}>
         {this.renderContent()}
       </ViewStateWrapper>
     );
@@ -119,21 +202,27 @@ export class AccelerationController extends Component {
 }
 
 function mapStateToProps(state, ownProps) {
-  const reflections = state.resources.entities.get('reflection') ? state.resources.entities.get('reflection').filter(reflection => {
-    return reflection.get('datasetId') === ownProps.datasetId;
-  }) : new Immutable.Map();
+  const reflections = state.resources.entities.get("reflection")
+    ? state.resources.entities.get("reflection").filter((reflection) => {
+        return reflection.get("datasetId") === ownProps.datasetId;
+      })
+    : new Immutable.Map();
 
-  const canAlter = state.resources.entities.get('reflection') && state.resources.entities.getIn(['reflection', 'canAlter']);
+  const canAlter =
+    state.resources.entities.get("reflection") &&
+    state.resources.entities.getIn(["reflection", "canAlter"]);
 
-  const dataset = state.resources.entities.get('dataset') && state.resources.entities.get('dataset').get(ownProps.datasetId);
+  const dataset =
+    state.resources.entities.get("dataset") &&
+    state.resources.entities.get("dataset").get(ownProps.datasetId);
 
   let viewState = getViewState(state, VIEW_ID);
-  if (typeof dataset !== 'undefined' && !dataset.has('fields')) {
+  if (typeof dataset !== "undefined" && !dataset.has("fields")) {
     viewState = Immutable.fromJS({
       isFailed: true,
       error: {
-        message: la('Dataset missing schema information.')
-      }
+        message: la("Dataset missing schema information."),
+      },
     });
   }
 
@@ -141,11 +230,11 @@ function mapStateToProps(state, ownProps) {
     canAlter,
     reflections,
     dataset,
-    viewState
+    viewState,
   };
 }
 
 export default connect(mapStateToProps, {
   getReflections: reflectionActions.getList.dispatch,
-  getDataset: loadDataset
+  getDataset: loadDataset,
 })(AccelerationController);

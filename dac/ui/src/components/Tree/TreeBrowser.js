@@ -13,91 +13,143 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useMemo, useEffect } from 'react';
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { connect } from 'react-redux';
+import { useState, useMemo, useEffect } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { connect } from "react-redux";
 
-import { SinglePageTypeButton } from '@app/pages/ExplorePage/components/PageTypeButtons';
-import { getLocation } from '@app/selectors/routing';
-import SearchDatasetsPopover from '../DatasetList/SearchDatasetsPopover';
-import SQLScripts from '../SQLScripts/SQLScripts';
-import Art from '../Art';
-import TreeNode from './TreeNode';
+import { intl } from "@app/utils/intl";
+import SubHeaderTabs from "@app/components/SubHeaderTabs";
+import { SinglePageTypeButton } from "@app/pages/ExplorePage/components/PageTypeButtons";
+import { getLocation } from "@app/selectors/routing";
+import SearchDatasetsPopover from "../DatasetList/SearchDatasetsPopover";
+import {
+  RESOURCE_LIST_SORT_MENU,
+  DATA_SCRIPT_TABS,
+  starTabNames,
+} from "@app/components/Tree/resourceTreeUtils";
+import SortDropDownMenu from "@app/components/SortDropDownMenu";
+import SQLScripts from "../SQLScripts/SQLScripts";
+import TreeNode from "./TreeNode";
+import "./TreeBrowser.less";
+import * as classes from "./TreeBrowser.less";
 
-import './TreeBrowser.less';
-
-const TABS = {
-  Data: 'Data',
-  Scripts: 'Scripts'
-};
-
-const TreeBrowser = (props) => {
-  const { location,
+export const TreeBrowser = (props) => {
+  const {
+    location,
     sidebarCollapsed,
     isCollapsable,
-    intl: { formatMessage }
+    resourceTree,
+    isSqlEditorTab,
+    starredItems,
+    starNode,
+    unstarNode,
+    changeStarredTab,
+    selectedStarredTab,
   } = props;
-  const [ selectedTab, setSelectedTab ] = useState(TABS.Data);
-  const [ collapaseText, setCollapseText ] = useState();
+
+  const [selectedTab, setSelectedTab] = useState(DATA_SCRIPT_TABS.Data);
+  const [sort, setSort] = useState(RESOURCE_LIST_SORT_MENU[1]);
+
+  const [collapaseText, setCollapseText] = useState();
+
+  const starredTabsArray = [
+    intl.formatMessage({ id: "Resource.Tree.All" }),
+    intl.formatMessage({ id: "Resource.Tree.Starred" }) +
+      ` (${starredItems && starredItems.length})`,
+  ];
 
   useEffect(() => {
-    if (location.state && location.state.renderScriptTab) {
-      setSelectedTab(TABS.Scripts);
+    if (location && location.state && location.state.renderScriptTab) {
+      setSelectedTab(DATA_SCRIPT_TABS.Scripts);
     }
   }, [location, setSelectedTab]);
 
   useEffect(() => {
-    if (!props.isSqlEditorTab) {
-      setSelectedTab(TABS.Data);
+    if (!isSqlEditorTab) {
+      setSelectedTab(DATA_SCRIPT_TABS.Data);
     }
-  }, [props.isSqlEditorTab, setSelectedTab]);
+  }, [isSqlEditorTab, setSelectedTab]);
 
   useEffect(() => {
-    setCollapseText(sidebarCollapsed ? formatMessage({ id: 'Explore.Left.Panel.Collapse.Text.Close' }) : formatMessage({ id: 'Explore.Left.Panel.Collapse.Text.Open' }));
-  }, [sidebarCollapsed]);
+    setCollapseText(
+      sidebarCollapsed
+        ? intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Close" })
+        : intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Text.Open" })
+    );
+  }, [sidebarCollapsed, intl]);
 
   const [homeSource, sortedTree] = useMemo(() => {
-    const tempHomeSource = Array.from(props.resourceTree)[0];
+    const tempHomeSource = Array.from(resourceTree)[0];
     // Remove home item for new copied list
-    const tempOtherSources = Array.from(props.resourceTree).splice(1);
-    const tempSortedTree = tempOtherSources.sort((a, b) => {
-      const y = a.get('name').toLowerCase();
-      const z = b.get('name').toLowerCase();
+    const tempOtherSources =
+      tempHomeSource && tempHomeSource.get("type") === "HOME"
+        ? Array.from(resourceTree).splice(1)
+        : Array.from(resourceTree);
 
-      if (y > z) return 1;
-      if (y < z) return -1;
-      return 0;
-    });
+    const tempSortedTree = tempOtherSources.sort(sort.compare);
 
-    return [tempHomeSource, tempSortedTree];
-  }, [props.resourceTree]);
+    return tempHomeSource && tempHomeSource.get("type") === "HOME"
+      ? [tempHomeSource, tempSortedTree]
+      : [undefined, tempSortedTree];
+  }, [resourceTree, sort]);
+
+  const renderSubHeadingTabs = () => {
+    return (
+      selectedTab === DATA_SCRIPT_TABS.Data && (
+        <div className="TreeBrowser__subHeading">
+          <SubHeaderTabs
+            onClickFunc={changeStarredTab}
+            tabArray={starredTabsArray}
+            selectedTab={selectedStarredTab}
+          />
+          <SortDropDownMenu
+            menuList={RESOURCE_LIST_SORT_MENU}
+            sortValue={sort}
+            setSortValue={setSort}
+          />
+        </div>
+      )
+    );
+  };
 
   const renderHome = () => {
     if (homeSource) {
-      return <TreeNode
-        node={homeSource}
-        key={0}
-        renderNode={props.renderNode}
-        isNodeExpanded={props.isNodeExpanded}
-        selectedNodeId={props.selectedNodeId}
-      />;
+      return (
+        <TreeNode
+          node={homeSource}
+          key={0}
+          isStarredLimitReached={starredItems.length === 25}
+          {...props}
+        />
+      );
     }
   };
 
   const renderItems = () => {
     if (sortedTree.length > 0) {
-      return sortedTree.map((node, index) => {
-        return <TreeNode
-          node={node}
-          key={index}
-          renderNode={props.renderNode}
-          isNodeExpanded={props.isNodeExpanded}
-          selectedNodeId={props.selectedNodeId}
-        />;
-
+      return sortedTree.map((currNode, index) => {
+        return (
+          <TreeNode
+            node={currNode}
+            key={index}
+            isStarredLimitReached={starredItems.length === 25}
+            isSqlEditorTab={isSqlEditorTab}
+            selectedStarredTab={selectedStarredTab}
+            {...props}
+          />
+        );
       });
+    } else if (
+      homeSource === undefined &&
+      sortedTree.length === 0 &&
+      selectedStarredTab === starTabNames.starred
+    ) {
+      return (
+        <span className="TreeBrowser--empty">
+          {intl.formatMessage({ id: "Resource.Tree.No.Stars" })}
+        </span>
+      );
     }
   };
 
@@ -105,55 +157,78 @@ const TreeBrowser = (props) => {
     return props.isSqlEditorTab ? (
       <>
         <SinglePageTypeButton
-          classname={`TreeBrowser-tab ${TABS.Data === selectedTab ? '--active' : ''}`}
-          text='Data' isSelected={TABS.Data === selectedTab}
-          onClick={() => setSelectedTab(TABS.Data)}
+          classname={`TreeBrowser-tab ${
+            DATA_SCRIPT_TABS.Data === selectedTab ? "--active" : ""
+          }`}
+          text="Data"
+          isSelected={DATA_SCRIPT_TABS.Data === selectedTab}
+          onClick={() => setSelectedTab(DATA_SCRIPT_TABS.Data)}
         />
         <SinglePageTypeButton
-          classname={`TreeBrowser-tab ${TABS.Scripts === selectedTab ? '--active' : ''}`}
-          text='Scripts' isSelected={TABS.Scripts === selectedTab}
-          onClick={() => setSelectedTab(TABS.Scripts)}
+          classname={`TreeBrowser-tab ${
+            DATA_SCRIPT_TABS.Scripts === selectedTab ? "--active" : ""
+          }`}
+          text="Scripts"
+          isSelected={DATA_SCRIPT_TABS.Scripts === selectedTab}
+          onClick={() => setSelectedTab(DATA_SCRIPT_TABS.Scripts)}
         />
       </>
-    ) : (<div className='TreeBrowser-tab'>Data</div>);
+    ) : (
+      <div className="TreeBrowser-tab">Data</div>
+    );
+  };
+
+  const renderCollapseIcon = () => {
+    return (
+      <dremio-icon
+        title={collapaseText}
+        alt={intl.formatMessage({ id: "Explore.Left.Panel.Collapse.Alt" })}
+        name={
+          sidebarCollapsed ? "scripts/CollapseRight" : "scripts/CollapseLeft"
+        }
+        onClick={props.handleSidebarCollapse}
+        class={classes["collapseButton"]}
+      ></dremio-icon>
+    );
   };
 
   const renderTabsContent = () => {
-    if (selectedTab === TABS.Data) {
+    if (selectedTab === DATA_SCRIPT_TABS.Data) {
       return (
         <>
+          {renderSubHeadingTabs()}
           <SearchDatasetsPopover
             changeSelectedNode={() => {}}
             dragType={props.dragType}
             addtoEditor={props.addtoEditor}
             shouldAllowAdd
+            isStarredLimitReached={starredItems.length === 25}
+            starNode={starNode}
+            starredItems={starredItems}
+            unstarNode={unstarNode}
           />
-          <div className='TreeBrowser-items'>
+          <div className="TreeBrowser-items">
             {renderHome()}
             {renderItems()}
           </div>
         </>
       );
-    } else if (selectedTab === TABS.Scripts) {
+    } else if (selectedTab === DATA_SCRIPT_TABS.Scripts) {
       return <SQLScripts />;
     }
   };
 
   return (
-    <div className='TreeBrowser'>
-      <div className={`TreeBrowser-heading ${!props.isSqlEditorTab ? '--dataset' : ''}`}>
-        {renderTabs()}
-
-        { isCollapsable &&
-          <Art src='CollapseLeft.svg'
-            alt={formatMessage({ id: 'Explore.Left.Panel.Collapse.Alt' })}
-            title={collapaseText}
-            className='TreeBrowser__collapseButton'
-            onClick={props.handleSidebarCollapse} />
-        }
-
+    <div className="TreeBrowser">
+      <div
+        className={`TreeBrowser-heading ${!isSqlEditorTab ? "--dataset" : ""} ${
+          sidebarCollapsed ? "--collapsed" : ""
+        }`}
+      >
+        {!sidebarCollapsed && renderTabs()}
+        {isCollapsable && renderCollapseIcon()}
       </div>
-      {renderTabsContent()}
+      {!sidebarCollapsed && renderTabsContent()}
     </div>
   );
 };
@@ -161,7 +236,6 @@ const TreeBrowser = (props) => {
 TreeBrowser.propTypes = {
   resourceTree: PropTypes.instanceOf(Immutable.List),
   sources: PropTypes.instanceOf(Immutable.List),
-  renderNode: PropTypes.func,
   isNodeExpanded: PropTypes.func,
   selectedNodeId: PropTypes.string,
   addtoEditor: PropTypes.func,
@@ -171,21 +245,32 @@ TreeBrowser.propTypes = {
   handleSidebarCollapse: PropTypes.func,
   sidebarCollapsed: PropTypes.bool,
   isCollapsable: PropTypes.bool,
-  intl: PropTypes.object.isRequired
+  formatIdFromNode: PropTypes.func,
+  isDatasetsDisabled: PropTypes.bool,
+  isSourcesHidden: PropTypes.bool,
+  shouldAllowAdd: PropTypes.bool,
+  shouldShowOverlay: PropTypes.bool,
+  handleSelectedNodeChange: PropTypes.func,
+  isNodeExpandable: PropTypes.func,
+  isExpandable: PropTypes.bool,
+  starredItems: PropTypes.array,
+  starNode: PropTypes.func,
+  unstarNode: PropTypes.func,
+  changeStarredTab: PropTypes.func,
+  selectedStarredTab: PropTypes.string,
 };
 
 TreeBrowser.defaultProps = {
   resourceTree: Immutable.List(),
-  sources: Immutable.List()
+  sources: Immutable.List(),
 };
 
 TreeBrowser.contextTypes = {
-  loggedInUser: PropTypes.object
+  loggedInUser: PropTypes.object,
 };
 
-
 const mapStateToProps = (state) => ({
-  location: getLocation(state)
+  location: getLocation(state),
 });
 
-export default injectIntl(connect(mapStateToProps, null)(TreeBrowser));
+export default connect(mapStateToProps)(TreeBrowser);

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import LayoutInfo from './LayoutInfo';
+import LayoutInfo from "./LayoutInfo";
 
-describe('LayoutInfo', () => {
+describe("LayoutInfo", () => {
   let minimalProps;
   let commonProps;
 
@@ -28,41 +28,43 @@ describe('LayoutInfo', () => {
       ...minimalProps,
       showValidity: true,
       layout: Immutable.fromJS({
-        id:'a',
+        id: "a",
         // should be able to render without: currentByteSize
         totalByteSize: 1536,
         hasValidMaterialization: true,
-        latestMaterializationState: 'NEW'
-      })
+        latestMaterializationState: "NEW",
+      }),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<LayoutInfo {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<LayoutInfo {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<LayoutInfo {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<LayoutInfo {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('shows expired as needed', () => {
+  it("shows expired as needed", () => {
     const props = {
       ...commonProps,
-      layout: commonProps.layout.set('latestMaterializationState', 'DONE').set('hasValidMaterialization', false)
+      layout: commonProps.layout
+        .set("latestMaterializationState", "DONE")
+        .set("hasValidMaterialization", false),
     };
-    const wrapper = shallow(<LayoutInfo {...props}/>);
-    const result = wrapper.find('ValidityIndicator');
+    const wrapper = shallow(<LayoutInfo {...props} />);
+    const result = wrapper.find("ValidityIndicator");
     expect(result.props().isValid).to.equal(false);
   });
 
-  it('should render override text', () => {
-    const props = {...commonProps, overrideTextMessage: 'override'};
-    const wrapper = shallow(<LayoutInfo {...props}/>);
-    expect(wrapper.find('ValidityIndicator').length).to.be.eq(0);
+  it("should render override text", () => {
+    const props = { ...commonProps, overrideTextMessage: "override" };
+    const wrapper = shallow(<LayoutInfo {...props} />);
+    expect(wrapper.find("ValidityIndicator").length).to.be.eq(0);
     const message = wrapper.find('[data-qa="message"]');
     expect(message.length).to.be.equal(1);
-    expect(message.first().text()).to.be.equal('override');
+    expect(message.first().text()).to.be.equal("override");
   });
 });

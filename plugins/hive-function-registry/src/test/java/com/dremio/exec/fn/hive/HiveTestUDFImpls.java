@@ -51,7 +51,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectIn
  * for all supported data types in Hive UDF.
  */
 public class HiveTestUDFImpls {
-  public static abstract class GenericUDFTestBase extends GenericUDF {
+  public abstract static class GenericUDFTestBase extends GenericUDF {
     protected final String udfName;
     protected final PrimitiveCategory inputType;
     protected final PrimitiveCategory outputType;

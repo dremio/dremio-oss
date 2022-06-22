@@ -13,30 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { addParameterToUrl } from '@app/utils/urlUtils';
+import { addParameterToUrl } from "@app/utils/urlUtils";
 
-describe('addParameterToUrl', () => {
-  it('adds parameter to url without query params', () => {
-    expect(addParameterToUrl('http://localhost:3005/page', 'test', 'aa')).to.be.
-      equal('http://localhost:3005/page?test=aa');
-
+describe("addParameterToUrl", () => {
+  it("adds parameter to url without query params", () => {
+    expect(
+      addParameterToUrl("http://localhost:3005/page", "test", "aa")
+    ).to.be.equal("http://localhost:3005/page?test=aa");
   });
 
-  it('adds parameter to url with query params', () => {
-    expect(addParameterToUrl('http://localhost:3005/page?p1=1', 'test', 'aa')).to.be.
-      equal('http://localhost:3005/page?p1=1&test=aa');
+  it("adds parameter to url with query params", () => {
+    expect(
+      addParameterToUrl("http://localhost:3005/page?p1=1", "test", "aa")
+    ).to.be.equal("http://localhost:3005/page?p1=1&test=aa");
   });
 
-  const rawValue = 'test_;,/?:@&=+$';
+  const rawValue = "test_;,/?:@&=+$";
   const encodedValue = encodeURIComponent(rawValue);
 
-  it('encodes param name', () => {
-    expect(addParameterToUrl('http://localhost:3005/page?p1=1', rawValue, 'aa')).to.be.
-      equal(`http://localhost:3005/page?p1=1&${encodedValue}=aa`);
+  it("encodes param name", () => {
+    expect(
+      addParameterToUrl("http://localhost:3005/page?p1=1", rawValue, "aa")
+    ).to.be.equal(`http://localhost:3005/page?p1=1&${encodedValue}=aa`);
   });
 
-  it('encodes param value', () => {
-    expect(addParameterToUrl('http://localhost:3005/page?p1=1', 'test', rawValue)).to.be.
-      equal(`http://localhost:3005/page?p1=1&test=${encodedValue}`);
+  it("encodes param value", () => {
+    expect(
+      addParameterToUrl("http://localhost:3005/page?p1=1", "test", rawValue)
+    ).to.be.equal(`http://localhost:3005/page?p1=1&test=${encodedValue}`);
   });
 });

@@ -13,33 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import FontIcon from './Icon/FontIcon';
+import FontIcon from "./Icon/FontIcon";
 
 const DEFAULT_ICON_SIZE = 30;
 
-@Radium
 class Spinner extends PureComponent {
   static propTypes = {
     iconStyle: PropTypes.object,
     containerStyle: PropTypes.object,
     message: PropTypes.node,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   render() {
-    const iconStyle = {...styles.iconStyle, ...this.props.iconStyle};
-    const containerStyle = {...styles.containerStyle, ...this.props.containerStyle};
+    const iconStyle = { ...styles.iconStyle, ...this.props.iconStyle };
+    const containerStyle = {
+      ...styles.containerStyle,
+      ...this.props.containerStyle,
+    };
     return (
-      <div style={[styles.base, this.props.style]}>
+      <div style={{ ...styles.base, ...(this.props.style || {}) }}>
         <FontIcon
-          type='Loader spinner'
-          theme={{Icon: iconStyle, Container: containerStyle}}
+          type="Loader spinner"
+          theme={{ Icon: iconStyle, Container: containerStyle }}
         />
-        {this.props.message && <span style={styles.message}>{this.props.message}</span>}
+        {this.props.message && (
+          <span style={styles.message}>{this.props.message}</span>
+        )}
       </div>
     );
   }
@@ -48,23 +52,23 @@ class Spinner extends PureComponent {
 const styles = {
   base: {
     left: 0,
-    position: 'absolute',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
+    position: "absolute",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: "100%",
     top: 1,
-    zIndex: 99
+    zIndex: 99,
   },
   containerStyle: {},
   iconStyle: {
     width: DEFAULT_ICON_SIZE,
-    height: DEFAULT_ICON_SIZE
+    height: DEFAULT_ICON_SIZE,
   },
   message: {
-    color: 'inherit'
-  }
+    color: "inherit",
+  },
 };
 
-export default Spinner;
+export default Radium(Spinner);

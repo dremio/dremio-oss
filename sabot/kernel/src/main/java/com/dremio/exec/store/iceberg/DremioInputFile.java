@@ -38,6 +38,7 @@ public class DremioInputFile implements InputFile {
   private final FileSystem fs;
   private final Path path;
   private final Long fileSize;
+  private final Long mtime;
   private final OperatorContext context;
   private final List<String> dataset;
   private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
@@ -47,11 +48,12 @@ public class DremioInputFile implements InputFile {
   private final org.apache.hadoop.fs.FileSystem hadoopFs;
   private final String filePath;
 
-  public DremioInputFile(FileSystem fs, Path path, Long fileSize, OperatorContext context, List<String> dataset,
+  public DremioInputFile(FileSystem fs, Path path, Long fileSize, Long mtime, OperatorContext context, List<String> dataset,
                          String datasourcePluginUID, Configuration conf, org.apache.hadoop.fs.FileSystem hadoopFs) {
     this.fs = fs;
     this.path = path;
     this.fileSize = fileSize;
+    this.mtime = mtime;
     this.context = context;
     this.dataset = dataset;
     this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
@@ -83,13 +85,17 @@ public class DremioInputFile implements InputFile {
     return fileSize != null? fileSize : getHadoopInputFile().getLength();
   }
 
+  public long getVersion() {
+    return mtime != null ? mtime : 0;
+  }
+
   @Override
   public SeekableInputStream newStream() {
     try {
       if(context != null && fs != null) {
         SeekableInputStreamFactory factory = context.getConfig().getInstance(SeekableInputStreamFactory.KEY, SeekableInputStreamFactory.class, SeekableInputStreamFactory.DEFAULT);
         return factory.getStream(fs, context, path,
-          fileSize, /* Since manifest avro files are immutable, we are passing 0 as mtime */ 0, dataset, datasourcePluginUID);
+          fileSize, mtime, dataset, datasourcePluginUID);
       } else {
         return getHadoopInputFile().newStream();
       }

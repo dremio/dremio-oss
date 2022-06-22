@@ -63,7 +63,7 @@ public final class ByteBufferUtil {
         "us with a direct buffer.");
     }
     Preconditions.checkState(buffer.capacity() > 0);
-    Preconditions.checkState(buffer.isDirect() == true);
+    Preconditions.checkState(buffer.isDirect());
     maxLength = Math.min(maxLength, buffer.capacity());
     boolean success = false;
     try {

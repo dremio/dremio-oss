@@ -43,6 +43,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -56,6 +57,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.EnumValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -78,6 +80,8 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   public static final String CUSTOMIZATION_ENABLED = "dremio.tableau.customization.enabled";
   private static final String DREMIO_UPDATE_COLUMN = "$_dremio_$_update_$";
+  private static final String HTTP_PREFIX = "http";
+  private static final String HTTP_SSL_PREFIX = "https";
   @VisibleForTesting
   static final String TABLEAU_VERSION = "18.1";
 
@@ -211,9 +215,18 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   public static final EnumValidator<TableauExportType> TABLEAU_EXPORT_TYPE =
     new EnumValidator<>("export.tableau.export-type", TableauExportType.class, TableauExportType.NATIVE);
 
+  /**
+   * Option to switch to OAuth for tds files in Dremio software. Default is basic authentication (username/password).
+   */
+  public static final BooleanValidator TABLEAU_SOFTWARE_SSO_ENABLED =
+    new BooleanValidator("export.tableau.software-sso.enabled", false);
+
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
   private final boolean customizationEnabled;
   private final DremioConfig config;
+
+  // The instanceUrl is used by Tableau for OAuth 2.0 authentication
+  private String instanceUrl;
 
   @Inject
   public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager,
@@ -310,6 +323,12 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   protected Map<String, String> getSdkAuthenticationMethods() {
+    if (isSoftwareSsoEnabled()) {
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(instanceUrl), "instanceUrl for OAuth cannot be empty.");
+      return ImmutableMap.of(TableauSDKConstants.AUTHENTICATION, TableauSDKConstants.OAUTH,
+                             TableauSDKConstants.INSTANCEURL, instanceUrl);
+    }
+
     return ImmutableMap.of(TableauSDKConstants.AUTHENTICATION, TableauSDKConstants.BASIC);
   }
 
@@ -352,11 +371,38 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
             .build();
 
     writeAttributes(xmlStreamWriter, basicAttributes);
+
+    if (isSoftwareSsoEnabled()) {
+      instanceUrl = getLoginHostname(hostname, getSdkSSL(tableauExportType));
+    }
     writeAttributes(xmlStreamWriter, getSdkAuthenticationMethods());
+
     writeAttributes(xmlStreamWriter, getSdkCustomProperties());
 
     writeRelation(xmlStreamWriter, datasetConfig);
     xmlStreamWriter.writeEndElement();
+  }
+
+  private String getLoginHostname(String hostname, String sslEnabled) {
+    final String hostnameOverride = getOptionManager().getOption(BIToolsConstants.EXPORT_HOSTNAME);
+    if (!Strings.isNullOrEmpty(hostnameOverride)) {
+      hostname = hostnameOverride;
+    }
+
+    String scheme = HTTP_PREFIX;
+    if (sslEnabled.equalsIgnoreCase(TableauSDKConstants.REQUIRE)) {
+      scheme = HTTP_SSL_PREFIX;
+    }
+
+    // Example: http://localhost:9047
+    return String.format("%s://%s:%s",
+      scheme,
+      hostname,
+      TableauSDKConstants.UI_PORT);
+  }
+
+  private boolean isSoftwareSsoEnabled() {
+    return getOptionManager().getOption(TABLEAU_SOFTWARE_SSO_ENABLED);
   }
 
   private void writeOdbcConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
@@ -804,5 +850,3 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 }
-
-

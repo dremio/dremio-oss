@@ -35,7 +35,7 @@ import com.google.common.base.Function;
 public class TestJdbcQuery extends JdbcTestQueryBase {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJdbcQuery.class);
   @Rule
-  public TestRule TIMEOUT = TestTools.getTimeoutRule(70, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(70, TimeUnit.SECONDS);
 
   // TODO:  Purge nextUntilEnd(...) and calls when remaining fragment race
   // conditions are fixed (not just DRILL-2245 fixes).

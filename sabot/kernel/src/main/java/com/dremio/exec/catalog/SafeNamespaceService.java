@@ -37,6 +37,7 @@ import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.function.proto.FunctionConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -89,6 +90,12 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public void addOrUpdateFunction(NamespaceKey arg0, FunctionConfig arg1, NamespaceAttribute... arg2)
+    throws NamespaceException {
+    runner.doSafe(() -> delegate.addOrUpdateFunction(arg0, arg1, arg2));
+  }
+
+  @Override
   public void canSourceConfigBeSaved(SourceConfig arg0, SourceConfig arg1, NamespaceAttribute... arg2)
       throws ConcurrentModificationException, NamespaceException {
     runner.doSafe(() -> delegate.canSourceConfigBeSaved(arg0, arg1, arg2));
@@ -132,6 +139,11 @@ class SafeNamespaceService implements NamespaceService {
   @Override
   public void deleteSpace(NamespaceKey arg0, String arg1) throws NamespaceException {
     runner.doSafe(() -> delegate.deleteSpace(arg0, arg1));
+  }
+
+  @Override
+  public void deleteFunction(NamespaceKey arg0) throws NamespaceException {
+    runner.doSafe(() -> delegate.deleteFunction(arg0));
   }
 
   @Override
@@ -230,6 +242,12 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public List<NameSpaceContainer> getEntitiesByIds(List<String> arg0)
+    throws NamespaceNotFoundException {
+    return runner.doSafe(() -> delegate.getEntitiesByIds(arg0));
+  }
+
+  @Override
   public String getEntityIdByPath(NamespaceKey arg0) throws NamespaceNotFoundException {
     return runner.doSafe(() -> delegate.getEntityIdByPath(arg0));
   }
@@ -280,6 +298,11 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public FunctionConfig getFunction(NamespaceKey arg0) throws NamespaceException{
+    return runner.doSafe(() -> delegate.getFunction(arg0));
+  }
+
+  @Override
   public SpaceConfig getSpaceById(String arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getSpaceById(arg0));
   }
@@ -287,6 +310,11 @@ class SafeNamespaceService implements NamespaceService {
   @Override
   public List<SpaceConfig> getSpaces() {
     return runner.doSafe(() -> delegate.getSpaces());
+  }
+
+  @Override
+  public List<FunctionConfig> getFunctions() {
+    return runner.doSafe(() -> delegate.getFunctions());
   }
 
   @Override

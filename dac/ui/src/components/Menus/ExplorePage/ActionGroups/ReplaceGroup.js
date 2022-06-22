@@ -13,63 +13,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { TEXT } from '@app/constants/DataTypes';
-import { REPLACEABLE_TYPES } from '@app/constants/columnTypeGroups';
+import { TEXT } from "@app/constants/DataTypes";
+import { REPLACEABLE_TYPES } from "@app/constants/columnTypeGroups";
 
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
+import ColumnMenuItem from "./../ColumnMenus/ColumnMenuItem";
 
-@Radium
-export default class ReplaceGroup extends PureComponent {
+class ReplaceGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    columnType: PropTypes.string
-  }
+    columnType: PropTypes.string,
+  };
 
   static renderMenuItems(columnType, onClick) {
     return [
-      <ColumnMenuItem key='EXTRACT_TEXT'
+      <ColumnMenuItem
+        key="EXTRACT_TEXT"
         columnType={columnType}
-        actionType='EXTRACT_TEXT'
-        title={la('Extract Text…')}
+        actionType="EXTRACT_TEXT"
+        title={la("Extract Text…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
-      <ColumnMenuItem key='REPLACE_TEXT'
+      <ColumnMenuItem
+        key="REPLACE_TEXT"
         columnType={columnType}
-        actionType='REPLACE_TEXT'
-        title={la('Replace Text…')}
+        actionType="REPLACE_TEXT"
+        title={la("Replace Text…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
-      <ColumnMenuItem key='REPLACE'
+      <ColumnMenuItem
+        key="REPLACE"
         columnType={columnType}
-        actionType='REPLACE'
-        title={la('Replace…')}
+        actionType="REPLACE"
+        title={la("Replace…")}
         availableTypes={REPLACEABLE_TYPES}
         onClick={onClick}
       />,
-      <ColumnMenuItem key='SPLIT'
+      <ColumnMenuItem
+        key="SPLIT"
         columnType={columnType}
-        actionType='SPLIT'
-        title={la('Split…')}
+        actionType="SPLIT"
+        title={la("Split…")}
         availableTypes={[TEXT]}
         onClick={onClick}
-      />
+      />,
     ];
   }
 
   render() {
     const { columnType, makeTransform } = this.props;
     const menuItems = ReplaceGroup.renderMenuItems(columnType, makeTransform);
-    return (
-      <div>
-        {menuItems}
-      </div>
-    );
+    return <div>{menuItems}</div>;
   }
 }
+export default ReplaceGroup;

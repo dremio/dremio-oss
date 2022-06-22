@@ -13,38 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { TopSplitterContent } from './TopSplitterContent';
+import { TopSplitterContent } from "./TopSplitterContent";
 
-describe('TopSplitterContent', () => {
-
+describe("TopSplitterContent", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       sqlState: true,
-      sqlSize: 171
+      sqlSize: 171,
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TopSplitterContent {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<TopSplitterContent {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#getHeight', () => {
-    it('should return 0 if sqlState is false, or sqlSize = 0', () => {
-      const instance = shallow(<TopSplitterContent {...commonProps}/>).instance();
+  describe("#getHeight", () => {
+    it("should return 0 if sqlState is false, or sqlSize = 0", () => {
+      const instance = shallow(
+        <TopSplitterContent {...commonProps} />
+      ).instance();
       expect(instance.getHeight(false, 171)).to.eql(0);
       expect(instance.getHeight(true, 0)).to.eql(0);
     });
 
-    it('should return sqlSize if sqlState is true and sqlSize > 0', () => {
-      const instance = shallow(<TopSplitterContent {...commonProps}/>).instance();
+    it("should return sqlSize if sqlState is true and sqlSize > 0", () => {
+      const instance = shallow(
+        <TopSplitterContent {...commonProps} />
+      ).instance();
       expect(instance.getHeight(true, 1)).to.eql(1);
     });
   });

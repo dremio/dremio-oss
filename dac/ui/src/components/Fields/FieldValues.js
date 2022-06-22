@@ -13,104 +13,116 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
+import uuid from "uuid";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FontIcon from 'components/Icon/FontIcon';
-import EllipsedText from 'components/EllipsedText';
-import Meter from 'components/Meter';
+import FontIcon from "components/Icon/FontIcon";
+import EllipsedText from "components/EllipsedText";
+import Meter from "components/Meter";
 
-import { LINE_NOWRAP_ROW_START_CENTER,
-  FLEX_COL_START } from 'uiTheme/radium/flexStyle';
-import { formDescription } from 'uiTheme/radium/typography';
+import {
+  LINE_NOWRAP_ROW_START_CENTER,
+  FLEX_COL_START,
+} from "uiTheme/radium/flexStyle";
+import { formDescription } from "uiTheme/radium/typography";
 
-import dataFormatUtils from 'utils/dataFormatUtils';
+import dataFormatUtils from "utils/dataFormatUtils";
 
-@Radium
-export default class FieldValues extends PureComponent {
+class FieldValues extends PureComponent {
   static propTypes = {
     options: PropTypes.arrayOf(
       PropTypes.shape({
         percent: PropTypes.number,
         value: PropTypes.any,
-        type: PropTypes.any
+        type: PropTypes.any,
       })
     ),
-    optionsStyle: PropTypes.object
+    optionsStyle: PropTypes.object,
   };
 
   static defaultProps = {
-    options: []
+    options: [],
   };
 
   render() {
     const { options } = this.props;
-    const maxPercent = Math.max(...options.map(option => option.percent));
-    return <table className='field'>
-      <tbody>
-        {
-          options.map(option => {
+    const maxPercent = Math.max(...options.map((option) => option.percent));
+    return (
+      <table className="field">
+        <tbody>
+          {options.map((option) => {
             const correctText = dataFormatUtils.formatValue(option.value);
-            const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
-              ? styles.nullwrap
-              : {};
+            const correctTextStyle =
+              option.value === undefined ||
+              option.value === null ||
+              option.value === ""
+                ? styles.nullwrap
+                : {};
             return (
-              <tr>
+              <tr key={uuid()}>
                 <td>
-                  <FontIcon type={FontIcon.getIconTypeForDataType(option.type)} style={styles.icon}/>
+                  <FontIcon
+                    type={FontIcon.getIconTypeForDataType(option.type)}
+                    style={styles.icon}
+                  />
                 </td>
                 <td style={styles.value}>
-                  <EllipsedText text={correctText} style={{...correctTextStyle}}/>
+                  <EllipsedText
+                    text={correctText}
+                    style={{ ...correctTextStyle }}
+                  />
                 </td>
                 <td style={styles.progressWrap}>
-                  <Meter value={option.percent} max={maxPercent}/>
+                  <Meter value={option.percent} max={maxPercent} />
                 </td>
                 <td style={styles.percent}>
                   {`${option.percent.toPrecision(2)}%`}
                 </td>
               </tr>
             );
-          })
-        }
-      </tbody>
-    </table>;
+          })}
+        </tbody>
+      </table>
+    );
   }
 }
 
 const styles = {
   options: {
     ...FLEX_COL_START,
-    height: 250
+    height: 250,
   },
   checkbox: {
     marginRight: -7,
-    marginLeft: 15
+    marginLeft: 15,
   },
   option: {
     ...LINE_NOWRAP_ROW_START_CENTER,
-    marginTop: 16
+    marginTop: 16,
   },
   icon: {
-    display: 'block',
-    height: 24
+    display: "block",
+    height: 24,
   },
   value: {
     maxWidth: 200,
-    paddingLeft: 10
+    paddingLeft: 10,
   },
   nullwrap: {
-    color: '#aaa',
-    fontStyle: 'italic',
-    width: '95%'
+    color: "#aaa",
+    fontStyle: "italic",
+    width: "95%",
   },
   progressWrap: {
     width: 400,
-    paddingLeft: 10
+    paddingLeft: 10,
   },
   percent: {
     ...formDescription,
-    paddingLeft: 10
-  }
+    paddingLeft: 10,
+  },
 };
+export default Radium(FieldValues);

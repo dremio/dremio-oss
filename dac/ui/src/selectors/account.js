@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 export function getUser(state) {
-  return state.account.get('user');
+  return state.account.get("user");
 }
 
 export function getUserName(state) {
-  return state.account.getIn(['user', 'userName']);
+  return state.account.getIn(["user", "userName"]);
 }

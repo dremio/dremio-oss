@@ -121,7 +121,7 @@ public class SchemaMerger {
     if(observedType.isUnion()){
       return mergeUnion(parent, declaredField, observedType, forceDoublePrecision);
     } else if (observedType.isList()) {
-      return mergeList(parent, declaredField, observedType);
+      return mergeList(parent, declaredField, observedType, forceDoublePrecision);
     }
      // default behavior.
     if((declaredField.getType() == Type.OBJECT || declaredField.getType() == Type.NESTED) &&
@@ -139,15 +139,20 @@ public class SchemaMerger {
   private MergeField mergeUnion(SchemaPath parent, ElasticField declaredField, CompleteType observedType, boolean forceDoublePrecision){
 
     // Force the actual elasticfield type to Double if flag forceDoublePrecision is enabled.
-    if (forceDoublePrecision && declaredField.getType() == Type.FLOAT) {
-      return new MergeField(parent, declaredField, CompleteType.DOUBLE, true);
+    if (forceDoublePrecision && declaredField.getType() == Type.FLOAT && observedType.isUnion() && observedType.getChildren().size() == 2) {
+      final CompleteType t1 = CompleteType.fromField(observedType.getChildren().get(0));
+      final CompleteType t2 = CompleteType.fromField(observedType.getChildren().get(1));
+
+      if (t1.equals(CompleteType.FLOAT) && t2.equals(CompleteType.DOUBLE)) {
+        return new MergeField(parent, declaredField, CompleteType.DOUBLE, true);
+      }
     }
 
     List<Field> fields = observedType.getChildren();
 
     if(fields.size() != 2){
       // fall back to default merging, same as below
-      return new MergeField(parent, declaredField, observedType, false);
+      return new MergeField(parent, declaredField, observedType, forceDoublePrecision);
     }
 
     Field f1 = fields.get(0);
@@ -157,7 +162,7 @@ public class SchemaMerger {
 
     if( !(t1.isList() && !t2.isList()) &&  !(!t1.isList() && t2.isList())){
       // one of the two types has to be a list type.
-      return new MergeField(parent, declaredField, observedType, false);
+      return new MergeField(parent, declaredField, observedType, forceDoublePrecision);
     }
 
     CompleteType listType = t1.isList() ? t1 : t2;
@@ -166,19 +171,28 @@ public class SchemaMerger {
     Field listChild = listType.getOnlyChild();
 
     // check that the basic list types are the same. We don't compare full types here because it could be that the two different structs (only a subset of fields showed up in one or both structs).
-    if(!listChild.getType().equals(nonListType.getType()) && !listChild.getType().equals(Null.INSTANCE)){
+    if(!isListTypeMatch(listChild, nonListType, forceDoublePrecision) && !listChild.getType().equals(Null.INSTANCE)){
       return new MergeField(parent, declaredField, observedType, false);
     }
 
     CompleteType combined = nonListType.merge(CompleteType.fromField(listChild));
 
-    return mergeField(parent, declaredField, combined, false).asList();
+    return mergeField(parent, declaredField, combined, forceDoublePrecision).asList();
 
   }
 
-  private MergeField mergeList(SchemaPath parent, ElasticField declaredField, CompleteType observedType){
+  private boolean isListTypeMatch(Field listChild, CompleteType nonListType, boolean forceDoublePrecision) {
+    if (listChild.getType().equals(nonListType.getType())) {
+      return true;
+    }
+
+    final CompleteType listChildType = CompleteType.fromField(listChild);
+    return forceDoublePrecision && listChildType.equals(CompleteType.DOUBLE) && nonListType.equals(CompleteType.FLOAT);
+  }
+
+  private MergeField mergeList(SchemaPath parent, ElasticField declaredField, CompleteType observedType, boolean forceDoublePrecision){
     final CompleteType listChildType = CompleteType.fromField(observedType.getOnlyChild());
-    return mergeField(parent, declaredField, listChildType, false).asList();
+    return mergeField(parent, declaredField, listChildType, forceDoublePrecision).asList();
   }
 
   private UserException failure(SchemaPath path, ElasticField declaredField, CompleteType observedType){

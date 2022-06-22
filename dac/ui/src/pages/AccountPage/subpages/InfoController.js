@@ -13,41 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
-import ApiUtils from 'utils/apiUtils/apiUtils';
+import FormUnsavedRouteLeave from "components/Forms/FormUnsavedRouteLeave";
+import ApiUtils from "utils/apiUtils/apiUtils";
 
-import Info from './Info';
+import Info from "./Info";
 
 export class InfoController extends PureComponent {
   static contextTypes = {
     router: PropTypes.object.isRequired,
-    username: PropTypes.string
+    username: PropTypes.string,
   };
 
   static propTypes = {
-    updateFormDirtyState: PropTypes.func // comes from updateFormDirtyState
-  }
+    updateFormDirtyState: PropTypes.func, // comes from updateFormDirtyState
+  };
 
   submit = (submitPromise) => {
-    return ApiUtils.attachFormSubmitHandlers(
-      submitPromise
-    ).then(() => this.props.updateFormDirtyState(false));
-  }
+    return ApiUtils.attachFormSubmitHandlers(submitPromise).then(() =>
+      this.props.updateFormDirtyState(false)
+    );
+  };
 
   cancel = () => {
     this.context.router.goBack();
-  }
+  };
 
   render() {
     return (
       <Info
         updateFormDirtyState={this.props.updateFormDirtyState}
         onFormSubmit={this.submit}
-        cancel={this.cancel}/>
+        cancel={this.cancel}
+      />
     );
   }
 }

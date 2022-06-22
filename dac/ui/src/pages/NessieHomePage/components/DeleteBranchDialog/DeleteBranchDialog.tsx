@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { useState } from "react";
+import { FormattedMessage } from "react-intl";
 
 import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText
-} from '@material-ui/core';
-import { connect } from 'react-redux';
+  DialogContentText,
+} from "@material-ui/core";
+import { connect } from "react-redux";
 
-import { setReference as setReferenceAction } from '@app/actions/nessie/nessie';
-import { Reference } from '@app/services/nessie/client';
-import { CustomDialogTitle } from '../NewBranchDialog/utils';
-import { useNessieContext } from '../../utils/context';
+import { setReference as setReferenceAction } from "@app/actions/nessie/nessie";
+import { Reference } from "@app/services/nessie/client";
+import { CustomDialogTitle } from "../NewBranchDialog/utils";
+import { useNessieContext } from "../../utils/context";
 
-import './DeleteBranchDialog.less';
+import "./DeleteBranchDialog.less";
 
 type DeleteBranchDialogProps = {
   open: boolean;
@@ -44,7 +44,7 @@ type DeleteBranchDialogProps = {
 
 type ConnectedProps = {
   setReference: typeof setReferenceAction;
-}
+};
 
 function DeleteBranchDialog({
   open,
@@ -53,17 +53,14 @@ function DeleteBranchDialog({
   allRefs,
   setAllRefs,
   specialHandling,
-  setReference
+  setReference,
 }: DeleteBranchDialogProps & ConnectedProps): JSX.Element {
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
   const {
     api,
     stateKey,
-    state: {
-      reference,
-      defaultReference
-    }
+    state: { reference, defaultReference },
   } = useNessieContext();
 
   const onDelete = async () => {
@@ -72,7 +69,7 @@ function DeleteBranchDialog({
     try {
       await api.deleteBranch({
         branchName: referenceToDelete.name,
-        expectedHash: referenceToDelete.hash
+        expectedHash: referenceToDelete.hash,
       });
 
       if (allRefs && setAllRefs) {
@@ -82,7 +79,7 @@ function DeleteBranchDialog({
 
         setAllRefs([
           ...allRefs.slice(0, indexToRemove),
-          ...allRefs.slice(indexToRemove + 1)
+          ...allRefs.slice(indexToRemove + 1),
         ]);
       }
 
@@ -98,7 +95,7 @@ function DeleteBranchDialog({
       setIsSending(false);
     } catch (error: any) {
       setErrorText(
-        <FormattedMessage id='RepoView.Dialog.DeleteBranch.Error' />
+        <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
       );
       setIsSending(false);
     }
@@ -109,39 +106,39 @@ function DeleteBranchDialog({
       <Dialog
         open={open}
         onClose={closeDialog}
-        className='delete-branch-dialog'
+        className="delete-branch-dialog"
       >
         <CustomDialogTitle
           onClose={closeDialog}
-          className='delete-branch-dialog-header'
+          className="delete-branch-dialog-header"
         >
-          <span className='delete-branch-dialog-header-title'>
+          <span className="delete-branch-dialog-header-title">
             <FormattedMessage
-              id='RepoView.Dialog.DeleteBranch.DeleteBranch'
+              id="RepoView.Dialog.DeleteBranch.DeleteBranch"
               values={{ branchName: referenceToDelete.name }}
             />
           </span>
         </CustomDialogTitle>
-        <DialogContent className='delete-branch-dialog-body'>
+        <DialogContent className="delete-branch-dialog-body">
           <DialogContentText>
-            <FormattedMessage id='RepoView.Dialog.DeleteBranch.Confirmation' />
+            <FormattedMessage id="RepoView.Dialog.DeleteBranch.Confirmation" />
           </DialogContentText>
-          <div className='delete-branch-dialog-body-error'>{errorText}</div>
+          <div className="delete-branch-dialog-body-error">{errorText}</div>
         </DialogContent>
-        <DialogActions className='delete-branch-dialog-actions'>
+        <DialogActions className="delete-branch-dialog-actions">
           <Button
             onClick={closeDialog}
             disabled={isSending}
-            className='cancel-button'
+            className="cancel-button"
           >
-            <FormattedMessage id='Common.Cancel' />
+            <FormattedMessage id="Common.Cancel" />
           </Button>
           <Button
             onClick={onDelete}
             disabled={isSending}
-            className='delete-button'
+            className="delete-button"
           >
-            <FormattedMessage id='Common.Delete' />
+            <FormattedMessage id="Common.Delete" />
           </Button>
         </DialogActions>
       </Dialog>

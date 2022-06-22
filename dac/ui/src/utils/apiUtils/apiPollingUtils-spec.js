@@ -13,40 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import ApiPolling from './apiPollingUtils';
-import ApiUtils from './apiUtils';
+import ApiPolling from "./apiPollingUtils";
+import ApiUtils from "./apiUtils";
 
-describe('ApiPollingUtils', () => {
-  const apiParams = {endpoint: 'ep', options: {method: 'GET'}, version: 2};
-  const handleFailure = sinon.stub().returns(true); //returns boolean isStopPollingNeeded
-  const handleSuccess = sinon.stub().returns(false); //returns boolean isStopPollingNeeded
+describe("ApiPollingUtils", () => {
+  const props = {
+    endpoint: "ep",
+    options: { method: "GET" },
+    version: 2,
+    handleFailure: sinon.stub().returns(true), //returns boolean isStopPollingNeeded
+    handleSuccess: sinon.stub().returns(false), //returns boolean isStopPollingNeeded
+  };
 
-  it('should call fetch at least once', async () => {
-    const stub = sinon.stub(ApiUtils, 'fetch').resolves({ok: true});
-    await ApiPolling(apiParams, handleFailure, handleSuccess);
+  it("should call fetch at least once", async () => {
+    const stub = sinon.stub(ApiUtils, "fetch").resolves({ ok: true });
+    await ApiPolling(props);
     expect(ApiUtils.fetch).to.have.been.called;
     stub.restore();
   });
-  it('should call handleFailure upon failure', async () => {
-    const stub = sinon.stub(ApiUtils, 'fetch').rejects({error: 'foo'});
-    await ApiPolling(apiParams, handleFailure, handleSuccess);
-    expect(handleFailure).to.have.been.called;
+  it("should call handleFailure upon failure", async () => {
+    const stub = sinon.stub(ApiUtils, "fetch").rejects({ error: "foo" });
+    await ApiPolling(props);
+    expect(props.handleFailure).to.have.been.called;
     stub.restore();
   });
-  it('should call handleSuccess upon success', async () => {
-    const stub = sinon.stub(ApiUtils, 'fetch').resolves({ok: true});
-    await ApiPolling(apiParams, handleFailure, handleSuccess);
-    expect(handleSuccess).to.have.been.called;
+  it("should call handleSuccess upon success", async () => {
+    const stub = sinon.stub(ApiUtils, "fetch").resolves({ ok: true });
+    await ApiPolling(props);
+    expect(props.handleSuccess).to.have.been.called;
     stub.restore();
   });
-  it('should call handleSuccess multiple times', async () => {
-    handleSuccess.resetHistory();
-    const stub = sinon.stub(ApiUtils, 'fetch').resolves({ok: true});
-    await ApiPolling(apiParams, handleFailure, handleSuccess, 1, 2);
+  it("should call handleSuccess multiple times", async () => {
+    props.handleSuccess.resetHistory();
+    const stub = sinon.stub(ApiUtils, "fetch").resolves({ ok: true });
+    await ApiPolling(props, 1, 2);
     setTimeout(() => {
-      expect(handleSuccess).to.have.been.calledTwice;
+      expect(props.handleSuccess).to.have.been.calledTwice;
     }, 1500);
     stub.restore();
   });
-
 });

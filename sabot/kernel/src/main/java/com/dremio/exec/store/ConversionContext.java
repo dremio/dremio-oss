@@ -18,9 +18,9 @@ package com.dremio.exec.store;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 public abstract class ConversionContext {
-  public final static ConversionContext EMPTY = new EmptyContext();
+  public static final ConversionContext EMPTY = new EmptyContext();
 
-  private final static class EmptyContext extends ConversionContext {}
+  private static final class EmptyContext extends ConversionContext {}
 
   public static class NamespaceConversionContext extends ConversionContext {
     private final AuthorizationContext authContext;

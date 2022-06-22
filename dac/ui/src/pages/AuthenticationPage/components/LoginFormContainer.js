@@ -13,23 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { compose } from 'redux';
-import Radium from 'radium';
-import { withRouter } from 'react-router';
+import { PureComponent } from "react";
+import { compose } from "redux";
+import { withRouter } from "react-router";
 
-import LoginFormMixin from '@inject/pages/AuthenticationPage/components/LoginFormMixin';
-import localStorageUtils from 'dyn-load/utils/storageUtils/localStorageUtils';
-import {renderSSOLoginToggleLink} from 'dyn-load/utils/loginUtils.js';
-import LoginForm from './LoginForm';
-import LoginTitle from './LoginTitle';
+import LoginFormMixin from "@inject/pages/AuthenticationPage/components/LoginFormMixin";
+import localStorageUtils from "dyn-load/utils/storageUtils/localStorageUtils";
+import { renderSSOLoginToggleLink } from "dyn-load/utils/loginUtils.js";
+import LoginForm from "./LoginForm";
+import LoginTitle from "./LoginTitle";
 
-@Radium
 export class LoginFormContainer extends PureComponent {
   constructor(props) {
     super(props);
     this.state = {
-      loginScreen: localStorageUtils.renderSSOLoginScreen()
+      loginScreen: localStorageUtils.renderSSOLoginScreen(),
     };
   }
 
@@ -44,16 +42,16 @@ export class LoginFormContainer extends PureComponent {
   setLoginScreen() {
     localStorageUtils.setSSOLoginChoice();
     this.setState({
-      loginScreen: localStorageUtils.renderSSOLoginScreen()
+      loginScreen: localStorageUtils.renderSSOLoginScreen(),
     });
   }
 
   render() {
     return (
-      <div id='login-form' style={[styles.base]}>
+      <div id="login-form" style={styles.base}>
         <LoginTitle
-          style={{marginBottom: 10}}
-          subTitle={la('Welcome to Dremio, please log in.')}
+          style={{ marginBottom: 10 }}
+          subTitle={la("Welcome to Dremio, please log in.")}
         />
         {this.renderForm(this.state.loginScreen)}
         {renderSSOLoginToggleLink(this.setLoginScreen.bind(this))}
@@ -61,23 +59,19 @@ export class LoginFormContainer extends PureComponent {
     );
   }
 }
-
-export default compose(
-  withRouter,
-  LoginFormMixin
-)(LoginFormContainer);
+export default compose(withRouter, LoginFormMixin)(LoginFormContainer);
 
 const styles = {
   base: {
-    position: 'relative',
-    backgroundColor: '#344253',
+    position: "relative",
+    backgroundColor: "#344253",
     minWidth: 775,
     height: 430,
     maxWidth: 775,
     maxHeight: 430,
-    overflow: 'hidden',
+    overflow: "hidden",
     padding: 40,
-    display: 'flex',
-    flexDirection: 'column'
-  }
+    display: "flex",
+    flexDirection: "column",
+  },
 };

@@ -82,6 +82,8 @@ public class DremioRelMetadataHandlerProvider implements RelMetadataHandlerProvi
           BuiltInMethod.DISTINCT_ROW_COUNT.method, new RelMdDistinctRowCount(statisticsService)),
     ReflectiveRelMetadataProvider.reflectiveSource(
           BuiltInMethod.SELECTIVITY.method, new RelMdSelectivity(statisticsService)),
+      ReflectiveRelMetadataProvider.reflectiveSource(
+        BuiltInMethod.POPULATION_SIZE.method, new RelMdPopulationSize(statisticsService)),
       DEFAULT_REL_METADATA_PROVIDER));
     return new DremioRelMetadataHandlerProvider(relMetadataProvider);
   }

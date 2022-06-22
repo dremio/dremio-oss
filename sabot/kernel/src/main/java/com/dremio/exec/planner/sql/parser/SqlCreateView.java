@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.parser;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -37,7 +38,7 @@ public class SqlCreateView extends SqlCall {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlCreateView(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1], operands[2], (SqlLiteral) operands[3]);
+      return new SqlCreateView(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1], operands[2], (SqlLiteral) operands[3], (SqlPolicy) operands[4]);
     }
   };
 
@@ -45,19 +46,21 @@ public class SqlCreateView extends SqlCall {
   private SqlNodeList fieldList;
   private SqlNode query;
   private boolean replaceView;
+  private SqlPolicy policy;
 
   public SqlCreateView(SqlParserPos pos, SqlIdentifier viewName, SqlNodeList fieldList,
-      SqlNode query, SqlLiteral replaceView) {
-    this(pos, viewName, fieldList, query, replaceView.booleanValue());
+      SqlNode query, SqlLiteral replaceView, SqlPolicy policy) {
+    this(pos, viewName, fieldList, query, replaceView.booleanValue(), policy);
   }
 
   public SqlCreateView(SqlParserPos pos, SqlIdentifier viewName, SqlNodeList fieldList,
-                       SqlNode query, boolean replaceView) {
+                       SqlNode query, boolean replaceView, SqlPolicy policy) {
     super(pos);
     this.viewName = viewName;
     this.query = query;
     this.replaceView = replaceView;
     this.fieldList = fieldList;
+    this.policy = policy;
   }
 
   @Override
@@ -72,6 +75,7 @@ public class SqlCreateView extends SqlCall {
     ops.add(fieldList);
     ops.add(query);
     ops.add(SqlLiteral.createBoolean(replaceView, SqlParserPos.ZERO));
+    ops.add(policy);
     return ops;
   }
 
@@ -86,6 +90,13 @@ public class SqlCreateView extends SqlCall {
     viewName.unparse(writer, leftPrec, rightPrec);
     if (fieldList.size() > 0) {
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, fieldList);
+    }
+    if (policy != null) {
+      writer.keyword("ADD");
+      writer.keyword("ROW");
+      writer.keyword("ACCESS");
+      writer.keyword("POLICY");
+      policy.unparse(writer, leftPrec, rightPrec);
     }
     writer.keyword("AS");
     query.unparse(writer, leftPrec, rightPrec);
@@ -107,6 +118,13 @@ public class SqlCreateView extends SqlCall {
     return viewName.names.get(viewName.names.size() - 1);
   }
 
+  public String getFullName(){
+    if (viewName.isSimple()) {
+      return viewName.getSimple();
+    }
+    return viewName.names.stream().collect(Collectors.joining("."));
+  }
+
   public NamespaceKey getPath() {
     return new NamespaceKey(viewName.names);
   }
@@ -114,9 +132,27 @@ public class SqlCreateView extends SqlCall {
   public List<String> getFieldNames() {
     List<String> fieldNames = Lists.newArrayList();
     for (SqlNode node : fieldList.getList()) {
-      fieldNames.add(node.toString());
+      fieldNames.add(((SqlColumnPolicyPair) node).getName().toString());
     }
     return fieldNames;
+  }
+
+  public List<String> getFieldNamesWithoutColumnMasking() {
+    List<String> fieldNames = Lists.newArrayList();
+    for (SqlNode node : fieldList.getList()) {
+      if (((SqlColumnPolicyPair) node).getPolicy() == null) {
+        fieldNames.add(((SqlColumnPolicyPair) node).getName().toString());
+      }
+    }
+    return fieldNames;
+  }
+
+  public SqlNodeList getFieldList() {
+    return fieldList;
+  }
+
+  public SqlPolicy getPolicy() {
+    return policy;
   }
 
   public SqlNode getQuery() { return query; }

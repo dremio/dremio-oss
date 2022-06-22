@@ -86,7 +86,7 @@ public class UserResource {
   @POST
   public User createUser(User user) throws IOException {
     final com.dremio.service.users.User userConfig = UserResource.addUser(of(user, Optional.empty()), user.getPassword(),
-      userGroupService, namespaceService);
+      userGroupService, namespaceService, this.securityContext);
 
     return User.fromUser(userConfig);
   }
@@ -94,7 +94,7 @@ public class UserResource {
   // The code is taken from from v2 api. I put it here as static to re-use it in both places. As soon as v2 api would
   // be deprecated we should convert this method to private instance method.
   public static com.dremio.service.users.User addUser(com.dremio.service.users.User newUser, String password, UserService userService,
-    NamespaceService namespaceService) throws IOException {
+    NamespaceService namespaceService, SecurityContext context) throws IOException {
     final com.dremio.service.users.User savedUser;
     if (password != null) {
       savedUser = userService.createUser(newUser, password);
@@ -104,8 +104,13 @@ public class UserResource {
     final String userName = savedUser.getUserName();
 
     try {
+      /* Creating a name space for the new user, if the caller is an ADMIN (to maintain original behavior of the API,
+       and avoid conditional checks).
+       For callers with non ADMIN roles, the home space for the new users get created when they first login-in. */
+      if (context.isUserInRole("admin")) {
       namespaceService.addOrUpdateHome(new HomePath(HomeName.getUserHomePath(userName)).toNamespaceKey(),
         new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName));
+      }
     } catch (Exception e) {
       try {
         userService.deleteUser(savedUser.getUserName(), savedUser.getVersion());

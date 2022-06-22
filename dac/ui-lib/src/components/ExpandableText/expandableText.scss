@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 
 .expandable-text-root {
   .expandable-text-label-container {
     cursor: pointer;
     display: flex;
-    align-items: center; 
-    .expandable-text-label,  .expandable-text-label-icon{
+    align-items: center;
+    .expandable-text-label,
+    .expandable-text-label-icon {
       height: 24px;
       display: flex;
       align-items: center;

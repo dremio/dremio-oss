@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
 
-import EllipsedText from 'components/EllipsedText';
-import FontIcon from 'components/Icon/FontIcon';
-import { h2White } from 'uiTheme/radium/typography';
-import { modalPadding } from 'uiTheme/radium/modal';
+import EllipsedText from "components/EllipsedText";
+import FontIcon from "components/Icon/FontIcon";
+import { h2White } from "uiTheme/radium/typography";
+import { modalPadding } from "uiTheme/radium/modal";
 
 export default class ModalHeader extends PureComponent {
-
   static propTypes = {
     title: PropTypes.string,
     hideCloseButton: PropTypes.bool,
@@ -30,59 +29,79 @@ export default class ModalHeader extends PureComponent {
     className: PropTypes.string,
     endChildren: PropTypes.node,
     type: PropTypes.string,
-    headerIcon: PropTypes.node
+    headerIcon: PropTypes.node,
+    addShadow: PropTypes.bool,
   };
 
   static defaultProps = {
     hideCloseButton: false,
-    className: ''
-  }
+    className: "",
+  };
 
   constructor(props) {
     super(props);
   }
 
   render() {
-    const { title, hide, hideCloseButton, className, endChildren, type = 'XBig', headerIcon } = this.props;
+    const {
+      title,
+      hide,
+      hideCloseButton,
+      className,
+      endChildren,
+      type = "CloseBig",
+      headerIcon,
+      addShadow,
+    } = this.props;
+
+    const addShadowClass = addShadow ? "add-shadow" : "";
     return (
-      <div className={`modal-header ${className}`} style={styles.base}>
+      <div
+        className={`modal-header ${addShadowClass} ${className}`}
+        style={styles.base}
+      >
         {headerIcon && headerIcon}
         <EllipsedText style={styles.title} text={title} />
         {endChildren && endChildren}
-        {!hideCloseButton && <FontIcon
-          type={type}
-          onClick={hide}
-          theme={styles.cancelIcon}
-          style={styles.cancel} />}
+        {!hideCloseButton && (
+          <FontIcon
+            type={type}
+            onClick={hide}
+            theme={styles.cancelIcon}
+            style={styles.cancel}
+          />
+        )}
       </div>
     );
   }
 }
 
-
 const styles = {
   base: {
     ...modalPadding,
-    height: 55,
-    display: 'flex',
-    justifyContent: 'space-between',
+    height: 56,
+    display: "flex",
+    justifyContent: "space-between",
     flexShrink: 0,
-    alignItems: 'center'
+    alignItems: "center",
   },
   title: {
     ...h2White,
+    fontSize: 16,
     fontWeight: 600,
-    color: 'black'
+    color: "black",
   },
-  cancel: { // todo: this likely should be a button with :hover/:focus/:active styles
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    cursor: 'pointer'
+  cancel: {
+    // todo: this likely should be a button with :hover/:focus/:active styles
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    marginLeft: 8,
   },
   cancelIcon: {
     Icon: {
-      color: '#fff'
-    }
-  }
+      color: "#fff",
+    },
+  },
 };

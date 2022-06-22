@@ -48,10 +48,10 @@ import io.netty.buffer.ByteBuf;
  *
  */
 public class TestVectorizedPartitionSender extends BaseTestOperator {
-  final static int NUM_FRAGMENTS = 3;
-  final static int NUM_ROWS = 200;
-  final static int MIN_NUM_PER_FRAGMENT = 62;
-  final static int MAX_NUM_PER_FRAGMENT = 69;
+  static final int NUM_FRAGMENTS = 3;
+  static final int NUM_ROWS = 200;
+  static final int MIN_NUM_PER_FRAGMENT = 62;
+  static final int MAX_NUM_PER_FRAGMENT = 69;
   CustomGenerator generator;
 
   @Before

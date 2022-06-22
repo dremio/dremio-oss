@@ -24,11 +24,11 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
 
   <artifactId>dremio-services-transientstore</artifactId>
-  <version>21.2.0-202205262146080444-038d6d1b</version>
+  <version>22.0.0-202206221430090603-1fa4049f</version>
   <name>Services - TransientStore</name>
 
   <dependencies>

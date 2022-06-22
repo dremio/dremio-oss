@@ -45,7 +45,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   private static final Logger logger = LoggerFactory.getLogger(ITTestProjectionsAndFilter.class);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void loadTable() throws Exception {
@@ -241,7 +241,6 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     // Ignore for DX-12161: suspected bugs in ES v6.0.x causes
     // queries related to _uid to return wrong results
     assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
-    final String disableCoordOrBlank = getDisableCoord();
     final String field = getField();
     final String sqlQuery = "select " + field + " from elasticsearch." + schema + "." + table + " where " + field + " is null";
     final String [] expectedJson = new String[] {
@@ -257,7 +256,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -281,7 +280,6 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     assumeFalse(elastic.getMinVersionInCluster().getMajor() == 6 && elastic.getMinVersionInCluster().getMinor() == 0);
     final String field = getField();
     final String sqlQuery = "select " + field + " from elasticsearch." + schema + "." + table + " where " + field + " is not null and " + field + " <> 'ABC'";
-    final String disableCoordOrBlank = getDisableCoord();
     final String[] expectedJson = new String[] {
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -307,11 +305,12 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\": true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -366,7 +365,6 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   @Test
   public final void runTestNotLike() throws Exception {
     final String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where city NOT LIKE 'San%'";
-    final String disableCoordOrBlank = getDisableCoord();
 
     verifyJsonInPlan(sqlQuery, new String[] {
       "[{\n" +
@@ -393,7 +391,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "            }\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -459,7 +457,6 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
   public final void runTestFilterInClause() throws Exception {
     final String sqlQuery = "select review_count from elasticsearch." + schema + "." + table +
       " where review_count in (1,11,22)";
-    final String disableCoordOrBlank = getDisableCoord();
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
         "  \"from\" : 0,\n" +
@@ -477,6 +474,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\": true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -491,6 +489,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\": true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
@@ -505,11 +504,12 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "              \"fuzzy_transpositions\" : false,\n" +
         "              \"lenient\" : false,\n" +
         "              \"zero_terms_query\" : \"NONE\",\n" +
+        "              \"auto_generate_synonyms_phrase_query\": true,\n" +
         "              \"boost\" : 1.0\n" +
         "            }\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -545,7 +545,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
           "  \"query\" : {\n" +
           "    \"script\" : {\n" +
           "      \"script\" : {\n" +
-          "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( (double)(doc[\\\"review_count\\\"].value) == (doc[\\\"stars\\\"].value).doubleValue() ))\",\n" +
+          "        \"source\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( (double)(doc[\\\"review_count\\\"].value) == (doc[\\\"stars\\\"].value).doubleValue() ))\",\n" +
           "        \"lang\" : \"painless\"\n" +
           "      },\n" +
           "      \"boost\" : 1.0\n" +
@@ -581,7 +581,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
           "  \"query\" : {\n" +
           "    \"script\" : {\n" +
           "      \"script\" : {\n" +
-          "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( ((float)(doc[\\\"review_count\\\"].value)) == doc[\\\"stars\\\"].value ))\",\n" +
+          "        \"source\" : \"(def) ((doc[\\\"review_count\\\"].empty || doc[\\\"stars\\\"].empty) ? false : ( ((float)(doc[\\\"review_count\\\"].value)) == doc[\\\"stars\\\"].value ))\",\n" +
           "        \"lang\" : \"painless\"\n" +
           "      },\n" +
           "      \"boost\" : 1.0\n" +
@@ -782,7 +782,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( Math.pow(doc[\\\"stars\\\"].value, 0.5) < 2 ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( Math.pow(doc[\\\"stars\\\"].value, 0.5) < 2 ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -816,7 +816,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"state\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + doc[\\\"state\\\"].value ) == 'San DiegoCA' ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"state\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + doc[\\\"state\\\"].value ) == 'San DiegoCA' ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -850,7 +850,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -941,7 +941,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( doc[\\\"city\\\"].value.toLowerCase().toUpperCase() == 'CAMBRIDGE' ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"city\\\"].empty) ? false : ( doc[\\\"city\\\"].value.toLowerCase().toUpperCase() == 'CAMBRIDGE' ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -1038,7 +1038,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : doc[\\\"city\\\"].value ) : (def) ( (doc[\\\"state\\\"].empty) ? null : doc[\\\"state\\\"].value ) ) == 'San Francisco' ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : doc[\\\"city\\\"].value ) : (def) ( (doc[\\\"state\\\"].empty) ? null : doc[\\\"state\\\"].value ) ) == 'San Francisco' ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -1112,7 +1112,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty || doc[\\\"review_count\\\"]" +
+        "        \"source\" : \"(def) ((doc[\\\"stars\\\"].empty || doc[\\\"review_count\\\"]" +
         ".empty) ? false : ( ( ( ( ( doc[\\\"stars\\\"].value + 2 ) - ( ( 2 * Math.floor(Math.pow" +
         "(doc[\\\"stars\\\"].value, 2)) ) / 4 ) ) + ( Math.pow(doc[\\\"stars\\\"].value, 0.5) / 1E0D ) ) - ( doc[\\\"review_count\\\"].value % 3 ) ) == 0.37082869338697066D ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
@@ -1287,7 +1287,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"datefield\\\"].empty) ? false : ( LocalDateTime.ofInstant(Instant.ofEpochMilli(doc[\\\"datefield\\\"]"+isValueOrIsDate+".millis), ZoneOffset.UTC).getDayOfMonth() == 10L ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"datefield\\\"].empty) ? false : ( LocalDateTime.ofInstant(Instant.ofEpochMilli(doc[\\\"datefield\\\"]"+isValueOrIsDate+".millis), ZoneOffset.UTC).getDayOfMonth() == 10L ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -1437,7 +1437,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"review_count\\\"].empty) ? false : ( ( Long.toString(doc[\\\"review_count\\\"].value).substring(0, Integer.min(1, Double.toString(doc[\\\"review_count\\\"].value).length())) + '' ) == '3' ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"review_count\\\"].empty) ? false : ( ( Long.toString(doc[\\\"review_count\\\"].value).substring(0, Integer.min(1, Double.toString(doc[\\\"review_count\\\"].value).length())) + '' ) == '3' ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +
@@ -1462,7 +1462,6 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Test
   public final void testMultipleFilters() throws Exception {
-    final String disableCoordOrBlank = getDisableCoord();
     final String sqlQuery = "select * from "
       + "(select state, city, review_count from elasticsearch." + schema + "." + table
       + " where char_length(trim(concat(city, '  '))) = 9) t"
@@ -1498,16 +1497,17 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "                          \"fuzzy_transpositions\" : false,\n" +
         "                          \"lenient\" : false,\n" +
         "                          \"zero_terms_query\" : \"NONE\",\n" +
+        "                          \"auto_generate_synonyms_phrase_query\": true,\n" +
         "                          \"boost\" : 1.0\n" +
         "                        }\n" +
         "                      }\n" +
         "                    }\n" +
-        "                  ],\n" + disableCoordOrBlank +
+        "                  ],\n" +
         "                  \"adjust_pure_negative\" : true,\n" +
         "                  \"boost\" : 1.0\n" +
         "                }\n" +
         "              }\n" +
-        "            ],\n" + disableCoordOrBlank +
+        "            ],\n" +
         "            \"adjust_pure_negative\" : true,\n" +
         "            \"boost\" : 1.0\n" +
         "          }\n" +
@@ -1515,13 +1515,13 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "        {\n" +
         "          \"script\" : {\n" +
         "            \"script\" : {\n" +
-        "              \"inline\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"review_count\\\"].empty) ? false : ( ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ) && ( doc[\\\"review_count\\\"].value != 11 ) ))\",\n" +
+        "              \"source\" : \"(def) ((doc[\\\"city\\\"].empty || doc[\\\"review_count\\\"].empty) ? false : ( ( ( doc[\\\"city\\\"].value + '  ' ).trim().length() == 9 ) && ( doc[\\\"review_count\\\"].value != 11 ) ))\",\n" +
         "              \"lang\" : \"painless\"\n" +
         "            },\n" +
         "            \"boost\" : 1.0\n" +
         "          }\n" +
         "        }\n" +
-        "      ],\n" + disableCoordOrBlank +
+        "      ],\n" +
         "      \"adjust_pure_negative\" : true,\n" +
         "      \"boost\" : 1.0\n" +
         "    }\n" +
@@ -1596,7 +1596,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"query\" : {\n" +
         "    \"script\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(def) ((doc[\\\"float_val\\\"].empty) ? false : ( Float.parseFloat(doc[\\\"float_val\\\"].value) < 50 ))\",\n" +
+        "        \"source\" : \"(def) ((doc[\\\"float_val\\\"].empty) ? false : ( Float.parseFloat(doc[\\\"float_val\\\"].value) < 50 ))\",\n" +
         "        \"lang\" : \"painless\"\n" +
         "      },\n" +
         "      \"boost\" : 1.0\n" +

@@ -20,4 +20,3 @@ public interface AckSender {
 
   AckSender NO_OP = () -> {};
 }
-

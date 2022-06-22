@@ -13,44 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
+import { Component } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
 
-import { page } from '@app/uiTheme/radium/general';
-import Message from '@app/components/Message';
-import { SingleEngineInfoBar } from '@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineInfoBar';
-import SingleEngineViewMixin from '@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineViewMixin';
-import { SINGLE_VIEW_TABS } from '@inject/constants/provisioningPage/provisioningConstants';
+import { page } from "@app/uiTheme/radium/general";
+import Message from "@app/components/Message";
+import { SingleEngineInfoBar } from "@app/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineInfoBar";
+import SingleEngineViewMixin from "@inject/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineViewMixin";
+import { SINGLE_VIEW_TABS } from "@inject/constants/provisioningPage/provisioningConstants";
 
 @SingleEngineViewMixin
 export class SingleEngineView extends Component {
   static propTypes = {
     engine: PropTypes.instanceOf(Immutable.Map),
     queues: PropTypes.instanceOf(Immutable.List),
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    viewState: PropTypes.instanceOf(Immutable.Map),
   };
 
   state = {
     activeTab: SINGLE_VIEW_TABS && SINGLE_VIEW_TABS.nodes,
-    filterList: []
+    filterList: [],
   };
 
   selectTab = (tab) => {
-    this.setState({activeTab: tab});
+    this.setState({ activeTab: tab });
   };
 
   renderErrorMessage = (engine) => {
-    const message = engine && engine.get('error');
+    const message = engine && engine.get("error");
     if (!message) return null;
 
     return (
       <Message
-        messageType='error'
+        messageType="error"
         message={message}
-        messageId={engine.get('id')}
-        key={engine.get('id')}
-        style={{ width: '100%' }}
+        messageId={engine.get("id")}
+        key={engine.get("id")}
+        style={{ width: "100%" }}
       />
     );
   };
@@ -58,9 +58,9 @@ export class SingleEngineView extends Component {
   render() {
     const { engine } = this.props;
     return (
-      <div id='admin-engine' style={page}>
+      <div id="admin-engine" style={page}>
         {this.renderErrorMessage(engine)}
-        <SingleEngineInfoBar engine={engine}/>
+        <SingleEngineInfoBar engine={engine} />
         {this.renderTabBar()}
         {this.renderTab()}
       </div>

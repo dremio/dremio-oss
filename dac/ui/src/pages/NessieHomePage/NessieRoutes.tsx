@@ -13,28 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { IndexRoute, Redirect, Route } from 'react-router';
-import NamespaceTable from './components/NamespaceTable/NamespaceTable';
-import TableDetailsPage from './components/TableDetailsPage/TableDetailsPage';
-import RepoView from './components/RepoView/RepoView';
-import CommitDetailsPage from './components/CommitDetailsPage/CommitDetailsPage';
-import BranchHistory from './components/BranchHistory/BranchHistory';
-import NessieProjectHomePage from './components/NessieProjectHomePage/NessieProjectHomePage';
-import NessieSourceHomePage from './components/NessieSourceHomePage/NessieSourceHomePage';
+import React from "react";
+import { IndexRoute, Redirect, Route } from "react-router";
+import NamespaceTable from "./components/NamespaceTable/NamespaceTable";
+import TableDetailsPage from "./components/TableDetailsPage/TableDetailsPage";
+import RepoView from "./components/RepoView/RepoView";
+import CommitDetailsPage from "./components/CommitDetailsPage/CommitDetailsPage";
+import BranchHistory from "./components/BranchHistory/BranchHistory";
+import NessieProjectHomePage from "./components/NessieProjectHomePage/NessieProjectHomePage";
+import NessieSourceHomePage from "./components/NessieSourceHomePage/NessieSourceHomePage";
 
 const CommonRoutes = [
-  <Route path='branches' component={RepoView} />,
-  <Route path='commit/:branchName/:commitHash' component={CommitDetailsPage} />,
-  <Route path='branches/:branchName' component={BranchHistory} />,
-  <Route path='table/:id' component={TableDetailsPage} />
+  <Route key="branches" path="branches" component={RepoView} />,
+  <Route
+    key="commitDetails"
+    path="commit/:branchName/:commitHash"
+    component={CommitDetailsPage}
+  />,
+  <Route
+    key="branchHistory"
+    path="branches/:branchName"
+    component={BranchHistory}
+  />,
+  <Route key="tableDetails" path="table/*" component={TableDetailsPage} />,
 ];
 
 function nessieRoutes() {
   return (
     <Route component={NessieProjectHomePage}>
       <IndexRoute component={NamespaceTable} />
-      <Route path='namespace/:id' component={NamespaceTable} />
+      <Route path="namespace/*" component={NamespaceTable} />
       {CommonRoutes}
     </Route>
   );
@@ -42,10 +50,18 @@ function nessieRoutes() {
 
 export function nessieSourceRoutes() {
   return [
-    <Redirect from='/sources/dataplane/:sourceId' to='/sources/dataplane/:sourceId/branches' />,
-    <Route path='/sources/dataplane/:sourceId' component={NessieSourceHomePage}>
+    <Redirect
+      key="nessieSourceRoutes"
+      from="/sources/dataplane/:sourceId"
+      to="/sources/dataplane/:sourceId/branches"
+    />,
+    <Route
+      key="nessieSourceHomePage"
+      path="/sources/dataplane/:sourceId"
+      component={NessieSourceHomePage}
+    >
       {CommonRoutes}
-    </Route>
+    </Route>,
   ];
 }
 

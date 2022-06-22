@@ -24,4 +24,3 @@ public class DuplicateScriptNameException extends Exception {
     super("Cannot reuse the same script name within a project. Please try another script name.");
   }
 }
-

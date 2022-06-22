@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { SelectedTextPopoverView as SelectedTextPopover } from './SelectedTextPopover';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { SelectedTextPopoverView as SelectedTextPopover } from "./SelectedTextPopover";
 
-describe('SelectedTextPopover', () => {
+describe("SelectedTextPopover", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -25,46 +25,48 @@ describe('SelectedTextPopover', () => {
   beforeEach(() => {
     minimalProps = {
       location: {
-        pathname: 'ds1',
-        state: {}
-      }
+        pathname: "ds1",
+        state: {},
+      },
     };
     commonProps = {
       ...minimalProps,
       location: {
         ...minimalProps.location,
-        query: {}
-      }
+        query: {},
+      },
     };
-    wrapper = shallow(<SelectedTextPopover {...commonProps}/>);
+    wrapper = shallow(<SelectedTextPopover {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<SelectedTextPopover {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<SelectedTextPopover {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('renderItems', () => {
+  describe("renderItems", () => {
     beforeEach(() => {
-      sinon.stub(instance, 'renderForItemsOfList');
-      sinon.stub(instance, 'renderItem');
+      sinon.stub(instance, "renderForItemsOfList");
+      sinon.stub(instance, "renderItem");
     });
     afterEach(() => {
       instance.renderForItemsOfList.restore();
       instance.renderItem.restore();
     });
 
-    it('should call renderItem', () => {
+    it("should call renderItem", () => {
       instance.renderItems();
       expect(instance.renderForItemsOfList.called).to.be.false;
       expect(instance.renderItem.called).to.be.true;
     });
 
-    it('should call renderForItemsOfList if location.state has listOfItems', () => {
+    it("should call renderForItemsOfList if location.state has listOfItems", () => {
       const location = {
         ...commonProps.location,
-        state: { listOfItems: ['Extract', 'Replace', 'Split', 'Keep Only', 'Exclude'] } // todo: why does this use UI strings?
+        state: {
+          listOfItems: ["Extract", "Replace", "Split", "Keep Only", "Exclude"],
+        }, // todo: why does this use UI strings?
       };
       wrapper.setProps({ location });
       expect(instance.renderForItemsOfList.calledOnce).to.be.true;
@@ -72,50 +74,61 @@ describe('SelectedTextPopover', () => {
     });
   });
 
-  describe('getItemsForColumnType', () => {
-    it('should return filtered items if type !== TEXT && type !== LIST && type !== MAP', () => {
-      expect(instance.getItemsForColumnType('INTEGER')).to.eql(
-        instance.items.filter(item => item.get('name') !== 'Extract…' && item.get('name') !== 'Split…')
+  describe("getItemsForColumnType", () => {
+    it("should return filtered items if type !== TEXT && type !== LIST && type !== MAP", () => {
+      expect(instance.getItemsForColumnType("INTEGER")).to.eql(
+        instance.items.filter(
+          (item) =>
+            item.get("name") !== "Extract…" && item.get("name") !== "Split…"
+        )
       );
     });
 
-    it('should return all items if type of TEXT or List or MAP', () => {
-      expect(instance.getItemsForColumnType('TEXT')).to.eql(instance.items);
-      expect(instance.getItemsForColumnType('MAP')).to.eql(instance.items);
-      expect(instance.getItemsForColumnType('LIST')).to.eql(instance.items);
+    it("should return all items if type of TEXT or List or MAP", () => {
+      expect(instance.getItemsForColumnType("TEXT")).to.eql(instance.items);
+      expect(instance.getItemsForColumnType("MAP")).to.eql(instance.items);
+      expect(instance.getItemsForColumnType("LIST")).to.eql(instance.items);
     });
-    it('should return empty list if type of BINARY or MIXED', () => {
-      expect(instance.getItemsForColumnType('BINARY')).to.eql(Immutable.List());
-      expect(instance.getItemsForColumnType('MIXED')).to.eql(Immutable.List());
+    it("should return empty list if type of BINARY or MIXED", () => {
+      expect(instance.getItemsForColumnType("BINARY")).to.eql(Immutable.List());
+      expect(instance.getItemsForColumnType("MIXED")).to.eql(Immutable.List());
     });
   });
 
-  describe('renderItem', () => {
+  describe("renderItem", () => {
     let menuItemLink;
     beforeEach(() => {
       menuItemLink = shallow(
-        instance.renderItem(Immutable.fromJS({transform: 'extract', name: 'Extract'}))
+        instance.renderItem(
+          Immutable.fromJS({ transform: "extract", name: "Extract" })
+        )
       );
     });
-    it('should add transformType=item.transform to href.state', () => {
-      expect(menuItemLink.instance().props.href.state).to.eql({ transformType: 'extract' });
+    it("should add transformType=item.transform to href.state", () => {
+      expect(menuItemLink.instance().props.href.state).to.eql({
+        transformType: "extract",
+      });
     });
-    it('should add type=transform to href.query', () => {
-      expect(menuItemLink.instance().props.href.query).to.eql({ type: 'transform' });
+    it("should add type=transform to href.query", () => {
+      expect(menuItemLink.instance().props.href.query).to.eql({
+        type: "transform",
+      });
     });
-    it('should append /details to href.pathname', () => {
-      expect(menuItemLink.instance().props.href.pathname).to.eql('ds1/details');
+    it("should append /details to href.pathname", () => {
+      expect(menuItemLink.instance().props.href.pathname).to.eql("ds1/details");
     });
   });
 
-  describe('renderForItemsOfList', () => {
-    it('should call renderItem with extract item', () => {
-      sinon.spy(instance, 'renderItem');
-      const newState = { columnName: 'revenue', columnType: 'INTEGER' };
+  describe("renderForItemsOfList", () => {
+    it("should call renderItem with extract item", () => {
+      sinon.spy(instance, "renderItem");
+      const newState = { columnName: "revenue", columnType: "INTEGER" };
       instance.renderForItemsOfList(newState);
-      expect(instance.items.get(0).get('name')).to.eql('Extract…');
-      expect(instance.renderItem).to.be.calledWith(instance.items.get(0), newState);
+      expect(instance.items.get(0).get("name")).to.eql("Extract…");
+      expect(instance.renderItem).to.be.calledWith(
+        instance.items.get(0),
+        newState
+      );
     });
   });
-
 });

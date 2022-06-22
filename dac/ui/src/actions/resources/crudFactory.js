@@ -13,46 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-import { CALL_MOCK_API } from 'mockApi';
-import { arrayOf, Schema } from 'normalizr';
-import schemaUtils from 'utils/apiUtils/schemaUtils';
-import Immutable from 'immutable';
-import { APIV2Call } from '@app/core/APICall';
+import { RSAA } from "redux-api-middleware";
+import { CALL_MOCK_API } from "mockApi";
+import { arrayOf, Schema } from "normalizr";
+import schemaUtils from "utils/apiUtils/schemaUtils";
+import Immutable from "immutable";
+import { APIV2Call } from "@app/core/APICall";
 
-const COMMON = {headers: {'Content-Type': 'application/json'}};
+const COMMON = { headers: { "Content-Type": "application/json" } };
 
-const METHODS_WITH_REQUEST_BODY = new Set(['PUT', 'POST']);
+const METHODS_WITH_REQUEST_BODY = new Set(["PUT", "POST"]);
 
-export default (schemaOrName, {useLegacyPluralization = false} = {}) => {
-  const schema = typeof schemaOrName === 'string' ? new Schema(schemaOrName) : schemaOrName;
+export default (schemaOrName, { useLegacyPluralization = false } = {}) => {
+  const schema =
+    typeof schemaOrName === "string" ? new Schema(schemaOrName) : schemaOrName;
   const entityName = schema.getKey();
-  const listSchema = { [entityName + 's']: arrayOf(schema) };
+  const listSchema = { [entityName + "s"]: arrayOf(schema) };
   const upper = entityName.toUpperCase();
-  const path = entityName.toLowerCase() + (useLegacyPluralization ? '' : 's');
+  const path = entityName.toLowerCase() + (useLegacyPluralization ? "" : "s");
   // const title = entityName.charAt(0).toUpperCase() + entityName.slice(1);
   const idAttribute = schema.getIdAttribute();
 
   const apiCallFactory = (method) => {
     return function call(idOrObject, meta) {
       let id = idOrObject;
-      if (typeof idOrObject === 'object') {
+      if (typeof idOrObject === "object") {
         id = get(idOrObject, idAttribute);
       }
 
-      const apiCall = new APIV2Call().paths(`${path}/${id || ''}`);
+      const apiCall = new APIV2Call().paths(`${path}/${id || ""}`);
 
       let successMeta = meta;
 
-      if (method === 'DELETE') {
+      if (method === "DELETE") {
         successMeta = {
           ...successMeta,
           success: true, // view reducer duck-type happiness
-          entityRemovePaths: [[entityName, id]] // if we succeed, it should be gone
+          entityRemovePaths: [[entityName, id]], // if we succeed, it should be gone
         };
-        const version = get(idOrObject, 'version');
+        const version = get(idOrObject, "version");
         if (version !== undefined) {
-          apiCall.params({version});
+          apiCall.params({ version });
         }
       }
 
@@ -60,15 +61,21 @@ export default (schemaOrName, {useLegacyPluralization = false} = {}) => {
         [call.mock ? CALL_MOCK_API : RSAA]: {
           ...COMMON,
           types: [
-            {type: `${upper}_${method}_START`, meta},
-            schemaUtils.getSuccessActionTypeWithSchema(`${upper}_${method}_SUCCESS`, schema, successMeta),
-            {type: `${upper}_${method}_FAILURE`, meta} // todo: failure not called? start called instead?!
+            { type: `${upper}_${method}_START`, meta },
+            schemaUtils.getSuccessActionTypeWithSchema(
+              `${upper}_${method}_SUCCESS`,
+              schema,
+              successMeta
+            ),
+            { type: `${upper}_${method}_FAILURE`, meta }, // todo: failure not called? start called instead?!
           ],
           method,
-          body: METHODS_WITH_REQUEST_BODY.has(method) ? JSON.stringify(idOrObject) : undefined,
+          body: METHODS_WITH_REQUEST_BODY.has(method)
+            ? JSON.stringify(idOrObject)
+            : undefined,
           endpoint: apiCall,
-          ...call.mock
-        }
+          ...call.mock,
+        },
       };
 
       return req;
@@ -78,49 +85,51 @@ export default (schemaOrName, {useLegacyPluralization = false} = {}) => {
   const calls = {
     // add schemas to output to make them re-usable.
     schema,
-    listSchema
+    listSchema,
   };
-  for (const call of ['GET', 'POST', 'PUT', 'DELETE']) {
+  for (const call of ["GET", "POST", "PUT", "DELETE"]) {
     calls[call.toLowerCase()] = apiCallFactory(call);
   }
 
-  calls.getAll = function call(meta) { // todo: more DRY
-    const method = 'GET_ALL';
-    const successMeta = {...meta, entityClears: [entityName]}; // trigger a clear, since records may now be gone;
+  calls.getAll = function call(meta) {
+    // todo: more DRY
+    const method = "GET_ALL";
+    const successMeta = { ...meta, entityClears: [entityName] }; // trigger a clear, since records may now be gone;
 
-    const apiCall = new APIV2Call()
-      .paths(`${path}${useLegacyPluralization ? 's' : ''}`);
+    const apiCall = new APIV2Call().paths(
+      `${path}${useLegacyPluralization ? "s" : ""}`
+    );
 
     const req = {
       [call.mock ? CALL_MOCK_API : RSAA]: {
         ...COMMON,
         types: [
-          {type: `${upper}_${method}_START`, meta},
+          { type: `${upper}_${method}_START`, meta },
           schemaUtils.getSuccessActionTypeWithSchema(
             `${upper}_${method}_SUCCESS`,
             listSchema, // todo: simplify and normalize responses
             successMeta
           ),
-          {type: `${upper}_${method}_FAILURE`, meta}
+          { type: `${upper}_${method}_FAILURE`, meta },
         ],
-        method: 'GET',
+        method: "GET",
         endpoint: apiCall,
-        ...call.mock
-      }
+        ...call.mock,
+      },
     };
     return req;
   };
 
   for (const call of Object.values(calls)) {
-    call.dispatch = function() {
-      return dispatch => dispatch(call(...arguments));
+    call.dispatch = function () {
+      return (dispatch) => dispatch(call(...arguments));
     };
   }
 
   return calls;
 };
 
-
-function get(obj, key) { // todo: kill this
+function get(obj, key) {
+  // todo: kill this
   return Immutable.Iterable.isIterable(obj) ? obj.get(key) : obj[key];
 }

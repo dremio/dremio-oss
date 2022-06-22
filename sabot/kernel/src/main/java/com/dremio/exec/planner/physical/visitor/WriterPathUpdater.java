@@ -36,7 +36,6 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -81,11 +80,10 @@ public class WriterPathUpdater extends BasePrelVisitor<Prel, CreateTableEntry, R
     final CreateTableEntry createTableEntry = context.getCatalog()
       .resolveCatalog(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
       .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions, true);
-    final FileSystemCreateTableEntry fileEntry = (FileSystemCreateTableEntry) createTableEntry;
 
     WriterCommitterPrel committerPrel = new WriterCommitterPrel(prel.getCluster(),
-      prel.getTraitSet(), ((Prel) prel.getInput(0)).accept(this, createTableEntry), fileEntry.getPlugin(),
-      null, fileEntry.getLocation(), fileEntry.getUserName(), fileEntry, Optional.empty(), prel.isPartialRefresh(), prel.isReadSignatureEnabled());
+      prel.getTraitSet(), ((Prel) prel.getInput(0)).accept(this, createTableEntry), createTableEntry.getPlugin(),
+      null, createTableEntry.getLocation(), createTableEntry.getUserName(), createTableEntry, Optional.empty(), prel.isPartialRefresh(), prel.isReadSignatureEnabled());
     return committerPrel;
   }
 

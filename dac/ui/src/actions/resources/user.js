@@ -13,36 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import schemaUtils from 'utils/apiUtils/schemaUtils';
-import userSchema from 'schemas/user';
-import { APIV2Call } from '@app/core/APICall';
+import schemaUtils from "utils/apiUtils/schemaUtils";
+import userSchema from "schemas/user";
+import { APIV2Call } from "@app/core/APICall";
 
-const USER_GET_START = 'USER_GET_START';
-const USER_GET_SUCCESS = 'USER_GET_SUCCESS';
-const USER_GET_FAILURE = 'USER_GET_FAILURE';
+const USER_GET_START = "USER_GET_START";
+const USER_GET_SUCCESS = "USER_GET_SUCCESS";
+const USER_GET_FAILURE = "USER_GET_FAILURE";
 
 function fetchUser(value, meta = {}) {
   const apiCall = new APIV2Call()
-    .path('user')
+    .path("user")
     .path(value.userName)
     .uncachable();
 
   return {
     [RSAA]: {
       types: [
-        {type: USER_GET_START, meta},
-        schemaUtils.getSuccessActionTypeWithSchema(USER_GET_SUCCESS, userSchema, meta),
-        {type: USER_GET_FAILURE, meta}
+        { type: USER_GET_START, meta },
+        schemaUtils.getSuccessActionTypeWithSchema(
+          USER_GET_SUCCESS,
+          userSchema,
+          meta
+        ),
+        { type: USER_GET_FAILURE, meta },
       ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 }
 
-export function loadUser() { // todo: audit uses of this call and switch to ids where possible (vs userName)
+export function loadUser() {
+  // todo: audit uses of this call and switch to ids where possible (vs userName)
   return (dispatch) => {
     return dispatch(fetchUser(...arguments));
   };

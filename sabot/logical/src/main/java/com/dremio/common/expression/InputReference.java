@@ -15,13 +15,13 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.Iterators;
 
 /**
  * A form reference that also declares both the specific field to retrieve and which input ordinal this expression is
@@ -62,7 +62,7 @@ public class InputReference extends LogicalExpressionBase {
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    return Collections.<LogicalExpression>singleton(reference).iterator();
+    return Iterators.singletonIterator(reference);
   }
 
   @Override

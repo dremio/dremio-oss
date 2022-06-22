@@ -13,17 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'use strict';
+"use strict";
 
-beforeEach(function() {
+beforeEach(function () {
   this.addMatchers({
     toBeInstanceOf(constructor) {
       const actual = this.actual;
-      const notText = this.isNot ? ' not' : '';
+      const notText = this.isNot ? " not" : "";
       this.message = () => {
-        return 'Expected ' + actual.constructor.name + notText + ' to be instance of ' + constructor.name;
+        return (
+          "Expected " +
+          actual.constructor.name +
+          notText +
+          " to be instance of " +
+          constructor.name
+        );
       };
       return actual instanceof constructor;
-    }
+    },
   });
 });

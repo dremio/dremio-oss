@@ -13,15 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import moment from 'moment';
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import { SelectView } from '@app/components/Fields/SelectView';
-import * as IntervalTypes from './IntervalTypes';
-import LeftPanel from './LeftPanel';
-import RightPanel from './RightPanel';
+import { Component } from "react";
+import Immutable from "immutable";
+import moment from "@app/utils/dayjs";
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import clsx from "clsx";
+import { SelectView } from "@app/components/Fields/SelectView";
+import EllipsedText from "components/EllipsedText";
+import * as IntervalTypes from "./IntervalTypes";
+import LeftPanel from "./LeftPanel";
+import RightPanel from "./RightPanel";
+
+import "./StartTimeSelect.less";
+
 class StartTimeSelect extends Component {
   static propTypes = {
     id: PropTypes.string.isRequired,
@@ -32,43 +37,65 @@ class StartTimeSelect extends Component {
     intl: PropTypes.object.isRequired,
     popoverFilters: PropTypes.string,
 
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   getLabel = () => {
-    const { intl: { formatMessage }, className } = this.props;
+    const {
+      intl: { formatMessage },
+      className,
+    } = this.props;
     const selectedInterval = this.getSelectedInterval();
     const selectedType = this.getActiveTimeType(selectedInterval);
     const options = this.getOptions(selectedInterval);
-    const startMoment = options.getIn(['range', 'startMoment']);
-    const endMoment = options.getIn(['range', 'endMoment']);
+    const startMoment = options.getIn(["range", "startMoment"]);
+    const endMoment = options.getIn(["range", "endMoment"]);
 
-    if (selectedType === IntervalTypes.CUSTOM_INTERVAL && startMoment && endMoment) {
+    if (
+      selectedType === IntervalTypes.CUSTOM_INTERVAL &&
+      startMoment &&
+      endMoment
+    ) {
       const duration = moment.duration(endMoment.diff(startMoment));
       const days = Math.floor(duration.asDays());
-      const rangeText = days > 0
-        ? LeftPanel.getDays(endMoment, startMoment)
-        : LeftPanel.getHours(endMoment, startMoment);
-      return `Custom (${rangeText})`;
+      const rangeText =
+        days > 0
+          ? LeftPanel.getDays(endMoment, startMoment)
+          : LeftPanel.getHours(endMoment, startMoment);
+      return (
+        <EllipsedText text={`Custom (${rangeText})`}>
+          {`Custom (${rangeText})`}
+        </EllipsedText>
+      );
     }
     if (!selectedInterval || selectedType === IntervalTypes.ALL_TIME_INTERVAL) {
-      return <div>
-        <span>{formatMessage({ id: 'Common.StartTime' })} </span>
-        <span className={className}>
-          {selectedInterval.get('label')}
-        </span>
-      </div>;
+      return (
+        <div>
+          <span>{formatMessage({ id: "Common.StartTime" })} </span>
+          <span className={className}>{selectedInterval.get("label")}</span>
+        </div>
+      );
     }
-    const interval = LeftPanel.getIntervals().find((int) => int.get('type') === selectedType);
-    return interval ? interval.get('label') : null;
-  }
+    const interval = LeftPanel.getIntervals().find(
+      (int) => int.get("type") === selectedType
+    );
+    return interval ? (
+      <EllipsedText text={interval.get("label")}>
+        {interval.get("label")}
+      </EllipsedText>
+    ) : null;
+  };
 
   getOptions(selectedInterval) {
     return Immutable.fromJS({
       range: {
-        startMoment: selectedInterval ? selectedInterval.getIn(['time', 0]) : moment(this.props.startTime),
-        endMoment: selectedInterval ? selectedInterval.getIn(['time', 1]) : moment(this.props.endTime)
-      }
+        startMoment: selectedInterval
+          ? selectedInterval.getIn(["time", 0])
+          : moment(this.props.startTime),
+        endMoment: selectedInterval
+          ? selectedInterval.getIn(["time", 1])
+          : moment(this.props.endTime),
+      },
     });
   }
 
@@ -78,13 +105,16 @@ class StartTimeSelect extends Component {
     const intervals = LeftPanel.getIntervals();
 
     if (!startMoment || !endMoment) {
-      return intervals.find(item => item.get('type') === this.props.defaultType);
+      return intervals.find(
+        (item) => item.get("type") === this.props.defaultType
+      );
     }
 
-    return intervals.find(item => {
-      const startTime = item.getIn(['time', 0]) && item.getIn(['time', 0]).unix();
+    return intervals.find((item) => {
+      const startTime =
+        item.getIn(["time", 0]) && item.getIn(["time", 0]).unix();
       const currentStartTime = startMoment.unix();
-      const endTime = item.getIn(['time', 1]).unix();
+      const endTime = item.getIn(["time", 1]).unix();
       const currentEndTime = endMoment.unix();
       const diffStart = Math.abs(currentStartTime - startTime);
       const diffEnd = Math.abs(currentEndTime - endTime);
@@ -93,44 +123,57 @@ class StartTimeSelect extends Component {
     });
   }
   getActiveTimeType(interval) {
-    return interval ? interval.get('type') : IntervalTypes.CUSTOM_INTERVAL;
+    return interval ? interval.get("type") : IntervalTypes.CUSTOM_INTERVAL;
   }
 
   handleChange = (type, range) => {
     if (this.props.onChange) {
       this.props.onChange(type, range);
     }
-  }
+  };
 
-  renderDropdown = () => {
-    const selectedInterval = this.getSelectedInterval();
-    const selectedType = this.getActiveTimeType(selectedInterval);
-    const options = this.getOptions(selectedInterval);
-
+  renderDropdown = (selectedType, options) => {
     return (
-      <div style={style.dropDown} >
+      <div style={style.dropDown}>
         <LeftPanel
           filterType={this.props.defaultType}
           activeType={selectedType}
           onChange={this.handleChange}
         />
         <RightPanel
+          key={selectedType} //Rerender datepicker until fixed: https://github.com/hypeserver/react-date-range/issues/552
           handleChange={this.handleChange}
-          options={options} />
+          options={options}
+        />
       </div>
     );
-  }
+  };
 
   render() {
+    const selectedInterval = this.getSelectedInterval();
+    const selectedType = this.getActiveTimeType(selectedInterval);
+    const options = this.getOptions(selectedInterval);
+
+    const className = clsx("startTimeSelect__labelWrapper", {
+      "--filtered":
+        selectedInterval && selectedType !== IntervalTypes.ALL_TIME_INTERVAL,
+    });
+    const icon =
+      selectedInterval && selectedType !== IntervalTypes.ALL_TIME_INTERVAL
+        ? "ArrowDownBlue.svg"
+        : "ArrowDown.svg";
+
     return (
       <SelectView
         popoverFilters={this.props.popoverFilters}
-        ref='selectView'
-        className={this.props.id}
+        className={className}
         content={this.getLabel}
-        dataQa='st-filter'
+        dataQa="st-filter"
+        icon={icon}
+        isArtIcon
+        iconClass="startTimeSelect__arrowIcon"
       >
-        {this.renderDropdown}
+        {this.renderDropdown(selectedType, options)}
       </SelectView>
     );
   }
@@ -138,14 +181,15 @@ class StartTimeSelect extends Component {
 export default injectIntl(StartTimeSelect);
 const style = {
   dropDown: {
-    boxShadow: '0 0 5px #999',
-    borderRadius: '2px',
-    backgroundColor: '#fff',
-    zIndex: '99',
-    padding: '0 0 8px',
-    display: 'flex',
-    flexWrap: 'nowrap',
-    fontFamily: 'Inter var'
-  }
+    boxShadow: "0 0 5px #999",
+    borderRadius: "2px",
+    backgroundColor: "#fff",
+    zIndex: "99",
+    padding: "0 0 8px",
+    display: "flex",
+    flexWrap: "nowrap",
+    fontFamily: "Inter var",
+    height: "100%",
+    width: "100%",
+  },
 };
-

@@ -47,7 +47,7 @@ public class LazyDataGeneratingHiveTestBase extends PlanTestBase {
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
 
   protected static HiveTestDataGenerator dataGenerator;
   protected static SabotContext sabotContext;
@@ -113,5 +113,37 @@ public class LazyDataGeneratingHiveTestBase extends PlanTestBase {
       testBuilder = testBuilder.baselineValues(baselineValue);
     }
     testBuilder.go();
+  }
+
+  protected String getCreateTableQuery(String tableNameWithCatalog, String schema) {
+    return String.format("create table %s %s", tableNameWithCatalog, schema);
+  }
+
+  protected String getSelectQuery(String tableNameWithCatalog) {
+    return String.format("SELECT * FROM %s ", tableNameWithCatalog);
+  }
+
+  protected String getCTASQuery(String fromTableNameWithCatalog, String newTableNameWithCatalog) {
+    return String.format("create table %s as select * from %s", newTableNameWithCatalog, fromTableNameWithCatalog);
+  }
+
+  protected String getDropTableQuery(String tableName) {
+    return String.format("DROP TABLE IF EXISTS %s", tableName);
+  }
+
+  protected String getInsertQuery(String tableName, String values) {
+    return String.format("insert into %s values %s", tableName, values);
+  }
+
+  protected void addColumns(String tableName, String columns) throws Exception {
+    runSQL(String.format("alter table  %s add columns %s", tableName, columns));
+  }
+
+  protected void dropColumn(String tableName, String colName) throws Exception {
+    runSQL(String.format("alter table %s drop column  %s",  tableName, colName));
+  }
+
+  protected void renameColumn(String tableName, String oldColName, String newColumnName, String type) throws Exception {
+    runSQL( String.format("alter table %s change column %s %s %s", tableName, oldColName, newColumnName, type));
   }
 }

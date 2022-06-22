@@ -13,27 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import MenuItemLink from 'components/Menus/MenuItemLink';
-import { EntityLinkProvider } from '@app/pages/HomePage/components/EntityLink';
-import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
-import { manageSourceRule } from '@app/utils/authUtils';
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import MenuItemLink from "components/Menus/MenuItemLink";
+import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
+import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
+import { manageSourceRule } from "@app/utils/authUtils";
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     render() {
       const { item, closeMenu } = this.props;
       const { location } = this.context;
-      const name = item.get('name');
+      const name = item.get("name");
       return (
         <Menu>
           {
-            <EntityLinkProvider entityId={item.get('id')}>
+            <EntityLinkProvider entityId={item.get("id")}>
               {(link) => (
                 <MenuItemLink
                   href={link}
-                  text={la('Browse')}
+                  text={la("Browse")}
                   closeMenu={closeMenu}
                 />
               )}
@@ -44,20 +45,22 @@ export default function(input) {
               href={{
                 ...location,
                 state: {
-                  modal: 'EditSourceModal',
+                  modal: "EditSourceModal",
                   query: {
                     name,
-                    type: item.get('type')
-                  }
-                }
+                    type: item.get("type"),
+                  },
+                },
               }}
-              text={la('Edit Details')}
+              text={la("Edit Details")}
               closeMenu={closeMenu}
             />
-            <MenuItem onClick={this.handleRemoveSource}>{la('Remove Source')}</MenuItem>
+            <MenuItem onClick={this.handleRemoveSource}>
+              {la("Remove Source")}
+            </MenuItem>
           </RestrictedArea>
         </Menu>
       );
-    }
+    },
   });
 }

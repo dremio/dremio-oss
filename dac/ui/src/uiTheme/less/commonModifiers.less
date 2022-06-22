@@ -16,7 +16,7 @@
 
 @import "~@app/uiTheme/less/color-schema.less";
 @import "~@app/uiTheme/less/variables.less";
- 
+
 @directions: left, right, top, bottom;
 
 @gutter-sizes: {
@@ -28,10 +28,10 @@
   triple: 24px;
   quadruple: 32px;
   octuple: 64px;
-}
- 
+};
+
 @positions: static, relative, fixed, absolute, sticky;
- 
+
 :global {
   .height {
     &-icon {
@@ -51,13 +51,12 @@
     }
 
     &-none {
-      height: 0
+      height: 0;
     }
 
     &-row {
       height: @row-height;
     }
-
   }
 
   .margin {
@@ -71,7 +70,7 @@
         margin-@{direction-val}: @margin-val !important
         }
       })
-    })
+    });
   }
 
   .padding {
@@ -85,7 +84,7 @@
         padding-@{direction-val}: @padding-val !important
         }
       })
-    })
+    });
   }
 
   .position {
@@ -93,16 +92,16 @@
       &-@{position-val} {
       position: @position-val
       }
-    })
+    });
   }
 
   .width {
     &-auto {
-      width: auto
+      width: auto;
     }
 
     &-full {
-      width: 100% !important
+      width: 100% !important;
     }
 
     &-icon {
@@ -110,7 +109,7 @@
     }
 
     &-none {
-      width: 0
+      width: 0;
     }
   }
 }

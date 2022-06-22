@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { TEAL } from 'uiTheme/radium/colors';
+import { TEAL } from "uiTheme/radium/colors";
 
 class Meter extends PureComponent {
   static propTypes = {
@@ -25,13 +25,13 @@ class Meter extends PureComponent {
     max: PropTypes.number,
     color: PropTypes.string,
     background: PropTypes.string,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+  };
 
   static defaultProps = {
     value: 0,
-    max: 1
-  }
+    max: 1,
+  };
 
   render() {
     const { color, background, style, value, max } = this.props;
@@ -40,13 +40,13 @@ class Meter extends PureComponent {
       width: `${barScale * 100}%`,
       backgroundColor: color || TEAL,
       ...styles.bar,
-      minWidth: barScale === 0 ? 0 : 1
+      minWidth: barScale === 0 ? 0 : 1,
     };
-    const barBackground = background || 'none';
+    const barBackground = background || "none";
 
     return (
-      <div ref='meter' style={{ ...styles.base, background: barBackground, ...style }}>
-        <div style={barStyle}/>
+      <div style={{ ...styles.base, background: barBackground, ...style }}>
+        <div style={barStyle} />
       </div>
     );
   }
@@ -54,13 +54,13 @@ class Meter extends PureComponent {
 
 const styles = {
   base: {
-    width: '100%',
-    height: 8
+    width: "100%",
+    height: 8,
   },
   bar: {
-    height: '100%',
-    maxWidth: '100%'
-  }
+    height: "100%",
+    maxWidth: "100%",
+  },
 };
 
 export default Meter;

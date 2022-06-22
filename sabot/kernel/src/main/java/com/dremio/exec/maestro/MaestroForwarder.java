@@ -20,11 +20,12 @@ import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.service.jobresults.JobResultsRequest;
+import com.dremio.services.jobresults.common.JobResultsRequestWrapper;
 
 /**
  * forwards the request to target maestro server
  */
-public interface MaestroForwarder {
+public interface MaestroForwarder extends AutoCloseable {
 
   void screenCompleted(NodeQueryScreenCompletion completion);
 
@@ -33,6 +34,8 @@ public interface MaestroForwarder {
   void nodeQueryMarkFirstError(NodeQueryFirstError completion);
 
   void dataArrived(JobResultsRequest jobResultsRequest, ResponseSender sender);
+
+  void dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender);
 
   void resultsCompleted(String queryId);
 

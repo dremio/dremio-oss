@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import Art from '@app/components/Art';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import Art from "@app/components/Art";
 import {
   tag,
   selected,
@@ -24,11 +24,10 @@ import {
   deleteButton,
   clickable,
   textWrapper,
-  text as textClass
-} from './Tag.less';
+  text as textClass,
+} from "./Tag.less";
 
 export class Tag extends Component {
-
   static propTypes = {
     text: PropTypes.string,
     readonly: PropTypes.bool,
@@ -42,11 +41,11 @@ export class Tag extends Component {
     //handlers
     onClick: PropTypes.func,
     deleteHandler: PropTypes.func,
-    onRef: PropTypes.func
+    onRef: PropTypes.func,
   };
 
   static defaultProps = {
-    title: true
+    title: true,
   };
 
   deleteClick = (e) => {
@@ -65,19 +64,22 @@ export class Tag extends Component {
       isSelected,
       daqa,
       title,
-      onRef
+      onRef,
     } = this.props;
     const isDeletable = !readonly && !!deleteHandler;
 
     // 'font-icon' and 'XBig' are global icon style classes
     const props = {
-      className: classNames(tag, isDeletable && deletable, isSelected && selected,
+      className: classNames(
+        tag,
+        isDeletable && deletable,
+        isSelected && selected,
         onClick && clickable, // show pointer if onClick handler is provided
-        className),
+        className
+      ),
       onClick,
-      'data-qa': daqa
+      "data-qa": daqa,
     };
-
 
     // set title if title property is true or a string
     if (title) {
@@ -87,14 +89,17 @@ export class Tag extends Component {
     return (
       <div {...props} ref={onRef}>
         <span className={textWrapper}>
-          <span className={textClass}>
-            {text}
-          </span>
+          <span className={textClass}>{text}</span>
         </span>
-        {
-          isDeletable &&
-          <Art src='XBig.svg' alt='delete' title  className={classNames(deleteButton)} onClick={this.deleteClick}/>
-        }
+        {isDeletable && (
+          <Art
+            src="XBig.svg"
+            alt="delete"
+            title
+            className={classNames(deleteButton)}
+            onClick={this.deleteClick}
+          />
+        )}
       </div>
     );
   }

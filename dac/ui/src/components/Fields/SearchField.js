@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import FontIcon from 'components/Icon/FontIcon';
-import Keys from '@app/constants/Keys.json';
-import classNames from 'classnames';
-import { base, searchInput } from './SearchField.less';
+import { Component, createRef } from "react";
+import PropTypes from "prop-types";
+import FontIcon from "components/Icon/FontIcon";
+import Keys from "@app/constants/Keys.json";
+import classNames from "classnames";
+import { base, searchInput } from "./SearchField.less";
 
-@Radium
-export default class SearchField extends Component {
+class SearchField extends Component {
   static propTypes = {
     placeholder: PropTypes.string,
     onChange: PropTypes.func,
@@ -36,42 +34,42 @@ export default class SearchField extends Component {
     className: PropTypes.string,
     onClick: PropTypes.func,
     showIcon: PropTypes.bool,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
   };
 
   static defaultProps = {
     showIcon: false,
-    inputStyle: {}
-  }
+    inputStyle: {},
+  };
 
   constructor(props) {
     super(props);
-
+    this.inputRef = createRef();
     this.state = {
-      value: props.value
+      value: props.value,
     };
   }
 
   onChange = (value) => {
     this.setState({
-      value
+      value,
     });
     this.props.onChange(value);
-  }
+  };
 
   handleKeyDown = (evt) => {
     if (evt.keyCode === Keys.ESCAPE) {
       this.clearFilter();
     }
-  }
+  };
 
   clearFilter = () => {
-    this.onChange('');
+    this.onChange("");
     this.focus();
-  }
+  };
 
   focus() {
-    this.refs.input && this.refs.input.focus();
+    this.inputRef.current?.focus();
   }
 
   render() {
@@ -79,32 +77,41 @@ export default class SearchField extends Component {
     const val = this.props.value != null ? this.props.value : this.state.value;
     const showCloseIcon = this.props.showCloseIcon && this.state.value;
     return (
-      <div className={classNames(['field', base, this.props.className], { disabled })} style={[this.props.style]}>
-        {this.props.showIcon && <FontIcon
-          type='Search'
-          theme={this.props.searchIconTheme || styles.searchIcon}
-        />}
+      <div
+        className={classNames(["field", base, this.props.className], {
+          disabled,
+        })}
+        style={this.props.style}
+      >
+        {this.props.showIcon && (
+          <FontIcon
+            type="Search"
+            theme={this.props.searchIconTheme || styles.searchIcon}
+          />
+        )}
         <input
           disabled={disabled}
           data-qa={this.props.dataQa}
-          className={classNames([(this.props.inputClassName || ''), searchInput])}
-          type='text'
-          ref='input'
+          className={classNames([this.props.inputClassName || "", searchInput])}
+          type="text"
+          ref={this.inputRef}
           placeholder={this.props.placeholder}
           style={{
             ...this.props.inputStyle,
-            ...(this.props.showIcon && { paddingLeft: 27 })
+            ...(this.props.showIcon && { paddingLeft: 27 }),
           }}
           value={val}
           onChange={(e) => this.onChange(e.target.value)}
           onKeyDown={this.handleKeyDown}
           onClick={this.props.onClick}
         />
-        {showCloseIcon && <FontIcon
-          type='XBig'
-          theme={styles.clearIcon}
-          onClick={this.clearFilter}
-        />}
+        {showCloseIcon && (
+          <FontIcon
+            type="XBig"
+            theme={styles.clearIcon}
+            onClick={this.clearFilter}
+          />
+        )}
       </div>
     );
   }
@@ -114,29 +121,30 @@ const styles = {
   searchIcon: {
     Icon: {
       width: 24,
-      height: 24
+      height: 24,
     },
     Container: {
-      position: 'absolute',
-      marginLeft: '2px',
+      position: "absolute",
+      marginLeft: "2px",
       width: 24,
-      height: 24
-    }
+      height: 24,
+    },
   },
   clearIcon: {
     Icon: {
       width: 22,
-      height: 22
+      height: 22,
     },
     Container: {
-      cursor: 'pointer',
-      position: 'absolute',
+      cursor: "pointer",
+      position: "absolute",
       right: 3,
       top: 0,
       bottom: 0,
-      margin: 'auto',
+      margin: "auto",
       width: 22,
-      height: 22
-    }
-  }
+      height: 22,
+    },
+  },
 };
+export default SearchField;

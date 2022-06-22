@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import config from 'dyn-load/utils/config';
+import config from "dyn-load/utils/config";
 
 export function getEdition() {
-  return la('Community Edition');
+  return la("Community Edition");
 }
 
 export function getEditionFromConfig() {
@@ -24,5 +24,5 @@ export function getEditionFromConfig() {
 }
 
 export function getAboutMode() {
-  return 'full';
+  return "full";
 }

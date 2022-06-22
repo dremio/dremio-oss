@@ -33,6 +33,8 @@ import com.dremio.service.Pointer;
  */
 public class DremioRelDecorrelator extends RelDecorrelator {
 
+  private static final String DECORRELATION_ERROR_MESSAGE = "This query cannot be decorrelated.";
+
   private boolean isRelPlanning;
 
   protected DremioRelDecorrelator(
@@ -88,6 +90,15 @@ public class DremioRelDecorrelator extends RelDecorrelator {
     return decorrelatedWithValueGenerator;
   }
 
+  /**
+   * Will throw an exception if decorrelation was not successful.
+   */
+  public static RelNode decorrelateAndValidateQuery(RelNode rootRel, RelBuilder relBuilder, boolean isRelPlanning) {
+    final RelNode decorrelatedQuery = decorrelateQuery(rootRel, relBuilder, isRelPlanning);
+    ensureDecorrelated(decorrelatedQuery);
+    return decorrelatedQuery;
+  }
+
   @Override
   public Frame decorrelateRel(Values rel, boolean isCorVarDefined) {
     // There are no inputs, so rel does not need to be changed.
@@ -112,5 +123,10 @@ public class DremioRelDecorrelator extends RelDecorrelator {
     });
     return count.value;
   }
-}
 
+  private static void ensureDecorrelated(RelNode rel) {
+    if (correlateCount(rel) > 0) {
+      throw new DecorrelationException(DECORRELATION_ERROR_MESSAGE);
+    }
+  }
+}

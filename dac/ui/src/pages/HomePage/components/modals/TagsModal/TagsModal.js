@@ -13,16 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
-import { SelectView } from '@app/components/Fields/SelectView';
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import { Tag } from '@app/pages/ExplorePage/components/TagsEditor/Tag';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
+import { SelectView } from "@app/components/Fields/SelectView";
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
 
-import { tag as tagClass, popoverContainer, triangle, triangleHeight } from './TagsModal.less';
-
+import {
+  tag as tagClass,
+  popoverContainer,
+  triangle,
+  triangleHeight,
+} from "./TagsModal.less";
 
 @injectIntl
 export default class TagsModal extends Component {
@@ -30,7 +34,7 @@ export default class TagsModal extends Component {
     mainTagClass: PropTypes.string,
     onTagClick: PropTypes.func,
     tags: PropTypes.array,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   render() {
@@ -38,30 +42,44 @@ export default class TagsModal extends Component {
 
     return (
       <SelectView
+        closeOnSelect
         content={
-          <Tag key='moreTags' text='...' className={mainTagClass} onClick={this.openModal} />
+          <Tag
+            key="moreTags"
+            text="..."
+            title={tags.join(", ")}
+            className={mainTagClass}
+            onClick={this.openModal}
+          />
         }
+        beforeOpen={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         listStyle={{
           marginTop: parseInt(triangleHeight, 10),
-          overflow: 'visible'
+          overflow: "visible",
         }}
         listRightAligned
         hideExpandIcon
       >
-        <div className={triangle}/>
-        <div className={popoverContainer} data-qa='tagOverflowPopover'>
+        <div className={triangle} />
+        <div className={popoverContainer} data-qa="tagOverflowPopover">
           <Menu>
-            {tags.map((tag, index) => <MenuItem key={`item${index}`}>
-              <Tag key={index}
-                className={tagClass}
-                onClick={onTagClick ? () => onTagClick(tag) : null}
-                text={tag}
-                title />
-            </MenuItem>)}
+            {tags.map((tag, index) => (
+              <MenuItem key={`item${index}`}>
+                <Tag
+                  key={index}
+                  className={tagClass}
+                  onClick={onTagClick ? () => onTagClick(tag) : null}
+                  text={tag}
+                  title
+                />
+              </MenuItem>
+            ))}
           </Menu>
         </div>
       </SelectView>
     );
   }
-
 }

@@ -13,53 +13,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect } from 'react-redux';
-import { Link } from 'react-router';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import DocumentTitle from 'react-document-title';
-import { injectIntl } from 'react-intl';
-import urlParse from 'url-parse';
+import { Component } from "react";
+import { connect } from "react-redux";
+import { Link } from "react-router";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import DocumentTitle from "react-document-title";
+import { FormattedMessage, injectIntl } from "react-intl";
+import urlParse from "url-parse";
 
-import MainInfoMixin from 'dyn-load/pages/HomePage/components/MainInfoMixin';
-import { loadWiki } from '@app/actions/home';
-import DatasetMenu from 'components/Menus/HomePage/DatasetMenu';
-import FolderMenu from 'components/Menus/HomePage/FolderMenu';
+import MainInfoMixin from "dyn-load/pages/HomePage/components/MainInfoMixin";
+import { loadWiki } from "@app/actions/home";
+import DatasetMenu from "components/Menus/HomePage/DatasetMenu";
+import FolderMenu from "components/Menus/HomePage/FolderMenu";
 
-import BreadCrumbs, {formatFullPath} from 'components/BreadCrumbs';
-import { getRootEntityType } from 'utils/pathUtils';
-import SettingsBtn from 'components/Buttons/SettingsBtn';
-import FontIcon from 'components/Icon/FontIcon';
-import { ENTITY_TYPES } from '@app/constants/Constants';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import Art from '@app/components/Art';
-import { TagsAlert } from '@app/pages/HomePage/components/TagsAlert';
+import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
+import { getRootEntityType } from "utils/pathUtils";
+import SettingsBtn from "components/Buttons/SettingsBtn";
+import FontIcon from "components/Icon/FontIcon";
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import Art from "@app/components/Art";
+import { TagsAlert } from "@app/pages/HomePage/components/TagsAlert";
 
-import { tableStyles } from '../tableStyles';
-import BrowseTable from './BrowseTable';
-import { HeaderButtons } from './HeaderButtons';
-import MainInfoItemNameAndTag from './MainInfoItemNameAndTag';
-import WikiView from './WikiView';
+import { NESSIE } from "@app/constants/sourceTypes";
+import { tableStyles } from "../tableStyles";
+import BrowseTable from "./BrowseTable";
+import { HeaderButtons } from "./HeaderButtons";
+import MainInfoItemNameAndTag from "./MainInfoItemNameAndTag";
+import WikiView from "./WikiView";
+import SourceBranchPicker from "./SourceBranchPicker/SourceBranchPicker";
+import { getSortedSources } from "@app/selectors/home";
+import { getSourceByName } from "@app/utils/nessieUtils";
 
 const shortcutBtnTypes = {
-  view: 'view',
-  wiki: 'wiki',
-  settings: 'settings'
+  view: "view",
+  wiki: "wiki",
+  settings: "settings",
 };
 
 const getEntityId = (props) => {
-  return props && props.entity ? props.entity.get('id') : null;
+  return props && props.entity ? props.entity.get("id") : null;
 };
 
-@injectIntl
-@Radium
 @MainInfoMixin
 export class MainInfoView extends Component {
-
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   static propTypes = {
@@ -70,15 +70,18 @@ export class MainInfoView extends Component {
     rightTreeVisible: PropTypes.bool,
     isInProgress: PropTypes.bool,
     intl: PropTypes.object.isRequired,
-    fetchWiki: PropTypes.func // (entityId) => Promise
+    fetchWiki: PropTypes.func, // (entityId) => Promise
+    source: PropTypes.instanceOf(Immutable.Map),
+    isSonarSource: PropTypes.bool,
+    rootEntityType: PropTypes.string,
   };
 
   static defaultProps = {
-    viewState: Immutable.Map()
+    viewState: Immutable.Map(),
   };
 
   state = {
-    isWikiShown: localStorageUtils.getWikiVisibleState()
+    isWikiShown: localStorageUtils.getWikiVisibleState(),
   };
 
   componentDidMount() {
@@ -98,55 +101,70 @@ export class MainInfoView extends Component {
   }
 
   getActionCell(item) {
-    return <ActionWrap>
-      {this.getActionCellButtons(item)}
-    </ActionWrap>;
+    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>;
   }
 
   getActionCellButtons(item) {
-    const dataType = item.get('fileType') || 'dataset';
+    const dataType = item.get("fileType") || "dataset";
     switch (dataType) {
-    case 'folder':
-      return this.getFolderActionButtons(item);
-    case 'file':
-      return this.getFileActionButtons(item, item.get('permissions'));
-    case 'dataset':
-      return this.getShortcutButtons(item, dataType);
-    case 'physicalDatasets':
-      return this.getShortcutButtons(item, 'physicalDataset'); // entities collection uses type name without last 's'
-    // looks like 'raw', 'database', and 'table' are legacy entity types that are obsolete.
-    default:
-      throw new Error('unknown dataType');
+      case "folder":
+        return this.getFolderActionButtons(item);
+      case "file":
+        return this.getFileActionButtons(item, item.get("permissions"));
+      case "dataset":
+        return this.getShortcutButtons(item, dataType);
+      case "physicalDatasets":
+        return this.getShortcutButtons(item, "physicalDataset"); // entities collection uses type name without last 's'
+      // looks like 'raw', 'database', and 'table' are legacy entity types that are obsolete.
+      default:
+        throw new Error("unknown dataType");
     }
   }
 
   getFolderActionButtons(folder) {
-    const isFileSystemFolder = !!folder.get('fileSystemFolder');
-    const isQueryAble = (folder.get('queryable'));
-    const permissions = folder.get('permissions') ? folder.get('permissions').toJS() : null;
+    const isFileSystemFolder = !!folder.get("fileSystemFolder");
+    const isQueryAble = folder.get("queryable");
+    const permissions = folder.get("permissions")
+      ? folder.get("permissions").toJS()
+      : null;
     const isAdmin = localStorageUtils.isUserAnAdmin();
 
     if (isFileSystemFolder && isQueryAble) {
-      return this.getShortcutButtons(folder, 'folder');
-    } else if (this.checkToRenderConvertFolderButton(isFileSystemFolder, permissions)) {
-      return ([
+      return this.getShortcutButtons(folder, "folder");
+    } else if (
+      this.checkToRenderConvertFolderButton(isFileSystemFolder, permissions)
+    ) {
+      return [
         this.renderConvertButton(folder, {
-          icon: <FontIcon type='FolderConvert' style={{'marginTop': 8, 'marginLeft': -2}} tooltip={la('Format Folder')}/>,
+          icon: (
+            <FontIcon
+              type="FolderConvert"
+              style={{ marginTop: 8, marginLeft: -2 }}
+              tooltip={la("Format Folder")}
+            />
+          ),
           to: {
-            ...this.context.location, state: {
-              modal: 'DatasetSettingsModal',
-              tab: 'format',
-              entityType: folder.get('entityType'),
-              entityId: folder.get('id'),
-              query: {then: 'query'},
-              isHomePage: true
-            }
-          }
+            ...this.context.location,
+            state: {
+              modal: "DatasetSettingsModal",
+              tab: "format",
+              entityType: folder.get("entityType"),
+              entityId: folder.get("id"),
+              query: { then: "query" },
+              isHomePage: true,
+            },
+          },
         }),
-        this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder)
-      ]);
-    } else if (isAdmin || (permissions && permissions.canAlter || permissions.canRead || permissions.canEditAccessControlList || permissions.canDelete)) {
-      return this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder);
+        this.getSettingsBtnByType(<FolderMenu folder={folder} />, folder),
+      ];
+    } else if (
+      isAdmin ||
+      (permissions && permissions.canAlter) ||
+      permissions.canRead ||
+      permissions.canEditAccessControlList ||
+      permissions.canDelete
+    ) {
+      return this.getSettingsBtnByType(<FolderMenu folder={folder} />, folder);
     } else {
       return;
     }
@@ -154,27 +172,36 @@ export class MainInfoView extends Component {
 
   getFileActionButtons(file, permissions) {
     const isAdmin = localStorageUtils.isUserAnAdmin();
-    const isQueryAble = (file.get('queryable'));
+    const isQueryAble = file.get("queryable");
     if (isQueryAble) {
-      return this.getShortcutButtons(file, 'file');
+      return this.getShortcutButtons(file, "file");
     }
     // DX-12874 not queryable files should have only promote button
     if (this.checkToRenderConvertFileButton(isAdmin, permissions)) {
-      return ([
+      return [
         this.renderConvertButton(file, {
-          icon: <FontIcon type='FileConvert' style={{'marginTop': 8}} tooltip={la('Format File')}/>,
-          to: {...this.context.location, state: {
-            modal: 'DatasetSettingsModal',
-            tab: 'format',
-            entityType: file.get('entityType'),
-            entityId: file.get('id'),
-            queryable: file.get('queryable'),
-            fullPath: file.get('filePath'),
-            query: {then: 'query'},
-            isHomePage: true
-          }}
-        })
-      ]);
+          icon: (
+            <FontIcon
+              type="FileConvert"
+              style={{ marginTop: 8 }}
+              tooltip={la("Format File")}
+            />
+          ),
+          to: {
+            ...this.context.location,
+            state: {
+              modal: "DatasetSettingsModal",
+              tab: "format",
+              entityType: file.get("entityType"),
+              entityId: file.get("id"),
+              queryable: file.get("queryable"),
+              fullPath: file.get("filePath"),
+              query: { then: "query" },
+              isHomePage: true,
+            },
+          },
+        }),
+      ];
     } else {
       return;
     }
@@ -182,29 +209,45 @@ export class MainInfoView extends Component {
 
   // this method is targeted for dataset like entities: PDS, VDS and queriable files
   getShortcutButtons(item, entityType) {
-    const allBtns = this.getShortcutButtonsData(item, entityType, shortcutBtnTypes);
-    return [...allBtns
-      // select buttons to be shown
-      .filter(btn => btn.isShown)
-      // return rendered link buttons
-      .map((btnType, index) => <Link to={btnType.link}  key={item.get('id') + index} className='main-settings-btn min-btn'
-        style={{
-          marginRight: 5 // all buttons should have 5px margin. Last settings button should not have any margin
-        }}>
-        <button className='settings-button' data-qa={btnType.type}>
-          {btnType.label}
-        </button>
-      </Link>),
-    this.getSettingsBtnByType(<DatasetMenu entity={item} entityType={entityType} />, item)
+    const allBtns = this.getShortcutButtonsData(
+      item,
+      entityType,
+      shortcutBtnTypes
+    );
+    return [
+      ...allBtns
+        // select buttons to be shown
+        .filter((btn) => btn.isShown)
+        // return rendered link buttons
+        .map((btnType, index) => (
+          <Link
+            to={btnType.link}
+            key={item.get("id") + index}
+            className="main-settings-btn min-btn"
+            style={{
+              marginRight: 5, // all buttons should have 5px margin. Last settings button should not have any margin
+            }}
+          >
+            <button className="settings-button" data-qa={btnType.type}>
+              {btnType.label}
+            </button>
+          </Link>
+        )),
+      this.getSettingsBtnByType(
+        <DatasetMenu entity={item} entityType={entityType} />,
+        item
+      ),
     ];
   }
 
   getInlineIcon(iconSrc, alt) {
-    return <Art src={iconSrc} alt={alt} title style={{ height: 24, width: 24}} />;
+    return (
+      <Art src={iconSrc} alt={alt} title style={{ height: 24, width: 24 }} />
+    );
   }
 
   getWikiButtonLink(item) {
-    const url = item.getIn(['links', 'query']);
+    const url = item.getIn(["links", "query"]);
     const parseUrl = urlParse(url);
     return `${parseUrl.pathname}/wiki${parseUrl.query}`;
   }
@@ -214,86 +257,97 @@ export class MainInfoView extends Component {
       <SettingsBtn
         handleSettingsClose={this.handleSettingsClose.bind(this)}
         handleSettingsOpen={this.handleSettingsOpen.bind(this)}
-        dataQa={item.get('name')}
+        dataQa={item.get("name")}
         menu={menu}
-        hideArrowIcon>
-        {this.getInlineIcon('Ellipsis.svg', 'more')}
+        key={`${item.get("name")}-${item.get("id")}`}
+        hideArrowIcon
+      >
+        {this.getInlineIcon("Ellipsis.svg", "more")}
       </SettingsBtn>
     );
   }
 
   getRow(item) {
     const [name, jobs, action] = this.getTableColumns();
-    const jobsCount = item.get('jobCount') || item.getIn(['extendedConfig', 'jobCount']) || la('—');
+    const jobsCount =
+      item.get("jobCount") ||
+      item.getIn(["extendedConfig", "jobCount"]) ||
+      la("—");
     return {
-      rowClassName: item.get('name'),
+      rowClassName: item.get("name"),
       data: {
         [name.key]: {
-          node: () => <MainInfoItemNameAndTag item={item}/>,
-          value: item.get('name')
+          node: () => <MainInfoItemNameAndTag item={item} />,
+          value: item.get("name"),
         },
         [jobs.key]: {
-          node: () => <Link to={item.getIn(['links', 'jobs'])}>{jobsCount}</Link>,
-          value: jobsCount
+          node: () => (
+            <Link to={item.getIn(["links", "jobs"])}>{jobsCount}</Link>
+          ),
+          value: jobsCount,
         },
         [action.key]: {
-          node: () => this.getActionCell(item)
-        }
-      }
+          node: () => this.getActionCell(item),
+        },
+      },
     };
   }
 
   getTableColumns() {
     const { intl } = this.props;
     return [
-      { key: 'name',
-        label: intl.formatMessage({id: 'Common.Name'}),
-        infoContent: <TagsAlert />,
-        flexGrow: 1 },
       {
-        key: 'jobs',
-        label: intl.formatMessage({id: 'Job.Jobs'}),
-        style: tableStyles.digitColumn,
-        headerStyle: { justifyContent: 'flex-end' },
-        width: 40
+        key: "name",
+        label: intl.formatMessage({ id: "Common.Name" }),
+        infoContent: <TagsAlert />,
+        flexGrow: 1,
       },
       {
-        key: 'action',
-        label: intl.formatMessage({id: 'Common.Action'}),
+        key: "jobs",
+        label: intl.formatMessage({ id: "Job.Jobs" }),
+        style: tableStyles.digitColumn,
+        headerStyle: { justifyContent: "flex-end" },
+        isFixedWidth: true,
+        width: 60,
+      },
+      {
+        key: "action",
+        label: intl.formatMessage({ id: "Common.Action" }),
         style: tableStyles.actionColumn,
-        width: 105,
-        className: 'row-buttons',
-        headerClassName: 'row-buttons',
-        disableSort: true
-      }
+        isFixedWidth: true,
+        width: 140,
+        className: "row-buttons",
+        headerClassName: "row-buttons",
+        disableSort: true,
+      },
     ];
   }
 
   getTableData() {
-    const contents = this.props.entity && this.props.entity.get('contents');
+    const contents = this.props.entity && this.props.entity.get("contents");
     let rows = Immutable.List();
     if (contents && !contents.isEmpty()) {
-      const appendRow = dataset => {
+      const appendRow = (dataset) => {
         // DX-10700 there could be the cases, when we reset a entity cache (delete all entities of the certain type), but there are references on these intities in the state;
         // For example, we clearing folders, when we navigating to another folder, but sources could have a reference by id on these folder. As folder would not be found, here we would have undefined
         //skip such cases
         if (!dataset) return;
         rows = rows.push(this.getRow(dataset));
       };
-      contents.get('datasets').forEach(appendRow);
-      contents.get('folders').forEach(appendRow);
-      contents.get('files').forEach(appendRow);
-      contents.get('physicalDatasets').forEach(appendRow);
+      contents.get("datasets").forEach(appendRow);
+      contents.get("folders").forEach(appendRow);
+      contents.get("files").forEach(appendRow);
+      contents.get("physicalDatasets").forEach(appendRow);
     }
     return rows;
   }
 
   handleSettingsClose(settingsWrap) {
-    $(settingsWrap).parents('tr').removeClass('hovered');
+    $(settingsWrap).parents("tr").removeClass("hovered");
   }
 
   handleSettingsOpen(settingsWrap) {
-    $(settingsWrap).parents('tr').addClass('hovered');
+    $(settingsWrap).parents("tr").addClass("hovered");
   }
 
   isReadonly(spaceList) {
@@ -310,32 +364,67 @@ export class MainInfoView extends Component {
 
   toggleWikiShow = () => {
     let newValue;
-    this.setState(prevState => ({
-      isWikiShown: (newValue = !prevState.isWikiShown)
-    }), () => {
-      localStorageUtils.setWikiVisibleState(newValue);
-    });
+    this.setState(
+      (prevState) => ({
+        isWikiShown: (newValue = !prevState.isWikiShown),
+      }),
+      () => {
+        localStorageUtils.setWikiVisibleState(newValue);
+      }
+    );
   };
 
   toggleRightTree = () => {
     this.props.updateRightTreeVisibility(!this.props.rightTreeVisible);
   };
 
-  render() {
-    const { entity, viewState } = this.props;
-    const { pathname } = this.context.location;
-    const showWiki = this.checkToRenderWikiSection(entity); // should be removed when DX-13804 would be fixed
+  isNessie = () => {
+    const { source, entity } = this.props;
+    return entity && source && source.get("type") === NESSIE;
+  };
 
-    const buttons = entity && <HeaderButtons
-      entity={entity}
-      rootEntityType={getRootEntityType(entity.getIn(['links', 'self']))}
-      rightTreeVisible={this.props.rightTreeVisible}
-      toggleVisibility={this.toggleRightTree}
-    />;
+  renderExternalLink = () => {
+    const { source } = this.props;
+    if (!this.isNessie()) return null;
+    return (
+      <Link to={`/sources/dataplane/${source.get("name")}/branches`}>
+        <FormattedMessage id="Nessie.ViewAllBranches" />
+      </Link>
+    );
+  };
+
+  renderTitleExtraContent = () => {
+    const { source } = this.props;
+    if (!this.isNessie()) return null;
+    return <SourceBranchPicker source={source.toJS()} />;
+  };
+
+  render() {
+    const { entity, viewState, isSonarSource, rootEntityType } = this.props;
+    const { pathname } = this.context.location;
+    const showWiki = entity && !entity.get("fileSystemFolder"); // should be removed when DX-13804 would be fixed
+
+    const buttons = entity && (
+      <HeaderButtons
+        entity={entity}
+        rootEntityType={rootEntityType}
+        rightTreeVisible={this.props.rightTreeVisible}
+        toggleVisibility={this.toggleRightTree}
+        isSonarSource={isSonarSource}
+      />
+    );
 
     return (
       <BrowseTable
-        title={entity && <BreadCrumbs fullPath={entity.get('fullPathList')} pathname={pathname} />}
+        title={
+          entity && (
+            <BreadCrumbs
+              fullPath={entity.get("fullPathList")}
+              pathname={pathname}
+              showCopyButton
+            />
+          )
+        }
         buttons={buttons}
         key={pathname} /* trick to clear out the searchbox on navigation */
         columns={this.getTableColumns()}
@@ -344,62 +433,96 @@ export class MainInfoView extends Component {
         toggleSidebar={this.toggleWikiShow}
         tableData={this.getTableData()}
         viewState={viewState}
+        renderExternalLink={this.renderExternalLink}
+        renderTitleExtraContent={this.renderTitleExtraContent}
       >
-        <DocumentTitle title={entity && formatFullPath(entity.get('fullPathList')).join('.') || ''} />
+        <DocumentTitle
+          title={
+            (entity && formatFullPath(entity.get("fullPathList")).join(".")) ||
+            ""
+          }
+        />
       </BrowseTable>
     );
   }
 }
+MainInfoView = injectIntl(MainInfoView);
 
 export const styles = {
   height: {
-    height: '100%'
+    height: "100%",
   },
   loader: {
-    display: 'flex',
-    justifyContent: 'center',
-    color: 'gray',
+    display: "flex",
+    justifyContent: "center",
+    color: "gray",
     marginTop: 10,
-    fontSize: 22
+    fontSize: 22,
   },
   viewerHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   folderConvertButton: {
-    borderRadius: '2px',
+    borderRadius: "2px",
     height: 23,
     width: 68,
-    boxShadow: '0 1px 1px #b2bec7',
-    cursor: 'pointer',
-    display: 'flex',
+    boxShadow: "0 1px 1px #b2bec7",
+    cursor: "pointer",
+    display: "flex",
     paddingTop: 1,
-    marginRight: 5
+    marginRight: 5,
   },
   button: {
-    borderRadius: '2px',
+    borderRadius: "2px",
     height: 23,
     width: 68,
-    boxShadow: '0 1px 1px #b2bec7',
-    cursor: 'pointer',
-    display: 'flex',
-    paddingTop: 1
+    boxShadow: "0 1px 1px #b2bec7",
+    cursor: "pointer",
+    display: "flex",
+    paddingTop: 1,
   },
   searchField: {
     width: 200,
-    height: 30
-  }
+    height: 30,
+  },
 };
 
-
-function ActionWrap({children}) {
-  return <span className='action-wrap'>{children}</span>;
+function ActionWrap({ children }) {
+  return <span className="action-wrap">{children}</span>;
 }
 ActionWrap.propTypes = {
-  children: PropTypes.node
+  children: PropTypes.node,
 };
 
-export default connect(null, dispatch => ({
-  fetchWiki: loadWiki(dispatch)
+function mapStateToProps(state, props) {
+  const rootEntityType = getRootEntityType(
+    props.entity?.getIn(["links", "self"])
+  );
+
+  let isSonarSource = false;
+  const sources = getSortedSources(state);
+  if (
+    sources &&
+    rootEntityType === ENTITY_TYPES.source &&
+    props.entity?.get("entityType") === ENTITY_TYPES.folder
+  ) {
+    const entityJS = props.entity.toJS();
+    const parentSource = getSourceByName(
+      entityJS.fullPathList[0],
+      sources.toJS()
+    );
+
+    isSonarSource = parentSource?.type === NESSIE;
+  }
+
+  return {
+    rootEntityType,
+    isSonarSource,
+  };
+}
+
+export default connect(mapStateToProps, (dispatch) => ({
+  fetchWiki: loadWiki(dispatch),
 }))(MainInfoView);

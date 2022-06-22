@@ -26,8 +26,11 @@ import static com.dremio.common.expression.CompleteType.STRUCT;
 import static com.dremio.common.expression.CompleteType.TIME;
 import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -36,7 +39,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.apache.arrow.vector.types.FloatingPointPrecision;
@@ -52,21 +57,26 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.iceberg.model.IcebergDmlOperationCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IncrementalMetadataRefreshCommitter;
@@ -92,11 +102,12 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
-public class TestIcebergOpCommitter extends BaseTestQuery {
+public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTypeCoercionsAndUpPromotions {
 
   private final String folder = Files.createTempDir().getAbsolutePath();
   private final DatasetCatalogGrpcClient client = new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get());
@@ -132,7 +143,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
       tableName,
       icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
       schema,
-      Collections.emptyList(), config, operatorStats);
+      Collections.emptyList(), config, operatorStats, null);
     fullRefreshCommitter.commit();
 
     DataFile dataFile1 = getDatafile("books/add1.parquet");
@@ -322,6 +333,60 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
   }
 
   @Test
+  public void testDmlOperation() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IcebergOpCommitter deleteCommitter = icebergHadoopModel.getDmlCommitter(
+        operatorContext.getStats(),
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        datasetConfig);
+
+      // Add a new manifest list, and delete several previous datafiles
+      String deleteDataFile1 = "books/add1.parquet";
+      String deleteDataFile2 = "books/add2.parquet";
+      String deleteDataFile3 = "books/add3.parquet";
+      String deleteDataFile4 = "books/add4.parquet";
+
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+      DataFile dataFile3 = getDatafile("books/add9.parquet");
+
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFileDmlDelete", dataFile1, dataFile2, dataFile3);
+      deleteCommitter.consumeManifestFile(m1);
+      deleteCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      deleteCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      deleteCommitter.consumeDeleteDataFilePath(deleteDataFile3);
+      deleteCommitter.consumeDeleteDataFilePath(deleteDataFile4);
+      deleteCommitter.commit();
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      // One is 'manifestFileDelete' and the other is the newly created due to delete data file. This newly created manifest
+      // is due to rewriting of 'manifestFile1' file. It is expected to 1 existing file account and 4 deleted file count.
+      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      Assert.assertEquals(2, manifestFileList.size());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.path().contains("manifestFileDmlDelete")) {
+          Assert.assertEquals(3, (int) manifestFile.addedFilesCount());
+        } else {
+          Assert.assertEquals(4, (int) manifestFile.deletedFilesCount());
+          Assert.assertEquals(1, (int) manifestFile.existingFilesCount());
+        }
+      }
+      Assert.assertEquals(4, Iterables.size(table.snapshots()));
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
   public void testNumberOfSnapshot() throws IOException {
     final String tableName = UUID.randomUUID().toString();
     final File tableFolder = new File(folder, tableName);
@@ -439,7 +504,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
         DECIMAL.toField("field19")
       ));
 
-      BatchSchema consolidatedSchema = schema1.mergeWithUpPromotion(schema2);
+      BatchSchema consolidatedSchema = schema1.mergeWithUpPromotion(schema2, this);
       insertTableCommitter.updateSchema(consolidatedSchema);
       insertTableCommitter.commit();
 
@@ -477,7 +542,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
         Field.nullablePrimitive("stringCol", new ArrowType.Utf8())
       );
 
-      BatchSchema consolidatedSchema = schema.mergeWithUpPromotion(newSchema);
+      BatchSchema consolidatedSchema = schema.mergeWithUpPromotion(newSchema, this);
       insertTableCommitter.updateSchema(consolidatedSchema);
 
       DataFile dataFile1 = getDatafile("books/add4.parquet");
@@ -619,9 +684,11 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
       insertTableCommitter2.consumeManifestFile(m1);
 
       UserExceptionAssert.assertThatThrownBy(() -> {
-        insertTableCommitter1.commit();
-        insertTableCommitter2.commit();
-      }).hasErrorType(UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION);
+          insertTableCommitter1.commit();
+          insertTableCommitter2.commit();
+        })
+        .hasErrorType(CONCURRENT_MODIFICATION)
+        .hasMessageContaining("Concurrent DML operation has updated the table, please retry.");
 
       Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
@@ -780,7 +847,6 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
     return datasetConfig;
   }
 
-
   @Test
   public void testConcurrentIncrementalRefresh() throws IOException {
     final String tableName = UUID.randomUUID().toString();
@@ -832,7 +898,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
 
       // end commit 1
       ((IncrementalMetadataRefreshCommitter) commiter1).performUpdates();
-      Snapshot snapshot = ((IncrementalMetadataRefreshCommitter) commiter1).endMetadataRefreshTransaction();
+      ((IncrementalMetadataRefreshCommitter) commiter1).endMetadataRefreshTransaction();
 
       // end commit 2 should fail with CommitFailedException
       try {
@@ -843,7 +909,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
         // ignore
       }
 
-      ((IncrementalMetadataRefreshCommitter) commiter1).postCommitTransaction(snapshot);
+      ((IncrementalMetadataRefreshCommitter) commiter1).postCommitTransaction();
       // After this operation manifestList was expected to have two manifest file
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
@@ -870,6 +936,182 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
 
       Assert.assertEquals(4, dataset.getReadDefinition().getManifestScanStats().getRecordCount());
       Assert.assertEquals(36, dataset.getReadDefinition().getScanStats().getRecordCount());
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentTwoDmlOperations() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      IcebergOpCommitter committer1 = icebergHadoopModel.getDmlCommitter(
+        operatorContext.getStats(),
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        datasetConfig);
+      Assert.assertTrue(committer1 instanceof IcebergDmlOperationCommitter);
+
+      IcebergOpCommitter committer2 = icebergHadoopModel.getDmlCommitter(
+        operatorContext.getStats(),
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        datasetConfig);
+      Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
+
+      // Add a new manifest list, and delete several previous datafiles
+      String deleteDataFile1 = "books/add1.parquet";
+      String deleteDataFile2 = "books/add2.parquet";
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFileDmlDelete", dataFile1, dataFile2);
+      committer1.consumeManifestFile(m1);
+      committer1.consumeDeleteDataFilePath(deleteDataFile1);
+      committer1.consumeDeleteDataFilePath(deleteDataFile2);
+
+      committer2.consumeManifestFile(m1);
+      committer2.consumeDeleteDataFilePath(deleteDataFile1);
+      committer2.consumeDeleteDataFilePath(deleteDataFile2);
+
+      // start both commits
+      ((IcebergDmlOperationCommitter) committer1).beginDmlOperationTransaction();
+      ((IcebergDmlOperationCommitter) committer2).beginDmlOperationTransaction();
+
+      // end commit 1
+      ((IcebergDmlOperationCommitter) committer1).performUpdates();
+      ((IcebergDmlOperationCommitter) committer1).endDmlOperationTransaction();
+
+      // end commit 2 should fail with CommitFailedException
+      UserExceptionAssert.assertThatThrownBy(() -> {
+            ((IcebergDmlOperationCommitter) committer2).performUpdates();
+            ((IcebergDmlOperationCommitter) committer2).endDmlOperationTransaction();
+          }
+        ).hasErrorType(CONCURRENT_MODIFICATION)
+        .hasMessageContaining("Concurrent DML operation has updated the table, please retry.");
+
+      // After this operation, the manifestList was expected to have two manifest file.
+      // One is 'manifestFileDelete' and the other is the newly created due to delete data file. This newly created manifest
+      // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and 2 deleted file count.
+      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests();
+      Assert.assertEquals(2, manifestFileList.size());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.path().contains("manifestFileDmlDelete")) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        } else {
+          Assert.assertEquals(2, (int) manifestFile.deletedFilesCount());
+          Assert.assertEquals(3, (int) manifestFile.existingFilesCount());
+        }
+      }
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testDmlCommittedSnapshotNumber() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      Table tableBefore = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      final int countBeforeDmlCommit = Iterables.size(tableBefore.snapshots());
+
+      IcebergOpCommitter committer = icebergHadoopModel.getDmlCommitter(
+        operatorContext.getStats(),
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        datasetConfig);
+      Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
+      IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
+
+      // Add a new manifest list, and delete several previous datafiles
+      String deleteDataFile1 = "books/add1.parquet";
+      String deleteDataFile2 = "books/add2.parquet";
+      DataFile dataFile1 = getDatafile("books/add7.parquet");
+      DataFile dataFile2 = getDatafile("books/add8.parquet");
+
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFileDmlDelete", dataFile1, dataFile2);
+      dmlCommitter.consumeManifestFile(m1);
+      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile1);
+      dmlCommitter.consumeDeleteDataFilePath(deleteDataFile2);
+      dmlCommitter.beginDmlOperationTransaction();
+      dmlCommitter.performUpdates();
+      Table tableAfter = dmlCommitter.endDmlOperationTransaction();
+      int countAfterDmlCommit = Iterables.size(tableAfter.snapshots());
+      Assert.assertEquals("Expect to increase 1 snapshot", 1, countAfterDmlCommit - countBeforeDmlCommit);
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  private static String getManifestCrcFileName(String manifestFilePath) {
+    com.dremio.io.file.Path p = com.dremio.io.file.Path.of(manifestFilePath);
+    String fileName = p.getName();
+    com.dremio.io.file.Path parentPath = p.getParent();
+    return parentPath + com.dremio.io.file.Path.SEPARATOR + "." + fileName + ".crc";
+  }
+
+  @Test
+  public void testDeleteManifestFiles() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+
+      String dataFile1Name = "books/add1.parquet";
+      String dataFile2Name = "books/add2.parquet";
+
+      // Add a new manifest list, and delete several previous datafiles
+      DataFile dataFile1 = getDatafile(dataFile1Name);
+      DataFile dataFile2 = getDatafile(dataFile2Name);
+
+      ManifestFile m = writeManifest(tableFolder, "manifestFileDml", dataFile1, dataFile2);
+      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      InputFile inputFile = table.io().newInputFile(m.path());
+      DremioFileIO dremioFileIO = Mockito.mock(DremioFileIO.class);
+      Set<String> actualDeletedFiles = new HashSet<>();
+
+      when(dremioFileIO.newInputFile(m.path())).thenReturn(inputFile);
+      doAnswer(new Answer<Void>() {
+        public Void answer(InvocationOnMock invocation) {
+          Object[] args = invocation.getArguments();
+          Assert.assertEquals("one file path arg is expected", args.length, 1);
+          actualDeletedFiles.add((String)args[0]);
+          return null;
+        }
+      }).when(dremioFileIO).deleteFile(anyString());
+
+      // scenario 1: delete both manifest file and data files
+      IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, ImmutableList.of(m), true);
+      Set<String> expectedDeletedFilesIncludeDataFiles = ImmutableSet.of(
+        dataFile1Name, dataFile2Name,
+        m.path(), getManifestCrcFileName(m.path()));
+      Assert.assertEquals(actualDeletedFiles, expectedDeletedFilesIncludeDataFiles);
+
+      // scenario 2: delete manifest file only
+      actualDeletedFiles.clear();
+      IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, ImmutableList.of(m), false);
+      expectedDeletedFilesIncludeDataFiles = ImmutableSet.of(m.path(), getManifestCrcFileName(m.path()));
+      Assert.assertEquals(actualDeletedFiles, expectedDeletedFilesIncludeDataFiles);
     } finally {
       FileUtils.deleteDirectory(tableFolder);
     }

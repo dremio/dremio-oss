@@ -39,7 +39,6 @@ import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.TimestampString;
 
 import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionOperator;
 import com.dremio.exec.catalog.TableVersionType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -51,14 +50,11 @@ import com.google.common.collect.ImmutableList;
 public class TableVersionSpec {
 
   private final TableVersionType tableVersionType;
-  private final TableVersionOperator tableVersionOperator;
   private final SqlNode versionSpecifier;
   private SqlLiteral resolvedVersionSpecifier;
 
-  public TableVersionSpec(TableVersionType tableVersionType, TableVersionOperator tableVersionOperator,
-                          SqlNode versionSpecifier) {
+  public TableVersionSpec(TableVersionType tableVersionType, SqlNode versionSpecifier) {
     this.tableVersionType = tableVersionType;
-    this.tableVersionOperator = tableVersionOperator;
     this.versionSpecifier = versionSpecifier;
   }
 
@@ -82,7 +78,7 @@ public class TableVersionSpec {
     }
 
     Preconditions.checkNotNull(value);
-    return new TableVersionContext(tableVersionType, tableVersionOperator, value);
+    return new TableVersionContext(tableVersionType, value);
   }
 
   /**

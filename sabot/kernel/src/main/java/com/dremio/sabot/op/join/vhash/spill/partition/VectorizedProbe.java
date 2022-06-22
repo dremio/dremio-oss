@@ -79,8 +79,8 @@ public class VectorizedProbe implements AutoCloseable {
     ExpandableHyperContainer buildBatch) {
 
     this.buildKeyUnpivot = setupParams.getBuildKeyUnpivot();
-    this.allocator = setupParams.getOpAllocator();
-    this.buffers = new ProbeBuffers(sv2Addr, setupParams.getMaxInputBatchSize(), allocator);
+    this.allocator = setupParams.getOutputAllocator();
+    this.buffers = setupParams.getProbeBuffers();
     this.table = table;
 
     JoinRelType joinRelType = setupParams.getJoinType();
@@ -108,6 +108,7 @@ public class VectorizedProbe implements AutoCloseable {
     linkedList.moveToRead();
     this.cursor = ProbeCursor.startProbe(
       linkedList,
+      sv2Addr,
       buffers,
       projectUnmatchedBuild,
       projectUnmatchedProbe,
@@ -280,7 +281,5 @@ public class VectorizedProbe implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    buffers.close();
   }
-
 }

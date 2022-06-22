@@ -67,7 +67,7 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
         advanceToNonEmptyDatabase();
 
         if (!dbNames.hasNext() && !tableNamesInCurrentDb.hasNext()) {
-          logger.debug("Plugin '{}', has no more tables.", pluginName, currentDbName);
+          logger.debug("Plugin '{}', database '{}' has no more tables.", pluginName, currentDbName);
           return endOfData();
         }
       }
@@ -84,7 +84,7 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
           .datasetpath(datasetPath)
           .build();
       } else {
-        logger.debug("Plugin '{}', has no more tables.", pluginName, currentDbName);
+        logger.debug("Plugin '{}', database '{}' has no more tables.", pluginName, currentDbName);
         return endOfData();
       }
     }

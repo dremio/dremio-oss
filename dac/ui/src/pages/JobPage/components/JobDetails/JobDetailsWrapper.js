@@ -13,25 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import uuid from 'uuid';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import uuid from "uuid";
 
-import JobDetails from '@app/pages/JobPage/components/JobDetails/JobDetails';
+import JobDetails from "@app/pages/JobPage/components/JobDetails/JobDetails";
 
-import { cancelJobAndShowNotification, loadJobDetails, showJobProfile } from 'actions/jobs/jobs';
-import { downloadFile } from 'sagas/downloadFile';
-import socket from '@inject/utils/socket';
-import { getEntity, getViewState } from 'selectors/resources';
-import { updateViewState } from 'actions/resources';
-import './JobDetails.less';
+import {
+  cancelJobAndShowNotification,
+  loadJobDetails,
+  showJobProfile,
+} from "actions/jobs/jobs";
+import { downloadFile } from "sagas/downloadFile";
+import socket from "@inject/utils/socket";
+import { getEntity, getViewState } from "selectors/resources";
+import { updateViewState } from "actions/resources";
+import "./JobDetails.less";
 
-const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
+const VIEW_ID = "JOB_DETAILS_VIEW_ID";
 
-@Radium
 export class JobDetailsWrapper extends PureComponent {
   static propTypes = {
     jobDetails: PropTypes.instanceOf(Immutable.Map),
@@ -48,12 +50,12 @@ export class JobDetailsWrapper extends PureComponent {
 
     //connected
     token: PropTypes.string,
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    viewState: PropTypes.instanceOf(Immutable.Map),
   };
 
   defaultProps = {
-    jobDetails: Immutable.Map()
-  }
+    jobDetails: Immutable.Map(),
+  };
 
   constructor(props) {
     super(props);
@@ -91,13 +93,16 @@ export class JobDetailsWrapper extends PureComponent {
           isFailed: false,
           isWarning: true,
           error: {
-            message: la('Could not find the specified job\'s details, they may have been cleaned up.'),
-            id: uuid.v4()
-          }
+            message: la(
+              "Could not find the specified job's details, they may have been cleaned up."
+            ),
+            id: uuid.v4(),
+          },
         });
       }
+      return null;
     });
-  }
+  };
 
   stopListenToJobChange(jobId) {
     if (jobId) {
@@ -107,15 +112,15 @@ export class JobDetailsWrapper extends PureComponent {
 
   cancelJob = () => {
     this.props.cancelJob(this.props.jobId);
-  }
+  };
 
   downloadJobProfile = (viewId) => {
     this.props.downloadFile({
       url: `/support/${this.props.jobId}/download`,
-      method: 'POST',
-      viewId
+      method: "POST",
+      viewId,
     });
-  }
+  };
 
   render() {
     const { jobId, jobDetails, viewState, location, askGnarly } = this.props;
@@ -139,8 +144,8 @@ export class JobDetailsWrapper extends PureComponent {
 function mapStateToProps(state, ownProps) {
   return {
     viewState: getViewState(state, VIEW_ID),
-    jobDetails: getEntity(state, ownProps.jobId, 'jobDetails'),
-    token: state.account.get('user').get('token')
+    jobDetails: getEntity(state, ownProps.jobId, "jobDetails"),
+    token: state.account.get("user").get("token"),
   };
 }
 
@@ -149,5 +154,5 @@ export default connect(mapStateToProps, {
   loadJobDetails,
   downloadFile,
   showJobProfile,
-  updateViewState
+  updateViewState,
 })(JobDetailsWrapper);

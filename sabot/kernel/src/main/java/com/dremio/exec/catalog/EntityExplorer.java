@@ -91,4 +91,13 @@ public interface EntityExplorer {
    * @return
    */
   DremioTable getTableForQuery(NamespaceKey key);
+
+  /**
+   * Retrieve a table snapshot when querying the table's data, first checking the default schema.
+   *
+   * @param key     path to table
+   * @param context version context
+   * @return translatable table
+   */
+  DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
 }

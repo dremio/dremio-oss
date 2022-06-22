@@ -13,52 +13,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
+import Immutable from "immutable";
 
-import { fixedWidthSmall } from 'uiTheme/radium/typography';
-import { BORDER } from 'uiTheme/radium/colors';
-import Spinner from 'components/Spinner';
+import { fixedWidthSmall } from "uiTheme/radium/typography";
+import { BORDER } from "uiTheme/radium/colors";
+import Spinner from "components/Spinner";
 
-import FixedWidthForContentCard from './FixedWidthForContentCard';
+import FixedWidthForContentCard from "./FixedWidthForContentCard";
 
 const MAX_LENGTH_CONTENT = 63;
 
-@Radium
 class CardContentView extends PureComponent {
   static getSubstring(example, start, end) {
-    const result = example.get('text').substring(start, end);
-    return result.replace(/ /g, '\u00a0');
+    const result = example.get("text").substring(start, end);
+    return result.replace(/ /g, "\u00a0");
   }
 
   static propTypes = {
     data: PropTypes.instanceOf(Immutable.List).isRequired,
-    isInProgress: PropTypes.bool
+    isInProgress: PropTypes.bool,
   };
 
   static getExampleTextParts(example) {
     const { text, positionList } = example.toJS();
     if (length === undefined) {
-      return [text, '', ''];
+      return [text, "", ""];
     }
 
-    return positionList.reduce((prev, cur, i) => {
-      const temp = prev.concat([
-        { text: text.slice(positionList[i - 1] && positionList[i - 1].offset + 1 || prev.length, cur.offset) },
-        { text: text.slice(cur.offset, cur.offset + cur.length), highlight: true }
-      ]);
+    return positionList
+      .reduce((prev, cur, i) => {
+        const temp = prev.concat([
+          {
+            text: text.slice(
+              (positionList[i - 1] && positionList[i - 1].offset + 1) ||
+                prev.length,
+              cur.offset
+            ),
+          },
+          {
+            text: text.slice(cur.offset, cur.offset + cur.length),
+            highlight: true,
+          },
+        ]);
 
-      if (positionList.length - 1 === i) {
-        return temp.concat({ text: text.slice(cur.offset + cur.length) });
-      }
+        if (positionList.length - 1 === i) {
+          return temp.concat({ text: text.slice(cur.offset + cur.length) });
+        }
 
-      return temp;
-    }, []).filter((part) => !!part.text.length).map((part) => ({
-      ...part,
-      text: part.text.replace(/ /g, '\u00a0')
-    }));
+        return temp;
+      }, [])
+      .filter((part) => !!part.text.length)
+      .map((part) => ({
+        ...part,
+        text: part.text.replace(/ /g, "\u00a0"),
+      }));
   }
 
   constructor(props) {
@@ -68,26 +79,29 @@ class CardContentView extends PureComponent {
   }
 
   getContent() {
-    return this.props.data.map( (example, index) => {
+    return this.props.data.map((example, index) => {
       if (!example || !example.toJS) {
         return null;
       }
       const ex = example.toJS();
       if (ex.text.length > MAX_LENGTH_CONTENT) {
-        return <FixedWidthForContentCard example={ex} index={index}/>;
+        return <FixedWidthForContentCard example={ex} index={index} />;
       }
 
       const textParts = CardContentView.getExampleTextParts(example);
-      const extraBorder = index === 2
-        ? { borderBottom: `1px solid ${BORDER}` }
-        : {};
+      const extraBorder =
+        index === 2 ? { borderBottom: `1px solid ${BORDER}` } : {};
 
       return (
         <div style={[styles.line, extraBorder, fixedWidthSmall]} key={index}>
           {textParts.map((part) => {
-            const style = part.highlight ? [fixedWidthSmall, styles.hightlight] : [];
+            const style = part.highlight
+              ? [fixedWidthSmall, styles.hightlight]
+              : [];
             return (
-              <span style={style}>{part.text}</span>
+              <span key={part.text} style={style}>
+                {part.text}
+              </span>
             );
           })}
         </div>
@@ -96,49 +110,48 @@ class CardContentView extends PureComponent {
   }
 
   render() {
-    const heightStyle = this.props.data.size < 3
-      ? { height: this.props.data.size * 20 }
-      : {};
-    const content = this.props.isInProgress
-      ? <Spinner style={styles.spinnerWrap}/>
-      : this.getContent();
+    const heightStyle =
+      this.props.data.size < 3 ? { height: this.props.data.size * 20 } : {};
+    const content = this.props.isInProgress ? (
+      <Spinner style={styles.spinnerWrap} />
+    ) : (
+      this.getContent()
+    );
     return (
-      <div style={[styles.base, {height: '80%'}]}>
-        <div style={[styles.wrap, heightStyle]}>
-          {content}
-        </div>
+      <div style={[styles.base, { height: "80%" }]}>
+        <div style={[styles.wrap, heightStyle]}>{content}</div>
       </div>
     );
   }
 }
 
-export default CardContentView;
+export default Radium(CardContentView);
 
 const styles = {
   base: {
-    display: 'flex',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
+    display: "flex",
+    justifyContent: "center",
+    flexWrap: "wrap",
     flexGrow: 1,
-    overflowY: 'hidden',
-    overflowX: 'hidden',
-    marginTop: 10
+    overflowY: "hidden",
+    overflowX: "hidden",
+    marginTop: 10,
   },
   wrap: {
-    marginTop: 8
+    marginTop: 8,
   },
   spinnerWrap: {
     left: 0,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 100
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: 100,
   },
   hightlight: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    backgroundColor: '#f2e8d0',
-    height: 19
+    display: "inline-flex",
+    alignItems: "center",
+    backgroundColor: "#f2e8d0",
+    height: 19,
   },
   line: {
     borderTop: `1px solid ${BORDER}`,
@@ -146,8 +159,8 @@ const styles = {
     maxHeight: 20,
     minHeight: 20,
     maxWidth: 430,
-    overflow: 'hidden',
-    display: 'flex',
-    alignItems: 'center'
-  }
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+  },
 };

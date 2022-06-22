@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import FormSection from './FormSection';
+import FormSection from "./FormSection";
 
-describe('FormSection', () => {
+describe("FormSection", () => {
   const minimalProps = {
     sectionConfig: {
       getSections() {
@@ -30,17 +30,17 @@ describe('FormSection', () => {
 
       getDirectElements() {
         return [];
-      }
-    }
+      },
+    },
   };
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<FormSection {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<FormSection {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render no children if visibilityControl is false', () => {
-    const instance = shallow(<FormSection {...minimalProps}/>).instance();
+  it("should render no children if visibilityControl is false", () => {
+    const instance = shallow(<FormSection {...minimalProps} />).instance();
     const render = instance.renderElements({
       getConfig() {
         return {};
@@ -52,21 +52,21 @@ describe('FormSection', () => {
             getConfig() {
               return {
                 visibilityControl: {
-                  config: 'allowFileUploads',
-                  showCondition: false
-                }
+                  config: "allowFileUploads",
+                  showCondition: false,
+                },
               };
-            }
-          }
+            },
+          },
         ];
-      }
+      },
     });
 
     expect(shallow(render).children()).to.have.length(0);
   });
 
-  it('should render children if visibilityControl is true', () => {
-    const instance = shallow(<FormSection {...minimalProps}/>).instance();
+  it("should render children if visibilityControl is true", () => {
+    const instance = shallow(<FormSection {...minimalProps} />).instance();
     const render = instance.renderElements({
       getConfig() {
         return {};
@@ -78,14 +78,14 @@ describe('FormSection', () => {
             getConfig() {
               return {
                 visibilityControl: {
-                  config: 'allowFileUploads',
-                  showCondition: true
-                }
+                  config: "allowFileUploads",
+                  showCondition: true,
+                },
               };
-            }
-          }
+            },
+          },
         ];
-      }
+      },
     });
 
     expect(shallow(render).children()).to.have.length(1);

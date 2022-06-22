@@ -142,6 +142,11 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
     }
 
     @Override
+    public long reindex(FindByCondition findByCondition, FindOption... options) {
+      return trace("reindex", () -> indexedStore.reindex(findByCondition, options));
+    }
+
+    @Override
     public List<Integer> getCounts(SearchTypes.SearchQuery... conditions) {
       return trace("getCounts", () -> indexedStore.getCounts(conditions));
     }

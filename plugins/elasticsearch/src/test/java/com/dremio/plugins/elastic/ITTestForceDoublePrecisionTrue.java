@@ -36,7 +36,7 @@ public class ITTestForceDoublePrecisionTrue extends ElasticBaseTestQuery {
   };
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   @Override

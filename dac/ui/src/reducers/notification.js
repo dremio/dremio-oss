@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as ActionTypes from 'actions/notification';
-import actionUtils from 'utils/actionUtils/actionUtils';
+import * as ActionTypes from "actions/notification";
+import actionUtils from "utils/actionUtils/actionUtils";
 
 // Every state change here gets picked up by containers/Notifications and shown.
 // Only change state if you want to show a notification.
@@ -25,26 +25,29 @@ export default function notification(state = {}, action) {
       if (!action.error) {
         return state;
       }
-      return actionUtils.humanizeNotificationMessage()(action.payload, action.meta.showDefaultMoreInfo);
+      return actionUtils.humanizeNotificationMessage()(
+        action.payload,
+        action.meta.showDefaultMoreInfo
+      );
     }
-    if (typeof action.meta.notification === 'function') {
+    if (typeof action.meta.notification === "function") {
       return action.meta.notification(action.payload);
     }
     // replace the notification state
     return action.meta.notification;
   }
   switch (action.type) {
-  case ActionTypes.ADD_NOTIFICATION:
-    return {
-      message: action.message,
-      level: action.level,
-      autoDismiss: action.autoDismiss
-    };
-  case ActionTypes.REMOVE_NOTIFICATION:
-    return {
-      removeMessageType: action.messageType
-    };
-  default:
-    return state;
+    case ActionTypes.ADD_NOTIFICATION:
+      return {
+        message: action.message,
+        level: action.level,
+        autoDismiss: action.autoDismiss,
+      };
+    case ActionTypes.REMOVE_NOTIFICATION:
+      return {
+        removeMessageType: action.messageType,
+      };
+    default:
+      return state;
   }
 }

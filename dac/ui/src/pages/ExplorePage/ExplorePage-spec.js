@@ -13,84 +13,96 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
-import { hashHeightTopSplitter } from '@app/constants/explorePage/heightTopSplitter.js';
-import { ExplorePageView as ExplorePage } from './ExplorePage';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
+import { hashHeightTopSplitter } from "@app/constants/explorePage/heightTopSplitter.js";
+import { ExplorePageView as ExplorePage } from "./ExplorePage";
 
-describe('ExplorePage', () => {
+describe("ExplorePage", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       location: {
-        query: ''
+        query: "",
       },
-      pageType: 'graph',
+      pageType: "graph",
       sqlSize: 10,
       dataset: Immutable.fromJS({
-        displayFullPath: ['tmp', 'UNTITLED']
+        displayFullPath: ["tmp", "UNTITLED"],
       }),
       updateSqlPartSize: sinon.spy(),
       toggleRightTree: sinon.spy(),
       rightTreeVisible: true,
       sqlState: true,
-      onUnmount: () => {}
+      onUnmount: () => {},
     };
     commonProps = {
       ...minimalProps,
-      pageType: 'details'
+      pageType: "details",
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ExplorePage {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ExplorePage {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render with common props without exploding', () => {
-    const wrapper = shallow(<ExplorePage {...commonProps}/>);
+  it("should render with common props without exploding", () => {
+    const wrapper = shallow(<ExplorePage {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
-  describe('initSqlEditor', () => {
+  describe("initSqlEditor", () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      wrapper = shallow(<ExplorePage {...commonProps}/>);
+      wrapper = shallow(<ExplorePage {...commonProps} />);
       instance = wrapper.instance();
     });
-    it('should call updateSqlPartSize with sqlState true if dataset displayFullPath starts with tmp', () => {
+    it("should call updateSqlPartSize with sqlState true if dataset displayFullPath starts with tmp", () => {
       instance.initSqlEditor(minimalProps);
       expect(minimalProps.updateSqlPartSize.called).to.be.true;
-      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.getDefaultSqlHeight())).to.be.true;
+      expect(
+        minimalProps.updateSqlPartSize.calledWith(
+          hashHeightTopSplitter.getDefaultSqlHeight()
+        )
+      ).to.be.true;
     });
-    it('should call updateSqlPartSize with sqlState true if dataset is new', () => {
+    it("should call updateSqlPartSize with sqlState true if dataset is new", () => {
       const props = {
         ...minimalProps,
         dataset: Immutable.fromJS({
           isNewQuery: true,
-          displayFullPath: ['tmp', 'UNTITLED']
+          displayFullPath: ["tmp", "UNTITLED"],
         }),
         location: {
-          query: '',
-          pathname: '/new_query?context=dremio'
-        }
+          query: "",
+          pathname: "/new_query?context=dremio",
+        },
       };
       instance.initSqlEditor(props);
       expect(minimalProps.updateSqlPartSize.called).to.be.true;
-      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.getNewQueryDefaultSqlHeight())).to.be.true;
+      expect(
+        minimalProps.updateSqlPartSize.calledWith(
+          hashHeightTopSplitter.getNewQueryDefaultSqlHeight()
+        )
+      ).to.be.true;
     });
-    it('should call updateSqlPartSize with sqlState false if dataset is not new', () => {
+    it("should call updateSqlPartSize with sqlState false if dataset is not new", () => {
       const props = {
         ...minimalProps,
         dataset: Immutable.fromJS({
-          displayFullPath: ['@dremio', 'extractMap']
-        })
+          displayFullPath: ["@dremio", "extractMap"],
+        }),
       };
 
       instance.initSqlEditor(props);
       expect(minimalProps.updateSqlPartSize.called).to.be.true;
-      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.getDefaultSqlHeight())).to.be.true;
+      expect(
+        minimalProps.updateSqlPartSize.calledWith(
+          hashHeightTopSplitter.getDefaultSqlHeight()
+        )
+      ).to.be.true;
     });
-    it('should not call updateSqlPartSize if pageType is not default', () => {
+    it("should not call updateSqlPartSize if pageType is not default", () => {
       instance.initSqlEditor(commonProps);
       expect(commonProps.updateSqlPartSize.called).to.be.false;
     });

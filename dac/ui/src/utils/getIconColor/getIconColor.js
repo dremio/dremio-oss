@@ -14,17 +14,23 @@
  * limitations under the License.
  */
 
-import ICON_COLOR from '@app/constants/iconColors';
+import ICON_COLOR from "@app/constants/iconColors";
 
-export const hashCode = (str = '') => {
-  return str.split('').reduce((prevHash, currVal) =>
-    // eslint-disable-next-line no-bitwise
-    (((prevHash << 5) - prevHash) + currVal.charCodeAt(0)) | 0, 0);
+export const hashCode = (str) => {
+  //Cast to a string in case of number input
+  return String(str)
+    .split("")
+    .reduce(
+      (prevHash, currVal) =>
+        // eslint-disable-next-line no-bitwise
+        ((prevHash << 5) - prevHash + currVal.charCodeAt(0)) | 0,
+      0
+    );
 };
 
 export const getIconColor = (id) => {
   let colorIndex;
-  if (id === undefined || id === null) {
+  if (id == null) {
     colorIndex = 0;
   } else {
     colorIndex = Math.abs(hashCode(id)) % ICON_COLOR.length;

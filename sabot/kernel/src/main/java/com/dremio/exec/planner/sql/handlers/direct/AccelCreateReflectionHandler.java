@@ -32,6 +32,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -44,6 +45,7 @@ import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.LayoutDefinition;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -71,6 +73,12 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlCreateReflection addLayout = SqlNodeUtil.unwrap(sqlNode, SqlCreateReflection.class);
     final TableWithPath table = SchemaUtilities.verify(catalog, addLayout.getTblName());
+    NamespaceKey key = new NamespaceKey(table.getPath());
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(key.getRoot(), catalog)) {
+      throw UserException.unsupportedError()
+        .message("Source %s does not support reflection creation.", key.getRoot())
+        .build(logger);
+    }
     SqlIdentifier identifier = addLayout.getName();
     String name;
     if(identifier != null) {

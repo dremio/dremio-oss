@@ -13,19 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormElement from 'components/Forms/FormElement';
-import FormSection from 'components/Forms/FormSection';
-import HoverHelp from 'components/HoverHelp';
-import Checkbox from 'components/Fields/Checkbox';
-import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormElement from "components/Forms/FormElement";
+import FormSection from "components/Forms/FormSection";
+import HoverHelp from "components/HoverHelp";
+import Checkbox from "components/Fields/Checkbox";
+import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
 
-import { flexContainer, flexElementAuto, flexColumnContainer } from '@app/uiTheme/less/layout.less';
-import { checkboxMargin, indentedContainer, tooltipIcon } from './CheckEnabledContainer.less';
+import {
+  flexContainer,
+  flexElementAuto,
+  flexColumnContainer,
+} from "@app/uiTheme/less/layout.less";
+import {
+  checkboxMargin,
+  indentedContainer,
+  tooltipIcon,
+} from "./CheckEnabledContainer.less";
 
 /**
  * Displays a checkbox and a container, which can be either shown/hidden or its inputs enabled/disabled based
@@ -39,11 +47,10 @@ import { checkboxMargin, indentedContainer, tooltipIcon } from './CheckEnabledCo
  *     - whenNotChecked - optional "hide" value, otherwise defaults to "disable"
  */
 export default class CheckEnabledContainer extends Component {
-
   static propTypes = {
     fields: PropTypes.object,
     mainCheckboxIsDisabled: PropTypes.bool,
-    elementConfig: PropTypes.object
+    elementConfig: PropTypes.object,
   };
 
   setCheckboxFieldCheckedProp = (field) => {
@@ -55,49 +62,68 @@ export default class CheckEnabledContainer extends Component {
   render() {
     const { fields, elementConfig, mainCheckboxIsDisabled } = this.props;
     const elementConfigJson = elementConfig.getConfig();
-    const checkField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
+    const checkField = FormUtils.getFieldByComplexPropName(
+      fields,
+      elementConfig.getPropName()
+    );
     this.setCheckboxFieldCheckedProp(checkField); // to avoid react controlled/uncontrolled field warning
     const tooltipStyle = { width: 180 }; // since this component appears in narrow forms, need to limit tooltip width
     const enableContainer = checkField.checked;
-    const isInverted = (elementConfigJson.inverted) ? {inverted: true} : null;
+    const isInverted = elementConfigJson.inverted ? { inverted: true } : null;
     const isInvertedContainer = elementConfigJson.invertContainer;
     const container = elementConfig.getContainer();
     const containerIsIndented = !elementConfigJson.noIndent;
     const containerIsElement = container instanceof FormElementConfig;
     const containerIsSection = container instanceof FormSectionConfig;
 
-    const containerDisabled = (enableContainer && isInvertedContainer) ||
+    const containerDisabled =
+      (enableContainer && isInvertedContainer) ||
       (!enableContainer && !isInvertedContainer) ||
       mainCheckboxIsDisabled;
 
     return (
       <div className={flexColumnContainer}>
         <div className={flexContainer}>
-          <Checkbox {...checkField} {...isInverted}
+          <Checkbox
+            {...checkField}
+            {...isInverted}
             disabled={mainCheckboxIsDisabled}
             className={checkboxMargin}
-            label={elementConfigJson.label}/>
-          {elementConfigJson.checkTooltip &&
-          <HoverHelp content={elementConfigJson.checkTooltip} className={tooltipIcon} tooltipInnerStyle={tooltipStyle}/>
-          }
+            label={elementConfigJson.label}
+          />
+          {elementConfigJson.checkTooltip && (
+            <HoverHelp
+              content={elementConfigJson.checkTooltip}
+              className={tooltipIcon}
+              tooltipInnerStyle={tooltipStyle}
+            />
+          )}
         </div>
-        {(elementConfigJson.whenNotChecked !== 'hide' || enableContainer) &&
-        <div className={classNames([flexElementAuto, containerIsIndented && indentedContainer])}>
-          {containerIsElement &&
-          <FormElement fields={fields}
-            disabled={containerDisabled}
-            elementConfig={container}/>
-          }
-          {containerIsSection &&
-          <FormSection fields={fields}
-            disabled={containerDisabled}
-            style={{marginBottom: 0}}
-            sectionConfig={container}/>
-          }
-        </div>
-        }
+        {(elementConfigJson.whenNotChecked !== "hide" || enableContainer) && (
+          <div
+            className={classNames([
+              flexElementAuto,
+              containerIsIndented && indentedContainer,
+            ])}
+          >
+            {containerIsElement && (
+              <FormElement
+                fields={fields}
+                disabled={containerDisabled}
+                elementConfig={container}
+              />
+            )}
+            {containerIsSection && (
+              <FormSection
+                fields={fields}
+                disabled={containerDisabled}
+                style={{ marginBottom: 0 }}
+                sectionConfig={container}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }
-
 }

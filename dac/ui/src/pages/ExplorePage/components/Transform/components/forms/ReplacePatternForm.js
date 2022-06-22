@@ -13,29 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { pick } from 'lodash/object';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { getTransformCards } from 'selectors/transforms';
-import NewFieldSection from 'components/Forms/NewFieldSection';
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
-import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
-import exploreUtils from 'utils/explore/exploreUtils';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { pick } from "lodash/object";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { getTransformCards } from "selectors/transforms";
+import NewFieldSection from "components/Forms/NewFieldSection";
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
+import filterMappers from "utils/mappers/ExplorePage/Transform/filterMappers";
+import exploreUtils from "utils/explore/exploreUtils";
 
-import TransformForm, { formWrapperProps } from '../../../forms/TransformForm';
-import ReplaceFooter from './../ReplaceFooter';
-import ReplacePatternCards from './sections/ReplacePatternCards';
+import TransformForm, { formWrapperProps } from "../../../forms/TransformForm";
+import ReplaceFooter from "./../ReplaceFooter";
+import ReplacePatternCards from "./sections/ReplacePatternCards";
 
 const SECTIONS = [ReplacePatternCards, NewFieldSection, ReplaceFooter];
 
 const DEFAULT_CARD = {
-  type: 'replace',
+  type: "replace",
   replace: {
-    selectionPattern: '',
-    selectionType: 'CONTAINS'
-  }
+    selectionPattern: "",
+    selectionType: "CONTAINS",
+  },
 };
 
 export class ReplacePatternForm extends Component {
@@ -49,53 +49,72 @@ export class ReplacePatternForm extends Component {
     submitForm: PropTypes.func,
     loadTransformCardPreview: PropTypes.func,
     dataset: PropTypes.instanceOf(Immutable.Map),
-    hasSelection: PropTypes.bool
+    hasSelection: PropTypes.bool,
   };
 
   static defaultProps = {
-    cards: Immutable.fromJS([{}])
+    cards: Immutable.fromJS([{}]),
   };
 
   submit = (values, submitType) => {
-    const transformType = this.props.transform.get('transformType');
-    const data = transformType === 'replace'
-      ? {
-        ...fieldsMappers.getCommonValues(values, this.props.transform),
-        fieldTransformation: {
-          type: 'ReplacePattern',
-          replaceType: fieldsMappers.getReplaceType(values),
-          replacementValue: fieldsMappers.getReplacementValue(values),
-          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard)
-        }
-      }
-      : {
-        ...filterMappers.getCommonFilterValues(values, this.props.transform),
-        filter: filterMappers.mapFilterExcludePattern(values, this.props.transform)
-      };
+    const transformType = this.props.transform.get("transformType");
+    const data =
+      transformType === "replace"
+        ? {
+            ...fieldsMappers.getCommonValues(values, this.props.transform),
+            fieldTransformation: {
+              type: "ReplacePattern",
+              replaceType: fieldsMappers.getReplaceType(values),
+              replacementValue: fieldsMappers.getReplacementValue(values),
+              rule: fieldsMappers.getRuleFromCards(
+                values.cards,
+                values.activeCard
+              ),
+            },
+          }
+        : {
+            ...filterMappers.getCommonFilterValues(
+              values,
+              this.props.transform
+            ),
+            filter: filterMappers.mapFilterExcludePattern(
+              values,
+              this.props.transform
+            ),
+          };
     return this.props.submit(data, submitType);
-  }
+  };
 
   render() {
-    const { transform, fields, cards, submitForm, loadTransformCardPreview, hasSelection } = this.props;
+    const {
+      transform,
+      fields,
+      cards,
+      submitForm,
+      loadTransformCardPreview,
+      hasSelection,
+    } = this.props;
 
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
         onFormSubmit={this.submit}
-        loadTransformCardPreview={loadTransformCardPreview}>
+        loadTransformCardPreview={loadTransformCardPreview}
+      >
         <div>
           <ReplacePatternCards
             cards={cards}
             fields={fields}
             hasSelection={hasSelection}
           />
-          {transform.get('transformType') === 'replace' &&
+          {transform.get("transformType") === "replace" && (
             <ReplaceFooter
-              tabId='replace'
+              tabId="replace"
               transform={transform}
               fields={fields}
               submitForm={submitForm}
-            />}
+            />
+          )}
         </div>
       </TransformForm>
     );
@@ -103,7 +122,7 @@ export class ReplacePatternForm extends Component {
 }
 
 function mapStateToProps(state, { transform }) {
-  const columnName = transform.get('columnName');
+  const columnName = transform.get("columnName");
   const cards = getTransformCards(state, transform, DEFAULT_CARD);
   const hasSelection = exploreUtils.transformHasSelection(transform);
 
@@ -116,15 +135,20 @@ function mapStateToProps(state, { transform }) {
         newFieldName: columnName,
         dropSourceField: true,
         activeCard: 0,
-        cards: cards.toJS().map((card) => pick(card, ['replace', 'type'])),
-        replacementValue: '',
-        replaceSelectionType: 'VALUE',
-        replaceType: 'VALUE'
-      }
+        cards: cards.toJS().map((card) => pick(card, ["replace", "type"])),
+        replacementValue: "",
+        replaceSelectionType: "VALUE",
+        replaceType: "VALUE",
+      },
     };
   }
 }
 
-export default connectComplexForm({
-  form: 'replacePattern'
-}, SECTIONS, mapStateToProps, null)(ReplacePatternForm);
+export default connectComplexForm(
+  {
+    form: "replacePattern",
+  },
+  SECTIONS,
+  mapStateToProps,
+  null
+)(ReplacePatternForm);

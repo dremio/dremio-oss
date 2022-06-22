@@ -13,25 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import SourceBranchPicker from '@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker';
-import { useIsDataPlaneEnabled } from 'dyn-load/utils/dataPlaneUtils';
+import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
+import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
 
 type TreeNodeBranchPickerProps = {
-    sources?: any
-    node: any;
-    containerEl: any;
-}
+  source?: any;
+  containerEl: any;
+  onClose?: () => void;
+};
 
 //Wrapper to show/hide picker based on DCS feature flag (always hidden in OSS and Enterprise)
-function TreeNodeBranchPicker({ sources, node, containerEl }: TreeNodeBranchPickerProps) {
-  const show = useIsDataPlaneEnabled();
-  if (!show) return null;
+function TreeNodeBranchPicker({
+  source,
+  containerEl,
+  onClose,
+}: TreeNodeBranchPickerProps) {
+  if (!isDataPlaneEnabled) return null;
 
-  const source = (sources || []).find(
-    (cur: any) => cur.get('type') === 'DATAPLANE' && cur.get('name') === node.get('name')
+  return (
+    <SourceBranchPicker
+      source={source}
+      anchorEl={containerEl}
+      redirect={false}
+      onClose={onClose}
+    />
   );
-  if (!source) return null;
-
-  return <SourceBranchPicker source={source.toJS()} anchorEl={containerEl} />;
 }
 export default TreeNodeBranchPicker;

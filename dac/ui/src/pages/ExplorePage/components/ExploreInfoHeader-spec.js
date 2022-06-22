@@ -13,150 +13,168 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { NEXT_ACTIONS } from 'actions/explore/nextAction';
-import { ExploreInfoHeader } from './ExploreInfoHeader';
+import { NEXT_ACTIONS } from "actions/explore/nextAction";
+import { ExploreInfoHeader } from "./ExploreInfoHeader";
 
-describe('ExploreInfoHeader', () => {
-
+describe("ExploreInfoHeader", () => {
   let commonProps;
   let context;
   let wrapper;
   let instance;
   beforeEach(() => {
     commonProps = {
-      pageType: 'default',
+      pageType: "default",
       exploreViewState: Immutable.fromJS({}),
       dataset: Immutable.fromJS({
-        datasetVersion: '11',
-        tipVersion: '22',
-        sql: '23',
-        fullPath: ['newSpace', 'newTable'],
-        displayFullPath: ['displaySpace', 'displayTable'],
-        datasetType: 'VIRTUAL_DATASET'
+        datasetVersion: "11",
+        tipVersion: "22",
+        sql: "23",
+        fullPath: ["newSpace", "newTable"],
+        displayFullPath: ["displaySpace", "displayTable"],
+        datasetType: "VIRTUAL_DATASET",
+        apiLinks: {
+          namespaceEntity: "/home/displaySpace/dataset/displayTable",
+        },
       }),
-      currentSql: '12',
+      currentSql: "12",
       queryContext: Immutable.List(),
       routeParams: {
-        tableId: 'newTable',
-        resourceId: 'newSpace',
-        resources: 'space'
+        tableId: "newTable",
+        resourceId: "newSpace",
+        resources: "space",
       },
       location: {
-        pathname: 'ds1',
+        pathname: "ds1",
         query: {
-          tipVersion: '22',
-          version: '22',
-          mode: 'edit'
-        }
+          tipVersion: "22",
+          version: "22",
+          mode: "edit",
+        },
       },
-      tableColumns: Immutable.fromJS([
-        { type: 'INTEGER'},
-        { type: 'TEXT'}
-      ]),
+      tableColumns: Immutable.fromJS([{ type: "INTEGER" }, { type: "TEXT" }]),
       activeScript: {},
-      saveDataset: sinon.stub().returns(Promise.resolve('saveAsDataset')),
-      saveAsDataset: sinon.stub().returns(Promise.resolve('saveAsDataset')),
-      runTableTransform: sinon.stub().returns(Promise.resolve('runTableTransform')),
-      performNextAction: sinon.stub().returns(Promise.resolve('performNextAction')),
+      saveDataset: sinon.stub().returns(Promise.resolve("saveAsDataset")),
+      saveAsDataset: sinon.stub().returns(Promise.resolve("saveAsDataset")),
+      runTableTransform: sinon
+        .stub()
+        .returns(Promise.resolve("runTableTransform")),
+      performNextAction: sinon
+        .stub()
+        .returns(Promise.resolve("performNextAction")),
       performTransformAndRun: sinon.spy(),
       startDownloadDataset: sinon.spy(),
       toggleRightTree: sinon.spy(),
       runDataset: sinon.spy(),
       runDatasetSql: sinon.spy(),
       previewDatasetSql: sinon.spy(),
-      performTransform: sinon.stub().returns(Promise.resolve('performTransform')),
+      performTransform: sinon
+        .stub()
+        .returns(Promise.resolve("performTransform")),
       transformHistoryCheck: sinon.spy(),
-      performLoadDataset: sinon.stub().returns(Promise.resolve('performLoadDataset')),
-      navigateToNextDataset: sinon.stub().returns('navigateToNextDataset')
+      performLoadDataset: sinon
+        .stub()
+        .returns(Promise.resolve("performLoadDataset")),
+      navigateToNextDataset: sinon.stub().returns("navigateToNextDataset"),
     };
     context = {
-      router : {push: sinon.spy()},
+      router: { push: sinon.spy() },
       routeParams: {
-        tableId: 'newTable',
-        resourceId: 'newSpace',
-        resources: 'space'
+        tableId: "newTable",
+        resourceId: "newSpace",
+        resources: "space",
       },
       location: {
-        pathname: 'pathname',
+        pathname: "pathname",
         query: {
-          version: '123456',
-          mode: 'edit'
-        }
-      }
+          version: "123456",
+          mode: "edit",
+        },
+      },
     };
-    wrapper = shallow(<ExploreInfoHeader {...commonProps}/>, {context});
+    wrapper = shallow(<ExploreInfoHeader {...commonProps} />, { context });
     instance = wrapper.instance();
   });
 
-  describe('rendering', () => {
-    it('should render .explore-info-header', () => {
-      expect(wrapper.hasClass('explore-info-header')).to.equal(true);
+  describe("rendering", () => {
+    it("should render .explore-info-header", () => {
+      expect(wrapper.hasClass("explore-info-header")).to.equal(true);
     });
   });
 
-
-  describe('#isTransformNeeded', () => {
-    it('should return true if sql has changed', () => {
-      wrapper.setProps({currentSql: 'different sql'});
+  describe("#isTransformNeeded", () => {
+    it("should return true if sql has changed", () => {
+      wrapper.setProps({ currentSql: "different sql" });
       expect(instance.isTransformNeeded()).to.be.true;
     });
 
-    it('should return true if queryContext has changed', () => {
-      wrapper.setProps({queryContext: Immutable.List(['different sql'])});
+    it("should return true if queryContext has changed", () => {
+      wrapper.setProps({ queryContext: Immutable.List(["different sql"]) });
       expect(instance.isTransformNeeded()).to.be.true;
     });
 
-    it('should return true if dataset has no version', () => {
-      wrapper.setProps({dataset: commonProps.dataset.remove('datasetVersion')});
+    it("should return true if dataset has no version", () => {
+      wrapper.setProps({
+        dataset: commonProps.dataset.remove("datasetVersion"),
+      });
       expect(instance.isTransformNeeded()).to.be.true;
     });
 
-    it('should return false if none of the above are true', () => {
+    it("should return false if none of the above are true", () => {
       const { dataset } = commonProps;
-      wrapper.setProps({currentSql: dataset.get('sql'), queryContext: dataset.get('context')});
+      wrapper.setProps({
+        currentSql: dataset.get("sql"),
+        queryContext: dataset.get("context"),
+      });
       expect(instance.isTransformNeeded()).to.be.false;
 
-      wrapper.setProps({currentSql: null});
+      wrapper.setProps({ currentSql: null });
       expect(instance.isTransformNeeded()).to.be.false;
     });
   });
 
-  describe('#handlePreviewClick', () => {
-    it('should call previewDatasetSql', () => {
-      sinon.stub(instance, 'navigateToExploreTableIfNecessary');
+  describe("#handlePreviewClick", () => {
+    it("should call previewDatasetSql", () => {
+      sinon.stub(instance, "navigateToExploreTableIfNecessary");
       instance.handlePreviewClick();
       expect(commonProps.previewDatasetSql).to.have.been.called;
     });
   });
 
-  describe('#handleRunClick', () => {
-    it('should call runDatasetSql', () => {
-      sinon.stub(instance, 'navigateToExploreTableIfNecessary');
+  describe("#handleRunClick", () => {
+    it("should call runDatasetSql", () => {
+      sinon.stub(instance, "navigateToExploreTableIfNecessary");
       instance.handleRunClick();
       expect(commonProps.runDatasetSql).to.have.been.called;
     });
   });
 
-  describe('#navigateToExploreTableIfNecessary', () => {
-    it('should navigate to url parent path only if props.pageType !== default', () => {
+  describe("#navigateToExploreTableIfNecessary", () => {
+    it("should navigate to url parent path only if props.pageType !== default", () => {
       instance.navigateToExploreTableIfNecessary();
       expect(context.router.push).to.not.be.called;
 
-      wrapper.setProps({location: {pathname: '/home/space/ds1/graph'}, pageType: 'graph'});
+      wrapper.setProps({
+        location: { pathname: "/home/space/ds1/graph" },
+        pageType: "graph",
+      });
       instance.navigateToExploreTableIfNecessary();
-      expect(context.router.push).to.be.calledWith({pathname: '/home/space/ds1'});
+      expect(context.router.push).to.be.calledWith({
+        pathname: "/home/space/ds1",
+      });
     });
   });
 
-  describe('Saving and BI', () => {
-    describe('handleSave method', () => {
-      it('should transformIfNecessary, then transformHistoryCheck, then save with nextAction', () => {
-        instance.setState({nextAction: 'nextAction'});
+  describe("Saving and BI", () => {
+    describe("handleSave method", () => {
+      it("should transformIfNecessary, then transformHistoryCheck, then save with nextAction", () => {
+        instance.setState({ nextAction: "nextAction" });
 
-        sinon.stub(instance, 'transformIfNecessary').callsFake((callback) => callback('foo'));
+        sinon
+          .stub(instance, "transformIfNecessary")
+          .callsFake((callback) => callback("foo"));
         instance.handleSave();
         expect(commonProps.transformHistoryCheck).to.be.called;
         commonProps.transformHistoryCheck.args[0][1]();
@@ -164,59 +182,74 @@ describe('ExploreInfoHeader', () => {
       });
     });
 
-    describe('handleShowBI', () => {
-      it('should call saveAsDataset displayFullPath[0] is tmp', () => {
-        wrapper.setProps({dataset: commonProps.dataset.setIn(['displayFullPath', 0], 'tmp')});
-        sinon.stub(instance, 'transformIfNecessary').callsFake((callback) => callback('foo'));
+    describe("handleShowBI", () => {
+      it("should call saveAsDataset displayFullPath[0] is tmp", () => {
+        wrapper.setProps({
+          dataset: commonProps.dataset.setIn(["displayFullPath", 0], "tmp"),
+        });
+        sinon
+          .stub(instance, "transformIfNecessary")
+          .callsFake((callback) => callback("foo"));
         instance.handleShowBI(NEXT_ACTIONS.openTableau);
         return expect(commonProps.saveAsDataset.called).to.be.true;
       });
     });
 
-    describe('isEditedDataset', () => {
-      it('should return false if dataset.datasetType is missing', () => {
-        wrapper.setProps({dataset: commonProps.dataset.set('datasetType', undefined)});
+    describe("isEditedDataset", () => {
+      it("should return false if dataset.datasetType is missing", () => {
+        wrapper.setProps({
+          dataset: commonProps.dataset.set("datasetType", undefined),
+        });
         expect(instance.isEditedDataset()).to.be.false;
       });
 
-      it('should return false if datasetType starts with PHYSICAL_DATASET', () => {
+      it("should return false if datasetType starts with PHYSICAL_DATASET", () => {
         wrapper.setProps({
           dataset: Immutable.fromJS({
-            datasetType: 'PHYSICAL_DATASET'
-          })
+            datasetType: "PHYSICAL_DATASET",
+          }),
         });
         expect(instance.isEditedDataset()).to.be.false;
       });
 
       it('should always return false for "New Query"', () => {
-        const dataset = commonProps.dataset.setIn(['displayFullPath', 0], 'tmp');
-        wrapper.setProps({dataset});
+        const dataset = commonProps.dataset.setIn(
+          ["displayFullPath", 0],
+          "tmp"
+        );
+        wrapper.setProps({ dataset });
         expect(instance.isEditedDataset()).to.be.false;
         // verify difference between tipVersion and initialDatasetVersion
-        wrapper.setProps({ currentSql: commonProps.dataset.get('sql'), initialDatasetVersion: '1' });
+        wrapper.setProps({
+          currentSql: commonProps.dataset.get("sql"),
+          initialDatasetVersion: "1",
+        });
         expect(instance.isEditedDataset()).to.be.false;
       });
 
-      it('should return true if dataset sql is different from currentSql', () => {
-        wrapper.setProps({currentSql: 'different sql'});
+      it("should return true if dataset sql is different from currentSql", () => {
+        wrapper.setProps({ currentSql: "different sql" });
         expect(instance.isEditedDataset()).to.be.true;
       });
 
-      it('should return history.isEdited if none of the above are true', () => {
-        wrapper.setProps({currentSql: commonProps.dataset.get('sql'), history: undefined});
+      it("should return history.isEdited if none of the above are true", () => {
+        wrapper.setProps({
+          currentSql: commonProps.dataset.get("sql"),
+          history: undefined,
+        });
         expect(instance.isEditedDataset()).to.be.false;
-        wrapper.setProps({currentSql: null});
+        wrapper.setProps({ currentSql: null });
         expect(instance.isEditedDataset()).to.be.false;
-        wrapper.setProps({history: Immutable.Map({isEdited: false})});
+        wrapper.setProps({ history: Immutable.Map({ isEdited: false }) });
         expect(instance.isEditedDataset()).to.be.false;
-        wrapper.setProps({history: Immutable.Map({isEdited: true})});
+        wrapper.setProps({ history: Immutable.Map({ isEdited: true }) });
         expect(instance.isEditedDataset()).to.be.true;
       });
     });
 
-    describe('#transformIfNecessary', () => {
-      it('should call transformHistoryCheck only if needsTranform', () => {
-        sinon.stub(instance, 'isTransformNeeded').returns(false);
+    describe("#transformIfNecessary", () => {
+      it("should call transformHistoryCheck only if needsTranform", () => {
+        sinon.stub(instance, "isTransformNeeded").returns(false);
         instance.transformIfNecessary();
         expect(commonProps.transformHistoryCheck).to.not.be.called;
 
@@ -225,85 +258,103 @@ describe('ExploreInfoHeader', () => {
         expect(commonProps.transformHistoryCheck).to.be.called;
       });
 
-      it('should call navigateToExploreTableIfNecessary if performing transform', () => {
-        sinon.stub(instance, 'isTransformNeeded').returns(true);
-        sinon.spy(instance, 'navigateToExploreTableIfNecessary');
+      it("should call navigateToExploreTableIfNecessary if performing transform", () => {
+        sinon.stub(instance, "isTransformNeeded").returns(true);
+        sinon.spy(instance, "navigateToExploreTableIfNecessary");
         instance.transformIfNecessary(() => {});
         expect(instance.navigateToExploreTableIfNecessary).to.be.called;
       });
     });
-
   });
 
-  describe('#isCreatedAndNamedDataset', function() {
-    it('should return false when dataset is new ', function() {
-      wrapper.setProps({dataset: Immutable.Map({isNewQuery: true})});
+  describe("#isCreatedAndNamedDataset", function () {
+    it("should return false when dataset is new ", function () {
+      wrapper.setProps({ dataset: Immutable.Map({ isNewQuery: true }) });
       expect(instance.isCreatedAndNamedDataset()).to.be.false;
     });
 
-    it('should return false when dataset have not been saved under a name ', function() {
+    it("should return false when dataset have not been saved under a name ", function () {
       wrapper.setProps({
-        dataset: Immutable.fromJS({isNewQuery: false, datasetVersion: '1234', displayFullPath: ['tmp']})
+        dataset: Immutable.fromJS({
+          isNewQuery: false,
+          datasetVersion: "1234",
+          displayFullPath: ["tmp"],
+        }),
       });
       expect(instance.isCreatedAndNamedDataset()).to.be.false;
     });
 
-    it('should return true when dataset has been saved under a name ', function() {
+    it("should return true when dataset has been saved under a name ", function () {
       wrapper.setProps({
-        dataset: Immutable.fromJS({isNewQuery: false, datasetVersion: '1234', displayFullPath: ['ds']})
+        dataset: Immutable.fromJS({
+          isNewQuery: false,
+          datasetVersion: "1234",
+          displayFullPath: ["ds"],
+        }),
       });
       expect(instance.isCreatedAndNamedDataset()).to.be.true;
     });
   });
 
-  describe('#shouldEnableSettingsButton', function() {
-    it('should return false when isCreatedAndNamedDataset returns false', function() {
-      sinon.stub(instance, 'isCreatedAndNamedDataset').returns(false);
+  describe("#shouldEnableSettingsButton", function () {
+    it("should return false when isCreatedAndNamedDataset returns false", function () {
+      sinon.stub(instance, "isCreatedAndNamedDataset").returns(false);
       expect(instance.shouldEnableSettingsButton(Immutable.Map())).to.be.false;
     });
 
-    it('should return false when dataset is edited', function() {
-      sinon.stub(instance, 'isCreatedAndNamedDataset').returns(false);
-      sinon.stub(instance, 'isEditedDataset').returns(true);
+    it("should return false when dataset is edited", function () {
+      sinon.stub(instance, "isCreatedAndNamedDataset").returns(false);
+      sinon.stub(instance, "isEditedDataset").returns(true);
       expect(instance.shouldEnableSettingsButton(Immutable.Map())).to.be.false;
     });
 
-    it('should return true when neither of the above occur ', function() {
-      sinon.stub(instance, 'isCreatedAndNamedDataset').returns(true);
-      sinon.stub(instance, 'isEditedDataset').returns(false);
+    it("should return true when neither of the above occur ", function () {
+      sinon.stub(instance, "isCreatedAndNamedDataset").returns(true);
+      sinon.stub(instance, "isEditedDataset").returns(false);
       expect(instance.shouldEnableSettingsButton(Immutable.Map())).to.be.true;
     });
-
   });
 
-  describe('#renderLeftPartOfHeader', () => {
-
-    it('should render an empty div if !dataset.datasetType', () => {
-      const node = shallow(instance.renderLeftPartOfHeader(commonProps.dataset.delete('datasetType'), false));
-      expect(node.find('div')).to.have.length(1);
+  describe("#renderLeftPartOfHeader", () => {
+    it("should render an empty div if !dataset.datasetType", () => {
+      const node = shallow(
+        instance.renderLeftPartOfHeader(
+          commonProps.dataset.delete("datasetType"),
+          false
+        )
+      );
+      expect(node.find("div")).to.have.length(1);
     });
 
-    it('should render dataset label when dataset has datasetType present', () => {
-      const node = shallow(instance.renderLeftPartOfHeader(commonProps.dataset, false));
-      expect(node.find('.title-wrap').children()).to.have.length(1);
+    it("should render dataset label when dataset has datasetType present", () => {
+      const node = shallow(
+        instance.renderLeftPartOfHeader(commonProps.dataset, false)
+      );
+      expect(node.find(".title-wrap").children()).to.have.length(1);
     });
   });
 
-  describe('#renderDatasetLabel', () => {
-
-    it('should render (edited) dataset label when isEditedDataset returns true', () => {
-      sinon.stub(instance, 'isEditedDataset').returns(true);
+  // SUSANNAH fix these tests when working on the other ones
+  describe("#renderDatasetLabel", () => {
+    it("should render (edited) dataset label when isEditedDataset returns true", () => {
+      sinon.stub(instance, "isEditedDataset").returns(true);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
-      expect(node.find('FontIcon')).to.have.length(1);
-      expect(node.find('EllipsedText').props().text).to.be.contains('displayTable{"0":{"id":"Dataset.Edited"}}');
+      expect(node.find("FontIcon")).to.have.length(1);
+      expect(node.find("EllipsedText").props().text).to.be.contains(
+        'New Query{"0":{"id":"Dataset.Edited"}}'
+      );
     });
 
-    it('should not render (edited) dataset label when isEditedDataset returns false', () => {
-      sinon.stub(instance, 'isEditedDataset').returns(false);
+    it("should not render (edited) dataset label when isEditedDataset returns false", () => {
+      sinon.stub(instance, "isEditedDataset").returns(false);
       const node = shallow(instance.renderDatasetLabel(commonProps.dataset));
-      expect(node.find('FontIcon')).to.have.length(1);
-      expect(node.find('EllipsedText').props().text).to.be.contains('displayTable');
-      expect(node.find('EllipsedText').props().text).to.be.not.contains('(edited)');
+      expect(node.find("FontIcon")).to.have.length(1);
+      expect(node.find("EllipsedText").props().text).to.be.contains(
+        "New Query"
+      );
+      expect(node.find("EllipsedText").props().text).to.be.not.contains(
+        "(edited)"
+      );
     });
   });
 });

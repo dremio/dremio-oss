@@ -25,29 +25,23 @@ import com.google.common.base.Preconditions;
  *
  * Expected values for each version type:
  *
- * BRANCH/TAG/COMMIT/REFERENCE: string
- * SNAPSHOT_ID/TIMESTAMP: long - for timestamp this is in milliseconds since epoch
+ * SNAPSHOT_ID/BRANCH/TAG/COMMIT/REFERENCE: string
+ * TIMESTAMP: long - for timestamp this is in milliseconds since epoch
  */
 public class TableVersionContext {
   private final TableVersionType type;
-  private final TableVersionOperator operator;
   private final Object value;
 
   public static final TableVersionContext LATEST_VERSION =
-    new TableVersionContext(TableVersionType.LATEST_VERSION, TableVersionOperator.AT, null);
+    new TableVersionContext(TableVersionType.LATEST_VERSION, null);
 
-  public TableVersionContext(TableVersionType type, TableVersionOperator operator, Object value) {
+  public TableVersionContext(TableVersionType type, Object value) {
     this.type = Preconditions.checkNotNull(type);
-    this.operator = Preconditions.checkNotNull(operator);
     this.value = validateTypeAndSpecifier(type, value);
   }
 
   public TableVersionType getType() {
     return type;
-  }
-
-  public TableVersionOperator getOperator() {
-    return operator;
   }
 
   public Object getValue() {
@@ -61,8 +55,6 @@ public class TableVersionContext {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append(operator);
-    builder.append(" ");
     builder.append(type);
     if (value != null) {
       builder.append(" ");
@@ -83,34 +75,52 @@ public class TableVersionContext {
 
     TableVersionContext other = (TableVersionContext) obj;
     return Objects.equals(type, other.type) &&
-      Objects.equals(operator, other.operator) &&
       Objects.equals(value, other.value);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, operator, value);
+    return Objects.hash(type, value);
   }
 
   private static Object validateTypeAndSpecifier(TableVersionType type, Object value) {
     switch (type) {
-      case LATEST_VERSION:
-        Preconditions.checkArgument(value == null);
-        break;
-      case BRANCH:
-      case TAG:
-      case COMMIT_HASH_ONLY:
-      case REFERENCE:
-      case SNAPSHOT_ID:
-        Preconditions.checkArgument(value instanceof String);
-        break;
-      case TIMESTAMP:
-        Preconditions.checkArgument(value instanceof Long);
-        break;
-      default:
-        throw new AssertionError("Unsupported type " + type);
+    case LATEST_VERSION:
+      Preconditions.checkArgument(value == null);
+      break;
+    case BRANCH:
+    case TAG:
+    case COMMIT_HASH_ONLY:
+    case REFERENCE:
+    case SNAPSHOT_ID:
+      Preconditions.checkArgument(value instanceof String);
+      break;
+    case TIMESTAMP:
+      Preconditions.checkArgument(value instanceof Long);
+      break;
+    default:
+      throw new AssertionError("Unsupported type " + type);
     }
 
     return value;
+  }
+
+  public VersionContext asVersionContext() {
+    switch (type) {
+    case BRANCH:
+      return VersionContext.ofBranch(getValueAs(String.class));
+    case TAG:
+      return VersionContext.ofTag(getValueAs(String.class));
+    case COMMIT_HASH_ONLY:
+      return VersionContext.ofBareCommit(getValueAs(String.class));
+    case REFERENCE:
+      return VersionContext.ofRef(getValueAs(String.class));
+    case LATEST_VERSION:
+    case SNAPSHOT_ID:
+    case TIMESTAMP:
+      return VersionContext.NOT_SPECIFIED;
+    default:
+      throw new AssertionError("Unsupported type " + type);
+    }
   }
 }

@@ -13,22 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Cards from '@app/pages/ExplorePage/components/Transform/components/Cards';
-import SplitCard from './SplitCard';
-import EmptyCard from './EmptyCard';
+import { Component } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
+import PropTypes from "prop-types";
+import Cards from "@app/pages/ExplorePage/components/Transform/components/Cards";
+import SplitCard from "./SplitCard";
+import EmptyCard from "./EmptyCard";
 
-@Radium
-export default class SplitCards extends Component {
-
+class SplitCards extends Component {
   static getFields() {
     return [
       ...SplitCard.getFields().map((field) => `cards[].${field}`),
-      'activeCard',
-      'transformType'
+      "activeCard",
+      "transformType",
     ];
   }
 
@@ -37,8 +35,8 @@ export default class SplitCards extends Component {
     if (activeCardValues) {
       return {
         cards: {
-          [values.activeCard]: SplitCard.validate(activeCardValues)
-        }
+          [values.activeCard]: SplitCard.validate(activeCardValues),
+        },
       };
     }
   }
@@ -46,11 +44,13 @@ export default class SplitCards extends Component {
   static propTypes = {
     cards: PropTypes.instanceOf(Immutable.List),
     fields: PropTypes.object,
-    hasSelection: PropTypes.bool
+    hasSelection: PropTypes.bool,
   };
 
   handleCardClick(index) {
-    const { fields: { activeCard }} = this.props;
+    const {
+      fields: { activeCard },
+    } = this.props;
     if (index !== activeCard.value) {
       activeCard.onChange(index);
     }
@@ -58,17 +58,20 @@ export default class SplitCards extends Component {
 
   render() {
     const { cards, fields, hasSelection } = this.props;
-    return (<Cards>
-      {fields.cards.map((card, index) =>
-        <SplitCard
-          key={index}
-          card={cards.get(index) || Immutable.Map()}
-          fields={card}
-          active={index === fields.activeCard.value}
-          onClick={this.handleCardClick.bind(this, index)}
-        />
-      )}
-      {!hasSelection ? <EmptyCard /> : null}
-    </Cards>);
+    return (
+      <Cards>
+        {fields.cards.map((card, index) => (
+          <SplitCard
+            key={index}
+            card={cards.get(index) || Immutable.Map()}
+            fields={card}
+            active={index === fields.activeCard.value}
+            onClick={this.handleCardClick.bind(this, index)}
+          />
+        ))}
+        {!hasSelection ? <EmptyCard /> : null}
+      </Cards>
+    );
   }
 }
+export default Radium(SplitCards);

@@ -77,7 +77,7 @@ public class IcebergMetadataHandler implements OrphanageEntryHandler {
       namespaceService.deleteDataset(namespaceKey, val.getDatasetTag());
 
     } catch (Exception e) {
-      logger.debug("Deleting  the entry {} from the namespace caused an error", namespaceKey, val.getDatasetTag());
+      logger.debug("Deleting the entry {} {} from the namespace caused an error", namespaceKey, val.getDatasetTag(), e);
       throw e;
     }
   }
@@ -98,7 +98,7 @@ public class IcebergMetadataHandler implements OrphanageEntryHandler {
       //Submitting drop query to delete the iceberg and nessie entry of the metadata
       runDropQuery(query, SYSTEM_USERNAME, QueryType.INTERNAL_ICEBERG_METADATA_DROP.toString());
     } catch (Exception e) {
-      logger.warn("Processing the iceberg metadata cleanup  with table id {} from the orphanage caused an error {}", icebergTableUuid, e);
+      logger.warn("Processing the iceberg metadata cleanup with table id {} from the orphanage caused an error", icebergTableUuid, e);
       return false;
     }
     return true;

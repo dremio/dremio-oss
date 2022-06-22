@@ -13,16 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createIntl, createIntlCache } from 'react-intl';
-import { getLocale } from './locale';
+import { createIntl, createIntlCache } from "react-intl";
+import { getLocale } from "./locale";
 
 function createIntlShape() {
   const locale = getLocale();
   const cache = createIntlCache();
-  return createIntl({
-    locale: locale.language,
-    messages: locale.localeStrings as unknown as Record<string, string>
-  }, cache);
+  return createIntl(
+    {
+      locale: locale.language,
+      messages: locale.localeStrings as unknown as Record<string, string>,
+    },
+    cache
+  );
 }
 
 // Export intl object to be used outside of react tree

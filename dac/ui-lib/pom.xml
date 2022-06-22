@@ -15,14 +15,13 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-<modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
 
   <artifactId>dremio-ui-lib</artifactId>
@@ -37,6 +36,8 @@
         <configuration>
           <excludes combine.children="append">
             <exclude>**/*.editorconfig</exclude>
+            <exclude>.npmrc</exclude>
+            <exclude>.nvmrc</exclude>
             <exclude>src/react-app-env.d.ts</exclude>
           </excludes>
           <mapping>
@@ -51,18 +52,23 @@
         <executions>
           <execution>
             <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <configuration>
               <resources>
                 <resource>
                   <directory>${project.basedir}</directory>
-                  <excludes>
-                    <exclude>example/**</exclude>
-                    <!-- <exclude>dist/**</exclude> -->
-                    <!-- <exclude>node_modules/**</exclude> -->
-                    <exclude>src/**</exclude>
-                    <exclude>target/**</exclude>
-                  </excludes>
+                  <includes>
+                    <include>dist/**</include>
+                    <include>dist-cjs/**</include>
+                    <include>dist-esm/**</include>
+                    <include>dist-themes/**</include>
+                    <include>icons/**</include>
+                    <include>node_modules/**</include>
+                    <include>package.json</include>
+                    <include>pnpm-lock.yaml</include>
+                  </includes>
                   <filtering>false</filtering>
                 </resource>
               </resources>
@@ -97,22 +103,22 @@
 
         <executions>
           <execution>
-            <id>install node and yarn</id>
+            <id>install node and npm</id>
             <phase>initialize</phase>
             <goals>
-              <goal>install-node-and-yarn</goal>
+              <goal>install-node-and-npm</goal>
             </goals>
           </execution>
           <execution>
-            <id>yarn install</id>
+            <id>pnpm install</id>
             <phase>initialize</phase>
             <goals>
-              <goal>yarn</goal>
+              <goal>npx</goal>
             </goals>
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <arguments>${yarn.installscript}</arguments>
+              <arguments>pnpm@7.0.0 ${pnpm.installscript}</arguments>
             </configuration>
           </execution>
 
@@ -122,10 +128,10 @@
             ...
             [ERROR] Ran all test suites.
             -->
-            <id>run js linter and unit tests</id>
+            <id>test</id>
             <phase>process-sources</phase>
             <goals>
-              <goal>yarn</goal>
+              <goal>npm</goal>
             </goals>
             <configuration>
               <arguments>run test</arguments>
@@ -134,13 +140,13 @@
           </execution>
 
           <execution>
-            <id>build minimized webpack bundle</id>
+            <id>build</id>
             <phase>generate-resources</phase>
             <goals>
-              <goal>yarn</goal>
+              <goal>npm</goal>
             </goals>
             <configuration>
-              <arguments>build:ci</arguments>
+              <arguments>run build</arguments>
             </configuration>
           </execution>
         </executions>
@@ -163,6 +169,18 @@
             </fileset>
             <fileset>
               <directory>${project.basedir}/dist</directory>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+            <fileset>
+              <directory>${project.basedir}/dist-themes</directory>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+            <fileset>
+              <directory>${project.basedir}/dist-cjs</directory>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+            <fileset>
+              <directory>${project.basedir}/dist-esm</directory>
               <followSymlinks>false</followSymlinks>
             </fileset>
           </filesets>

@@ -43,7 +43,7 @@ import com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer;
  * getGeneratorFeatures in the custom JSON factory.
  *
  * @author David Yu
- * @created Nov 20, 2009
+ * created Nov 20, 2009
  */
 public final class JsonIOUtils {
 

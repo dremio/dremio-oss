@@ -13,28 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
- @import "~@app/uiTheme/less/color-schema.less";
 
- :global {
+@import "~@app/uiTheme/less/color-schema.less";
+
+:global {
   .mainContent .explorePage {
+    overflow: auto;
+
     &.--collpase {
       .dremioSidebar {
         background-color: @SECONDARY_150;
         width: 3.6rem;
       }
 
+      .dremioSidebar__drag {
+        display: none;
+      }
+
       .dremioSidebarWrap .dremioSidebarWrap__inner .TreeBrowser {
         .TreeBrowser-heading {
           overflow: hidden;
-          
+
           .TreeBrowser-tab {
             opacity: 0;
             order: 2;
           }
         }
 
-        .resource-tree, .TreeBrowser-items {
+        .resource-tree,
+        .TreeBrowser-items {
           opacity: 0;
           pointer-events: none;
           overflow: hidden;
@@ -63,8 +70,9 @@
       align-items: center;
       display: flex;
       gap: 1rem;
+      height: 54px;
       justify-content: space-between;
-      
+
       form {
         flex-grow: 1;
       }
@@ -80,7 +88,7 @@
       }
 
       .validationError {
-        margin-left: .8rem;
+        margin-left: 0.8rem;
       }
     }
 
@@ -103,6 +111,27 @@
       grid-template-rows: auto 1fr;
       overflow-y: hidden;
     }
+
+    &__main {
+      overflow: auto;
+    }
+  }
+
+  // SQL content column is less than 1000px wide
+  // Text will be removed from buttons
+  .dremioContent__content.--minimal {
+    .ExploreHeader__left,
+    .dremioContent__table .left-controls {
+      .btn.--outlined {
+        min-width: 3.6rem !important;
+        text-indent: -99999px;
+        width: 3.6rem !important;
+
+        .btn__content {
+          gap: 0;
+        }
+      }
+    }
   }
 
   // Data content area
@@ -117,6 +146,8 @@
       .dremioContent__content {
         display: grid;
         grid-template-rows: auto auto auto 1fr;
+        height: 100%;
+        position: relative;
       }
     }
 
@@ -127,6 +158,8 @@
 
         .dremioContent__table {
           grid-template-rows: 1fr;
+          padding-left: 1px;
+          padding-right: 4px;
         }
       }
     }
@@ -135,14 +168,13 @@
   .dremioContent-rightCol {
     align-items: center;
     display: flex;
-    margin-right: .5rem;
+    margin-right: 0.5rem;
 
     &__time {
       height: 100%;
     }
 
     &__shortcuts {
-
       p {
         display: block;
         text-transform: uppercase;
@@ -186,8 +218,8 @@
         &::after {
           background-color: @ELM;
           bottom: 0;
-          content: '';
-          height: .3rem;
+          content: "";
+          height: 0.3rem;
           left: 0;
           position: absolute;
           width: 100%;
@@ -196,36 +228,44 @@
     }
   }
 
-  .tooltip-content {
-    left: .8rem !important; // Needed to override inline styles
+  .keyboardShortcutTooltip {
+    padding: 0 !important;
+  }
 
+  .tooltip-content {
+    min-width: 260px;
     &__heading {
       text-transform: uppercase;
-      font-size: 1rem;
+      font-size: 1.4rem;
+      padding: 1rem;
+    }
 
-      &::after {
-        background-color: @SECONDARY_200;
-        content: '';
-        display: block;
-        height: .1rem;
-        margin: .5rem 0 1rem;
-      }
+    .divider {
+      background-color: @SECONDARY_200;
+      height: 0.1rem;
+      width: 100%;
     }
 
     &__list {
+      padding: 1rem;
+      min-width: 160px;
       li {
         display: flex;
-        font-size: 1.1rem;
+        font-size: 1.4rem;
         justify-content: space-between;
-        margin-bottom: 1rem;
+        align-items: center;
+
+        &:not(:last-child) {
+          margin-bottom: 1rem;
+        }
 
         span {
           background-color: @SECONDARY_200;
-          border-radius: .4rem;
+          border-radius: 0.8rem;
           display: inline-block;
-          font-size: 1rem;
-          line-height: 1.2rem;
-          padding: .2rem .8rem;
+          font-size: 1.4rem;
+          padding: 0.3rem 0.8rem;
+          height: 2.4rem;
         }
       }
     }

@@ -13,30 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import FontIcon from 'components/Icon/FontIcon';
-import Select from 'components/Fields/Select';
+import FontIcon from "components/Icon/FontIcon";
+import Select from "components/Fields/Select";
 
-import { bodySmall, formDefault } from 'uiTheme/radium/typography';
-import { PALE_BLUE, PALE_GREY } from 'uiTheme/radium/colors';
-import { LINE_CENTER_CENTER } from 'uiTheme/radium/flexStyle';
-import { MAP, LIST, OTHER, GEO, MIXED, ANY } from '@app/constants/DataTypes';
-import JoinColumnMenu from './components/JoinColumnMenu';
-import JoinDragArea from './components/JoinDragArea';
-import {
-  ddList as ddListCls,
-  ddItem as ddItemCls
-}  from './InnerJoin.less';
+import { bodySmall, formDefault } from "uiTheme/radium/typography";
+import { PALE_BLUE, PALE_GREY } from "uiTheme/radium/colors";
+import { LINE_CENTER_CENTER } from "uiTheme/radium/flexStyle";
+import { MAP, LIST, OTHER, GEO, MIXED, ANY } from "@app/constants/DataTypes";
+import JoinColumnMenu from "./components/JoinColumnMenu";
+import JoinDragArea from "./components/JoinDragArea";
+import { ddList as ddListCls, ddItem as ddItemCls } from "./InnerJoin.less";
 
 const DEFAULT_WIDTH = 200;
 
 export const NOT_SUPPORTED_TYPES = new Set([MAP, LIST, OTHER, GEO, MIXED, ANY]);
 
-@Radium
 export class InnerJoin extends Component {
   static propTypes = {
     dragColumntableType: PropTypes.string,
@@ -56,7 +51,7 @@ export class InnerJoin extends Component {
     isDragInProgress: PropTypes.bool,
     columnDragName: PropTypes.string,
     columnsInDragArea: PropTypes.instanceOf(Immutable.List),
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
   };
 
   leftDisabledColumnNames = undefined;
@@ -67,29 +62,29 @@ export class InnerJoin extends Component {
 
     this.items = [
       {
-        label: 'Inner',
-        value: 'Inner',
-        des: 'Only matching records',
-        icon: 'JoinInner'
+        label: "Inner",
+        value: "Inner",
+        des: "Only matching records",
+        icon: "JoinInner",
       },
       {
-        label: 'Left Outer',
-        value: 'LeftOuter',
-        des: 'All records from left, matching records from right',
-        icon: 'JoinLeft'
+        label: "Left Outer",
+        value: "LeftOuter",
+        des: "All records from left, matching records from right",
+        icon: "JoinLeft",
       },
       {
-        label: 'Right Outer',
-        value: 'RightOuter',
-        des: 'All records from right, matching records from left',
-        icon: 'JoinRight'
+        label: "Right Outer",
+        value: "RightOuter",
+        des: "All records from right, matching records from left",
+        icon: "JoinRight",
       },
       {
-        label: 'Full Outer',
-        value: 'FullOuter',
-        des: 'All records from both',
-        icon: 'JoinFull'
-      }
+        label: "Full Outer",
+        value: "FullOuter",
+        des: "All records from both",
+        icon: "JoinFull",
+      },
     ];
     this.receiveProps(props, {});
   }
@@ -101,22 +96,29 @@ export class InnerJoin extends Component {
   receiveProps(nextProps, oldProps) {
     // disabledColumnNames is wholly derived from these props, so only recalculate it when one of them has changed
     if (nextProps.columnsInDragArea !== oldProps.columnsInDragArea) {
-      this.leftDisabledColumnNames = this.getDisabledColumnNames(nextProps, true);
-      this.rightDisabledColumnNames = this.getDisabledColumnNames(nextProps, false);
+      this.leftDisabledColumnNames = this.getDisabledColumnNames(
+        nextProps,
+        true
+      );
+      this.rightDisabledColumnNames = this.getDisabledColumnNames(
+        nextProps,
+        false
+      );
     }
   }
   getDisabledColumnNames(props, isLeftSide) {
     const columns = isLeftSide ? props.leftColumns : props.rightColumns;
-    const columnsInDragArea = Immutable.Set(props.columnsInDragArea.map(
-      (col) => col.getIn([isLeftSide ? 'default' : 'custom', 'name']))
+    const columnsInDragArea = Immutable.Set(
+      props.columnsInDragArea.map((col) =>
+        col.getIn([isLeftSide ? "default" : "custom", "name"])
+      )
     );
-    const disabledColumns = columns
-      .filter(
-        (column) =>
-          NOT_SUPPORTED_TYPES.has(column.get('type')) ||
-            columnsInDragArea.has(column.get('name'))
-      );
-    return Immutable.Set(disabledColumns.map((column) => column.get('name')));
+    const disabledColumns = columns.filter(
+      (column) =>
+        NOT_SUPPORTED_TYPES.has(column.get("type")) ||
+        columnsInDragArea.has(column.get("name"))
+    );
+    return Immutable.Set(disabledColumns.map((column) => column.get("name")));
   }
 
   getDragPart() {
@@ -131,19 +133,20 @@ export class InnerJoin extends Component {
       dragType: this.props.dragType,
       isDragInProgress: this.props.isDragInProgress,
       type: this.props.dragType,
-      items: this.props.columnsInDragArea
+      items: this.props.columnsInDragArea,
     };
     if (this.props.columnsInDragArea.size) {
       return (
-        <div style={[styles.dragOneWrapStyles]}>
+        <div style={styles.dragOneWrapStyles}>
           <JoinDragArea
             dragColumntableType={this.props.dragColumntableType}
-            {...props} />
+            {...props}
+          />
         </div>
       );
     }
     return (
-      <div style={[styles.dragWrapStyles]} >
+      <div style={styles.dragWrapStyles}>
         <JoinDragArea {...props} />
         <JoinDragArea {...props} />
       </div>
@@ -151,11 +154,11 @@ export class InnerJoin extends Component {
   }
 
   renderCurItem = (selectedItem) => {
-    if (!selectedItem) return '';
+    if (!selectedItem) return "";
     return (
       <div style={styles.label}>
         <div style={LINE_CENTER_CENTER}>
-          <FontIcon type={selectedItem.icon}/>
+          <FontIcon type={selectedItem.icon} />
           {selectedItem.label}
         </div>
       </div>
@@ -170,14 +173,18 @@ export class InnerJoin extends Component {
     const joinType = this.props.fields.joinType;
     const { canSelect } = this.props;
     return (
-      <div className='inner-join' style={[styles.base]} onMouseUp={this.props.stopDrag}>
+      <div
+        className="inner-join"
+        style={styles.base}
+        onMouseUp={this.props.stopDrag}
+      >
         <div style={styles.wrap}>
-          <div style={[styles.item]}>
-            <span style={[styles.font]}>{la('Type: ')}</span>
+          <div style={styles.item}>
+            <span style={styles.font}>{la("Type: ")}</span>
             <Select
-              dataQa='selectedJoinType'
+              dataQa="selectedJoinType"
               items={this.items}
-              valueField='value'
+              valueField="value"
               itemRenderer={this.renderDdItem}
               value={joinType.value}
               selectedValueRenderer={this.renderCurItem}
@@ -188,9 +195,9 @@ export class InnerJoin extends Component {
             />
           </div>
         </div>
-        <div style={[styles.inner]}>
+        <div style={styles.inner}>
           <JoinColumnMenu
-            type='default'
+            type="default"
             columns={this.props.leftColumns}
             disabledColumnNames={this.leftDisabledColumnNames}
             onDragEnd={this.props.stopDrag}
@@ -201,7 +208,7 @@ export class InnerJoin extends Component {
           />
           {this.getDragPart()}
           <JoinColumnMenu
-            type='custom'
+            type="custom"
             columns={this.props.rightColumns}
             disabledColumnNames={this.rightDisabledColumnNames}
             onDragEnd={this.props.stopDrag}
@@ -212,9 +219,16 @@ export class InnerJoin extends Component {
           />
         </div>
         <div style={styles.center}>
-          <div style={[styles.add]} onClick={this.props.addEmptyColumnToInnerJoin}> {/* todo: ax, consistency: button */}
-            <FontIcon type='Add' hoverType='AddHover'/>
-            <span style={{marginBottom: 3}}>{la('Add a Join Condition')}</span>
+          <div
+            style={styles.add}
+            onClick={this.props.addEmptyColumnToInnerJoin}
+          >
+            {" "}
+            {/* todo: ax, consistency: button */}
+            <FontIcon type="Add" />
+            <span style={{ marginBottom: 3 }}>
+              {la("Add a Join Condition")}
+            </span>
           </div>
         </div>
       </div>
@@ -222,13 +236,8 @@ export class InnerJoin extends Component {
   }
 }
 
-const DdItem = ({
-  label,
-  icon,
-  des
-}) => {
-
-  const itemIcon = icon ? <FontIcon type={icon}/> : null;
+const DdItem = ({ label, icon, des }) => {
+  const itemIcon = icon ? <FontIcon type={icon} /> : null;
   const primaryText = (
     <div style={ddStyles.defaultTextStyle}>
       <div style={{ height: 23 }}>{itemIcon}</div>
@@ -248,78 +257,78 @@ DdItem.propTypes = {
   value: PropTypes.any,
   icon: PropTypes.string,
   des: PropTypes.string,
-  isLast: PropTypes.bool
+  isLast: PropTypes.bool,
 };
 
 const styles = {
   base: {
     flex: 1,
-    display: 'flex',
+    display: "flex",
     minHeight: 180,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    backgroundColor: PALE_BLUE
+    flexWrap: "wrap",
+    justifyContent: "center",
+    backgroundColor: PALE_BLUE,
   },
   wrap: {
-    width: '100%',
-    display: 'flex',
+    width: "100%",
+    display: "flex",
     paddingBottom: 5,
     height: 38,
-    backgroundColor: PALE_BLUE
+    backgroundColor: PALE_BLUE,
   },
   inner: {
-    width: '100%',
-    backgroundColor: '#fff',
-    justifyContent: 'space-between',
-    display: 'flex',
-    margin: '3px 10px',
+    width: "100%",
+    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    display: "flex",
+    margin: "3px 10px",
     maxHeight: 180,
-    minHeight: 180
+    minHeight: 180,
   },
   center: {
-    width: '100%',
+    width: "100%",
     height: 30,
-    display: 'flex',
-    margin: '0 10px',
-    alignItems: 'center',
+    display: "flex",
+    margin: "0 10px",
+    alignItems: "center",
     borderBottom: `2px solid ${PALE_GREY}`,
-    justifyContent: 'center',
+    justifyContent: "center",
     backgroundColor: PALE_BLUE,
-    padding: '0 10px'
+    padding: "0 10px",
   },
   add: {
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer'
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
   },
   rightMenu: {
-    borderLeft: `2px solid ${PALE_GREY}`
+    borderLeft: `2px solid ${PALE_GREY}`,
   },
   dragWrapStyles: {
-    display: 'flex',
-    width: '100%',
-    justifyContent: 'space-between'
+    display: "flex",
+    width: "100%",
+    justifyContent: "space-between",
   },
   dragOneWrapStyles: {
-    display: 'flex',
-    width: '100%',
-    overflowY: 'auto',
-    justifyContent: 'space-between'
+    display: "flex",
+    width: "100%",
+    overflowY: "auto",
+    justifyContent: "space-between",
   },
   item: {
     maxWidth: 235,
     width: 235,
-    alignItems: 'center',
+    alignItems: "center",
     marginLeft: 20,
     fontWeight: 400,
-    position: 'relative',
+    position: "relative",
     marginTop: 5,
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'flex-start'
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
   },
   font: {
-    margin: '0 10px 0 -5px'
+    margin: "0 10px 0 -5px",
   },
   select: {
     padding: 0,
@@ -327,69 +336,69 @@ const styles = {
     height: 28,
     marginTop: 2,
     marginLeft: 0,
-    ...bodySmall
+    ...bodySmall,
   },
   addJoinStyle: {
-    color: '#0096FF',
+    color: "#0096FF",
     fontSize: 13,
     marginBottom: 3,
     marginTop: -5,
-    cursor: 'pointer'
+    cursor: "pointer",
   },
   dragArea: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: 180
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: 180,
   },
   border: {
-    borderLeft: '1px solid #ccc'
+    borderLeft: "1px solid #ccc",
   },
   dragAreaText: {
     width: 180,
-    color: 'gray',
+    color: "gray",
     fontSize: 12,
-    textAlign: 'center',
-    display: 'inline-block'
+    textAlign: "center",
+    display: "inline-block",
   },
   label: {
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'space-between',
-    width: '100%',
-    ...formDefault
-  }
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    justifyContent: "space-between",
+    width: "100%",
+    ...formDefault,
+  },
 };
 
 const ddStyles = {
   button: {
     height: 24,
     width: 130,
-    boxShadow: 0
+    boxShadow: 0,
   },
   wrapped: {
     marginLeft: -15,
     lineHeight: 2,
     height: 55,
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    flexDirection: 'column-reverse'
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "flex-start",
+    flexDirection: "column-reverse",
   },
   secondaryText: {
-    whiteSpace: 'normal',
+    whiteSpace: "normal",
     marginTop: -5,
-    lineHeight: '14px',
+    lineHeight: "14px",
     marginLeft: 24,
-    color: '#999999'
+    color: "#999999",
   },
   defaultTextStyle: {
-    display: 'flex',
-    alignItems: 'center',
-    height: 27
-  }
+    display: "flex",
+    alignItems: "center",
+    height: 27,
+  },
 };
 
 export default InnerJoin;

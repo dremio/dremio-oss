@@ -17,17 +17,26 @@ package com.dremio.service.jobs;
 
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.DeferredException;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.rpc.Acks;
+import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.service.grpc.OnReadyRunnableHandler;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Throwables;
 
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 
 /**
@@ -40,32 +49,55 @@ import io.grpc.stub.StreamObserver;
  * Since this object is not highly contended, the implementation uses coarse-grained locking.
  */
 @ThreadSafe
-class JobEventCollatingObserver {
+class JobEventCollatingObserver implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(JobEventCollatingObserver.class);
 
   private static final QueuedEvent SENT = new QueuedEvent();
+  private static final int DATA_ORDER_INDEX = 3;
 
-  private final QueuedEvent[] checkpointEvents = new QueuedEvent[4];
+  private final QueuedEvent[] checkpointEvents = new QueuedEvent[5];
   private final LinkedList<QueuedEvent> otherEvents = new LinkedList<>();
 
   private final JobId jobId;
   private final StreamObserver<JobEvent> delegate;
+  private final ServerCallStreamObserver<JobEvent> scso;
 
   private volatile boolean started = false;
   private volatile boolean closed = false;
 
-  JobEventCollatingObserver(JobId jobId, StreamObserver<JobEvent> delegate) {
+  JobEventCollatingObserver(JobId jobId,
+                            StreamObserver<JobEvent> delegate,
+                            CloseableExecutorService executorService,
+                            boolean streamResultsMode) {
     this.jobId = jobId;
     this.delegate = delegate;
+
+    if (!streamResultsMode) {
+      checkpointEvents[DATA_ORDER_INDEX] = SENT;
+    }
+
+    // backpressure is supported only if delegate is instance of ServerCallStreamObserver,
+    // as isReady() & setOnReadyHandler() methods are required to detect client readiness to accept messages.
+    if (delegate instanceof ServerCallStreamObserver) {
+      logger.debug("Flow control is enabled for job {}.", jobId);
+      this.scso = (ServerCallStreamObserver<JobEvent>) delegate;
+
+      OnReadyRunnableHandler eventHandler = new OnReadyRunnableHandler("job-events", executorService,
+        scso, () -> processEvents(), () -> closed = true);
+      this.scso.setOnReadyHandler(eventHandler);
+      this.scso.setOnCancelHandler(eventHandler::cancel);
+    } else {
+      this.scso = null;
+    }
   }
 
   /**
    * Starts processing events.
    *
-   * @param jobIdEvent the first event to process
+   * @param jobSubmissionEvent the first event to process
    */
-  synchronized void start(JobEvent jobIdEvent) {
-    checkpointEvents[0] = new QueuedEvent(jobIdEvent);
+  synchronized void start(JobEvent jobSubmissionEvent) {
+    checkpointEvents[0] = new QueuedEvent(jobSubmissionEvent);
     started = true;
 
     processEvents();
@@ -79,8 +111,25 @@ class JobEventCollatingObserver {
     checkpoint(new QueuedEvent(event), 2);
   }
 
+  void onData(JobEvent event, RpcOutcomeListener<Ack> outcomeListener) {
+    if (checkpointEvents[DATA_ORDER_INDEX] == null) {
+      synchronized (this) {
+        if (checkpointEvents[DATA_ORDER_INDEX] == null) {
+          QueuedEvent dataEvent = new QueuedEvent();
+          dataEvent.addData(event, outcomeListener);
+          checkpoint(dataEvent, DATA_ORDER_INDEX);
+        }
+      }
+    } else {
+      checkpointEvents[DATA_ORDER_INDEX].addData(event, outcomeListener);
+      if (started && mayProcess(DATA_ORDER_INDEX)) {
+        processEvents();
+      }
+    }
+  }
+
   void onFinalJobSummary(JobEvent event) {
-    checkpoint(new QueuedEvent(event), 3);
+    checkpoint(new QueuedEvent(event), 4);
   }
 
   void onProgressJobSummary(JobEvent event) {
@@ -132,10 +181,9 @@ class JobEventCollatingObserver {
     processEvents();
   }
 
-  private void processEvents() {
+  private synchronized void processEvents() {
     @SuppressWarnings("resource")
     final DeferredException deferredException = new DeferredException();
-
     // (1) pass through and handle all the checkpoint events, if possible
     for (int i = 0; i < checkpointEvents.length; i++) {
       final QueuedEvent event = checkpointEvents[i];
@@ -148,12 +196,37 @@ class JobEventCollatingObserver {
       }
 
       try {
-        delegate.onNext(event.event);
+        if (i == DATA_ORDER_INDEX) {
+          while (isClientReady() && !checkpointEvents[DATA_ORDER_INDEX].getDataQueue().isEmpty()) {
+            Pair<JobEvent, RpcOutcomeListener<Ack>> data = checkpointEvents[DATA_ORDER_INDEX].getDataQueue().poll();
+            if (data != null) {
+              delegate.onNext(data.getLeft());
+
+              // The executor has a cap on the number of outstanding acks for data batches,
+              // and will stop sending more batches if that cap is reached.
+              // So, sending the ack to executor only after the data batch is picked up by the client
+              // works as flow-control for the executor->coordinator communication.
+              data.getRight().success(Acks.OK, null);
+            }
+          }
+          if (!checkpointEvents[DATA_ORDER_INDEX].getDataQueue().isEmpty()) {
+            break;
+          }
+        } else {
+          delegate.onNext(event.event);
+        }
       } catch (Exception e) {
         deferredException.addException(e);
       }
 
-      checkpointEvents[i] = SENT;
+      if (i != DATA_ORDER_INDEX) {
+        checkpointEvents[i] = SENT;
+
+        // there can be multiple data events, so set data as SENT only when next event to it was sent.
+        if (i == (DATA_ORDER_INDEX + 1)) {
+          checkpointEvents[DATA_ORDER_INDEX] = SENT;
+        }
+      }
     }
 
     // (2) then, handle all other events
@@ -199,12 +272,20 @@ class JobEventCollatingObserver {
         .allMatch(event -> event == SENT);
   }
 
+  private boolean isClientReady() {
+    return scso == null || scso.isReady();
+  }
+
+  @Override
+  public void close() throws Exception { }
+
   /**
    * Queued up event.
    */
   private static final class QueuedEvent {
     private final JobEvent event;
     private final Throwable t;
+    private Queue<Pair<JobEvent, RpcOutcomeListener<Ack>>> data;
 
     QueuedEvent(JobEvent event) {
       this.event = event;
@@ -219,6 +300,17 @@ class JobEventCollatingObserver {
     QueuedEvent() {
       this.event = null;
       this.t = null;
+    }
+
+    void addData(JobEvent event, RpcOutcomeListener<Ack> outcomeListener) {
+      if (data == null) {
+        data = new ConcurrentLinkedDeque<>();
+      }
+      data.offer(Pair.of(event, outcomeListener));
+    }
+
+    Queue<Pair<JobEvent, RpcOutcomeListener<Ack>>> getDataQueue() {
+      return data;
     }
   }
 }

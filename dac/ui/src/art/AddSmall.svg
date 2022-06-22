@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 8C12.1989 8 12.3897 8.07902 12.5303 8.21967C12.671 8.36032 12.75 8.55109 12.75 8.75V11.25H15.25C15.4489 11.25 15.6397 11.329 15.7803 11.4697C15.921 11.6103 16 11.8011 16 12C16 12.1989 15.921 12.3897 15.7803 12.5303C15.6397 12.671 15.4489 12.75 15.25 12.75H12.75V15.25C12.75 15.4489 12.671 15.6397 12.5303 15.7803C12.3897 15.921 12.1989 16 12 16C11.8011 16 11.6103 15.921 11.4697 15.7803C11.329 15.6397 11.25 15.4489 11.25 15.25V12.75H8.75C8.55109 12.75 8.36032 12.671 8.21967 12.5303C8.07902 12.3897 8 12.1989 8 12C8 11.8011 8.07902 11.6103 8.21967 11.4697C8.36032 11.329 8.55109 11.25 8.75 11.25H11.25V8.75C11.25 8.55109 11.329 8.36032 11.4697 8.21967C11.6103 8.07902 11.8011 8 12 8Z" fill="#505862"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12ZM18.5 12C18.5 15.5899 15.5899 18.5 12 18.5C8.41015 18.5 5.5 15.5899 5.5 12C5.5 8.41015 8.41015 5.5 12 5.5C15.5899 5.5 18.5 8.41015 18.5 12Z" fill="#505862"/>
+</svg>

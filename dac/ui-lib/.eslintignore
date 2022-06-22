@@ -1,5 +1,7 @@
 build/
 dist/
+dist-cjs/
+dist-esm/
 node_modules/
 .snapshots/
 *.min.js

@@ -13,26 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { injectIntl } from 'react-intl';
-import PropTypes from 'prop-types';
-import FilterSelectMenu from 'components/Fields/FilterSelectMenu';
+import { injectIntl } from "react-intl";
+import PropTypes from "prop-types";
+import FilterSelectMenu from "components/Fields/FilterSelectMenu";
 
 const spacesFilterItems = [
-  { id: 'spacesFilter', label: 'spacesFilter', flexGrow: 0, disableSort: false }
+  {
+    id: "spacesFilter",
+    label: "spacesFilter",
+    flexGrow: 0,
+    disableSort: false,
+  },
 ];
 const SpacesFilter = (props) => {
-  const { intl: { formatMessage } } = props;
+  const {
+    intl: { formatMessage },
+  } = props;
   return (
     <FilterSelectMenu
       selectedToTop={false}
       noSearch
       items={spacesFilterItems}
-      label={formatMessage({id: 'Common.Spaces'})}
-      name='sf'
+      label={formatMessage({ id: "Common.Spaces" })}
+      name="sf"
     />
   );
 };
 SpacesFilter.propTypes = {
-  intl: PropTypes.object.isRequired
+  intl: PropTypes.object.isRequired,
 };
 export default injectIntl(SpacesFilter);

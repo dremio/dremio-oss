@@ -13,33 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, createRef, PureComponent } from 'react';
-import { connect } from 'react-redux';
-import classNames from 'classnames';
-import Radium from 'radium';
-import Immutable  from 'immutable';
+import { Component, createRef, PureComponent } from "react";
+import { connect } from "react-redux";
+import classNames from "classnames";
+import Immutable from "immutable";
+import { Tooltip } from "dremio-ui-lib";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import EntityLink from '@app/pages/HomePage/components/EntityLink';
-import { EntityIcon } from '@app/pages/HomePage/components/EntityIcon';
-import { EntityName } from '@app/pages/HomePage/components/EntityName';
-import { Popover, MouseEvents } from '@app/components/Popover';
+import EntityLink from "@app/pages/HomePage/components/EntityLink";
+import { EntityIcon } from "@app/pages/HomePage/components/EntityIcon";
+import { EntityName } from "@app/pages/HomePage/components/EntityName";
+import { Popover, MouseEvents } from "@app/components/Popover";
 
-import AllSpacesMenu from 'components/Menus/HomePage/AllSpacesMenu';
-import AllSourcesMenu from 'components/Menus/HomePage/AllSourcesMenu';
-import { ENTITY_TYPES } from '@app/constants/Constants';
-import { getRootEntityTypeByIdV3 } from '@app/selectors/home';
-import ContainerDatasetCountV3, { ContainerDatasetCount } from '@app/pages/HomePage/components/ContainerDatasetCount';
+import AllSpacesMenu from "components/Menus/HomePage/AllSpacesMenu";
+import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
+import ContainerDatasetCountV3, {
+  ContainerDatasetCount,
+} from "@app/pages/HomePage/components/ContainerDatasetCount";
 
-import ResourcePin from './ResourcePin';
-import EllipsedText from './EllipsedText';
-import './FinderNavItem.less';
+import ResourcePin from "./ResourcePin";
+import EllipsedText from "./EllipsedText";
+import "./FinderNavItem.less";
 
 const mapStateToPropsV3 = (state, { entityId }) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
   const props = {
-    entityType: type
+    entityType: type,
   };
 
   return props;
@@ -52,16 +54,27 @@ export class FinderNavItemV3 extends PureComponent {
     //public api
     entityId: PropTypes.string.isRequired,
     // connected
-    entityType: PropTypes.oneOf([ENTITY_TYPES.home, ENTITY_TYPES.source, ENTITY_TYPES.space]).isRequired
+    entityType: PropTypes.oneOf([
+      ENTITY_TYPES.home,
+      ENTITY_TYPES.source,
+      ENTITY_TYPES.space,
+    ]).isRequired,
   };
 
   render() {
     const { entityId } = this.props;
 
     return (
-      <EntityLink entityId={entityId} activeClassName='active' className='finder-nav-item-link'>
+      <EntityLink
+        entityId={entityId}
+        activeClassName="active"
+        className="finder-nav-item-link"
+      >
         <EntityIcon entityId={entityId} />
-        <EntityName entityId={entityId} style={{marginRight: 5}} />
+        <EntityName
+          entityId={entityId}
+          style={{ marginRight: 5, width: "191px" }}
+        />
         <ContainerDatasetCountV3 entityId={entityId} />
         {entityId && <ResourcePin entityId={entityId} />}
       </EntityLink>
@@ -70,103 +83,134 @@ export class FinderNavItemV3 extends PureComponent {
 }
 
 const mapStateToProps = (state, { item }) => ({
-  entityType: getRootEntityTypeByIdV3(state, item.id)
+  entityType: getRootEntityTypeByIdV3(state, item.id),
 });
 
-@Radium
-export class FinderNavItem extends Component {
+class FinderNavItem extends Component {
   static propTypes = {
     item: PropTypes.object.isRequired,
     style: PropTypes.object,
+    noHover: PropTypes.bool,
+    isHomeActive: PropTypes.bool,
 
     //connected
-    entityType: PropTypes.oneOf([ENTITY_TYPES.home, ENTITY_TYPES.source, ENTITY_TYPES.space]).isRequired,
-    renderExtra: PropTypes.any
+    entityType: PropTypes.oneOf([
+      ENTITY_TYPES.home,
+      ENTITY_TYPES.source,
+      ENTITY_TYPES.space,
+    ]).isRequired,
+    renderExtra: PropTypes.any,
   };
 
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.state = {
-      menuOpen: false
+      menuOpen: false,
     };
     this.lastMouseEventPosition = null;
   }
 
   handleRightClick = (e) => {
     // home space does not have context menu
-    if (!this.hasMenu()) return;
+    if (!this.hasMenu(this.props.entityType)) return;
 
     e.preventDefault();
     this.lastMouseEventPosition = this.rightClickPosition(e);
     this.setState({
       menuOpen: true,
-      anchorEl: e.currentTarget
+      anchorEl: e.currentTarget,
     });
   };
 
-  hasMenu = () => this.props.entityType !== ENTITY_TYPES.home;
+  hasMenu = (entityType) => entityType !== ENTITY_TYPES.home;
 
   // make position string for comparing mouse events
   rightClickPosition = (e) => `x: ${e.clientX}, y: ${e.clientY}`;
   clickAwayPosition = (e) => `x: ${e.x}, y: ${e.y}`;
 
   handleMenuClose = () => {
-    this.setState({menuOpen: false});
+    this.setState({ menuOpen: false });
   };
 
   getMenu = () => {
     const { item } = this.props;
     switch (item.entityType) {
-    case ENTITY_TYPES.space:
-      return <AllSpacesMenu spaceId={item.id} closeMenu={this.handleMenuClose}/>;
-    case ENTITY_TYPES.source:
-      return <AllSourcesMenu item={Immutable.fromJS(item)} closeMenu={this.handleMenuClose}/>;
-    default:
-      return null;
+      case ENTITY_TYPES.space:
+        return (
+          <AllSpacesMenu spaceId={item.id} closeMenu={this.handleMenuClose} />
+        );
+      case ENTITY_TYPES.source:
+        return (
+          <AllSourcesMenu
+            item={Immutable.fromJS(item)}
+            closeMenu={this.handleMenuClose}
+          />
+        );
+      default:
+        return null;
     }
   };
 
   itemRef = createRef(null);
-
   render() {
-    const { style, entityType, renderExtra } = this.props;
-    const {
-      id,
-      name,
-      numberOfDatasets,
-      disabled,
-      datasetCountBounded
-    } = this.props.item;
-    const itemClass = classNames('finder-nav-item', { withExtra: !!renderExtra });
+    const { style, entityType, renderExtra, isHomeActive } = this.props;
+
+    const { id, name, numberOfDatasets, disabled, datasetCountBounded } =
+      this.props.item;
+
+    const itemClass = classNames("finder-nav-item", {
+      withExtra: !!renderExtra,
+    });
 
     return (
-      <li className={itemClass} style={[disabled && styles.disabled, style]} ref={this.itemRef}>
-        {
-          entityType === ENTITY_TYPES.space ?
-            (
-              <div onContextMenu={this.handleRightClick}>
-                <FinderNavItemV3 entityId={id} />
-              </div>
-            ) :
-            (
-              <>
-                <div className='entity-link-wrapper' onContextMenu={this.handleRightClick}>
-                  <EntityLink entityId={id} activeClassName='active' className='finder-nav-item-link'>
-                    <EntityIcon entityId={id} />
-                    <EllipsedText text={name} style={{marginRight: 5}} />
-                    {!renderExtra && (
-                      <>
-                        <ContainerDatasetCount count={numberOfDatasets} isBounded={datasetCountBounded} />
-                        {id && <ResourcePin entityId={id} />}
-                      </>
-                    )}
-                  </EntityLink>
-                  {renderExtra && <span className='extra-content'>{renderExtra(this.props.item, this.itemRef)}</span>}
-                </div>
-              </>
-            )
-        }
-        {this.hasMenu() && this.state.menuOpen &&
+      <li
+        className={itemClass}
+        style={{ ...(disabled && styles.disabled), ...(style || {}) }}
+        ref={this.itemRef}
+      >
+        {entityType === ENTITY_TYPES.space ? (
+          <div
+            className="full-width full-height"
+            onContextMenu={this.handleRightClick}
+          >
+            <FinderNavItemV3 entityId={id} />
+          </div>
+        ) : (
+          <div
+            className="entity-link-wrapper full-height"
+            onContextMenu={this.handleRightClick}
+          >
+            <EntityLink
+              entityId={id}
+              activeClassName="active"
+              className={`finder-nav-item-link ${
+                isHomeActive ? "active" : ""
+              } `}
+            >
+              <EntityIcon entityId={id} />
+              <Tooltip title={name}>
+                <EllipsedText className="nav-item-ellipsed-text">
+                  <span>{name}</span>
+                </EllipsedText>
+              </Tooltip>
+              {renderExtra && (
+                <span className="extra-content">
+                  {renderExtra(this.props.item, this.itemRef)}
+                </span>
+              )}
+              {!renderExtra && (
+                <>
+                  <ContainerDatasetCount
+                    count={numberOfDatasets}
+                    isBounded={datasetCountBounded}
+                  />
+                  {id && <ResourcePin entityId={id} />}
+                </>
+              )}
+            </EntityLink>
+          </div>
+        )}
+        {this.hasMenu(this.props.entityType) && this.state.menuOpen && (
           <Popover
             useLayerForClickAway={false}
             anchorEl={this.state.menuOpen ? this.state.anchorEl : null}
@@ -176,7 +220,7 @@ export class FinderNavItem extends Component {
           >
             {this.getMenu()}
           </Popover>
-        }
+        )}
       </li>
     );
   }
@@ -185,18 +229,10 @@ export class FinderNavItem extends Component {
 export default connect(mapStateToProps)(FinderNavItem);
 
 const styles = {
-  iconStyle: {
-    Container: {
-      height: 24,
-      display: 'inline-block',
-      verticalAlign: 'middle',
-      marginRight: 5
-    }
-  },
   disabled: {
     opacity: 0.7,
-    background: '#fff',
-    pointerEvents: 'none',
-    color: '#999'
-  }
+    background: "#fff",
+    pointerEvents: "none",
+    color: "#999",
+  },
 };

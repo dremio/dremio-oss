@@ -94,6 +94,7 @@ import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
+import com.dremio.exec.planner.logical.ValuesRewriteShuttle;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -123,6 +124,7 @@ import com.dremio.exec.planner.physical.visitor.WriterUpdater;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
+import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryTransformer;
 import com.dremio.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
@@ -177,26 +179,33 @@ public class PrelTransformer {
   }
 
   public static ConvertedRelNode validateAndConvert(SqlHandlerConfig config, SqlNode sqlNode, RelTransformer relTransformer) throws ForemanSetupException, RelConversionException, ValidationException {
-    final Pair<SqlNode, RelDataType> validatedTypedSqlNode = validateNode(config, sqlNode);
+    final SqlValidatorAndToRelContext sqlValidatorAndToRelContext =
+      SqlValidatorAndToRelContext.builder(config.getConverter())
+        .build();
+    final Pair<SqlNode, RelDataType> validatedTypedSqlNode =
+      validateNode(config, sqlValidatorAndToRelContext, sqlNode);
     if (config.getObserver() != null) {
       config.getObserver().beginState(AttemptObserver.toEvent(UserBitShared.AttemptEvent.State.PLANNING));
     }
 
     final SqlNode validated = validatedTypedSqlNode.getKey();
-    final RelNode rel = convertToRel(config, validated, relTransformer);
+    final RelNode rel = convertToRel(config, sqlValidatorAndToRelContext, validated, relTransformer);
     final RelNode preprocessedRel = preprocessNode(config.getContext().getOperatorTable(), rel);
     return new ConvertedRelNode(preprocessedRel, validatedTypedSqlNode.getValue());
   }
 
-  private static Pair<SqlNode, RelDataType> validateNode(SqlHandlerConfig config, final SqlNode sqlNode) throws ValidationException, RelConversionException, ForemanSetupException {
+  private static Pair<SqlNode, RelDataType> validateNode(SqlHandlerConfig config,
+      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
+      SqlNode sqlNode) throws ValidationException, ForemanSetupException {
     final Stopwatch stopwatch = Stopwatch.createStarted();
     final SqlNode sqlNodeValidated;
+
     try {
-      sqlNodeValidated = config.getConverter().validate(sqlNode);
+      sqlNodeValidated = sqlValidatorAndToRelContext.validate(sqlNode);
     } catch (final Throwable ex) {
       throw new ValidationException("unable to validate sql node", ex);
     }
-    final Pair<SqlNode, RelDataType> typedSqlNode = new Pair<>(sqlNodeValidated, config.getConverter().getOutputType(sqlNodeValidated));
+    final Pair<SqlNode, RelDataType> typedSqlNode = new Pair<>(sqlNodeValidated, sqlValidatorAndToRelContext.getOutputType(sqlNodeValidated));
 
     // Check if the unsupported functionality is used
     UnsupportedOperatorsVisitor visitor = UnsupportedOperatorsVisitor.createVisitor(config.getContext());
@@ -254,15 +263,13 @@ public class PrelTransformer {
       final RelNode flattendPushed = getFlattenedPushed(config, postJoinOptimizationRelNode);
       final Rel drel = (Rel) flattendPushed;
 
-      if (drel instanceof TableModify) {
-        throw new UnsupportedOperationException("TableModify " + drel);
-      } else {
+      if (!(drel instanceof TableModify)) {
         final Optional<SubstitutionInfo> acceleration = findUsedMaterializations(config, drel);
         if (acceleration.isPresent()) {
           config.getObserver().planAccelerated(acceleration.get());
         }
-        return drel;
       }
+      return drel;
     } catch (RelOptPlanner.CannotPlanException ex) {
       logger.error(ex.getMessage(), ex);
 
@@ -313,7 +320,7 @@ public class PrelTransformer {
         logger.error("Failure while removing multiple constant group by keys in aggregate, ", ex);
         relWithoutMultipleConstantGroupKey = rowCountAdjusted;
       }
-      final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
+      final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateAndValidateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
       final RelNode sortRemoved = (plannerSettings.isSortInJoinRemoverEnabled())? DremioSortInJoinRemover.remove(decorrelatedNode): decorrelatedNode;
       final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, sortRemoved, sortRemoved.getTraitSet().plus(Rel.LOGICAL), true);
       return jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
@@ -858,15 +865,8 @@ public class PrelTransformer {
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
 
-    /* 9.1)
-     * Remove common sub expressions.
-     */
-    if (plannerSettings.isCSEEnabled()) {
-      phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
-    }
-
     /*
-     * 9.2)
+     * 9.1)
      * add runtime filter information if applicable
      */
     if (plannerSettings.isRuntimeFilterEnabled()) {
@@ -875,6 +875,14 @@ public class PrelTransformer {
           phyRelNode,
           plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
     }
+
+    /* 9.2)
+     * Remove common sub expressions.
+     */
+    if (plannerSettings.isCSEEnabled()) {
+      phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
+    }
+
 
     final String textPlan;
     if (logger.isDebugEnabled() || config.getObserver() != null) {
@@ -903,7 +911,7 @@ public class PrelTransformer {
     return op;
   }
 
-  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op, Runnable committer) {
+  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op, Runnable committer, Runnable cleaner) {
     OptionList options = new OptionList();
     options.merge(config.getContext().getQueryOptionManager().getNonDefaultOptions());
     options.merge(config.getContext().getSessionOptionManager().getNonDefaultOptions());
@@ -917,11 +925,11 @@ public class PrelTransformer {
     List<PhysicalOperator> ops = Lists.newArrayList();
     PopCollector c = new PopCollector();
     op.accept(c, ops);
-    return new PhysicalPlan(propsBuilder.build(), ops, committer);
+    return new PhysicalPlan(propsBuilder.build(), ops, committer, cleaner);
   }
 
   public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op) {
-    return convertToPlan(config, op, null);
+    return convertToPlan(config, op, null, null);
   }
 
   private static class PopCollector extends AbstractPhysicalVisitor<Void, Collection<PhysicalOperator>, RuntimeException> {
@@ -936,11 +944,16 @@ public class PrelTransformer {
     }
   }
 
-  private static RelNode toConvertibleRelRoot(SqlHandlerConfig config, final SqlNode validatedNode, boolean expand, RelTransformer relTransformer) {
+  private static RelNode toConvertibleRelRoot(SqlHandlerConfig config,
+      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
+      SqlNode validatedNode,
+      boolean expand,
+      RelTransformer relTransformer) {
     final Stopwatch stopwatch = Stopwatch.createStarted();
     config.getConverter().getSubstitutionProvider().setPostSubstitutionTransformer(getPostSubstitutionTransformer(config));
     config.getConverter().getSubstitutionProvider().setObserver(config.getObserver());
-    final RelRootPlus convertible = config.getConverter().toConvertibleRelRoot(validatedNode, expand, true);
+
+    final RelRootPlus convertible = sqlValidatorAndToRelContext.toConvertibleRelRoot(validatedNode, expand, true);
     final boolean currentPlanCacheable = config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable();
     config.getConverter().getFunctionContext().getContextInformation().setPlanCacheable(
       currentPlanCacheable && convertible.isPlanCacheable());
@@ -956,10 +969,13 @@ public class PrelTransformer {
     return reduced;
   }
 
-  private static RelNode convertToRelRootAndJdbc(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
+  private static RelNode convertToRelRootAndJdbc(SqlHandlerConfig config,
+      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
+      SqlNode node,
+      RelTransformer relTransformer) throws RelConversionException {
 
     // First try and convert without "expanding" exists/in/subqueries
-    final RelNode convertible = toConvertibleRelRoot(config, node, false, relTransformer);
+    final RelNode convertible = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, false, relTransformer);
 
     // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
     // rel node with RexSubQuery have the same JDBC convention.
@@ -975,7 +991,7 @@ public class PrelTransformer {
       convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
     } else {
       // If there is a rexSubQuery, then get the ones without (don't pass in SqlHandlerConfig here since we don't want to record it twice)
-      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, node, true, relTransformer);
+      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, true, relTransformer);
       if (!checker.canPushdownRexSubQuery()) {
         // if there are RexSubQuery nodes with none-jdbc convention, abandon and expand the entire tree
         convertedNode = convertedNodeWithoutRexSubquery;
@@ -1024,11 +1040,14 @@ public class PrelTransformer {
     return finalConvertedNode;
   }
 
-  private static RelNode convertToRelRoot(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
+  private static RelNode convertToRelRoot(SqlHandlerConfig config,
+      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
+      SqlNode node,
+      RelTransformer relTransformer) throws RelConversionException {
     final boolean leafLimitEnabled = config.getContext().getPlannerSettings().isLeafLimitsEnabled();
 
     // First try and convert without "expanding" exists/in/subqueries
-    final RelNode convertible = toConvertibleRelRoot(config, node, false, relTransformer);
+    final RelNode convertible = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, false, relTransformer);
 
     // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
     // rel node with RexSubQuery have the same JDBC convention.
@@ -1040,7 +1059,7 @@ public class PrelTransformer {
     if (!checker.foundRexSubQuery()) {
       convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
     } else {
-      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, node, true, relTransformer);
+      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, sqlValidatorAndToRelContext, node, true, relTransformer);
     }
 
     // Convert with "expanding" exists/in subqueries (if applicable)
@@ -1052,14 +1071,17 @@ public class PrelTransformer {
     return ExpansionNode.removeFromTree(convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled)));
   }
 
-  private static RelNode convertToRel(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
+  private static RelNode convertToRel(SqlHandlerConfig config,
+      SqlValidatorAndToRelContext sqlValidatorAndToRelContext,
+      SqlNode node,
+      RelTransformer relTransformer) throws RelConversionException {
     RelNode rel;
     final Catalog catalog = config.getContext().getCatalog();
     try {
       if (config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
-        rel = convertToRelRoot(config, node, relTransformer);
+        rel = convertToRelRoot(config, sqlValidatorAndToRelContext, node, relTransformer);
       } else {
-        rel = convertToRelRootAndJdbc(config, node, relTransformer);
+        rel = convertToRelRootAndJdbc(config, sqlValidatorAndToRelContext, node, relTransformer);
       }
     } catch (RelConversionException e) {
       if (catalog instanceof CachingCatalog) {
@@ -1078,11 +1100,18 @@ public class PrelTransformer {
 
   public static RelNode preprocessNode(OperatorTable operatorTable, RelNode rel) throws SqlUnsupportedException {
     /*
-     * Traverse the tree to do the following pre-processing tasks: 1. replace the convert_from, convert_to function to
-     * actual implementations Eg: convert_from(EXPR, 'JSON') be converted to convert_fromjson(EXPR); TODO: Ideally all
-     * function rewrites would move here instead of RexToExpr.
+     * Traverse the tree to do the following pre-processing tasks:
      *
-     * 2. see where the tree contains unsupported functions; throw SqlUnsupportedException if there is any.
+     * 1) Replace the convert_from, convert_to function to
+     * actual implementations Eg: convert_from(EXPR, 'JSON') be converted to convert_fromjson(EXPR);
+     * TODO: Ideally all function rewrites would move here instead of RexToExpr.
+     *
+     * 2) See where the tree contains unsupported functions; throw SqlUnsupportedException if there is any.
+     *
+     * 3) Rewrite LogicalValue's row type and replace any Decimal tuples with double
+     * since we don't support decimal type during execution.
+     * See com.dremio.exec.planner.logical.ValuesRel.writeLiteral where we write Decimal as Double.
+     * See com.dremio.exec.vector.complex.fn.VectorOutput.innerRun where we throw exception for Decimal type.
      */
 
     PreProcessRel visitor = PreProcessRel.createVisitor(
@@ -1094,6 +1123,8 @@ public class PrelTransformer {
       visitor.convertException();
       throw ex;
     }
+
+    rel = rel.accept(new ValuesRewriteShuttle());
 
     return rel;
   }

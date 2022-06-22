@@ -15,7 +15,7 @@
  */
 package com.dremio.jdbc;
 
-import java.sql.ResultSet;  // (for Javadoc reference(s))
+import java.sql.ResultSet;
 
 
 /**

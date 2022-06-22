@@ -113,7 +113,7 @@ public class OrphanageManager implements AutoCloseable {
       try {
         executorService.execute(cleanerTask);
       } catch (RejectedExecutionException ex) {
-        logger.debug("The task to clean orphan {} in not accepted for execution {}", orphanEntry.getKey(), ex);
+        logger.debug("The task to clean orphan {} in not accepted for execution", orphanEntry.getKey(), ex);
       }
     }
   }

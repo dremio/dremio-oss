@@ -20,13 +20,14 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
+
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchFilter;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchIntermediatePrel;
-import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchPrel;
+import com.dremio.plugins.elastic.planning.rels.ElasticsearchProject;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchSample;
 
 /**

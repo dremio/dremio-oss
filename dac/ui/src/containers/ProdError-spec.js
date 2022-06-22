@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import ProdErrorModal from 'components/Modals/ProdErrorModal';
-import { ProdErrorContainer, SHOW_GO_HOME_AFTER_PERIOD } from './ProdError';
+import ProdErrorModal from "components/Modals/ProdErrorModal";
+import { ProdErrorContainer, SHOW_GO_HOME_AFTER_PERIOD } from "./ProdError";
 
-describe('ProdError', () => {
-
+describe("ProdError", () => {
   let minimalProps;
   let commonProps;
   let clock;
@@ -28,34 +27,34 @@ describe('ProdError', () => {
     minimalProps = {};
     commonProps = {
       ...minimalProps,
-      error: new Error('some error')
+      error: new Error("some error"),
     };
 
     clock = sinon.useFakeTimers();
-    wrapper = shallow(<ProdErrorContainer {...commonProps}/>);
+    wrapper = shallow(<ProdErrorContainer {...commonProps} />);
   });
 
   afterEach(() => {
     clock.restore();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<ProdErrorContainer {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<ProdErrorContainer {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render ProdErrorModal if error exists', () => {
+  it("should render ProdErrorModal if error exists", () => {
     expect(wrapper.find(ProdErrorModal)).to.have.length(1);
-    wrapper.setProps({error: undefined});
+    wrapper.setProps({ error: undefined });
     expect(wrapper.find(ProdErrorModal)).to.have.length(0);
   });
 
-  it('should set showGoHome only if error is soon after init', () => {
-    wrapper.setProps({error: new Error('sdf')});
+  it("should set showGoHome only if error is soon after init", () => {
+    wrapper.setProps({ error: new Error("sdf") });
     expect(wrapper.find(ProdErrorModal).props().showGoHome).to.be.true;
 
     clock.tick(SHOW_GO_HOME_AFTER_PERIOD + 1);
-    wrapper.setProps({error: new Error('different')});
+    wrapper.setProps({ error: new Error("different") });
     expect(wrapper.find(ProdErrorModal).props().showGoHome).to.be.false;
   });
 });

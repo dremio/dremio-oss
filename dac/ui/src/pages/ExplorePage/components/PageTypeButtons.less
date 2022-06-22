@@ -13,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
 .buttons-container {
-  composes: flex-container from '~@app/uiTheme/less/layout.less';
+  composes: flex-container from "~@app/uiTheme/less/layout.less";
   align-items: stretch;
   height: 100%;
   gap: 4px;
 }
 
 .button {
-  composes: flex-container from '~@app/uiTheme/less/layout.less';
+  composes: flex-container from "~@app/uiTheme/less/layout.less";
   align-items: center;
-  color: #7F8B95;
+  color: var(--dremio--color--text--faded);
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   padding: 0 2.5rem 0 1.5rem;
   position: relative;
   overflow: hidden;
@@ -35,7 +36,7 @@
   &::after {
     background-color: @ELM;
     bottom: -4px;
-    content: '';
+    content: "";
     display: block;
     height: 4px;
     left: 0;
@@ -45,13 +46,17 @@
   }
 
   img {
-    filter: grayscale(1);
-    transition: 300ms ease all;
+    filter: brightness(0) saturate(100%) invert(90%) sepia(6%) saturate(153%)
+      hue-rotate(169deg) brightness(97%) contrast(87%) !important;
   }
 
   &.button-active {
+    color: var(--dremio--color--link);
+    font-weight: 600;
+
     img {
-      filter: none !important;
+      .gray-icon-hover() !important;
+      transition: 300ms ease all;
     }
 
     &::after {
@@ -62,7 +67,7 @@
   &:hover:not(.button-active)::after {
     background-color: @ELM;
     bottom: 0;
-    content: '';
+    content: "";
     display: block;
     height: 4px;
     left: 0;

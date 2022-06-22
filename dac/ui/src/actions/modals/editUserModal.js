@@ -13,39 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
+import { RSAA } from "redux-api-middleware";
 
-import { USERS_VIEW_ID } from '@app/actions/admin';
-import APICall from '@app/core/APICall';
+import { USERS_VIEW_ID } from "@app/actions/admin";
+import APICall from "@app/core/APICall";
 
-const v3ApiMigrationSuffix = '_API_V3'; // todo get rid of that suffix, when all UI would be migrated to v3 api
-export const USER_GET_START = 'USER_GET_START' + v3ApiMigrationSuffix;
-export const USER_GET_SUCCESS = 'USER_GET_SUCCESS' + v3ApiMigrationSuffix;
-export const USER_GET_FAILURE = 'USER_GET_FAILURE' + v3ApiMigrationSuffix;
+const v3ApiMigrationSuffix = "_API_V3"; // todo get rid of that suffix, when all UI would be migrated to v3 api
+export const USER_GET_START = "USER_GET_START" + v3ApiMigrationSuffix;
+export const USER_GET_SUCCESS = "USER_GET_SUCCESS" + v3ApiMigrationSuffix;
+export const USER_GET_FAILURE = "USER_GET_FAILURE" + v3ApiMigrationSuffix;
 
-export function loadUser(userId) { // todo: audit uses of this call and switch to ids where possible (vs userName)
-  const apiCall = new APICall()
-    .path('user')
-    .path(userId)
-    .uncachable();
+export function loadUser(userId) {
+  // todo: audit uses of this call and switch to ids where possible (vs userName)
+  const apiCall = new APICall().path("user").path(userId).uncachable();
 
   return {
     [RSAA]: {
-      types: [
-        USER_GET_START,
-        USER_GET_SUCCESS,
-        USER_GET_FAILURE
-      ],
-      method: 'GET',
-      endpoint: apiCall
-    }
+      types: [USER_GET_START, USER_GET_SUCCESS, USER_GET_FAILURE],
+      method: "GET",
+      endpoint: apiCall,
+    },
   };
 }
 
-
-export const EDIT_USER_START = 'EDIT_USER_START';
-export const EDIT_USER_SUCCESS = 'EDIT_USER_SUCCESS';
-export const EDIT_USER_FAILURE = 'EDIT_USER_FAILURE';
+export const EDIT_USER_START = "EDIT_USER_START";
+export const EDIT_USER_SUCCESS = "EDIT_USER_SUCCESS";
+export const EDIT_USER_FAILURE = "EDIT_USER_FAILURE";
 
 export function editUser(values) {
   const { id: userId } = values;
@@ -53,13 +46,12 @@ export function editUser(values) {
   const meta = {
     invalidateViewIds: [USERS_VIEW_ID],
     notification: {
-      message: la('Successfully updated.'),
-      level: 'success'
-    }
+      message: la("Successfully updated."),
+      level: "success",
+    },
   };
 
-  const apiCall = new APICall()
-    .path( 'user');
+  const apiCall = new APICall().path("user");
 
   if (!isNewUser) {
     apiCall.path(userId);
@@ -70,12 +62,12 @@ export function editUser(values) {
       types: [
         EDIT_USER_START,
         { type: EDIT_USER_SUCCESS, meta },
-        EDIT_USER_FAILURE
+        EDIT_USER_FAILURE,
       ],
-      method: isNewUser ? 'POST' : 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      method: isNewUser ? "POST" : "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
-      endpoint: apiCall
-    }
+      endpoint: apiCall,
+    },
   };
 }

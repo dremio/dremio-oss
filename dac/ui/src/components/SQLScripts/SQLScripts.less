@@ -14,123 +14,110 @@
  * limitations under the License.
  */
 
- @import "~@app/uiTheme/less/color-schema.less";
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    .sqlScripts {
-      padding: 0 !important;
-      
-      &__subHeading {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-  
-        .dropdownMenu {
-          padding-right: 8px;
-  
-          &:hover {
-            .dropdownMenu__text {
-              color: @FIGMA_TEXT_LINK;
-            }
-          }
-        }
-
-        &__sortMenu {
-          .--sortArrow {
-            margin-top: 4px;
-            height: 24px;
-            width: 24px;
-          }
-      
-          .--desc {
-            transform: rotate(180deg);
-          }
-
-          &__dropdown {
-            .--sortArrow {
-              margin-top: 4px;
-              height: 24px;
-              width: 24px;
-            }
-        
-            .--desc {
-              transform: rotate(180deg);
-            }
-          }
-  
-          .menu-item-inner {
-            padding-right: 10px !important;
-            font-size: 14px !important;
-          }
-        }
-      }
-
-      &__empty {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding-top: 32px;
-        font-size: 16px;
-        line-height: 24px;
-      }
-
-      .MuiList-root {
-        max-height: calc(100vh - 21rem);
-        min-height: 49rem;
-        overflow-y: auto !important;
-        width: 100%;
-      }
-
-      &__menu-item {
-        border-bottom: 1px solid @solitude;
-        height: 48px !important;
-        display: flex;
-        flex-direction: row;
-
-        &.--selected {
-          .scriptName {
-            font-weight: 600;
-          }
-        }
-
-        &__content {
-          display: flex;
-          flex-direction: column;
-          padding: 0 12px;
-          flex: 1;
-          max-width: 200px;
-
-          > div {
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            overflow: hidden;
-          }
-
-          .scriptName {
-            font-size: 12px;
-            color: @MAIN_TEXT;
-          }
-          .scriptCreator {
-            font-size: 12px;
-            color: @TROUT;
-          }
-        }
-
-        &__actions {
-          .settings-button {
-            border: none;
-            background-color: transparent;
-            padding: 0;
-          }
-          img {
-            height: 24px;
-            width: 24px;
-          }
-        }
-      }
-    }  
-    .menu-item-inner {
-      &.--delete {
-        color: @FIGMA_STATUS_ERROR;
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .sqlScripts {
+    padding: 0 !important;
+    &__dropdown {
+      &__disabled {
+        background-color: inherit !important;
       }
     }
- }
+
+    &__subHeading {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      padding-right: 8px;
+
+      .dropdownMenu {
+        padding-right: 8px;
+
+        &:hover {
+          .dropdownMenu__text {
+            color: var(--dremio--color--link);
+          }
+        }
+      }
+    }
+
+    &__empty {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-top: 32px;
+      font-size: 16px;
+      line-height: 24px;
+    }
+
+    .MuiList-root {
+      max-height: calc(100vh - 21rem);
+      min-height: 49rem;
+      overflow-y: auto !important;
+      width: 100%;
+    }
+
+    &__menu-item {
+      border-bottom: 1px solid @solitude;
+      height: 48px !important;
+      display: flex;
+      padding-left: 8px !important;
+      padding-right: 8px !important;
+      flex-direction: row;
+
+      &.--selected {
+        .scriptName {
+          font-weight: 600;
+        }
+      }
+
+      &__leftContent {
+        display: flex;
+        align-items: center;
+        width: calc(100% - 24px);
+      }
+
+      &__nameContent {
+        display: flex;
+        flex-direction: column;
+        padding-left: 12px;
+        padding-right: 4px;
+        width: calc(100% - 24px);
+
+        > div {
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+
+        .scriptName {
+          font-size: 1.4rem;
+          color: @MAIN_TEXT;
+        }
+        .scriptCreator {
+          font-size: 12px;
+          color: @TROUT;
+        }
+      }
+
+      &__actions {
+        .settings-button {
+          border: none;
+          background-color: transparent;
+          padding: 0;
+        }
+
+        dremio-icon {
+          height: 24px;
+          width: 24px;
+        }
+      }
+    }
+  }
+  .menu-item-inner {
+    &.--delete {
+      color: @FIGMA_STATUS_ERROR;
+    }
+  }
+}

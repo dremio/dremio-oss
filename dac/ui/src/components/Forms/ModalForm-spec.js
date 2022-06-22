@@ -13,83 +13,94 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Keys from '@app/constants/Keys.json';
+import { shallow } from "enzyme";
+import Keys from "@app/constants/Keys.json";
 
-import ModalForm from './ModalForm';
+import ModalForm from "./ModalForm";
 
-describe('ModalForm', () => {
-
+describe("ModalForm", () => {
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      confirmText: 'Save',
+      confirmText: "Save",
       onSubmit: sinon.spy(),
-      onCancel: sinon.spy()
+      onCancel: sinon.spy(),
     };
   });
 
-  it('should render form', () => {
+  it("should render form", () => {
     const wrapper = shallow(<ModalForm {...commonProps} />);
-    expect(wrapper.type()).to.eql('form');
-    expect(wrapper.prop('onSubmit')).to.equal(wrapper.instance().handleSubmissionEvent);
+    expect(wrapper.type()).to.eql("form");
+    expect(wrapper.prop("onSubmit")).to.equal(
+      wrapper.instance().handleSubmissionEvent
+    );
   });
 
-  it('should render div if isNestedForm', () => {
+  it("should render div if isNestedForm", () => {
     const wrapper = shallow(<ModalForm {...commonProps} isNestedForm />);
-    expect(wrapper.type()).to.eql('div');
-    expect(wrapper.prop('onKeyDown')).to.equal(wrapper.instance().handleSubmissionEvent);
+    expect(wrapper.type()).to.eql("div");
+    expect(wrapper.prop("onKeyDown")).to.equal(
+      wrapper.instance().handleSubmissionEvent
+    );
   });
 
   //DX-28985
-  xit('should pass props to ConfirmCancelFooter', () => {
+  xit("should pass props to ConfirmCancelFooter", () => {
     const wrapper = shallow(<ModalForm {...commonProps} />);
-    const footerProps = wrapper.find('ConfirmCancelFooter').props();
+    const footerProps = wrapper.find("ConfirmCancelFooter").props();
 
     expect(footerProps.cancel).to.equal(commonProps.onCancel);
     expect(footerProps.confirmText).to.equal(commonProps.confirmText);
   });
 
-  it('should render message when there is an error', () => {
+  it("should render message when there is an error", () => {
     let wrapper = shallow(<ModalForm {...commonProps} />);
-    expect(wrapper.find('Message')).to.have.length(0);
+    expect(wrapper.find("Message")).to.have.length(0);
 
-    wrapper = shallow(<ModalForm {...commonProps} error={{ message: 'foo error' }}/>);
-    expect(wrapper.find('Message').first().prop('message')).to.eql('foo error');
+    wrapper = shallow(
+      <ModalForm {...commonProps} error={{ message: "foo error" }} />
+    );
+    expect(wrapper.find("Message").first().prop("message")).to.eql("foo error");
   });
 
-  it('should dismiss both message and dummy message', () => {
-    const wrapper = shallow(<ModalForm {...commonProps} error={{ message: 'foo error' }}/>);
-    expect(wrapper.find('Message').first().prop('dismissed')).to.be.false;
+  it("should dismiss both message and dummy message", () => {
+    const wrapper = shallow(
+      <ModalForm {...commonProps} error={{ message: "foo error" }} />
+    );
+    expect(wrapper.find("Message").first().prop("dismissed")).to.be.false;
 
     wrapper.instance().handleDismissMessage();
     wrapper.update();
-    expect(wrapper.find('Message').first().prop('dismissed')).to.be.true;
+    expect(wrapper.find("Message").first().prop("dismissed")).to.be.true;
   });
 
-  describe('#handleSubmissionEvent()', () => {
-    it('no event object', () => {
+  describe("#handleSubmissionEvent()", () => {
+    it("no event object", () => {
       const instance = shallow(<ModalForm {...commonProps} />).instance();
       instance.handleSubmissionEvent();
       expect(commonProps.onSubmit).to.have.been.called;
     });
-    it('with event object', () => {
+    it("with event object", () => {
       const instance = shallow(<ModalForm {...commonProps} />).instance();
-      const evt = {preventDefault: sinon.spy()};
+      const evt = { preventDefault: sinon.spy() };
       instance.handleSubmissionEvent(evt);
       expect(evt.preventDefault).to.have.been.called;
       expect(commonProps.onSubmit).to.have.been.called;
     });
-    it('keydown Enter', () => {
+    it("keydown Enter", () => {
       const instance = shallow(<ModalForm {...commonProps} />).instance();
-      const evt = {preventDefault: sinon.spy(), type: 'keydown', keyCode: Keys.ENTER};
+      const evt = {
+        preventDefault: sinon.spy(),
+        type: "keydown",
+        keyCode: Keys.ENTER,
+      };
       instance.handleSubmissionEvent(evt);
       expect(evt.preventDefault).to.have.been.called;
       expect(commonProps.onSubmit).to.have.been.called;
     });
-    it('keydown non-Enter', () => {
+    it("keydown non-Enter", () => {
       const instance = shallow(<ModalForm {...commonProps} />).instance();
-      const evt = {preventDefault: sinon.spy(), type: 'keydown', keyCode: 1};
+      const evt = { preventDefault: sinon.spy(), type: "keydown", keyCode: 1 };
       instance.handleSubmissionEvent(evt);
       expect(evt.preventDefault).to.not.have.been.called;
       expect(commonProps.onSubmit).to.not.have.been.called;

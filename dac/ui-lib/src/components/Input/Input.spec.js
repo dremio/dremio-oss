@@ -13,139 +13,146 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { shallow } from 'enzyme';
+import React from "react";
+import { shallow } from "enzyme";
 
-import FormValidationMessage from '../FormValidationMessage';
-import Label from '../Label';
-import CopyToClipboard from '../CopyToClipboard';
-import ToggleFieldVisibility from '../ToggleFieldVisibility';
+import FormValidationMessage from "../FormValidationMessage";
+import Label from "../Label";
+import CopyToClipboard from "../CopyToClipboard";
+import ToggleFieldVisibility from "../ToggleFieldVisibility";
 
-import Input from './Input';
+import Input from "./Input";
 
 const mockOnChange = jest.fn();
 
 const defaultProps = {
-  label: 'Sample Label',
-  value: 'Sample text',
+  label: "Sample Label",
+  value: "Sample text",
   classes: {
-    root: 'sample-root-class',
-    input: 'sample-input-class',
-    label: 'sample-label-class'
+    root: "sample-root-class",
+    input: "sample-input-class",
+    label: "sample-label-class",
   },
-  name: 'sample-input-name',
+  name: "sample-input-name",
   onChange: mockOnChange,
   enableCopy: true,
   toggleField: true,
   form: {
     errors: {},
-    touched: {}
-  }
+    touched: {},
+  },
 };
 
 const getShallowWrapper = (props = defaultProps) => {
-  return shallow(<Input {...props}/>);
+  return shallow(<Input {...props} />);
 };
 
-describe('Formik Input', () => {
+describe("Formik Input", () => {
   const wrapper = getShallowWrapper();
-  it('has the required components', () => {
-    expect(wrapper.find('div.input-root').exists()).toBe(true);
+  it("has the required components", () => {
+    expect(wrapper.find("div.input-root").exists()).toBe(true);
     expect(wrapper.find(Label).exists()).toBe(true);
     expect(wrapper.find(Label).props().value).toEqual(defaultProps.label);
-    expect(wrapper.find('input').exists()).toBe(true);
-    expect(wrapper.find('input').props().name).toEqual(defaultProps.name);
+    expect(wrapper.find("input").exists()).toBe(true);
+    expect(wrapper.find("input").props().name).toEqual(defaultProps.name);
     expect(wrapper.find(CopyToClipboard).exists()).toBe(true);
     expect(wrapper.find(ToggleFieldVisibility).exists()).toBe(true);
   });
 
-  it('adds the classes passed as props to respective elements', () => {
-    expect(wrapper.find('div.input-root').props().className).toEqual(expect.stringContaining('sample-root-class'));
-    expect(wrapper.find(Label).props().className).toEqual(expect.stringContaining('sample-label-class'));
-    expect(wrapper.find('input').props().className).toEqual(expect.stringContaining('sample-input-class'));
+  it("adds the classes passed as props to respective elements", () => {
+    expect(wrapper.find("div.input-root").props().className).toEqual(
+      expect.stringContaining("sample-root-class")
+    );
+    expect(wrapper.find(Label).props().className).toEqual(
+      expect.stringContaining("sample-label-class")
+    );
+    expect(wrapper.find("input").props().className).toEqual(
+      expect.stringContaining("sample-input-class")
+    );
   });
 
-  it('triggers onChange sent in props', () => {
-    const mockEvent = { key: 'sample val' };
-    wrapper.find('input').at(0).simulate('change', mockEvent);
+  it("triggers onChange sent in props", () => {
+    const mockEvent = { key: "sample val" };
+    wrapper.find("input").at(0).simulate("change", mockEvent);
     expect(mockOnChange).toBeCalledTimes(1);
     expect(mockOnChange).toBeCalledWith(mockEvent);
   });
 
-
-  it('display error message when field is touched and has error', () => {
+  it("display error message when field is touched and has error", () => {
     const errorProps = {
       ...defaultProps,
       form: {
         touched: {
-          [defaultProps.name]: true
+          [defaultProps.name]: true,
         },
         errors: {
-          [defaultProps.name]: 'Required'
-        }
-      }
-    };
-    const errorWrapper = getShallowWrapper(errorProps);
-    expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
-    expect(errorWrapper.find(FormValidationMessage).props().children).toBe('Required');
-  });
-
-  it('handles error message for nested fields', () => {
-    const errorProps = {
-      ...defaultProps,
-      name: 'a.b.c',
-      form: {
-        touched: {
-          a: {
-            b: {
-              c: true
-            }
-          }
+          [defaultProps.name]: "Required",
         },
-        errors: {
-          a: {
-            b: {
-              c: 'Required'
-            }
-          }
-        }
-      }
-    };
-    const errorWrapper = getShallowWrapper(errorProps);
-    expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
-    expect(errorWrapper.find(FormValidationMessage).props().children).toBe('Required');
-  });
-
-  it('shows error message only when the field is touched', () => {
-    const errorProps = {
-      ...defaultProps,
-      form: {
-        touched: {
-        },
-        errors: {
-          [defaultProps.name]: 'Required'
-        }
-      }
-    };
-    const errorWrapper = getShallowWrapper(errorProps);
-    expect(errorWrapper.find(FormValidationMessage).exists()).toBe(false);
-  });
-
-  it('hides error message when hideError is true', () => {
-    const errorProps = {
-      ...defaultProps,
-      form: {
-        touched: {
-          [defaultProps.name]: true
-        },
-        errors: {
-          [defaultProps.name]: 'Required'
-        }
       },
-      hideError: true
+    };
+    const errorWrapper = getShallowWrapper(errorProps);
+    expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
+    expect(errorWrapper.find(FormValidationMessage).props().children).toBe(
+      "Required"
+    );
+  });
+
+  it("handles error message for nested fields", () => {
+    const errorProps = {
+      ...defaultProps,
+      name: "a.b.c",
+      form: {
+        touched: {
+          a: {
+            b: {
+              c: true,
+            },
+          },
+        },
+        errors: {
+          a: {
+            b: {
+              c: "Required",
+            },
+          },
+        },
+      },
+    };
+    const errorWrapper = getShallowWrapper(errorProps);
+    expect(errorWrapper.find(FormValidationMessage).exists()).toBe(true);
+    expect(errorWrapper.find(FormValidationMessage).props().children).toBe(
+      "Required"
+    );
+  });
+
+  it("shows error message only when the field is touched", () => {
+    const errorProps = {
+      ...defaultProps,
+      form: {
+        touched: {},
+        errors: {
+          [defaultProps.name]: "Required",
+        },
+      },
     };
     const errorWrapper = getShallowWrapper(errorProps);
     expect(errorWrapper.find(FormValidationMessage).exists()).toBe(false);
   });
 
+  it("hides error message when hideError is true", () => {
+    const errorProps = {
+      ...defaultProps,
+      form: {
+        touched: {
+          [defaultProps.name]: true,
+        },
+        errors: {
+          [defaultProps.name]: "Required",
+        },
+      },
+      hideError: true,
+    };
+    const errorWrapper = getShallowWrapper(errorProps);
+    expect(errorWrapper.find(FormValidationMessage).exists()).toBe(false);
+  });
 });

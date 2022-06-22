@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import EditTextContent from './EditTextContent';
+import EditTextContent from "./EditTextContent";
 
-@Radium
 class ConvertTrimContent extends PureComponent {
   static contextTypes = {
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
   };
 
   static propTypes = {
@@ -33,13 +32,13 @@ class ConvertTrimContent extends PureComponent {
     type: PropTypes.string.isRequired,
     columnName: PropTypes.string.isRequired,
     changeFormType: PropTypes.func.isRequired,
-    cancel: PropTypes.func
+    cancel: PropTypes.func,
   };
 
   render() {
     const { type, columnName } = this.props;
     return (
-      <div style={[style.base]} className='convert-case-content'>
+      <div style={[style.base]} className="convert-case-content">
         <EditTextContent
           dataset={this.props.dataset}
           changeFormType={this.props.changeFormType}
@@ -54,10 +53,10 @@ class ConvertTrimContent extends PureComponent {
 }
 
 const style = {
-  'base': {
-    'height': '100%',
-    'position': 'relative'
-  }
+  base: {
+    height: "100%",
+    position: "relative",
+  },
 };
 
-export default ConvertTrimContent;
+export default Radium(ConvertTrimContent);

@@ -13,29 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-export const RESERVED = [
-  'support.email.addr',
-  'support.email.jobs.subject'
-];
+export const RESERVED = ["support.email.addr", "support.email.jobs.subject"];
 
 const InternalSupportEmail = (props) => {
   return (
-    <div style={{padding: '10px 0 20px', borderBottom: '1px solid hsla(0, 0%, 0%, 0.1)'}}>
-      <h3>{la('Internal Support Email')}</h3>
+    <div
+      style={{
+        padding: "10px 0 20px",
+        borderBottom: "1px solid hsla(0, 0%, 0%, 0.1)",
+      }}
+    >
+      <h3>{la("Internal Support Email")}</h3>
       <div style={props.descriptionStyle}>
-        {la('Note: Users will see changes when they next reload.')}
+        {la("Note: Users will see changes when they next reload.")}
       </div>
-      {props.renderSettings('support.email.addr', {allowEmpty : true})}
-      {props.renderSettings('support.email.jobs.subject', {allowEmpty : true})}
+      {props.renderSettings("support.email.addr", { allowEmpty: true })}
+      {props.renderSettings("support.email.jobs.subject", { allowEmpty: true })}
     </div>
   );
 };
 
 InternalSupportEmail.propTypes = {
   descriptionStyle: PropTypes.object,
-  renderSettings: PropTypes.func
+  renderSettings: PropTypes.func,
 };
 
 export default InternalSupportEmail;

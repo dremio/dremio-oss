@@ -31,29 +31,29 @@ public interface HashTable extends AutoCloseable {
   /**
    * The initial default capacity of the hash table (in terms of number of buckets).
    */
-  static final public int DEFAULT_INITIAL_CAPACITY = 1 << 16;
+  public static final int DEFAULT_INITIAL_CAPACITY = 1 << 16;
 
   /**
    * The maximum capacity of the hash table (in terms of number of buckets).
    */
-  static final public int MAXIMUM_CAPACITY = 1 << 30;
+  public static final int MAXIMUM_CAPACITY = 1 << 30;
 
   /**
    * The default load factor of a hash table.
    */
-  static final public float DEFAULT_LOAD_FACTOR = 0.75f;
+  public static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
   // Build side batch record link. Each link is 6 bytes.
   // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
   int BUILD_RECORD_LINK_SIZE = FieldBufferCopier.BUILD_RECORD_LINK_SIZE;
 
-  static public enum PutStatus {KEY_PRESENT, KEY_ADDED, PUT_FAILED;}
+  public static enum PutStatus {KEY_PRESENT, KEY_ADDED, PUT_FAILED;}
 
   /**
    * The batch size used for internal batch holders
    */
-  static final public int BATCH_SIZE = Character.MAX_VALUE + 1;
-  static final public int BATCH_MASK = 0x0000FFFF;
+  public static final int BATCH_SIZE = Character.MAX_VALUE + 1;
+  public static final int BATCH_MASK = 0x0000FFFF;
 
   /** Variable width vector size in bytes */
   public static final int VARIABLE_WIDTH_VECTOR_SIZE = 50 * BATCH_SIZE;
@@ -84,5 +84,3 @@ public interface HashTable extends AutoCloseable {
     public void batchAdded() {
     }};
 }
-
-

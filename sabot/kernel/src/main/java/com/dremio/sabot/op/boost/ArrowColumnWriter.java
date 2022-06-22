@@ -63,7 +63,7 @@ public class ArrowColumnWriter implements AutoCloseable {
     outputVectorContainer.add(columnVector);
     outputVectorContainer.buildSchema();
     RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-    RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition) -> {};
+    RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition, h) -> {};
     recordWriter.setup(outputVectorContainer, fileWriteListener, byteCountListener);
   }
 

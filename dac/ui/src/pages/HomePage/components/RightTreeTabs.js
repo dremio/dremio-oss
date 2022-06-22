@@ -13,29 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
-import classNames from 'classnames/bind';
-import Radium from 'radium';
+import React, { Component } from "react";
+import classNames from "classnames/bind";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import FontIcon from 'components/Icon/FontIcon';
+import FontIcon from "components/Icon/FontIcon";
 
-@Radium
 class RightTreeTabHeader extends Component {
   render() {
-    const classes = classNames('tab', this.props.className, {'tab-active':this.props.active});
+    const classes = classNames("tab", this.props.className, {
+      "tab-active": this.props.active,
+    });
     const icons = {
-      Settings: 'Settings',
-      Activity: 'Activity'
+      Settings: "Settings",
+      Activity: "Activity",
     };
     return (
       <li
         className={classes}
         onClick={this.props.onClick.bind(this, this.props.tabId)}
-        style={[styles.tab]}>
-        <FontIcon type={icons[this.props.tabId]}/>
-        <span className='title'>{this.props.title}</span>
+        style={styles.tab}
+      >
+        <FontIcon type={icons[this.props.tabId]} />
+        <span className="title">{this.props.title}</span>
       </li>
     );
   }
@@ -46,21 +47,20 @@ RightTreeTabHeader.propTypes = {
   title: PropTypes.string.isRequired,
   className: PropTypes.string,
   active: PropTypes.bool.isRequired,
-  onClick: PropTypes.func.isRequired
+  onClick: PropTypes.func.isRequired,
 };
 
 export default class RightTreeTabs extends Component {
-
   static propTypes = {
     toggleVisibility: PropTypes.func,
     children: PropTypes.node.isRequired,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
 
   constructor(props) {
     super(props);
     this.handleSelect = this.handleSelect.bind(this);
-    this.state = {activeTab: 'Settings'};
+    this.state = { activeTab: "Settings" };
   }
 
   getHeaderItems() {
@@ -79,7 +79,7 @@ export default class RightTreeTabs extends Component {
   }
 
   handleSelect(key) {
-    this.setState({activeTab: key});
+    this.setState({ activeTab: key });
   }
 
   render() {
@@ -87,15 +87,11 @@ export default class RightTreeTabs extends Component {
       return child.props.tabId === this.state.activeTab ? child : undefined;
     }).find((child) => child);
     return (
-      <div className='right-tree-tabs' style={{ width: 250 }}>
-        <ul
-          className='tab-list'
-          style={styles.tabList}>
+      <div className="right-tree-tabs" style={{ width: 250 }}>
+        <ul className="tab-list" style={styles.tabList}>
           {this.getHeaderItems()}
-          <li
-            onClick={this.props.toggleVisibility}
-            style={styles.closeLink}>
-            <FontIcon type='Collapse' />
+          <li onClick={this.props.toggleVisibility} style={styles.closeLink}>
+            <FontIcon type="Collapse" />
           </li>
         </ul>
         {activeTab}
@@ -109,26 +105,26 @@ const styles = {
     margin: 0,
     padding: 0,
     height: 38,
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    background: '#ccc'
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    background: "#ccc",
   },
   tab: {
     width: 105,
     height: 38,
     padding: 5,
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer',
-    borderRight: '1px solid rgba(0,0,0,.1)'
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
+    borderRight: "1px solid rgba(0,0,0,.1)",
   },
   closeLink: {
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer',
-    marginRight: 14
-  }
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
+    marginRight: 14,
+  },
 };

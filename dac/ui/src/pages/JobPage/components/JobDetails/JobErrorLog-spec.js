@@ -13,46 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import JobErrorLog from './JobErrorLog';
+import JobErrorLog from "./JobErrorLog";
 
-describe('JobErrorLog', () => {
-
+describe("JobErrorLog", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {
       failureInfo: Immutable.fromJS({
-        message: 'my error'
-      })
+        message: "my error",
+      }),
     };
     commonProps = {
       failureInfo: Immutable.fromJS({
-        errors: [
-          {message: 'my error1'},
-          {message: 'my error2'}
-        ]
-      })
+        errors: [{ message: "my error1" }, { message: "my error2" }],
+      }),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<JobErrorLog {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<JobErrorLog {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render errors', () => {
-    const wrapper = shallow(<JobErrorLog {...commonProps}/>);
+  it("should render errors", () => {
+    const wrapper = shallow(<JobErrorLog {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render nothing', () => {
+  it("should render nothing", () => {
     const emptylProps = {
-      failureInfo: Immutable.fromJS({a: 'a'})
+      failureInfo: Immutable.fromJS({ a: "a" }),
     };
-    const wrapper = shallow(<JobErrorLog {...emptylProps}/>);
+    const wrapper = shallow(<JobErrorLog {...emptylProps} />);
     expect(wrapper.unrendered).to.not.be.null;
   });
 });

@@ -13,51 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, createRef } from 'react';
-import PropTypes from 'prop-types';
-import Art from '@app/components/Art';
-import { Tooltip } from 'components/Tooltip';
-import { container, tooltip } from './Alert.less';
+import { PureComponent, createRef } from "react";
+import PropTypes from "prop-types";
+import Art from "@app/components/Art";
+import { Tooltip } from "components/Tooltip";
+import { container, tooltip } from "./Alert.less";
 
 export class Alert extends PureComponent {
   static propTypes = {
     text: PropTypes.string,
-    height: PropTypes.number
+    height: PropTypes.number,
   };
 
   state = {
-    isHover: false
+    isHover: false,
   };
 
   onMouseEnter = () => {
     this.setState({
-      isHover: true
+      isHover: true,
     });
   };
 
   onMouseLeave = () => {
     this.setState({
-      isHover: false
+      isHover: false,
     });
   };
 
-  iconRef = createRef()
+  iconRef = createRef();
 
   render() {
     const { text, height } = this.props;
     const { isHover } = this.state;
 
-    return (<span className={container} onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave}>
-      <Art key='icon' ref={this.iconRef} src={isHover ? 'WarningSolid.svg' : 'Warning.svg'} alt={text} style={{ height: height || 18}} />
-      <Tooltip key='tooltip'
-        target={() => isHover ? this.iconRef.current : null}
-        type='info'
-        placement='right'
-        className={tooltip}
-        tooltipInnerStyle={{ width: 'auto', whiteSpace: 'nowrap' }}
+    return (
+      <span
+        className={container}
+        onMouseEnter={this.onMouseEnter}
+        onMouseLeave={this.onMouseLeave}
       >
-        {text}
-      </Tooltip>
-    </span>);
+        <Art
+          key="icon"
+          ref={this.iconRef}
+          src={isHover ? "WarningSolid.svg" : "Warning.svg"}
+          alt={text}
+          style={{ height: height || 18 }}
+        />
+        <Tooltip
+          key="tooltip"
+          target={() => (isHover ? this.iconRef.current : null)}
+          type="info"
+          placement="right"
+          className={tooltip}
+          tooltipInnerStyle={{ width: "auto", whiteSpace: "nowrap" }}
+        >
+          {text}
+        </Tooltip>
+      </span>
+    );
   }
 }

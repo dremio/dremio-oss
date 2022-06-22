@@ -13,25 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import { dragContentBase } from '@app/uiTheme/less/commonStyles.less';
-import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
-import { isAlreadySelected } from 'utils/explore/aggregateUtils';
-import ColumnDragItem from 'utils/ColumnDragItem';
-import { rowMargin } from '@app/uiTheme/less/forms.less';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import { dragContentBase } from "@app/uiTheme/less/commonStyles.less";
+import ExploreDragArea from "pages/ExplorePage/components/ExploreDragArea";
+import { isAlreadySelected } from "utils/explore/aggregateUtils";
+import ColumnDragItem from "utils/ColumnDragItem";
+import { rowMargin } from "@app/uiTheme/less/forms.less";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 
-import DragAreaColumn from '../../DragComponents/DragAreaColumn';
+import DragAreaColumn from "../../DragComponents/DragAreaColumn";
 
 // todo: loc (needs build fix)
-const DEFAULT_DRAG_AREA_TEXT = ('Drag and drop a field here or click “Add a Dimension”.');
+const DEFAULT_DRAG_AREA_TEXT =
+  "Drag and drop a field here or click “Add a Dimension”.";
 
-@Radium
 class ColumnDragArea extends Component {
   static propTypes = {
     dragItem: PropTypes.instanceOf(ColumnDragItem),
@@ -51,44 +50,53 @@ class ColumnDragArea extends Component {
     onDragEnd: PropTypes.func,
     className: PropTypes.string,
     dragContentCls: PropTypes.string,
-    canAlter: PropTypes.any
+    canAlter: PropTypes.any,
   };
 
   static defaultProps = {
     dragAreaText: DEFAULT_DRAG_AREA_TEXT,
-    dragOrigin: 'dimensions',
-    canUseFieldAsBothDimensionAndMeasure: true
-  }
+    dragOrigin: "dimensions",
+    canUseFieldAsBothDimensionAndMeasure: true,
+  };
 
   handleDrop = (data) => {
     if (this.canDropColumn()) {
       this.props.onDrop(this.props.dragOrigin, data);
     }
-  }
+  };
 
   handleRemoveColumn = (index) => {
     this.props.columnsField.removeField(index);
-  }
+  };
 
   canSelectColumn = (columnName) => {
-    const { dragItem, dragOrigin, canUseFieldAsBothDimensionAndMeasure } = this.props;
+    const { dragItem, dragOrigin, canUseFieldAsBothDimensionAndMeasure } =
+      this.props;
     const isFromDifferentArea = dragItem.dragOrigin !== dragOrigin;
     if (!canUseFieldAsBothDimensionAndMeasure) {
-      const column = this.props.allColumns.find(col => col.get('name') === columnName);
+      const column = this.props.allColumns.find(
+        (col) => col.get("name") === columnName
+      );
       if (column) {
-        return !column.get('disabled');
+        return !column.get("disabled");
       }
     }
-    return isFromDifferentArea && !isAlreadySelected(this.props.columnsField, columnName);
-  }
+    return (
+      isFromDifferentArea &&
+      !isAlreadySelected(this.props.columnsField, columnName)
+    );
+  };
 
   canDropColumn = () => {
-    return this.props.isDragInProgress && this.canSelectColumn(this.props.dragItem.id);
-  }
+    return (
+      this.props.isDragInProgress &&
+      this.canSelectColumn(this.props.dragItem.id)
+    );
+  };
 
   renderColumnsForDragArea() {
     const isUserAnAdmin = localStorageUtils.isUserAnAdmin();
-    return this.props.columnsField.map( (columnField, i) => (
+    return this.props.columnsField.map((columnField, i) => (
       <DragAreaColumn
         className={rowMargin}
         onDragStart={this.props.handleDragStart}
@@ -129,6 +137,5 @@ class ColumnDragArea extends Component {
     );
   }
 }
-
 
 export default ColumnDragArea;

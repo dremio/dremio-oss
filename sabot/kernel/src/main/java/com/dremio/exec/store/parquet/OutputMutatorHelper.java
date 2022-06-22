@@ -25,7 +25,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.store.SampleMutator;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
@@ -58,7 +57,7 @@ public class OutputMutatorHelper {
               .forEach(field -> outputMutator.addField(field, TypeHelper.getValueVectorClass(field)));
     }
 
-    ((SampleMutator) outputMutator).getContainer().buildSchema();
+    outputMutator.getContainer().buildSchema();
     outputMutator.getAndResetSchemaChanged();
   }
 }

@@ -39,7 +39,7 @@ import com.google.common.collect.Multimap;
 /**
  * The root doc of the scan result
  */
-public final class ScanResult {
+public class ScanResult {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanResult.class);
 
   private final List<String> scannedPackages;

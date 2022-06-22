@@ -19,69 +19,65 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.advise.SqlAdvisorValidator;
-import org.apache.calcite.sql.validate.DremioEmptyScope;
-import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.calcite.sql.validate.SqlValidatorImpl;
-import org.apache.calcite.util.Pair;
+import org.apache.calcite.sql.SqlOperator;
 import org.junit.Test;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.parser.impl.ParserImplConstants;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.service.autocomplete.DremioToken;
-import com.dremio.service.autocomplete.SqlQueryTokenizer;
-import com.dremio.service.autocomplete.catalog.mock.MockCatalog;
-import com.dremio.service.autocomplete.catalog.mock.MockDremioQueryParser;
-import com.dremio.service.autocomplete.catalog.mock.MockDremioTable;
-import com.dremio.service.autocomplete.catalog.mock.MockDremioTableFactory;
+import com.dremio.service.autocomplete.OperatorTableFactory;
+import com.dremio.service.autocomplete.catalog.Node;
+import com.dremio.service.autocomplete.catalog.mock.MockMetadataCatalog;
 import com.dremio.service.autocomplete.catalog.mock.MockSchemas;
+import com.dremio.service.autocomplete.catalog.mock.NodeMetadata;
 import com.dremio.service.autocomplete.columns.Column;
-import com.dremio.service.autocomplete.columns.DremioQueryParser;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.autocomplete.columns.ColumnAndTableAlias;
+import com.dremio.service.autocomplete.statements.grammar.FromClause;
+import com.dremio.service.autocomplete.tokens.DremioToken;
+import com.dremio.service.autocomplete.tokens.SqlQueryTokenizer;
 import com.dremio.test.GoldenFileTestBuilder;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 /**
  * Tests for function parameter resolution.
  */
-public class ParameterResolverTests {
-  public static final SqlFunctionDictionary SQL_FUNCTION_DICTIONARY = new SqlFunctionDictionary(
-    new ImmutableList.Builder<SqlFunction>()
-      .add(ZeroArgFunction.INSTANCE)
-      .add(OneArgBooleanFunction.INSTANCE)
-      .add(OneArgNumericFunction.INSTANCE)
-      .add(TwoArgNumericFunction.INSTANCE)
-      .add(UnstableReturnTypeFunction.INSTANCE)
-      .add(VaradicFunction.INSTANCE)
-      .add(OverloadedFunction.INSTANCE)
-      .build());
-
-  private static final ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> TABLE_SCHEMAS = new ImmutableMap.Builder<String, ImmutableList<MockSchemas.ColumnSchema>>()
-    .put("MOCK_TABLE", MockSchemas.MIXED_TYPE_SCHEMA)
+public final class ParameterResolverTests {
+  public static final ImmutableList<SqlOperator> FUNCTIONS = new ImmutableList.Builder<SqlOperator>()
+    .add(ZeroArgFunction.INSTANCE)
+    .add(OneArgBooleanFunction.INSTANCE)
+    .add(OneArgNumericFunction.INSTANCE)
+    .add(TwoArgNumericFunction.INSTANCE)
+    .add(UnstableReturnTypeFunction.INSTANCE)
+    .add(VaradicFunction.INSTANCE)
+    .add(OverloadedFunction.TWO_ARG_1, OverloadedFunction.TWO_ARG_2, OverloadedFunction.THREE_ARG_1)
     .build();
 
-  private static final ImmutableSet<Column> COLUMNS = createColumns(TABLE_SCHEMAS);
+  private static final ImmutableSet<Column> COLUMNS = createColumns(MockSchemas.MIXED_TYPE_SCHEMA);
 
-  private static final ImmutableList<DremioToken> FROM_CLAUSE_TOKENS = new ImmutableList.Builder<DremioToken>()
-    .add(new DremioToken(ParserImplConstants.FROM, "FROM"))
+  private static final ImmutableSet<ColumnAndTableAlias> COLUMN_AND_PATHS = ImmutableSet.copyOf(
+    COLUMNS
+      .stream()
+      .map(column -> ColumnAndTableAlias.createWithTable(column, "MOCK_TABLE"))
+      .collect(Collectors.toList()));
+
+  private static final FromClause FROM_CLAUSE = FromClause.parse(new ImmutableList.Builder<DremioToken>()
+    .add(DremioToken.createFromParserKind(ParserImplConstants.FROM))
     .add(new DremioToken(ParserImplConstants.IDENTIFIER, "MOCK_TABLE"))
-    .build();
+    .build());
 
-  private static final ParameterResolver PARAMETER_RESOLVER = createParameterResolver(
-    SQL_FUNCTION_DICTIONARY,
-    TABLE_SCHEMAS);
+  private static final ParameterResolver PARAMETER_RESOLVER = ParameterResolver.create(
+    OperatorTableFactory.create(FUNCTIONS),
+    new MockMetadataCatalog(
+      new MockMetadataCatalog.CatalogData(
+        ImmutableList.of(),
+        NodeMetadata.pathNode(
+          new Node(
+            "@dremio",
+            Node.Type.HOME),
+          NodeMetadata.dataset(
+            new Node(
+              "MOCK_TABLE",
+              Node.Type.PHYSICAL_SOURCE),
+            COLUMNS)))));
 
   @Test
   public void tests() {
@@ -123,82 +119,19 @@ public class ParameterResolverTests {
     assert queryCorpus != null;
 
     ImmutableList<DremioToken> tokens = ImmutableList.copyOf(SqlQueryTokenizer.tokenize(queryCorpus));
-    Optional<Pair<ParameterResolver.Resolutions, ParameterResolver.DebugInfo>> resolutions = PARAMETER_RESOLVER.resolveWithDebugInfo(
+    Optional<ParameterResolver.Result> result = PARAMETER_RESOLVER.resolve(
       tokens,
-      COLUMNS,
-      FROM_CLAUSE_TOKENS);
-    if (!resolutions.isPresent()) {
-      return null;
-    }
-
-    return Output.create(resolutions.get().left, resolutions.get().right);
+      COLUMN_AND_PATHS,
+      FROM_CLAUSE);
+    return result.map(Output::create).orElse(null);
   }
 
-  private static MockCatalog createCatalog(ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
-    ImmutableList.Builder<MockDremioTable> mockDremioTableBuilder = new ImmutableList.Builder<>();
-    for (String tableName : tableSchemas.keySet()) {
-      MockDremioTable mockDremioTable = MockDremioTableFactory.createFromSchema(
-        new NamespaceKey(tableName),
-        JavaTypeFactoryImpl.INSTANCE,
-        tableSchemas.get(tableName));
-      mockDremioTableBuilder.add(mockDremioTable);
-    }
-
-    MockCatalog catalog = new MockCatalog(JavaTypeFactoryImpl.INSTANCE, mockDremioTableBuilder.build());
-    return catalog;
-  }
-
-  private static OperatorTable createOperatorTable(SqlFunctionDictionary sqlFunctionDictionary) {
-    SabotConfig config = SabotConfig.create();
-    ScanResult scanResult = ClassPathScanner.fromPrescan(config);
-    FunctionImplementationRegistry functions = new FunctionImplementationRegistry(
-      config,
-      scanResult);
-    OperatorTable operatorTable = new OperatorTable(functions);
-    for (String functionName : sqlFunctionDictionary.getKeys()) {
-      operatorTable.add(functionName, sqlFunctionDictionary.tryGetValue(functionName).get());
-    }
-
-    return operatorTable;
-  }
-
-  private static SqlValidatorImpl createSqlValidator(OperatorTable operatorTable, MockCatalog catalog) {
-    SqlValidatorImpl sqlValidator = new SqlAdvisorValidator(
-      operatorTable,
-      new DremioCatalogReader(catalog, JavaTypeFactoryImpl.INSTANCE),
-      JavaTypeFactoryImpl.INSTANCE,
-      SqlValidator.Config.DEFAULT);
-
-    return sqlValidator;
-  }
-
-  private static ImmutableSet<Column> createColumns(ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
+  private static ImmutableSet<Column> createColumns(ImmutableList<MockSchemas.ColumnSchema> tableSchema) {
     ImmutableSet.Builder<Column> builder = new ImmutableSet.Builder<>();
-    for (String tableName : tableSchemas.keySet()) {
-      ImmutableList<MockSchemas.ColumnSchema> tableSchema = tableSchemas.get(tableName);
-      for (MockSchemas.ColumnSchema columnSchema : tableSchema) {
-        builder.add(new Column(columnSchema.getName(), JavaTypeFactoryImpl.INSTANCE.createSqlType(columnSchema.getSqlTypeName())));
-      }
+    for (MockSchemas.ColumnSchema columnSchema : tableSchema) {
+      builder.add(Column.typedColumn(columnSchema.getName(), columnSchema.getSqlTypeName()));
     }
-
     return builder.build();
-  }
-
-  public static ParameterResolver createParameterResolver(
-    SqlFunctionDictionary sqlFunctionDictionary,
-    ImmutableMap<String, ImmutableList<MockSchemas.ColumnSchema>> tableSchemas) {
-
-    MockCatalog catalog = createCatalog(tableSchemas);
-    OperatorTable operatorTable = createOperatorTable(sqlFunctionDictionary);
-    SqlValidatorImpl sqlValidator = createSqlValidator(operatorTable, catalog);
-    DremioQueryParser queryParser = new MockDremioQueryParser(operatorTable, catalog, "user1");
-    ParameterResolver parameterResolver = new ParameterResolver(
-      sqlFunctionDictionary,
-      sqlValidator,
-      new MockScope(sqlValidator),
-      queryParser);
-
-    return parameterResolver;
   }
 
   /**
@@ -207,22 +140,22 @@ public class ParameterResolverTests {
   public static final class Output {
     private final List<String> columns;
     private final List<String> functions;
-    private final ParameterResolver.DebugInfo debugInfo;
+    private final FunctionContext functionContext;
 
     public Output(
       List<String> columns,
       List<String> functions,
-      ParameterResolver.DebugInfo debugInfo) {
+      FunctionContext functionContext) {
       this.columns = columns;
       this.functions = functions;
-      this.debugInfo = debugInfo;
+      this.functionContext = functionContext;
     }
 
-    public static Output create(ParameterResolver.Resolutions resolutions, ParameterResolver.DebugInfo debugInfo) {
+    public static Output create(ParameterResolver.Result result) {
       return new Output(
-        resolutions.getColumns().stream().map(column -> column.getName()).sorted().collect(Collectors.toList()),
-        resolutions.getFunctions().stream().map(functionSpec -> functionSpec.getName()).sorted().collect(Collectors.toList()),
-        debugInfo);
+        result.getResolutions().getColumns().stream().map(columnAndTableAlias -> columnAndTableAlias.getColumn().getName()).sorted().collect(Collectors.toList()),
+        result.getResolutions().getFunctions().stream().map(Function::getName).sorted().collect(Collectors.toList()),
+        result.getFunctionContext());
     }
 
     public List<String> getColumns() {
@@ -233,27 +166,8 @@ public class ParameterResolverTests {
       return functions;
     }
 
-    public ParameterResolver.DebugInfo getDebugInfo() {
-      return debugInfo;
-    }
-  }
-
-  private static final class MockScope extends DremioEmptyScope {
-
-    public MockScope(SqlValidatorImpl validator) {
-      super(validator);
-    }
-
-    @Override
-    public RelDataType resolveColumn(String name, SqlNode ctx) {
-      SqlIdentifier identifier = (SqlIdentifier) ctx;
-      DremioCatalogReader dremioCatalogReader = (DremioCatalogReader) this.validator.getCatalogReader();
-
-      RelDataType tableSchema = dremioCatalogReader
-        .getTableSchema(identifier.names.subList(0, identifier.names.size() - 1))
-        .get();
-
-      return tableSchema;
+    public FunctionContext getFunctionContext() {
+      return functionContext;
     }
   }
 }

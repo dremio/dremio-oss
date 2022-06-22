@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import { AddFileModal, PREVIEW_VIEW_ID } from './AddFileModal';
+import { AddFileModal, PREVIEW_VIEW_ID } from "./AddFileModal";
 
-describe('AddFileModal', () => {
-
+describe("AddFileModal", () => {
   let minimalProps;
   let commonProps;
   let context;
@@ -29,74 +28,85 @@ describe('AddFileModal', () => {
       uploadFinish: sinon.stub().resolves({}),
       uploadCancel: sinon.stub().resolves({}),
       destroy: sinon.stub(),
-      resetViewState: sinon.stub()
+      resetViewState: sinon.stub(),
     };
     commonProps = {
       isOpen: true,
-      fileName: 'file.json',
+      fileName: "file.json",
       file: Immutable.Map({}),
       resetFileFormatPreview: sinon.stub().resolves({}),
       uploadFileToPath: sinon.stub().resolves({}),
       hide: sinon.spy(),
-      ...minimalProps
+      ...minimalProps,
     };
     context = {
-      username: 'username'
+      username: "username",
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<AddFileModal {...minimalProps} />, {context});
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<AddFileModal {...minimalProps} />, { context });
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#componentDidMount', () => {
-    it('should call resetViewState', () => {
-      const wrapper = shallow(<AddFileModal {...commonProps} />, {context});
+  describe("#componentDidMount", () => {
+    it("should call resetViewState", () => {
+      const wrapper = shallow(<AddFileModal {...commonProps} />, { context });
       const instance = wrapper.instance();
       instance.componentWillMount();
-      expect(commonProps.resetViewState).to.have.been.calledWith(PREVIEW_VIEW_ID);
+      expect(commonProps.resetViewState).to.have.been.calledWith(
+        PREVIEW_VIEW_ID
+      );
     });
   });
 
-  describe('#componentWillReceiveProps', () => {
-    it('should call cancelUpload if filename changes', () => {
-      const wrapper = shallow(<AddFileModal {...commonProps} />, {context});
-      wrapper.setProps({fileName: 'file2.json'});
+  describe("#componentWillReceiveProps", () => {
+    it("should call cancelUpload if filename changes", () => {
+      const wrapper = shallow(<AddFileModal {...commonProps} />, { context });
+      wrapper.setProps({ fileName: "file2.json" });
       expect(commonProps.uploadCancel).to.have.been.called;
     });
   });
 
-  describe('#onSubmitFile', () => {
-    it('should successfully resolve promise', () => {
-      const wrapper = shallow(<AddFileModal {...commonProps} />, {context});
+  describe("#onSubmitFile", () => {
+    it("should successfully resolve promise", () => {
+      const wrapper = shallow(<AddFileModal {...commonProps} />, { context });
       const instance = wrapper.instance();
 
-      const promise = instance.onSubmitFile({file: '', name: '', extension: ''});
+      const promise = instance.onSubmitFile({
+        file: "",
+        name: "",
+        extension: "",
+      });
       return expect(promise).to.be.fulfilled;
     });
 
-    it('should reject the promise if an error occurs', () => {
+    it("should reject the promise if an error occurs", () => {
       const props = {
-        ...commonProps, uploadFileToPath: sinon.stub().rejects({
+        ...commonProps,
+        uploadFileToPath: sinon.stub().rejects({
           error: {
             response: {
-              errorMessage: 'foo'
-            }
-          }
-        })
+              errorMessage: "foo",
+            },
+          },
+        }),
       };
-      const wrapper = shallow(<AddFileModal {...props} />, {context});
+      const wrapper = shallow(<AddFileModal {...props} />, { context });
       const instance = wrapper.instance();
 
-      const promise = instance.onSubmitFile({file: '', name: '', extension: ''});
+      const promise = instance.onSubmitFile({
+        file: "",
+        name: "",
+        extension: "",
+      });
       return expect(promise).to.be.rejected;
     });
   });
 
-  describe('#onSubmitFormat', () => {
-    it('should successfully call hide', () => {
-      const wrapper = shallow(<AddFileModal {...commonProps} />, {context});
+  describe("#onSubmitFormat", () => {
+    it("should successfully call hide", () => {
+      const wrapper = shallow(<AddFileModal {...commonProps} />, { context });
       const instance = wrapper.instance();
 
       const promise = instance.onSubmitFormat({});

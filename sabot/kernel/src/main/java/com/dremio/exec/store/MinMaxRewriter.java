@@ -82,4 +82,3 @@ public class MinMaxRewriter extends RexShuttle {
     return inputFirst ^ isLessThan ? "_max" : "_min";
   }
 }
-

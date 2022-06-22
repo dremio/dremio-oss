@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Schema } from 'normalizr';
+import { Schema } from "normalizr";
 
-const datasetContext = new Schema('datasetContext', {
-  idAttribute: 'id'
+const datasetContext = new Schema("datasetContext", {
+  idAttribute: "id",
 });
 
 export default datasetContext;

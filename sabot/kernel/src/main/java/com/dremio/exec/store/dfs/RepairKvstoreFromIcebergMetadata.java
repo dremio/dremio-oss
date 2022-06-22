@@ -15,14 +15,18 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
@@ -64,9 +68,11 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PrimaryKey;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -101,14 +107,14 @@ public class RepairKvstoreFromIcebergMetadata {
   }
 
   public boolean checkAndRepairDatasetWithQueryRetry() {
-    return perfromCheckAndRepairDataset(true);
+    return performCheckAndRepairDataset(true);
   }
 
   public boolean checkAndRepairDatasetWithoutQueryRetry() {
-    return perfromCheckAndRepairDataset(false);
+    return performCheckAndRepairDataset(false);
   }
 
-  private boolean perfromCheckAndRepairDataset(boolean retryQuery) {
+  private boolean performCheckAndRepairDataset(boolean retryQuery) {
     Retryer<Boolean> retryer = new Retryer.Builder()
       .setMaxRetries(MAX_REPAIR_ATTEMPTS)
       .retryOnExceptionFunc(
@@ -165,6 +171,7 @@ public class RepairKvstoreFromIcebergMetadata {
     repairStats();
     repairDroppedAndModifiedColumns();
     repairReadSignature(newPartitionStatsFile);
+    repairPrimaryKeys();
 
     // update iceberg metadata
     com.dremio.service.namespace.dataset.proto.IcebergMetadata newIcebergMetadata =
@@ -172,8 +179,10 @@ public class RepairKvstoreFromIcebergMetadata {
     newIcebergMetadata.setMetadataFileLocation(currentRootPointerFileLocation);
     newIcebergMetadata.setSnapshotId(currentIcebergSnapshot.snapshotId());
     newIcebergMetadata.setTableUuid(oldIcebergMetadata.getTableUuid());
-    byte[] specs = IcebergSerDe.serializePartitionSpecMap(currentIcebergTable.specs());
-    newIcebergMetadata.setPartitionSpecs(ByteStringUtil.wrap(specs));
+    byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(currentIcebergTable.specs());
+    newIcebergMetadata.setPartitionSpecsJsonMap(ByteStringUtil.wrap(specs));
+    newIcebergMetadata.setJsonSchema(serializedSchemaAsJson(currentIcebergTable.schema()));
+
     if (newPartitionStatsFile != null) {
       newIcebergMetadata.setPartitionStatsFile(newPartitionStatsFile);
     }
@@ -215,9 +224,9 @@ public class RepairKvstoreFromIcebergMetadata {
       modifiedColumns = mapper.readValue(currentIcebergTable.properties().getOrDefault(ColumnOperations.DREMIO_UPDATE_COLUMNS, BatchSchema.EMPTY.toJson()), BatchSchema.class);
       droppedColumns = mapper.readValue(currentIcebergTable.properties().getOrDefault(ColumnOperations.DREMIO_DROPPED_COLUMNS, BatchSchema.EMPTY.toJson()), BatchSchema.class);
     } catch (JsonProcessingException e) {
-      String message = "Unable to retrieve dropped and modified columns from iceberg" + e.getMessage();
-      logger.error(message);
-      throw UserException.dataReadError().addContext(message).build(logger);
+      String message = "Unable to retrieve dropped and modified columns from iceberg";
+      logger.error(message, e);
+      throw UserException.dataReadError(e).addContext(message).build(logger);
     }
 
     UserDefinedSchemaSettings settings = new UserDefinedSchemaSettings();
@@ -226,6 +235,7 @@ public class RepairKvstoreFromIcebergMetadata {
     if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings() != null) {
       settings.setSchemaLearningEnabled(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getSchemaLearningEnabled());
     }
+    datasetConfig.getPhysicalDataset().setInternalSchemaSettings(settings);
     logger.info("Repaired Dropped and modified columns. Modified Columns {}. Dropped Columns {}", modifiedColumns, droppedColumns);
   }
 
@@ -238,6 +248,34 @@ public class RepairKvstoreFromIcebergMetadata {
         createReadSignatureFromPartitionStatsFiles(
           FileSelection.getPathBasedOnFullPath(datasetPath).toString(), currentIcebergTable, newPartitionStatsFile)));
     }
+  }
+
+  private void repairPrimaryKeys() {
+    ObjectMapper mapper = new ObjectMapper();
+    BatchSchema batchSchema;
+    try {
+      batchSchema = mapper.readValue(
+        currentIcebergTable.properties().getOrDefault(
+          PrimaryKeyOperations.DREMIO_PRIMARY_KEY,
+          BatchSchema.EMPTY.toJson()),
+        BatchSchema.class);
+    } catch (JsonProcessingException e) {
+      String error = "Unexpected error occurred while deserializing primary keys";
+      logger.error(error, e);
+      throw UserException.dataReadError(e).addContext(error).build(logger);
+    }
+    if (batchSchema.equals(BatchSchema.EMPTY)) {
+      datasetConfig.getPhysicalDataset().setPrimaryKey(null);
+    } else {
+      datasetConfig.getPhysicalDataset().setPrimaryKey(
+        new PrimaryKey().setColumnList(
+          batchSchema.getFields()
+            .stream()
+            .map(f -> f.getName().toLowerCase(Locale.ROOT))
+            .collect(Collectors.toList())
+        ));
+    }
+    logger.info("Repaired primary keys {}", batchSchema);
   }
 
   private byte[] createReadSignatureFromPartitionStatsFiles(String dataTableRootFolder, Table table, String newPartitionStatsFile)

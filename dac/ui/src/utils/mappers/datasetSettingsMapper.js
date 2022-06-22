@@ -20,7 +20,7 @@ class DataSetSettingsMapper {
       return {
         name: item.name,
         type: item.type,
-        isLeaf: item.isLeaf
+        isLeaf: item.isLeaf,
       };
     });
   }
@@ -29,4 +29,3 @@ class DataSetSettingsMapper {
 const datasetSettingsMapper = new DataSetSettingsMapper();
 
 export default datasetSettingsMapper;
-

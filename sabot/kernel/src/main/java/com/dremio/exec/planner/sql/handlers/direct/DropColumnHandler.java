@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -27,12 +30,14 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
-import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Throwables;
 
 /**
  * Removes column from the table specified by {@link SqlAlterTableDropColumn}
@@ -54,6 +59,7 @@ public class DropColumnHandler extends SimpleDirectHandler {
     SqlAlterTableDropColumn sqlDropColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropColumn.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlDropColumn.getTable());
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     DremioTable table = catalog.getTableNoResolve(path);
 
@@ -79,12 +85,35 @@ public class DropColumnHandler extends SimpleDirectHandler {
     TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
       .setResolvedVersionContext(resolvedVersionContext)
       .build();
-    catalog.dropColumn(path, sqlDropColumn.getColumnToDrop(), tableMutationOptions);
+    catalog.dropColumn(path, table.getDatasetConfig(), sqlDropColumn.getColumnToDrop(), tableMutationOptions);
 
-    if (!DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+    if (!CatalogUtil.isFSInternalIcebergTableOrJsonTableOrMongo(catalog, path, table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
       DataAdditionCmdHandler.refreshDataset(catalog, path, false);
     }
+
+    try {
+      handleFineGrainedAccess(config.getContext(), path, sqlDropColumn.getColumnToDrop());
+    } catch (InvalidRelException ex) {
+      return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] dropped. However, policy attachments need to be manually corrected",
+        sqlDropColumn.getColumnToDrop())));
+    }
+
     return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] dropped",
         sqlDropColumn.getColumnToDrop())));
+  }
+
+  public void handleFineGrainedAccess(QueryContext context, NamespaceKey key, String dropColumn) throws Exception {
+  }
+
+  public static DropColumnHandler create(Catalog catalog, SqlHandlerConfig config) {
+    try {
+      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseDropColumnHandler");
+      final Constructor<?> ctor = cl.getConstructor(Catalog.class, SqlHandlerConfig.class);
+      return (DropColumnHandler) ctor.newInstance(catalog, config);
+    } catch (ClassNotFoundException e) {
+      return new DropColumnHandler(catalog, config);
+    } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e2) {
+      throw Throwables.propagate(e2);
+    }
   }
 }

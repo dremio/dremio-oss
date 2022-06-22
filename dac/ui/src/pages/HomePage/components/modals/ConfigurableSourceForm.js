@@ -13,30 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import PropTypes from 'prop-types';
-import FormUtils from 'utils/FormUtils/FormUtils';
+import { Component } from "react";
+import Immutable from "immutable";
+import PropTypes from "prop-types";
+import FormUtils from "utils/FormUtils/FormUtils";
 
-import { FormBody, ModalForm, modalFormProps } from 'components/Forms';
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import FormTab from 'components/Forms/FormTab';
+import { FormBody, ModalForm, modalFormProps } from "components/Forms";
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import FormTab from "components/Forms/FormTab";
 
-import NavPanel from 'components/Nav/NavPanel';
-import { getFormTabs } from '@inject/pages/HomePage/components/modals/utils';
-import { sourceFormWrapper } from 'uiTheme/less/forms.less';
-import { scrollRightContainerWithHeader } from 'uiTheme/less/layout.less';
+import NavPanel from "components/Nav/NavPanel";
+import { getFormTabs } from "@inject/pages/HomePage/components/modals/utils";
+import { sourceFormWrapper } from "uiTheme/less/forms.less";
+import { scrollRightContainerWithHeader } from "uiTheme/less/layout.less";
 
 const SOURCE_FIELDS = [
-  'id',
-  'name',
-  'description',
-  'allowCrossSourceSelection',
-  'disableMetadataValidityCheck'
+  "id",
+  "name",
+  "description",
+  "allowCrossSourceSelection",
+  "disableMetadataValidityCheck",
 ];
 
 class ConfigurableSourceForm extends Component {
-
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
@@ -49,7 +48,7 @@ class ConfigurableSourceForm extends Component {
     sourceFormConfig: PropTypes.object,
     footerChildren: PropTypes.node,
     EntityType: PropTypes.string,
-    permissions: PropTypes.object
+    permissions: PropTypes.object,
   };
 
   getChildContext() {
@@ -58,46 +57,65 @@ class ConfigurableSourceForm extends Component {
 
   render() {
     const {
-      fields, handleSubmit, onFormSubmit, sourceFormConfig,
-      handleChangeTab, navTabs, selectedTabName, footerChildren, permissions
+      fields,
+      handleSubmit,
+      onFormSubmit,
+      sourceFormConfig,
+      handleChangeTab,
+      navTabs,
+      selectedTabName,
+      footerChildren,
+      permissions,
     } = this.props;
 
-    const {
-      tabs:customTabs,
-      tabSelected
-    } = getFormTabs(navTabs, fields, permissions, selectedTabName);
+    const { tabs: customTabs, tabSelected } = getFormTabs(
+      navTabs,
+      fields,
+      permissions,
+      selectedTabName
+    );
 
-    const tabConfig = sourceFormConfig.form.findTabByName(tabSelected)
-      || sourceFormConfig.form.getDefaultTab();
+    const tabConfig =
+      sourceFormConfig.form.findTabByName(tabSelected) ||
+      sourceFormConfig.form.getDefaultTab();
 
-    const finalTabs = permissions && customTabs.filter(t => {
-      switch (t) {
-      case 'Privileges':
-        return permissions.get('canEditAccessControlList') ? t : null;
-      default:
-        return t;
-      }
-    });
+    const finalTabs =
+      permissions &&
+      customTabs.filter((t) => {
+        switch (t) {
+          case "Privileges":
+            return permissions.get("canEditAccessControlList") ? t : null;
+          default:
+            return t;
+        }
+      });
 
     return (
-      <ModalForm {...modalFormProps(this.props)}
+      <ModalForm
+        {...modalFormProps(this.props)}
         onSubmit={handleSubmit(onFormSubmit)}
         footerChildren={footerChildren}
       >
-        <div className={sourceFormWrapper} data-qa='configurable-source-form'>
-          {sourceFormConfig.form.getTabs().length > 1 &&
-          <NavPanel
-            showSingleTab
-            changeTab={handleChangeTab}
-            activeTab={tabConfig.getName()}
-            tabs={finalTabs ? finalTabs : customTabs}/>}
+        <div className={sourceFormWrapper} data-qa="configurable-source-form">
+          {sourceFormConfig.form.getTabs().length > 1 && (
+            <NavPanel
+              showSingleTab
+              changeTab={handleChangeTab}
+              activeTab={tabConfig.getName()}
+              tabs={finalTabs ? finalTabs : customTabs}
+            />
+          )}
           <div className={scrollRightContainerWithHeader}>
             <FormBody>
-              {
-                tabConfig &&
-                <FormTab fields={fields} tabConfig={tabConfig} formConfig={sourceFormConfig}
-                  EntityType={this.props.EntityType} accessControlId={this.props.fields.id.initialValue} />
-              }
+              {tabConfig && (
+                <FormTab
+                  fields={fields}
+                  tabConfig={tabConfig}
+                  formConfig={sourceFormConfig}
+                  EntityType={this.props.EntityType}
+                  accessControlId={this.props.fields.id.initialValue}
+                />
+              )}
             </FormBody>
           </div>
         </div>
@@ -107,41 +125,56 @@ class ConfigurableSourceForm extends Component {
 }
 
 ConfigurableSourceForm.childContextTypes = {
-  editing: PropTypes.bool
+  editing: PropTypes.bool,
 };
 
 export default class ConfigurableSourceFormWrapper extends Component {
   static propTypes = {
-    sourceFormConfig: PropTypes.object
+    sourceFormConfig: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
-    const {sourceFormConfig} = this.props;
+    const { sourceFormConfig } = this.props;
     const tabs = sourceFormConfig.form.getTabs();
-    const navTabs = Immutable.OrderedMap(tabs.map((tab) => [tab.getName(), tab.getName()]));
+    const navTabs = Immutable.OrderedMap(
+      tabs.map((tab) => [tab.getName(), tab.getName()])
+    );
     this.state = {
-      selectedTabName: '',
-      navTabs
+      selectedTabName: "",
+      navTabs,
     };
-    this.wrappedComponent = connectComplexForm({
-      form: 'source',
-      onSubmitFail: this.handleSyncValidationFailure,
-      fields: SOURCE_FIELDS
-    }, [], mapStateToProps, null)(ConfigurableSourceForm);
+    this.wrappedComponent = connectComplexForm(
+      {
+        form: "source",
+        onSubmitFail: this.handleSyncValidationFailure,
+        fields: SOURCE_FIELDS,
+      },
+      [],
+      mapStateToProps,
+      null
+    )(ConfigurableSourceForm);
   }
 
   handleSyncValidationFailure = (err) => {
     const { sourceFormConfig } = this.props;
     const fieldsWithError = FormUtils.findFieldsWithError(err);
-    const tabConfig = FormUtils.findTabWithError(sourceFormConfig.form, fieldsWithError, this.state.selectedTabName);
+    const tabConfig = FormUtils.findTabWithError(
+      sourceFormConfig.form,
+      fieldsWithError,
+      this.state.selectedTabName
+    );
     this.setState({ selectedTabName: tabConfig.getName() });
 
-    const errorIcon = {name: 'Error.svg', alt: 'Errors', style: {height: 19, width: 19}};
+    const errorIcon = {
+      name: "Error.svg",
+      alt: "Errors",
+      style: { height: 19, width: 19 },
+    };
     const updatedTabs = this.state.navTabs.update(tabConfig.getName(), () => {
-      return (FormUtils.tabHasError(tabConfig, fieldsWithError)) ?
-        {text: tabConfig.getName(), icon: errorIcon} :
-        {text: tabConfig.getName()};
+      return FormUtils.tabHasError(tabConfig, fieldsWithError)
+        ? { text: tabConfig.getName(), icon: errorIcon }
+        : { text: tabConfig.getName() };
     });
     this.setState({ navTabs: updatedTabs });
   };
@@ -157,14 +190,19 @@ export default class ConfigurableSourceFormWrapper extends Component {
         {...this.props}
         selectedTabName={this.state.selectedTabName}
         navTabs={this.state.navTabs}
-        handleChangeTab={this.handleChangeTab}/>
+        handleChangeTab={this.handleChangeTab}
+      />
     );
   }
 }
 
 function mapStateToProps(state, props) {
-  const initialValues = FormUtils.mergeInitValuesWithConfig(props.initialValues, state, props);
+  const initialValues = FormUtils.mergeInitValuesWithConfig(
+    props.initialValues,
+    state,
+    props
+  );
   return {
-    initialValues
+    initialValues,
   };
 }

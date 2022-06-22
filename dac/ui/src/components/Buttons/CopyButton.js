@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import CopyToClipboard from 'react-copy-to-clipboard';
-import { addNotification } from 'actions/notification';
-import CopyButtonIcon from '@app/components/Buttons/CopyButtonIcon';
-import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import CopyToClipboard from "react-copy-to-clipboard";
+import { addNotification } from "actions/notification";
+import CopyButtonIcon from "@app/components/Buttons/CopyButtonIcon";
+import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
 
 export class CopyButton extends Component {
   static propTypes = {
@@ -29,34 +29,37 @@ export class CopyButton extends Component {
     addNotification: PropTypes.func.isRequired,
     iconVersion: PropTypes.number,
     showCopiedContent: PropTypes.bool,
-    iconStyle: PropTypes.object
+    iconStyle: PropTypes.object,
   };
 
   static defaultProps = {
-    title: 'Copy Path', // TODO: loc
-    showCopiedContent: true
+    title: "Copy Path", // TODO: loc
+    showCopiedContent: true,
   };
 
   handleCopy = () => {
     const { showCopiedContent } = this.props;
     const message = (
-      <span>
-        Copied {showCopiedContent && <i>{this.props.text}</i>}.
-      </span>
+      <span>Copied {showCopiedContent && <i>{this.props.text}</i>}.</span>
     ); // TODO: loc
-    this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
+    this.props.addNotification(message, "success", MSG_CLEAR_DELAY_SEC);
   };
 
   render() {
-    const {text, title, style, iconVersion, iconStyle } = this.props;
+    const { text, title, style, iconVersion, iconStyle } = this.props;
     return (
       <CopyToClipboard text={text} onCopy={this.handleCopy}>
-        <CopyButtonIcon title={title} style={style} version={iconVersion} iconStyle={iconStyle} />
+        <CopyButtonIcon
+          title={title}
+          style={style}
+          version={iconVersion}
+          iconStyle={iconStyle}
+        />
       </CopyToClipboard>
     );
   }
 }
 
 export default connect(null, {
-  addNotification
+  addNotification,
 })(CopyButton);

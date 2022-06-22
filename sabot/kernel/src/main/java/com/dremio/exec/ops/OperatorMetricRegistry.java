@@ -89,6 +89,7 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.JSON_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.BRIDGE_FILE_WRITER_SENDER_VALUE, BridgeFileWriterSenderOperator.Metric.class);
     register(builder, CoreOperatorType.BRIDGE_FILE_READER_RECEIVER_VALUE, BridgeFileReaderReceiverOperator.Metric.class);
+    register(builder, CoreOperatorType.ICEBERG_METADATA_FUNCTIONS_READER_VALUE, ScanOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

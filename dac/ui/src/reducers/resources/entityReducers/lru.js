@@ -13,20 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ACCESS_ENTITY } from 'actions/resources/lru';
+import { ACCESS_ENTITY } from "actions/resources/lru";
 
 export default function table(state, action) {
   switch (action.type) {
-  case ACCESS_ENTITY: {
-    const { entityType, entityId } = action.meta;
-    const entity = state.getIn([entityType, entityId]);
-    if (!entity) {
-      return state;
+    case ACCESS_ENTITY: {
+      const { entityType, entityId } = action.meta;
+      const entity = state.getIn([entityType, entityId]);
+      if (!entity) {
+        return state;
+      }
+      // delete/set moves to front of ordered map
+      return state
+        .deleteIn([entityType, entityId])
+        .setIn([entityType, entityId], entity);
     }
-    // delete/set moves to front of ordered map
-    return state.deleteIn([entityType, entityId]).setIn([entityType, entityId], entity);
-  }
-  default:
-    return state;
+    default:
+      return state;
   }
 }

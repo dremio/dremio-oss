@@ -90,20 +90,23 @@ class DatasetManager {
   private final NamespaceService userNamespaceService;
   private final OptionManager optionManager;
   private final String userName;
-  private IdentityResolver identityProvider;
+  private final IdentityResolver identityProvider;
+  private final VersionContextResolver versionContextResolver;
 
   public DatasetManager(
       PluginRetriever plugins,
       NamespaceService userNamespaceService,
       OptionManager optionManager,
       String userName,
-      IdentityResolver identityProvider
-   ) {
+      IdentityResolver identityProvider,
+      VersionContextResolver versionContextResolver
+  ) {
     this.userNamespaceService = userNamespaceService;
     this.plugins = plugins;
     this.optionManager = optionManager;
     this.userName = userName;
     this.identityProvider = identityProvider;
+    this.versionContextResolver = versionContextResolver;
   }
 
   /**
@@ -199,6 +202,12 @@ class DatasetManager {
     String pluginName = key.getRoot();
     final ManagedStoragePlugin plugin = plugins.getPlugin(pluginName, false);
 
+    if (config == null) {
+      logger.debug("Got a null config");
+    } else {
+      logger.debug("Got config {}", config);
+    }
+
     if(plugin != null) {
 
       // if we have a plugin and the info isn't a vds (this happens in home, where VDS are intermingled with plugin datasets).
@@ -260,8 +269,9 @@ class DatasetManager {
       final String accessUserName = options.getSchemaConfig().getUserName();
 
       final VersionedDatasetAdapter versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
-        .setVersionedTableKey(key.toString())
-        .setVersionContext(options.getVersionForSource(plugin.getName().getRoot()))
+          .setVersionedTableKey(key.toString())
+          .setVersionContext(versionContextResolver.resolveVersionContext(
+              plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot())))
         .setStoragePlugin(underlyingPlugin)
         .setStoragePluginId(plugin.getId())
         .setOptionManager(optionManager)

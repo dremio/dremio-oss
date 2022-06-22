@@ -13,69 +13,93 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { humanSorter, getSortValue } from './sort';
+import { humanSorter, getSortValue } from "./sort";
 
-describe('humanSorter', () => {
-  it('should compare strings', () => {
-    expect(humanSorter('a', 'b')).to.equal(-1);
-    expect(humanSorter('a', 'a')).to.equal(0);
-    expect(humanSorter('a', 'A')).to.equal(-1);
-    expect(humanSorter('a', '-')).to.equal(1);
-    expect(humanSorter('A', '-')).to.equal(1);
+describe("humanSorter", () => {
+  it("should compare strings", () => {
+    expect(humanSorter("a", "b")).to.equal(-1);
+    expect(humanSorter("a", "a")).to.equal(0);
+    expect(humanSorter("a", "A")).to.equal(-1);
+    expect(humanSorter("a", "-")).to.equal(1);
+    expect(humanSorter("A", "-")).to.equal(1);
   });
-  it('should compare string and number', () => {
-    expect(humanSorter('a', 1)).to.equal(-1);
-    expect(humanSorter('a', 62)).to.equal(-1);
-    expect(humanSorter(5, '5')).to.equal(1);
+  it("should compare string and number", () => {
+    expect(humanSorter("a", 1)).to.equal(-1);
+    expect(humanSorter("a", 62)).to.equal(-1);
+    expect(humanSorter(5, "5")).to.equal(1);
   });
-  it('should compare numbers', () => {
+  it("should compare numbers", () => {
     expect(humanSorter(1, 1)).to.equal(0);
     expect(humanSorter(2, 3)).to.equal(-1);
     expect(humanSorter(3, 2)).to.equal(1);
   });
-  it('should handle empty args', () => {
+  it("should handle empty args", () => {
     expect(humanSorter(null, null)).to.equal(0);
     expect(humanSorter()).to.equal(0);
   });
-  it('should handle non strings/numbers', () => {
-    expect(humanSorter({a: 'a'}, {a: 'b'})).to.equal(0);
+  it("should handle non strings/numbers", () => {
+    expect(humanSorter({ a: "a" }, { a: "b" })).to.equal(0);
   });
-  it('should handle string/number that start with a number', () => {
-    expect(humanSorter('1a', '1a')).to.equal(0);
-    expect(humanSorter('1a', '12a')).to.equal(-1);
-    expect(humanSorter('12a', '2a')).to.equal(1);
+  it("should handle string/number that start with a number", () => {
+    expect(humanSorter("1a", "1a")).to.equal(0);
+    expect(humanSorter("1a", "12a")).to.equal(-1);
+    expect(humanSorter("12a", "2a")).to.equal(1);
   });
-  it('should handle string/number that do not start with a number', () => {
-    expect(humanSorter('a1', 'a1')).to.equal(0);
-    expect(humanSorter('a01', 'a1')).to.equal(-1);
-    expect(humanSorter('a1', 'a01')).to.equal(1);
+  it("should handle string/number that do not start with a number", () => {
+    expect(humanSorter("a1", "a1")).to.equal(0);
+    expect(humanSorter("a01", "a1")).to.equal(-1);
+    expect(humanSorter("a1", "a01")).to.equal(1);
   });
 });
 
-describe('getSortValue', () => {
-  it('should return undefind if item does not have a value', () => {
+describe("getSortValue", () => {
+  it("should return undefind if item does not have a value", () => {
     expect(getSortValue(null)).to.be.undefined;
-    expect(getSortValue({}, 'a')).to.be.undefined;
-    expect(getSortValue({data: {}}, 'a')).to.be.undefined;
-    expect(getSortValue({data: {b: 'b'}}, 'a')).to.be.undefined;
-    expect(getSortValue({data: {a: 'a'}}, 'a')).to.be.undefined;
-    expect(getSortValue({data: {a: {value: 'a'}}}, 'a')).not.to.be.undefined;
+    expect(getSortValue({}, "a")).to.be.undefined;
+    expect(getSortValue({ data: {} }, "a")).to.be.undefined;
+    expect(getSortValue({ data: { b: "b" } }, "a")).to.be.undefined;
+    expect(getSortValue({ data: { a: "a" } }, "a")).to.be.undefined;
+    expect(getSortValue({ data: { a: { value: "a" } } }, "a")).not.to.be
+      .undefined;
   });
-  it('should return value if provided', () => {
-    expect(getSortValue({data: {a: {value: 'abc'}}}, 'a')).to.equal('abc');
+  it("should return value if provided", () => {
+    expect(getSortValue({ data: { a: { value: "abc" } } }, "a")).to.equal(
+      "abc"
+    );
   });
-  it('should return function result', () => {
-    expect(getSortValue({data: {a: {node: () => 'result'}}}, 'a')).to.equal('result');
+  it("should return function result", () => {
+    expect(
+      getSortValue({ data: { a: { node: () => "result" } } }, "a")
+    ).to.equal("result");
   });
-  it('should return value is both value and node function are provided', () => {
-    expect(getSortValue({data: {a: {
-      node: () => 'result',
-      value: 'abc'
-    }}}, 'a')).to.equal('abc');
+  it("should return value is both value and node function are provided", () => {
+    expect(
+      getSortValue(
+        {
+          data: {
+            a: {
+              node: () => "result",
+              value: "abc",
+            },
+          },
+        },
+        "a"
+      )
+    ).to.equal("abc");
   });
-  it('should return value function result', () => {
-    expect(getSortValue({data: {a: {
-      value: () => 'abc'}}
-    }, 'a', 'DESC')).to.equal('abc');
+  it("should return value function result", () => {
+    expect(
+      getSortValue(
+        {
+          data: {
+            a: {
+              value: () => "abc",
+            },
+          },
+        },
+        "a",
+        "DESC"
+      )
+    ).to.equal("abc");
   });
 });

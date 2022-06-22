@@ -13,50 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useEffect } from 'react';
-import { connect } from 'react-redux';
-import { withRouter } from 'react-router';
-import { compose } from 'redux';
-import { injectIntl } from 'react-intl';
-import DocumentTitle from 'react-document-title';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import uuid from 'uuid';
+import { useState, useEffect } from "react";
+import { connect } from "react-redux";
+import { withRouter } from "react-router";
+import { compose } from "redux";
+import { injectIntl } from "react-intl";
+import DocumentTitle from "react-document-title";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import uuid from "uuid";
 import {
   loadJobDetails,
   JOB_DETAILS_VIEW_ID,
   fetchJobExecutionDetails,
-  fetchJobExecutionOperatorDetails
-} from 'actions/joblist/jobList';
-import { showJobProfile, cancelJobAndShowNotification } from 'actions/jobs/jobs';
-import { updateViewState } from 'actions/resources';
-import { downloadFile } from 'sagas/downloadFile';
-import { getViewState } from 'selectors/resources';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import jobsUtils from '@app/utils/jobsUtils';
-import { renderContent } from 'dyn-load/utils/jobsUtils';
-import SideNav from '@app/components/SideNav/SideNav';
-import socket from '@inject/utils/socket';
-import { GetIsSocketForSingleJob } from '@inject/pages/JobDetailsPageNew/utils';
+  fetchJobExecutionOperatorDetails,
+} from "actions/joblist/jobList";
+import {
+  showJobProfile,
+  cancelJobAndShowNotification,
+} from "actions/jobs/jobs";
+import { updateViewState } from "actions/resources";
+import { downloadFile } from "sagas/downloadFile";
+import { getViewState } from "selectors/resources";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import jobsUtils from "@app/utils/jobsUtils";
+import { renderContent } from "dyn-load/utils/jobsUtils";
+import SideNav from "@app/components/SideNav/SideNav";
+import socket from "@inject/utils/socket";
+import { GetIsSocketForSingleJob } from "@inject/pages/JobDetailsPageNew/utils";
 
-import TopPanel from './components/TopPanel/TopPanel';
-import './JobDetailsPage.less';
+import TopPanel from "./components/TopPanel/TopPanel";
+import "./JobDetailsPage.less";
 
 const POLL_INTERVAL = 3000;
 
 const JobDetailsPage = (props) => {
   const isSqlContrast = localStorageUtils.getSqlThemeContrast();
-  const [currentTab, setCurrentTab] = useState('Overview');
+  const [currentTab, setCurrentTab] = useState("Overview");
   const [isContrast, setIsContrast] = useState(isSqlContrast);
   const [jobDetails, setJobDetails] = useState(Immutable.Map());
   const [pollId, setPollId] = useState(null);
   const [isListeningForProgress, setIsListeningForProgress] = useState(false);
 
   const {
-    intl: {
-      formatMessage
-    },
+    intl: { formatMessage },
     router,
     location,
     jobId,
@@ -70,7 +71,7 @@ const JobDetailsPage = (props) => {
     getJobExecutionDetails,
     jobExecutionDetails,
     getJobExecutionOperatorDetails,
-    jobExecutionOperatorDetails
+    jobExecutionOperatorDetails,
   } = props;
 
   const propsForRenderContent = {
@@ -84,7 +85,7 @@ const JobDetailsPage = (props) => {
     jobExecutionDetails,
     getJobExecutionOperatorDetails,
     jobExecutionOperatorDetails,
-    location
+    location,
   };
 
   // TODO: Revisit this to fetch the info from socket instead of making multiple calls to get job details
@@ -93,19 +94,19 @@ const JobDetailsPage = (props) => {
       const { query: { attempts = 1 } = {} } = location || {};
 
       const skipStartAction =
-        jobDetails && jobDetails.size !== 0 && jobDetails.get('id') === jobId;
+        jobDetails && jobDetails.size !== 0 && jobDetails.get("id") === jobId;
       fetchJobDetails(skipStartAction);
       const jobAttempt = jobDetailsFromStore
-        ? jobDetailsFromStore.get('totalAttempts')
+        ? jobDetailsFromStore.get("totalAttempts")
         : attempts;
       router.replace({
         ...location,
         query: {
-          attempts: jobAttempt
-        }
+          attempts: jobAttempt,
+        },
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, jobDetailsFromStore]);
 
   useEffect(() => {
@@ -135,8 +136,8 @@ const JobDetailsPage = (props) => {
           router.replace({
             ...location,
             query: {
-              attempts: jobAttempts
-            }
+              attempts: jobAttempts,
+            },
           });
           if (!jobsUtils.isJobRunning(response && response.jobStatus)) {
             clearInterval(id);
@@ -155,7 +156,7 @@ const JobDetailsPage = (props) => {
     if (isListeningForProgress) {
       return () => socket.stoptListenToQVJobProgress(jobId);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isListeningForProgress]);
 
   useEffect(() => {
@@ -178,7 +179,7 @@ const JobDetailsPage = (props) => {
     if (!response.error) {
       if (
         GetIsSocketForSingleJob() &&
-        (jobDetails.size === 0 || jobDetails.get('id') !== jobId) &&
+        (jobDetails.size === 0 || jobDetails.get("id") !== jobId) &&
         jobsUtils.isJobRunning(response.jobStatus)
       ) {
         socket.startListenToQVJobProgress(jobId);
@@ -186,15 +187,15 @@ const JobDetailsPage = (props) => {
       }
       setJobDetails(Immutable.fromJS(response));
     } else if (response.status === 404) {
-      const errorMessage = formatMessage({ id: 'Job.Details.NoData' });
+      const errorMessage = formatMessage({ id: "Job.Details.NoData" });
       getViewStateDetails(JOB_DETAILS_VIEW_ID, {
         isFailed: false,
         isWarning: true,
         isInProgress: false,
         error: {
           message: errorMessage,
-          id: uuid.v4()
-        }
+          id: uuid.v4(),
+        },
       });
     }
     getJobExecutionDetails(
@@ -206,43 +207,51 @@ const JobDetailsPage = (props) => {
     return response;
   };
 
-  const jobStatus = jobDetailsFromStore && GetIsSocketForSingleJob() ?
-    jobDetailsFromStore.get('state') :
-    jobDetails.get('jobStatus');
+  const jobStatus =
+    jobDetailsFromStore && GetIsSocketForSingleJob()
+      ? jobDetailsFromStore.get("state")
+      : jobDetails.get("jobStatus");
 
   const breadcrumbRouting = () => {
-    const { state: { history } } = location;
+    const {
+      state: { history },
+    } = location;
     router.push({
-      ...history
+      ...history,
     });
   };
 
   return (
-    <div style={{height: '100%'}}>
-      <DocumentTitle title={formatMessage({ id: 'Job.Jobs' })} />
-      <div className={'jobsPageBody'}>
+    <div style={{ height: "100%" }}>
+      <DocumentTitle title={formatMessage({ id: "Job.Jobs" })} />
+      <div className={"jobsPageBody"}>
         <SideNav />
-        <div className={'jobPageContentDiv'}>
-          <ViewStateWrapper hideChildrenWhenFailed={false} viewState={viewState}>
-            {
-              jobDetails.get('id') &&  <div className='jobDetails'>
-                <DocumentTitle title={formatMessage({ id: 'Job.JobDetails' })} />
-                <div className='jobDetails__topPanel'>
+        <div className={"jobPageContentDiv"}>
+          <ViewStateWrapper
+            hideChildrenWhenFailed={false}
+            viewState={viewState}
+          >
+            {jobDetails.get("id") && (
+              <div className="jobDetails">
+                <DocumentTitle
+                  title={formatMessage({ id: "Job.JobDetails" })}
+                />
+                <div className="jobDetails__topPanel">
                   <TopPanel
-                    jobId={jobDetails.get('id')}
+                    jobId={jobDetails.get("id")}
                     breadcrumbRouting={breadcrumbRouting}
                     setComponent={setCurrentTab}
-                    jobStatus={ jobStatus}
+                    jobStatus={jobStatus}
                     jobDetails={jobDetails}
                     showJobProfile={showJobIdProfile}
                     cancelJob={cancelJob}
                   />
                 </div>
-                <div className='gutter-left--double gutter-right--double full-height jobDetails__bottomPanel'>
+                <div className="gutter-left--double gutter-right--double full-height jobDetails__bottomPanel">
                   {renderContent(currentTab, propsForRenderContent)}
                 </div>
               </div>
-            }
+            )}
           </ViewStateWrapper>
         </div>
       </div>
@@ -266,29 +275,26 @@ JobDetailsPage.propTypes = {
   getJobExecutionDetails: PropTypes.func,
   getJobExecutionOperatorDetails: PropTypes.func,
   jobExecutionDetails: PropTypes.any,
-  jobExecutionOperatorDetails: PropTypes.any
+  jobExecutionOperatorDetails: PropTypes.any,
 };
 
-
 function mapStateToProps(state, ownProps) {
-  const {
-    routeParams: {
-      jobId
-    } = {}
-  } = ownProps;
+  const { routeParams: { jobId } = {} } = ownProps;
 
-  const jobsList = state.jobs.jobs.get('jobList').toArray();
+  const jobsList = state.jobs.jobs.get("jobList").toArray();
   const currentJob = jobsList.find((job) => {
-    return job.get('id') === jobId;
+    return job.get("id") === jobId;
   });
-  const totalAttempts = currentJob ? currentJob.get('totalAttempts') : undefined;
+  const totalAttempts = currentJob ? currentJob.get("totalAttempts") : 1;
   return {
     jobId,
     totalAttempts,
     jobDetailsFromStore: currentJob,
     viewState: getViewState(state, JOB_DETAILS_VIEW_ID),
-    jobExecutionDetails: state.jobs.jobs.get('jobExecutionDetails'),
-    jobExecutionOperatorDetails: state.jobs.jobs.get('jobExecutionOperatorDetails')
+    jobExecutionDetails: state.jobs.jobs.get("jobExecutionDetails"),
+    jobExecutionOperatorDetails: state.jobs.jobs.get(
+      "jobExecutionOperatorDetails"
+    ),
   };
 }
 
@@ -299,7 +305,7 @@ const mapDispatchToProps = {
   cancelJob: cancelJobAndShowNotification,
   downloadJobFile: downloadFile,
   getJobExecutionDetails: fetchJobExecutionDetails,
-  getJobExecutionOperatorDetails: fetchJobExecutionOperatorDetails
+  getJobExecutionOperatorDetails: fetchJobExecutionOperatorDetails,
 };
 
 export default compose(

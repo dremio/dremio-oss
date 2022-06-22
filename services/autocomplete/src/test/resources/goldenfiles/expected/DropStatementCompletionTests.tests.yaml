@@ -1,0 +1,159 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "Empty name"
+  input: "DROP TABLE ^"
+  output:
+    completions:
+     -
+      data:
+        name: "@space"
+        type: "Space"
+      detail: "Some CatalogEntry"
+      insertText: "\"@space\""
+      kind: "CatalogEntry"
+      label: "@space"
+     -
+      data:
+        name: "space"
+        type: "Space"
+      detail: "Some CatalogEntry"
+      insertText: "space"
+      kind: "CatalogEntry"
+      label: "space"
+     -
+      data:
+        name: "space with a space in the name"
+        type: "Space"
+      detail: "Some CatalogEntry"
+      insertText: "\"space with a space in the name\""
+      kind: "CatalogEntry"
+      label: "space with a space in the name"
+     -
+      data: "IF"
+      detail: "Some SQL keyword"
+      insertText: "IF"
+      kind: "Keyword"
+      label: "IF"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Works with folder name"
+  input: "DROP TABLE \"space\".^"
+  output:
+    completions:
+     -
+      data:
+        name: "folder"
+        type: "Folder"
+      detail: "Some CatalogEntry"
+      insertText: "folder"
+      kind: "CatalogEntry"
+      label: "folder"
+     -
+      data: "*"
+      detail: "Some SQL keyword"
+      insertText: "*"
+      kind: "Keyword"
+      label: "*"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Works with folder with spaces"
+  input: "DROP TABLE \"space with a space in the name\".^"
+  output:
+    completions:
+     -
+      data:
+        name: "folder with a space in the name"
+        type: "Folder"
+      detail: "Some CatalogEntry"
+      insertText: "\"folder with a space in the name\""
+      kind: "CatalogEntry"
+      label: "folder with a space in the name"
+     -
+      data: "*"
+      detail: "Some SQL keyword"
+      insertText: "*"
+      kind: "Keyword"
+      label: "*"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Works with IF EXISTS"
+  input: "DROP TABLE IF EXISTS \"space\".^"
+  output:
+    completions:
+     -
+      data:
+        name: "folder"
+        type: "Folder"
+      detail: "Some CatalogEntry"
+      insertText: "folder"
+      kind: "CatalogEntry"
+      label: "folder"
+     -
+      data: "*"
+      detail: "Some SQL keyword"
+      insertText: "*"
+      kind: "Keyword"
+      label: "*"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Works with VIEW"
+  input: "DROP VIEW \"space\".^"
+  output:
+    completions:
+     -
+      data:
+        name: "folder"
+        type: "Folder"
+      detail: "Some CatalogEntry"
+      insertText: "folder"
+      kind: "CatalogEntry"
+      label: "folder"
+     -
+      data: "*"
+      detail: "Some SQL keyword"
+      insertText: "*"
+      kind: "Keyword"
+      label: "*"
+    functionContext: null
+    hasMoreResults: false
+ -
+  description: "Works with VDS"
+  input: "DROP VDS \"space\".^"
+  output:
+    completions:
+     -
+      data:
+        name: "folder"
+        type: "Folder"
+      detail: "Some CatalogEntry"
+      insertText: "folder"
+      kind: "CatalogEntry"
+      label: "folder"
+     -
+      data: "*"
+      detail: "Some SQL keyword"
+      insertText: "*"
+      kind: "Keyword"
+      label: "*"
+    functionContext: null
+    hasMoreResults: false

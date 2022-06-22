@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -40,11 +41,12 @@ public class TestBitRpc extends ExecTest {
       .build();
     SharedResource resource = resourceManager.getGroup("test").createResource("test-backpressure", SharedResourceType.TEST);
 
-    SendingMonitor sendingMonitor = new SendingMonitor(resource, new SendingAccountor());
+    int LIMIT = ExecConstants.OUTSTANDING_RPCS_PER_TUNNEL.getDefault().getNumVal().intValue();
+    SendingMonitor sendingMonitor = new SendingMonitor(resource, new SendingAccountor(), LIMIT);
     RpcOutcomeListener<Ack> wrappedListener = sendingMonitor.wrap(Mockito.mock(RpcOutcomeListener.class));
 
     // all batches sent below the monitor limit should not cause the resource to become unavailable
-    for (int i = 0; i < SendingMonitor.LIMIT - 1; i++) {
+    for (int i = 0; i < LIMIT - 1; i++) {
       sendingMonitor.increment();
       assertTrue(resourceManager.isAvailable());
     }

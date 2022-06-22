@@ -13,48 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import moment from 'moment';
+import Immutable from "immutable";
+import moment from "@app/utils/dayjs";
 
-import serverStatus from 'reducers/serverStatus';
+import serverStatus from "reducers/serverStatus";
 import {
   SCHEDULE_CHECK_SERVER_STATUS,
   CHECK_SERVER_STATUS_START,
-  CHECK_SERVER_STATUS_SUCCESS
-} from 'actions/serverStatus';
+  CHECK_SERVER_STATUS_SUCCESS,
+} from "actions/serverStatus";
 
-describe('serverStatus reducer', () => {
-
-  const initialState =  Immutable.fromJS({
-    status: 'ok'
+describe("serverStatus reducer", () => {
+  const initialState = Immutable.fromJS({
+    status: "ok",
   });
 
-  it('returns unaltered state by default', () => {
-    const result = serverStatus(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = serverStatus(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  it('should reset on schedule check', () => {
-    const result = serverStatus(initialState.set('foo', 'bar'), {
-      type: SCHEDULE_CHECK_SERVER_STATUS
+  it("should reset on schedule check", () => {
+    const result = serverStatus(initialState.set("foo", "bar"), {
+      type: SCHEDULE_CHECK_SERVER_STATUS,
     });
-    expect(result.get('foo')).to.be.undefined;
+    expect(result.get("foo")).to.be.undefined;
   });
 
-  it('should set server status on success', () => {
+  it("should set server status on success", () => {
     const result = serverStatus(initialState, {
       type: CHECK_SERVER_STATUS_SUCCESS,
-      payload: 'foo'
+      payload: "foo",
     });
-    expect(result.get('status')).to.eql('foo');
+    expect(result.get("status")).to.eql("foo");
   });
 
-  it('should save moment and delay on check start', () => {
+  it("should save moment and delay on check start", () => {
     const result = serverStatus(initialState, {
       type: CHECK_SERVER_STATUS_START,
-      meta: {delay: 100}
+      meta: { delay: 100 },
     });
-    expect(result.get('delay')).to.eql(100);
-    expect(result.get('lastCheckMoment') instanceof moment).to.be.true;
+    expect(result.get("delay")).to.eql(100);
+    expect(result.get("lastCheckMoment") instanceof moment).to.be.true;
   });
 });

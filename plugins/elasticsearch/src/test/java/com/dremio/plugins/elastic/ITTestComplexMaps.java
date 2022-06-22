@@ -119,7 +119,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "    \"myBool\" : {\n" +
         "      \"terms\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"map inside complex?\\\"] == null || _source[\\\"@complex map!\\\"][\\\"map inside complex?\\\"][\\\"inner1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"map inside complex?\\\"][\\\"inner1\\\"]\"\n" +
+        "          \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"map inside complex?\\\"] == null || _source[\\\"@complex map!\\\"][\\\"map inside complex?\\\"][\\\"inner1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"map inside complex?\\\"][\\\"inner1\\\"]\"\n" +
         "        },\n" +
         "        \"missing\" : \"NULL_BOOLEAN_TAG\",\n" +
         "        \"size\" : 2147483647\n" +
@@ -128,7 +128,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "        \"EXPR$2\" : {\n" +
         "          \"terms\" : {\n" +
         "            \"script\" : {\n" +
-        "              \"inline\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
+        "              \"source\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
         "            },\n" +
         "            \"missing\" : \"NULL_STRING_TAG\",\n" +
         "            \"size\" : 2147483647\n" +
@@ -137,7 +137,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "            \"EXPR$3\" : {\n" +
         "              \"terms\" : {\n" +
         "                \"script\" : {\n" +
-        "                  \"inline\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
+        "                  \"source\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
         "                },\n" +
         "                \"missing\" : \"NULL_STRING_TAG\",\n" +
         "                \"size\" : 2147483647\n" +
@@ -146,7 +146,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "                \"listInt\" : {\n" +
         "                  \"terms\" : {\n" +
         "                    \"script\" : {\n" +
-        "                      \"inline\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
+        "                      \"source\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
         "                    },\n" +
         "                    \"missing\" : -9223372036854775808,\n" +
         "                    \"size\" : 2147483647\n" +
@@ -184,7 +184,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "    \"deepInt\" : {\n" +
         "      \"terms\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
+        "          \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
         "        },\n" +
         "        \"missing\" : -9223372036854775808,\n" +
         "        \"size\" : 2147483647\n" +
@@ -193,7 +193,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "        \"EXPR$1\" : {\n" +
         "          \"terms\" : {\n" +
         "            \"script\" : {\n" +
-        "              \"inline\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
+        "              \"source\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
         "            },\n" +
         "            \"missing\" : \"NULL_STRING_TAG\",\n" +
         "            \"size\" : 2147483647\n" +
@@ -202,7 +202,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "            \"EXPR$2\" : {\n" +
         "              \"terms\" : {\n" +
         "                \"script\" : {\n" +
-        "                  \"inline\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
+        "                  \"source\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
         "                },\n" +
         "                \"missing\" : \"NULL_STRING_TAG\",\n" +
         "                \"size\" : 2147483647\n" +
@@ -211,7 +211,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "                \"listInt\" : {\n" +
         "                  \"terms\" : {\n" +
         "                    \"script\" : {\n" +
-        "                      \"inline\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
+        "                      \"source\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
         "                    },\n" +
         "                    \"missing\" : -9223372036854775808,\n" +
         "                    \"size\" : 2147483647\n" +
@@ -247,28 +247,28 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "    \"deepInt\" : {\n" +
         "      \"sum\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
+        "          \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
         "        }\n" +
         "      }\n" +
         "    },\n" +
         "    \"EXPR$1\" : {\n" +
         "      \"value_count\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
+        "          \"source\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
         "        }\n" +
         "      }\n" +
         "    },\n" +
         "    \"EXPR$2\" : {\n" +
         "      \"value_count\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
+        "          \"source\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
         "        }\n" +
         "      }\n" +
         "    },\n" +
         "    \"listInt\" : {\n" +
         "      \"sum\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
+        "          \"source\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
         "        }\n" +
         "      }\n" +
         "    }\n" +
@@ -296,7 +296,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "    \"EXPR$1\" : {\n" +
         "      \"terms\" : {\n" +
         "        \"script\" : {\n" +
-        "          \"inline\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
+        "          \"source\" : \"(_source.secondList == null || _source.secondList[1] == null) ? false : _source.secondList[1]\"\n" +
         "        },\n" +
         "        \"missing\" : \"NULL_STRING_TAG\",\n" +
         "        \"size\" : 2147483647\n" +
@@ -305,7 +305,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "        \"deepInt\" : {\n" +
         "          \"terms\" : {\n" +
         "            \"script\" : {\n" +
-        "              \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
+        "              \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
         "            },\n" +
         "            \"missing\" : -9223372036854775808,\n" +
         "            \"size\" : 2147483647\n" +
@@ -314,14 +314,14 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "            \"EXPR$2\" : {\n" +
         "              \"value_count\" : {\n" +
         "                \"script\" : {\n" +
-        "                  \"inline\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
+        "                  \"source\" : \"(_source[\\\"@ a list!\\\"] == null || _source[\\\"@ a list!\\\"][0] == null) ? false : _source[\\\"@ a list!\\\"][0]\"\n" +
         "                }\n" +
         "              }\n" +
         "            },\n" +
         "            \"listInt\" : {\n" +
         "              \"sum\" : {\n" +
         "                \"script\" : {\n" +
-        "                  \"inline\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
+        "                  \"source\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"] == null || _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1] == null) ? false : _source[\\\"list of complex map!\\\"][0][\\\"list of numbers\\\"][1]\"\n" +
         "                }\n" +
         "              }\n" +
         "            }\n" +
@@ -373,12 +373,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"origList\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source.messedUpList2 == null) ? false : _source.messedUpList2\"\n" +
+        "        \"source\" : \"(_source.messedUpList2 == null) ? false : _source.messedUpList2\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -425,12 +425,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"origList\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"list of complex map!\\\"] == null) ? false : _source[\\\"list of complex map!\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"list of complex map!\\\"] == null) ? false : _source[\\\"list of complex map!\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -478,12 +478,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"origList\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null) ? false : _source[\\\"list of complex map!\\\"][0]\"\n" +
+        "        \"source\" : \"(_source[\\\"list of complex map!\\\"] == null || _source[\\\"list of complex map!\\\"][0] == null) ? false : _source[\\\"list of complex map!\\\"][0]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -522,12 +522,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"origMap\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"list of numbers\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"list of numbers\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"list of numbers\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"list of numbers\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -552,12 +552,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"origMap\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null) ? false : _source[\\\"@complex map!\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null) ? false : _source[\\\"@complex map!\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -596,12 +596,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"@ a list!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@ a list!\\\"] == null) ? false : _source[\\\"@ a list!\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@ a list!\\\"] == null) ? false : _source[\\\"@ a list!\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -626,17 +626,17 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"secondList\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source.secondList == null) ? false : _source.secondList\"\n" +
+        "        \"source\" : \"(_source.secondList == null) ? false : _source.secondList\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"a nested list\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"a nested list\\\"] == null) ? false : _source[\\\"a nested list\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"a nested list\\\"] == null) ? false : _source[\\\"a nested list\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -664,17 +664,17 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"@ a list!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@ a list!\\\"] == null) ? false : _source[\\\"@ a list!\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@ a list!\\\"] == null) ? false : _source[\\\"@ a list!\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"a nested list\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"a nested list\\\"] == null) ? false : _source[\\\"a nested list\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"a nested list\\\"] == null) ? false : _source[\\\"a nested list\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -700,17 +700,17 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"secondList\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source.secondList == null) ? false : _source.secondList\"\n" +
+        "        \"source\" : \"(_source.secondList == null) ? false : _source.secondList\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"a nested list\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"a nested list\\\"] == null || _source[\\\"a nested list\\\"][0] == null) ? false : _source[\\\"a nested list\\\"][0]\"\n" +
+        "        \"source\" : \"(_source[\\\"a nested list\\\"] == null || _source[\\\"a nested list\\\"][0] == null) ? false : _source[\\\"a nested list\\\"][0]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -735,12 +735,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"simple\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source.simple == null) ? false : (_source.simple).intValue()\"\n" +
+        "        \"source\" : \"(_source.simple == null) ? false : (_source.simple).intValue()\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 2\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -766,12 +766,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"simple\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source.simple == null) ? false : (_source.simple).intValue()\"\n" +
+        "        \"source\" : \"(_source.simple == null) ? false : (_source.simple).intValue()\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"] == null || _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"two layers deep\\\"][\\\"oneInner 2\\\"][\\\"twoInner 1\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -797,12 +797,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"simple\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source.simple == null) ? false : (_source.simple).intValue()\"\n" +
+        "        \"source\" : \"(_source.simple == null) ? false : (_source.simple).intValue()\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"@complex map!\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"boolean field\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"boolean field\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@complex map!\\\"] == null || _source[\\\"@complex map!\\\"][\\\"boolean field\\\"] == null) ? false : _source[\\\"@complex map!\\\"][\\\"boolean field\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +
@@ -828,12 +828,12 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
         "  \"script_fields\" : {\n" +
         "    \"EXPR$0\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@full address\\\"] == null || _source[\\\"@full address\\\"][\\\"street number\\\"] == null) ? false : _source[\\\"@full address\\\"][\\\"street number\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@full address\\\"] == null || _source[\\\"@full address\\\"][\\\"street number\\\"] == null) ? false : _source[\\\"@full address\\\"][\\\"street number\\\"]\"\n" +
         "      }\n" +
         "    },\n" +
         "    \"EXPR$1\" : {\n" +
         "      \"script\" : {\n" +
-        "        \"inline\" : \"(_source[\\\"@full address\\\"] == null || _source[\\\"@full address\\\"][\\\"@street name\\\"] == null) ? false : _source[\\\"@full address\\\"][\\\"@street name\\\"]\"\n" +
+        "        \"source\" : \"(_source[\\\"@full address\\\"] == null || _source[\\\"@full address\\\"][\\\"@street name\\\"] == null) ? false : _source[\\\"@full address\\\"][\\\"@street name\\\"]\"\n" +
         "      }\n" +
         "    }\n" +
         "  }\n" +

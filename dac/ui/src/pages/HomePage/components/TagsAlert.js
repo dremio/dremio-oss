@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { connect } from 'react-redux';
-import PropTypes from 'prop-types';
-import { withRouter } from 'react-router';
-import { getCanTagsBeSkipped } from '@app/selectors/home';
-import { Alert } from '@app/components/Alert';
+import { connect } from "react-redux";
+import PropTypes from "prop-types";
+import { withRouter } from "react-router";
+import { getCanTagsBeSkipped } from "@app/selectors/home";
+import { Alert } from "@app/components/Alert";
 
 const mapStateToProps = (state, { location }) => ({
-  showAlert: getCanTagsBeSkipped(state, location.pathname)
+  showAlert: getCanTagsBeSkipped(state, location.pathname),
 });
 
 export const TagsAlertView = ({ showAlert }) => {
   // see CollaborationHelper.getTagsForIds, variable 'maxTagRequestCount' methods for max count number
-  return showAlert ? <Alert text='Tags are only shown inline for the first 200 items.' /> : null;
+  return showAlert ? (
+    <Alert text="Tags are only shown inline for the first 200 items." />
+  ) : null;
 };
 TagsAlertView.propTypes = {
-  showAlert: PropTypes.bool
+  showAlert: PropTypes.bool,
 };
 
 export const TagsAlert = withRouter(connect(mapStateToProps)(TagsAlertView));

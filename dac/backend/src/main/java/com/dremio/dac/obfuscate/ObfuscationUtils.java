@@ -44,7 +44,7 @@ import com.google.common.annotations.VisibleForTesting;
  * and next step the actual obfuscation should be done.
  */
 public class ObfuscationUtils {
-  public static String FULL_OBFUSCATION_PROPERTY_NAME = "dremio.supportconsole.fullobfuscation.enabled";
+  public static final String FULL_OBFUSCATION_PROPERTY_NAME = "dremio.supportconsole.fullobfuscation.enabled";
   private static boolean fullObfuscation = Boolean.getBoolean(FULL_OBFUSCATION_PROPERTY_NAME);
 
   @VisibleForTesting

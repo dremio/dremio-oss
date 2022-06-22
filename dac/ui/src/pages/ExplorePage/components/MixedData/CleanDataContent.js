@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Immutable from 'immutable';
-import { connect } from 'react-redux';
-import { Link } from 'react-router';
-import Radium from 'radium';
+import { Component } from "react";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import { Link } from "react-router";
+import classNames from "classnames";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Tabs from 'components/Tabs';
-import { getViewState } from 'selectors/resources';
-import { getExploreState } from '@app/selectors/explore';
-import { loadCleanData, CLEAN_DATA_VIEW_ID } from 'actions/explore/dataset/get';
+import Tabs from "components/Tabs";
+import { getViewState } from "selectors/resources";
+import { getExploreState } from "@app/selectors/explore";
+import { loadCleanData, CLEAN_DATA_VIEW_ID } from "actions/explore/dataset/get";
 
-import { PALE_BLUE, EXPLORE_HOVER_COLOR } from 'uiTheme/radium/colors';
-import { formLabel } from 'uiTheme/radium/typography';
-import { FLEX_COL_START, LINE_CENTER_CENTER, LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
-import { methodTitle, methodTab } from 'uiTheme/radium/exploreTransform';
+import { PALE_BLUE } from "uiTheme/radium/colors";
+import { FLEX_COL_START, LINE_START_CENTER } from "uiTheme/radium/flexStyle";
+import { methodTitle } from "uiTheme/radium/exploreTransform";
 
-import SingleTypeForm from './forms/SingleTypeForm';
-import SplitTypeForm from './forms/SplitTypeForm';
+import SingleTypeForm from "./forms/SingleTypeForm";
+import SplitTypeForm from "./forms/SplitTypeForm";
 
-@Radium
+import * as classes from "./CleanDataContent.module.less";
+
 class CleanDataContent extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -47,7 +47,7 @@ class CleanDataContent extends Component {
     loadCleanData: PropTypes.func.isRequired,
     single: PropTypes.instanceOf(Immutable.List),
     split: PropTypes.instanceOf(Immutable.Map),
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    viewState: PropTypes.instanceOf(Immutable.Map),
   };
 
   constructor(props) {
@@ -55,32 +55,44 @@ class CleanDataContent extends Component {
   }
 
   componentWillMount() {
-    const {columnName, dataset} = this.props;
+    const { columnName, dataset } = this.props;
     this.props.loadCleanData(columnName, dataset);
   }
 
   renderCleanTypeItem(cleanType) {
     if (cleanType.id === this.props.detailType) {
-      return <div style={[methodTab, {backgroundColor: 'rgba(0,0,0,0.05)'}]} key={cleanType.id}>
-        {cleanType.label}
-      </div>;
+      return (
+        <div
+          className={classNames(
+            classes["method-tab"],
+            classes["method-tab-label"]
+          )}
+          key={cleanType.id}
+        >
+          {cleanType.label}
+        </div>
+      );
     }
-    const {location} = this.props;
-    return <Link
-      style={methodTab} key={cleanType.id}
-      to={{...location, query: {...location.query, type: cleanType.id}}}>
-      {cleanType.label}
-    </Link>;
+    const { location } = this.props;
+    return (
+      <Link
+        className={classes["method-tab"]}
+        key={cleanType.id}
+        to={{ ...location, query: { ...location.query, type: cleanType.id } }}
+      >
+        {cleanType.label}
+      </Link>
+    );
   }
 
   renderCleanTypes() {
     const cleanTypes = [
-      {id: 'SINGLE_DATA_TYPE', label: 'Convert to Single Type'},
-      {id: 'SPLIT_BY_DATA_TYPE', label: 'Split by Data Type'}
+      { id: "SINGLE_DATA_TYPE", label: "Convert to Single Type" },
+      { id: "SPLIT_BY_DATA_TYPE", label: "Split by Data Type" },
     ];
     return (
       <div style={LINE_START_CENTER}>
-        <span style={methodTitle}>{la('Method:')}</span>
+        <span style={methodTitle}>{la("Method:")}</span>
         {cleanTypes.map((cleanType) => this.renderCleanTypeItem(cleanType))}
       </div>
     );
@@ -92,14 +104,22 @@ class CleanDataContent extends Component {
       submit: this.props.submit,
       columnName: this.props.columnName,
       onCancel: this.props.cancel,
-      viewState: this.props.viewState
+      viewState: this.props.viewState,
     };
     return (
       <div style={styles.base}>
         {this.renderCleanTypes()}
         <Tabs activeTab={this.props.detailType}>
-          <SingleTypeForm tabId='SINGLE_DATA_TYPE' {...formProps} singles={this.props.single.toJS()}/>
-          <SplitTypeForm tabId='SPLIT_BY_DATA_TYPE' {...formProps} split={this.props.split.toJS()}/>
+          <SingleTypeForm
+            tabId="SINGLE_DATA_TYPE"
+            {...formProps}
+            singles={this.props.single.toJS()}
+          />
+          <SplitTypeForm
+            tabId="SPLIT_BY_DATA_TYPE"
+            {...formProps}
+            split={this.props.split.toJS()}
+          />
         </Tabs>
       </div>
     );
@@ -109,33 +129,20 @@ class CleanDataContent extends Component {
 function mapStateToProps(state) {
   const explorePageState = getExploreState(state);
   return {
-    single: explorePageState.recommended.get('cleanData').get('single'),
-    split: explorePageState.recommended.get('cleanData').get('split'),
-    viewState: getViewState(state, CLEAN_DATA_VIEW_ID)
+    single: explorePageState.recommended.get("cleanData").get("single"),
+    split: explorePageState.recommended.get("cleanData").get("split"),
+    viewState: getViewState(state, CLEAN_DATA_VIEW_ID),
   };
 }
 
 export default connect(mapStateToProps, {
-  loadCleanData
+  loadCleanData,
 })(CleanDataContent);
 
 const styles = {
   base: {
-    position: 'relative',
+    position: "relative",
     backgroundColor: PALE_BLUE,
-    ...FLEX_COL_START
+    ...FLEX_COL_START,
   },
-  btn: {
-    ...LINE_CENTER_CENTER,
-    marginLeft: 10,
-    height: 28,
-    width: 130,
-    borderRadius: 2,
-    ...formLabel,
-    cursor: 'pointer',
-    ':hover': {
-      backgroundColor: EXPLORE_HOVER_COLOR
-    }
-  }
 };
-

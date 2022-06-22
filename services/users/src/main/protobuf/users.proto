@@ -33,6 +33,22 @@ enum UserType {
   REMOTE = 2;
 }
 
+enum CreatedBy {
+  // The default / unset value.
+  CREATED_BY_UNSPECIFIED = 0;
+
+  // Users created "locally" within Dremio.
+  // This includes UI and SQL.
+  CREATED_LOCALLY = 1;
+
+  // Users created automatically when syncing with an non-local system.
+  // This includes LDAP/AAD syncing.
+  CREATED_BY_AUTO_SYNC = 2;
+
+  // Users created when syncing via SCIM.
+  CREATED_BY_SCIM = 3;
+}
+
 // NOTE: If you are adding new field here make sure to modify UserGroupServiceImpl#merge
 message UserConfig {
   required UID uid = 1;
@@ -48,6 +64,7 @@ message UserConfig {
   optional UserType type = 11 [default = LOCAL];
   optional string externalId = 12;
   optional bool active = 13 [default = true];
+  optional CreatedBy createdBy = 14 [default = CREATED_BY_UNSPECIFIED]; // default to unspecified for legacy users
 }
 
 message UserAuth {

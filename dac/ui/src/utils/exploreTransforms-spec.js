@@ -13,52 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import exploreTransforms from './exploreTransforms';
+import Immutable from "immutable";
+import exploreTransforms from "./exploreTransforms";
 
-describe('exploreTransforms', () => {
-  it('should drop a column and a data for a column', () => {
+describe("exploreTransforms", () => {
+  it("should drop a column and a data for a column", () => {
     const originalData = Immutable.fromJS({
       columns: [
         {
-          name: 'col1'
+          name: "col1",
         },
         {
-          name: 'col2'
-        }
+          name: "col2",
+        },
       ],
-      rows: [{
-        row: ['col1 value', 'col2 value']
-      }]
+      rows: [
+        {
+          row: ["col1 value", "col2 value"],
+        },
+      ],
     });
-    expect(exploreTransforms.dropColumn({ name: 'col1', table: originalData }).toJS()).to.be.eql(
-      {
-        columns: [
-          {
-            name: 'col2'
-          }
-        ],
-        rows: [{ row: ['col2 value'] }]
-      });
+    expect(
+      exploreTransforms.dropColumn({ name: "col1", table: originalData }).toJS()
+    ).to.be.eql({
+      columns: [
+        {
+          name: "col2",
+        },
+      ],
+      rows: [{ row: ["col2 value"] }],
+    });
   });
-  it('should work fine if there is no rows', () => {
+  it("should work fine if there is no rows", () => {
     const originalData = Immutable.fromJS({
       columns: [
         {
-          name: 'col1'
+          name: "col1",
         },
         {
-          name: 'col2'
-        }
-      ]
+          name: "col2",
+        },
+      ],
     });
-    expect(exploreTransforms.dropColumn({ name: 'col1', table: originalData }).toJS()).to.be.eql(
-      {
-        columns: [
-          {
-            name: 'col2'
-          }
-        ]
-      });
+    expect(
+      exploreTransforms.dropColumn({ name: "col1", table: originalData }).toJS()
+    ).to.be.eql({
+      columns: [
+        {
+          name: "col2",
+        },
+      ],
+    });
   });
 });

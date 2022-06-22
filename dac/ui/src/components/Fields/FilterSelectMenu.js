@@ -13,22 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Fragment, Component } from 'react';
-import clsx from 'clsx';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
-import Art from '@app/components/Art';
-import EllipsedText from 'components/EllipsedText';
-import { AutoSizer, List, CellMeasurer } from 'react-virtualized';
-import { memoOne } from 'utils/memoUtils';
+import { Fragment, Component, useState } from "react";
+import clsx from "clsx";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
+import { Tooltip, Button } from "dremio-ui-lib";
+import { AutoSizer, List, CellMeasurer } from "react-virtualized";
 
-import FontIcon from 'components/Icon/FontIcon';
-import Checkbox from 'components/Fields/Checkbox';
-import { SearchField } from 'components/Fields';
-import './FilterSelectMenu.less';
-import { Tooltip } from 'dremio-ui-lib';
-import { SelectView } from './SelectView';
+import Art from "@app/components/Art";
+import EllipsedText from "components/EllipsedText";
+import { memoOne } from "utils/memoUtils";
+
+import DragTarget from "components/DragComponents/DragTarget";
+import DragSource from "components/DragComponents/DragSource";
+
+import FontIcon from "components/Icon/FontIcon";
+import Checkbox from "components/Fields/Checkbox";
+import { SearchField } from "components/Fields";
+import { SelectView } from "./SelectView";
+
+import "./FilterSelectMenu.less";
 
 const FILTER_ITEM_HEIGHT = 32;
 const VIRTUAL_LIST_MAX = 10;
@@ -37,7 +42,7 @@ const VIRTUAL_LIST_MAX = 10;
 const getPopoverHeight = memoOne((numItems, hasSearch, filterItemHeight) => {
   const num = numItems;
   const { paddingBottom, paddingTop } = styles.popoverContent;
-  const searchHeight = hasSearch ? styles.searchInput.height : 0;
+  const searchHeight = hasSearch ? styles.searchInput.height + 16 : 0;
 
   const itemsHeight = Math.min(num, VIRTUAL_LIST_MAX) * filterItemHeight;
   return paddingBottom + paddingTop + searchHeight + itemsHeight;
@@ -54,7 +59,12 @@ FilterSelectMenuItem.propTypes = {
   checkBoxClass: PropTypes.string,
   showCheckIcon: PropTypes.bool,
   disabled: PropTypes.bool,
-  ellipsedTextClass: PropTypes.string
+  ellipsedTextClass: PropTypes.string,
+
+  isDraggable: PropTypes.bool,
+  onDragMove: PropTypes.func,
+  onDragEnd: PropTypes.func,
+  onDragStart: PropTypes.func,
 };
 
 export function FilterSelectMenuItem({
@@ -62,66 +72,116 @@ export function FilterSelectMenuItem({
   itemIndex,
   onChange,
   checked,
-  name,
-  onClick,
   className,
   checkBoxClass,
-  showCheckIcon,
   disabled,
-  ellipsedTextClass
+
+  //drag & drop properties
+  isDraggable = false,
+  onDragStart,
+  onDragEnd,
+  onDragMove,
 }) {
-  const menuClass = clsx('filterSelectMenu', className);
-  return (
-    <div className={menuClass}>
-      <span className='filterSelectMenu__checkbox' key={item.id}>
+  const [draggingIndex, settingDragIndex] = useState(-1);
+
+  function handleDragStart(dragConfig) {
+    settingDragIndex(dragConfig.index);
+    onDragStart && onDragStart(dragConfig);
+  }
+  const handleDragMove = (dragIndex, hoverIndex) => {
+    onDragMove && onDragMove(dragIndex, hoverIndex);
+  };
+
+  function handleDragEnd(itemIndexId) {
+    settingDragIndex(-1);
+    onDragEnd && onDragEnd(itemIndexId);
+  }
+  const menuClass = clsx("filterSelectMenu", className, {
+    "--transparent": itemIndex === draggingIndex,
+  });
+
+  const menuItemCls = clsx("filterSelectMenu__checkbox", {
+    "gutter--none": isDraggable,
+  });
+
+  function renderContent() {
+    return (
+      <span className={menuItemCls} key={item.id}>
         <Checkbox
           onChange={() => onChange(checked, item.id)}
           label={[
             item.icon && (
               <FontIcon
                 type={item.icon}
-                key={'fi_' + item.id}
+                key={"fi_" + item.id}
                 theme={{ Container: styles.checkboxLabelContainer }}
               />
             ),
             item.label.length > 24 ? (
               <Tooltip title={item.label}>
-                <EllipsedText text={item.label} className='ellipseLabel' />
+                <EllipsedText text={item.label} className="ellipseLabel" />
               </Tooltip>
             ) : (
               item.label
-            )
+            ),
           ]}
           key={`CheckBox-${item.id}`}
           checked={checked}
           dataQa={getDataQaForFilterItem(item.id)}
           checkBoxClass={checkBoxClass}
-          showCheckIcon={showCheckIcon}
           disabled={disabled}
+          style={isDraggable ? styles.draggableContainer : {}}
+          inputStyles={{
+            position: "unset",
+            left: "unset",
+            display: "none",
+          }}
         />
       </span>
-      <span className='filterSelectMenu__vectorColumns'>
-        {name === 'col' && (
-          <>
+    );
+  }
+
+  function draggableComponent() {
+    return (
+      <DragTarget
+        dragType="sortColumns"
+        moveColumn={(dragIndex, currentHoverIndex) =>
+          handleDragMove(dragIndex, currentHoverIndex)
+        }
+        index={itemIndex}
+        itemIndex={itemIndex}
+        key={item.label}
+        className="filterSelectMenu__dragTargetCls"
+        dragTargetHoverCls="filterSelectMenu__dragTargetHoverCls"
+      >
+        <DragSource
+          dragType="sortColumns"
+          className="filterSelectMenu__dragSourceCls"
+          index={itemIndex}
+          onDragStart={handleDragStart}
+          onDragEnd={() => handleDragEnd(itemIndex)}
+          id={item.label}
+          key={item.label}
+          preventDrag={isDraggable ? undefined : true}
+          dragStyles={{
+            opacity: 0,
+          }}
+        >
+          <div className="flex --alignCenter margin-right">
             <Art
-              src='UpVector.svg'
-              alt='icon'
-              title='icon'
-              className='filterSelectMenu__upVector'
-              onClick={() => onClick('up', itemIndex)}
-              data-qa='UpVector'
+              src={"DragHandle.svg"}
+              alt={"DragHandle"}
+              className="filterSelectMenu__dragHandle"
             />
-            <Art
-              src='DownVector.svg'
-              alt='icon'
-              title='icon'
-              className='filterSelectMenu__downVector'
-              onClick={() => onClick('down', itemIndex)}
-              data-qa='DownVector'
-            />
-          </>
-        )}
-      </span>
+            {renderContent()}
+          </div>
+        </DragSource>
+      </DragTarget>
+    );
+  }
+  return (
+    <div className={menuClass}>
+      {isDraggable ? draggableComponent() : renderContent()}
     </div>
   );
 }
@@ -152,6 +212,7 @@ export default class FilterSelectMenu extends Component {
     noSearch: PropTypes.bool,
     selectedToTop: PropTypes.bool,
     isArtIcon: PropTypes.bool,
+    selectType: PropTypes.string,
 
     // callbacks
     loadItemsForFilter: PropTypes.func,
@@ -167,22 +228,31 @@ export default class FilterSelectMenu extends Component {
     selectViewBeforeOpen: PropTypes.func,
     selectViewBeforeClose: PropTypes.func,
     setBackGroundColorForLabel: PropTypes.bool,
+    ellipsedTextClass: PropTypes.string,
+    menuHeader: PropTypes.string,
     disableReorderOnSelect: PropTypes.bool,
-    ellipsedTextClass: PropTypes.string
+    hasIconFirst: PropTypes.bool,
+
+    //drag and drop properties;
+    isDraggable: PropTypes.bool,
+    onDragMove: PropTypes.func,
+    onDragEnd: PropTypes.func,
+    onDragStart: PropTypes.func,
   };
 
   static defaultProps = {
     // todo: `la` loc not building correctly here
     items: [],
+    isArtIcon: true,
     selectedValues: Immutable.List(),
-    searchPlaceholder: 'Search',
+    searchPlaceholder: "Search",
     showSelectedLabel: true,
-    wrapWithCellMeasurer: false
+    wrapWithCellMeasurer: false,
   };
 
   state = {
-    pattern: '',
-    itemsList: this.props.items || []
+    pattern: "",
+    itemsList: this.props.items || [],
   };
 
   componentDidUpdate(prevProps) {
@@ -220,18 +290,17 @@ export default class FilterSelectMenu extends Component {
 
   getOrderedItems = memoOne((items, selectedValues, pattern) => {
     return pattern
-      ? items.filter(
-        (item) =>
+      ? items.filter((item) =>
           item.label.toLowerCase().includes(pattern.trim().toLowerCase())
-      )
+        )
       : items;
   });
 
   handleSearchForItem = (value) => {
     const { name, loadItemsForFilter } = this.props;
     this.setState({ pattern: value });
-    if (name === 'usr') {
-      loadItemsForFilter(value, '1000');
+    if (name === "usr") {
+      loadItemsForFilter(value, "1000");
     }
   };
 
@@ -250,22 +319,22 @@ export default class FilterSelectMenu extends Component {
 
   beforeDDClose = () => {
     const { selectViewBeforeClose } = this.props;
-    if (selectViewBeforeClose && typeof selectViewBeforeClose === 'function') {
+    if (selectViewBeforeClose && typeof selectViewBeforeClose === "function") {
       selectViewBeforeClose();
     }
-    this.setState({ pattern: '' });
+    this.setState({ pattern: "" });
   };
   beforeDDOpen = () => {
     const { selectViewBeforeOpen, selectedValues } = this.props;
     const { itemsList } = this.state;
-    if (selectViewBeforeOpen && typeof selectViewBeforeOpen === 'function') {
+    if (selectViewBeforeOpen && typeof selectViewBeforeOpen === "function") {
       selectViewBeforeOpen();
     }
     this.setState({
       itemsList: [
         ...this.getSelectedItems(itemsList, selectedValues),
-        ...this.getUnselectedItems(itemsList, selectedValues, '')
-      ]
+        ...this.getUnselectedItems(itemsList, selectedValues, ""),
+      ],
     });
   };
 
@@ -276,25 +345,36 @@ export default class FilterSelectMenu extends Component {
       name,
       className,
       checkBoxClass,
-      showCheckIcon,
       onClick,
       cellCache,
       wrapWithCellMeasurer,
-      ellipsedTextClass
+      ellipsedTextClass,
+
+      onDragMove,
+      onDragStart,
+      onDragEnd,
+      isDraggable = false,
+      selectType,
     } = this.props;
 
     if (!items.length) return null;
 
     const { pattern, itemsList } = this.state;
 
-    const orderedItems = this.getOrderedItems(
-      itemsList,
-      selectedValues,
-      pattern
-    );
+    const orderedItems =
+      name === "col"
+        ? items
+        : this.getOrderedItems(itemsList, selectedValues, pattern);
     const selectedMap = this.getSelectedMap(itemsList, selectedValues);
 
     const item = orderedItems[index];
+
+    const itemClassName = clsx(
+      className,
+      "filterSelectMenu__menuItem",
+      { "--disabled": item.disabled && selectType !== "button" },
+      { "--chosen": selectedMap[item.id] && selectType !== "button" }
+    );
 
     const renderItemCell = () => (
       <div style={style} key={key}>
@@ -306,11 +386,14 @@ export default class FilterSelectMenu extends Component {
           name={name}
           itemIndex={index}
           onClick={onClick}
-          className={className}
+          className={itemClassName}
           checkBoxClass={checkBoxClass}
-          showCheckIcon={showCheckIcon}
           disabled={item.disabled}
           ellipsedTextClass={ellipsedTextClass}
+          isDraggable={isDraggable}
+          onDragMove={onDragMove}
+          onDragEnd={onDragEnd}
+          onDragStart={onDragStart}
         />
       </div>
     );
@@ -338,75 +421,138 @@ export default class FilterSelectMenu extends Component {
       ellipsedTextClass,
       intl: { formatMessage },
       preventSelectedLabel,
-      selectedValues
+      selectedValues,
     } = this.props;
 
     const { itemsList } = this.state;
 
     const getSelectedItemsLabel = (allItems, values) => {
       const selectedItems = this.getSelectedItems(allItems, values);
+      if (selectedItems && selectedItems.length === 0) {
+        return this.props.label;
+      }
+
       const { label, label: { props: { label: propsLabel } = {} } = {} } =
         selectedItems[0] || {};
       const selectedItemsLable =
-        propsLabel && typeof propsLabel === 'string'
+        propsLabel && typeof propsLabel === "string"
           ? formatMessage({ id: `${propsLabel}.name` })
           : label;
-      return selectedItems.length > 1
-        ? `${selectedItemsLable} +${selectedItems.length - 1}`
-        : selectedItemsLable;
+
+      return selectedItemsLable;
     };
 
-    const selectedItems = !this.props.selectedValues.size
-      ? `: ${formatMessage({ id: 'Common.All' })}`
-      : (alwaysShowLabel ? ': ' : '') +
-        getSelectedItemsLabel(itemsList, selectedValues);
+    const labelText = selectedValues.size
+      ? (alwaysShowLabel ? ": " : "") +
+        getSelectedItemsLabel(itemsList, selectedValues)
+      : "";
+    const additionalItemCount =
+      this.getSelectedItems(itemsList, selectedValues).length - 1;
 
     return (
       !preventSelectedLabel && (
-        <EllipsedText
-          className={clsx('filter-select-label', ellipsedTextClass)}
-          style={styles.infoLabel}
-          text={selectedItems}
-        />
+        <div
+          className={clsx(
+            ellipsedTextClass,
+            "filter-select-label",
+            "filterSelectMenu__label__text",
+            { "--filtered": selectedValues.size }
+          )}
+        >
+          <EllipsedText
+            text={labelText}
+            style={
+              additionalItemCount >= 1
+                ? styles.infoLabelShort
+                : styles.infoLabel
+            }
+          />
+          {additionalItemCount >= 1 && (
+            <span>{`, +${additionalItemCount}`}</span>
+          )}
+        </div>
       )
     );
   }
 
+  getLabelIcon() {
+    const { icon, selectedValues } = this.props;
+    if (icon) {
+      return icon;
+    }
+    return selectedValues.size ? "ArrowDownBlue.svg" : "ArrowDown.svg";
+  }
+
+  getSelectViewContent() {
+    const {
+      selectType,
+      preventSelectedLabel,
+      selectedValues,
+      alwaysShowLabel,
+      label,
+      showSelectedLabel,
+    } = this.props;
+    if (selectType === "button") {
+      return (
+        <Fragment>
+          <Button
+            variant="text"
+            title={label}
+            text={label}
+            classes={{
+              root: "gutter-left--half",
+            }}
+          />
+        </Fragment>
+      );
+    } else {
+      return (
+        <Fragment>
+          {(preventSelectedLabel ||
+            !selectedValues.size ||
+            alwaysShowLabel) && <span>{label}</span>}
+          {showSelectedLabel ? this.renderSelectedLabel() : label}
+        </Fragment>
+      );
+    }
+  }
+
   render() {
     const {
-      label,
       name,
-      showSelectedLabel,
-      icon,
       iconStyle,
       popoverFilters,
       selectClass,
       isArtIcon,
       iconClass,
       selectedValues,
-      preventSelectedLabel,
-      alwaysShowLabel,
       noSearch,
       searchPlaceholder,
       filterItemHeight,
       listClass,
       popoverContentClass,
       popoverContentHeight,
-      cellCache
+      cellCache,
+      items,
+      menuHeader,
+      hasIconFirst,
     } = this.props;
 
     const { pattern, itemsList } = this.state;
 
-    const orderedItems = this.getOrderedItems(
-      itemsList,
-      selectedValues,
-      pattern
-    );
-    const unSelectedItems = this.getUnselectedItems(itemsList, selectedValues);
+    const orderedItems =
+      name === "col"
+        ? items
+        : this.getOrderedItems(itemsList, selectedValues, pattern);
     const selectedMap = this.getSelectedMap(itemsList, selectedValues);
 
-    const className = clsx('filter-select-menu field', selectClass);
-    const hasSearch = !noSearch && (!!unSelectedItems.length || !!pattern);
+    const className = clsx(
+      "filter-select-menu field filterSelectMenu__labelWrapper",
+      { "--filtered": selectedValues.size },
+      selectClass
+    );
+    const iconClassName = clsx(iconClass, "filterSelectMenu__downIcon");
+    const hasSearch = !noSearch || !!pattern;
     const pHeight =
       popoverContentHeight ||
       getPopoverHeight(
@@ -417,23 +563,18 @@ export default class FilterSelectMenu extends Component {
 
     return (
       <SelectView
-        content={
-          <Fragment>
-            {(preventSelectedLabel ||
-              !selectedValues.size ||
-              alwaysShowLabel) && <span>{label}</span>}
-            {showSelectedLabel ? this.renderSelectedLabel() : label}
-          </Fragment>
-        }
+        content={this.getSelectViewContent()}
         beforeClose={this.beforeDDClose}
         beforeOpen={this.beforeDDOpen}
         className={className}
-        dataQa={name + '-filter'}
-        icon={icon}
+        dataQa={name + "-filter"}
+        icon={this.getLabelIcon()}
         iconStyle={iconStyle}
         popoverFilters={popoverFilters}
+        iconClass={iconClassName}
         isArtIcon={isArtIcon}
-        iconClass={iconClass}
+        hasIconFirst={hasIconFirst}
+        menuHeader={menuHeader}
       >
         <div
           style={{ ...styles.popoverContent, height: pHeight }}
@@ -482,55 +623,61 @@ export default class FilterSelectMenu extends Component {
  * of data-qa attributes. This method is created to explicitly define that relation
  * @param {string|number} id - filter id
  */
-export const getDataQaForFilterItem = (id) => id + '-filter-item';
+export const getDataQaForFilterItem = (id) => id + "-filter-item";
 
 const styles = {
   base: {
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer'
+    display: "flex",
+    alignItems: "center",
+    cursor: "pointer",
   },
   popoverContent: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    flexDirection: 'column',
+    display: "flex",
+    flexWrap: "wrap",
+    flexDirection: "column",
     minWidth: 240,
-    paddingLeft: 16,
-    paddingRight: 16,
-    paddingTop: 8,
-    paddingBottom: 8
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   virtualContainer: {
-    flex: 1
+    flex: 1,
   },
   arrow: {
     Container: {
-      position: 'relative',
-      top: 1
-    }
+      position: "relative",
+      top: 1,
+    },
   },
   infoLabel: {
-    maxWidth: 130
+    maxWidth: 120,
+  },
+  infoLabelShort: {
+    maxWidth: 90,
   },
   searchInput: {
     height: FILTER_ITEM_HEIGHT,
-    padding: '4px 10px'
+    padding: "4px 10px",
+    margin: "8px 16px",
   },
   searchIcon: {
     Container: {
-      position: 'absolute',
+      position: "absolute",
       right: 6,
-      top: 3
+      top: 3,
     },
     Icon: {
       width: 22,
       height: 22,
-      marginTop: '3px'
-    }
+      marginTop: "3px",
+    },
   },
   checkboxLabelContainer: {
-    overflow: 'hidden',
+    overflow: "hidden",
     height: 24,
-    width: 24
-  }
+    width: 24,
+  },
+  draggableContainer: {
+    color: "#505862",
+    opacity: 1,
+  },
 };

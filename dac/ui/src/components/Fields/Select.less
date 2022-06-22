@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-@import '~@app/uiTheme/less/color-schema.less';
-@import '~@app/uiTheme/less/variables.less';
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.less";
 
 //#region drop down list styles (see SelectItem) ------------------------------------
 
 .selected {
-  background-color: @PALE_NAVY;
+  background-color: @FIGMA_PRIMARY_150;
+
+  &:hover {
+    background-color: @FIGMA_PRIMARY_200 !important;
+  }
 }
 
 .item-wrapper {
   cursor: pointer;
   line-height: 25px;
-  padding: 5px 10px;
+  padding: 6px 16px;
+  font-size: 14px;
   white-space: nowrap;
   &:hover {
-    background-color: @PALE_BLUE;
+    background-color: @FIGMA_PRIMARY_100;
   }
 }
 
@@ -37,27 +42,27 @@
 
 @_WIDTH: 200px;
 
-
 .button {
   display: flex; // or inline-flex?
   text-align: left;
   width: @_WIDTH;
   height: 32px;
   border-radius: 4px;
-  padding: 8px;
-  border: 1px solid #e5e5e5;
+  padding: 6px 8px;
+  border: 1px solid @FIGMA_NEUTRAL_200;
   outline: none;
 }
-
 
 .label {
   flex: 1 1 100%;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+  font-size: 14px;
 }
 
 .list {
+  padding: 4px 0;
   max-height: 250px;
   // padding-top: 0 !important; //to override Menu inline styles
   // padding-bottom: 0 !important; //to override Menu inline styles

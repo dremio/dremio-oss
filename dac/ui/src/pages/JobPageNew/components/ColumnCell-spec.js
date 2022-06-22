@@ -17,7 +17,7 @@
 // import { mount } from 'enzyme';
 // import ColumnCell from './ColumnCell';
 
-describe('ColumnCell', () => {
+describe("ColumnCell", () => {
   // let commonProps;
   // const context = { loggedInUser: {} };
   // const setTooltipOpen = sinon.spy();
@@ -28,7 +28,6 @@ describe('ColumnCell', () => {
   //     data: 'test data'
   //   };
   // });
-
   // it('should render with props without exploding', () => {
   //   const wrapper = mount(<ColumnCell {...commonProps} />, { context });
   //   expect(wrapper).to.have.length(1);

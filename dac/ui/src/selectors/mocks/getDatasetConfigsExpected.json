@@ -3,11 +3,7 @@
     "name": "ds1",
     "parentsList": [
       {
-        "datasetPathList": [
-          "dfs",
-          "tmp",
-          "dac-sample1.json"
-        ]
+        "datasetPathList": ["dfs", "tmp", "dac-sample1.json"]
       }
     ],
     "sql": "SELECT *\nFROM dfs.tmp.\"dac-sample1.json\"",
@@ -30,11 +26,7 @@
     "name": "ds2",
     "parentsList": [
       {
-        "datasetPathList": [
-          "dfs",
-          "tmp",
-          "dac-sample1.json"
-        ]
+        "datasetPathList": ["dfs", "tmp", "dac-sample1.json"]
       }
     ],
     "sql": "select * from dfs.tmp.\"dac-sample1.json\" where age <= 20",

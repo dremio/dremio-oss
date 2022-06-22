@@ -168,7 +168,7 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
         List<String> fields = rel.getRowType().getFieldNames();
         return getScanSelectivityInternal(tableMetadata, predicate, fields, rexBuilder);
       } catch (Exception e) {
-        logger.warn(String.format("Exception %s occured while getting Scan Selectivity For rel %s" ,e.toString(),rel.toString()));
+        logger.trace(String.format("Exception %s occured while getting Scan Selectivity For rel %s" ,e.toString(),rel.toString()));
         return super.getSelectivity(rel, mq, predicate);
       }
     }
@@ -222,8 +222,8 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   }
 
   private double guessSelectivity(RexNode orPred) {
-    if (logger.isDebugEnabled()) {
-      logger.warn(String.format("Using guess for predicate [%s]", orPred.toString()));
+    if (logger.isTraceEnabled()) {
+      logger.trace(String.format("Using guess for predicate [%s]", orPred.toString()));
     }
     //CALCITE guess
     return RelMdUtil.guessSelectivity(orPred);
@@ -382,8 +382,8 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
       if (colIdx != -1 && colIdx < fieldNames.size()) {
         return fieldNames.get(colIdx);
       } else {
-        if (logger.isDebugEnabled()) {
-          logger.warn(String.format("No input reference $[%s] found for predicate [%s]",
+        if (logger.isTraceEnabled()) {
+          logger.trace(String.format("No input reference $[%s] found for predicate [%s]",
             colIdx, orPred.toString()));
         }
       }

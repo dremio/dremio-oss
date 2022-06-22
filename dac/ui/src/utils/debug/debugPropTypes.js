@@ -17,7 +17,7 @@
 /* throws an error if current property is specified. Usefule when you are removing some property from
    usage and would like to check, that this property is not provided for a component anymore
 */
-import { Component } from 'react';
+import { Component } from "react";
 export const obsolete = (props, propName, componentName) => {
   const value = props[propName];
   if (value !== null && value !== undefined) {
@@ -31,7 +31,7 @@ You should check a usage of '${componentName}'`
 /*
 Creates HOC that throw an error if property that is not defined in Component.propTypes is provided
 */
-export const onlyDefinedProps = ComponentToWrap => {
+export const onlyDefinedProps = (ComponentToWrap) => {
   if (!ComponentToWrap.propTypes) {
     throw new Error(`You are trying to apply ${onlyDefinedProps.name} to ${ComponentToWrap.name},
 which does not have propTypes defined`);
@@ -52,13 +52,19 @@ which does not have propTypes defined`);
       if (!newProps || !propTypes) return;
 
       for (const prop in newProps) {
-        if (newProps.hasOwnProperty(prop) && newProps[prop] && !propTypes.hasOwnProperty(prop)) {
+        if (
+          Object.prototype.hasOwnProperty.call(newProps, prop) &&
+          newProps[prop] &&
+          !Object.prototype.hasOwnProperty.call(propTypes, prop)
+        ) {
           errorProps.push(prop);
         }
       }
       if (errorProps.length > 0) {
-        throw new Error(`Properties that are not define in propTypes are provided to ${ComponentToWrap.name}.
-Property list: '${errorProps.join('\', \'')}'`);
+        throw new Error(`Properties that are not define in propTypes are provided to ${
+          ComponentToWrap.name
+        }.
+Property list: '${errorProps.join("', '")}'`);
       }
     }
 

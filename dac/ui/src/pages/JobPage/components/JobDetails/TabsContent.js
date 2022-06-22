@@ -13,46 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import classNames from 'classnames';
+import { Component, createRef } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import classNames from "classnames";
 
-import Tabs from 'components/Tabs';
-import { flexElementAuto } from '@app/uiTheme/less/layout.less';
-import OverviewContent from './OverviewContent';
-import DetailsContent from './DetailsContent';
-import AccelerationContent from './AccelerationContent';
-import ProfilesContent from './ProfilesContent';
-import HelpSection from './HelpSection';
-import { contentHolder } from './TabsContent.less';
+import Tabs from "components/Tabs";
+import { flexElementAuto } from "@app/uiTheme/less/layout.less";
+import OverviewContent from "./OverviewContent";
+import DetailsContent from "./DetailsContent";
+import AccelerationContent from "./AccelerationContent";
+import ProfilesContent from "./ProfilesContent";
+import HelpSection from "./HelpSection";
+import { contentHolder } from "./TabsContent.less";
 
-@Radium
 class TabsContent extends Component {
   static propTypes = {
-    jobId:  PropTypes.string,
+    jobId: PropTypes.string,
     activeTab: PropTypes.string,
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     showJobProfile: PropTypes.func,
     downloadJobProfile: PropTypes.func,
     style: PropTypes.object,
-    className: PropTypes.string
+    className: PropTypes.string,
   };
+
+  constructor(props) {
+    super(props);
+    this.holderRef = createRef();
+  }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.activeTab !== this.props.activeTab) {
-      this.refs.holder.scrollTop = 0;
+      this.holderRef.current.scrollTop = 0;
     }
   }
 
   renderTabsContent = () => {
     const { jobId, activeTab, jobDetails } = this.props;
 
-    if (jobDetails && jobDetails.get('isEmptyJob')) {
+    if (jobDetails && jobDetails.get("isEmptyJob")) {
       return (
-        <div style={[styles.spinner]}>
-          <span style={{fontSize: 20}}>{la('No job info available.')}</span>
+        <div style={styles.spinner}>
+          <span style={{ fontSize: 20 }}>{la("No job info available.")}</span>
         </div>
       );
     }
@@ -60,36 +63,37 @@ class TabsContent extends Component {
     return (
       <Tabs activeTab={activeTab}>
         <OverviewContent
-          tabId='overview'
+          tabId="overview"
           jobId={jobId}
           jobDetails={jobDetails}
         />
-        <DetailsContent
-          tabId='details'
-          jobId={jobId}
-          jobDetails={jobDetails} />
+        <DetailsContent tabId="details" jobId={jobId} jobDetails={jobDetails} />
         <AccelerationContent
-          tabId='acceleration'
+          tabId="acceleration"
           jobId={jobId}
-          jobDetails={jobDetails} />
+          jobDetails={jobDetails}
+        />
         <ProfilesContent
-          tabId='profiles'
+          tabId="profiles"
           jobId={jobId}
           showJobProfile={this.props.showJobProfile}
-          jobDetails={jobDetails} />
+          jobDetails={jobDetails}
+        />
       </Tabs>
     );
-  }
+  };
 
   render() {
     const { style, className } = this.props;
     const content = this.renderTabsContent();
 
     return (
-      <div ref='holder' className={classNames(contentHolder, className)} style={style}>
-        <div className={classNames()}>
-          {content}
-        </div>
+      <div
+        ref={this.holderRef}
+        className={classNames(contentHolder, className)}
+        style={style}
+      >
+        <div className={classNames()}>{content}</div>
         {/*
           An empty div is needed to fill free available space on big monitors.
           This will stick help section to the bottom if there is extra space
@@ -108,12 +112,12 @@ export default TabsContent;
 
 const styles = {
   spinner: {
-    position: 'absolute',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
+    position: "absolute",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   icon: {
-    color: 'gray'
-  }
+    color: "gray",
+  },
 };

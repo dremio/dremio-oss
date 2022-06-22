@@ -370,6 +370,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    */
   public static final PositiveLongValidator VECTORIZED_HASHAGG_MAX_VARIABLE_SIZE =
     new PositiveLongValidator("exec.operator.aggregate.vectorize.max_variable_size", 256, 256);
+  public static final PositiveLongValidator VECTORIZED_HASHAGG_MAX_LISTAGG_SIZE =
+    new PositiveLongValidator("exec.operator.aggregate.listagg.size", 32 * 1024, 256);
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperator.class);
 
@@ -1122,7 +1124,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
           } catch (OutOfMemoryException e) {
             ooms++;
             debug.recordOOMEvent(iterations, ooms, allocator.getAllocatedMemory(), hashAggPartitions, partitionSpillHandler);
-            logger.debug("Error: ran out of memory while inserting in hashtable, records to insert:{}, current record index:{}, absolute record index:{}, error: {}",
+            logger.debug("Error: ran out of memory while inserting in hashtable, records to insert:{}, current record index:{}, absolute record index:{}",
                          recordsPivoted, keyIndex, keyIndex + recordsConsumed, e);
 
             /* handle out of memory condition */

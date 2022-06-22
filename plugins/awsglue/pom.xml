@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>21.2.0-202205262146080444-038d6d1b</version>
+    <version>22.0.0-202206221430090603-1fa4049f</version>
   </parent>
 
   <artifactId>dremio-awsglue-plugin</artifactId>
@@ -99,6 +99,11 @@
       <artifactId>dremio-hive2-plugin-launcher</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-plugin-awsauth</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- test dependencies -->
     <dependency>
@@ -106,12 +111,14 @@
       <artifactId>dremio-sabot-kernel</artifactId>
       <version>${project.version}</version>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
+      <type>test-jar</type>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -152,8 +159,8 @@
             </goals>
             <phase>process-resources</phase>
             <configuration>
-              <!-- avoid using system range for ephemeral ports as servers are not 
-                immediately started, and pre-allocated ports might have been reused by OS 
+              <!-- avoid using system range for ephemeral ports as servers are not
+                immediately started, and pre-allocated ports might have been reused by OS
                 Some tests also use fixed port in the 20000 range -->
               <!-- Always use non-overlapping ranges in each pom to avoid port conflict -->
               <minPortNumber>16000</minPortNumber>

@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Avatars from 'components/Avatar/Avatars';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Avatars from "components/Avatar/Avatars";
 
-import Modal from 'components/Modals/Modal';
-import { formLabel } from 'uiTheme/radium/typography';
-import { secondary } from 'uiTheme/radium/buttons';
-import { FieldWithError, TextField } from 'components/Fields';
-import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
+import Modal from "components/Modals/Modal";
+import { formLabel } from "uiTheme/radium/typography";
+import { secondary } from "uiTheme/radium/buttons";
+import { FieldWithError, TextField } from "components/Fields";
+import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 
 export default class EditAvatarModal extends Component {
   static propTypes = {
@@ -29,33 +29,28 @@ export default class EditAvatarModal extends Component {
     hide: PropTypes.func,
     generalUserAction: PropTypes.func,
     pathname: PropTypes.string,
-    query: PropTypes.object
+    query: PropTypes.object,
   };
 
   constructor(props) {
     super(props);
   }
 
-
   render() {
     const { isOpen, hide } = this.props;
     return (
-      <Modal
-        title={la('Edit Avatar')}
-        size='small'
-        isOpen={isOpen}
-        hide={hide}>
+      <Modal title={la("Edit Avatar")} size="small" isOpen={isOpen} hide={hide}>
         <ModalForm {...modalFormProps(this.props)}>
           <FormBody style={styles.main}>
-            <div style={formLabel}>{la('Browse')}</div>
+            <div style={formLabel}>{la("Browse")}</div>
             <Avatars />
             <div style={styles.uploadField}>
               <div style={formLabel}>Or upload your own image</div>
-              <div style={{display: 'flex'}}>
-                <FieldWithError >
-                  <TextField style={{cursor: 'pointer'}}/>
+              <div style={{ display: "flex" }}>
+                <FieldWithError>
+                  <TextField style={{ cursor: "pointer" }} />
                 </FieldWithError>
-                <button key='browse' style={styles.button}>
+                <button key="browse" style={styles.button}>
                   <span>Browse</span>
                 </button>
               </div>
@@ -70,13 +65,13 @@ export default class EditAvatarModal extends Component {
 const styles = {
   main: {
     width: 540,
-    margin: '0 auto'
+    margin: "0 auto",
   },
   uploadField: {
-    marginTop: 20
+    marginTop: 20,
   },
   button: {
     ...secondary,
-    marginLeft: -10
-  }
+    marginLeft: -10,
+  },
 };

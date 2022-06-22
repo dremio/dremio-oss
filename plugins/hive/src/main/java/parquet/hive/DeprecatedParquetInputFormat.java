@@ -17,7 +17,6 @@ package parquet.hive;
 
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.io.ArrayWritable;
-
 import org.apache.parquet.hadoop.ParquetInputFormat;
 
 /**

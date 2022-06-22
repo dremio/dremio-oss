@@ -13,43 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import config from 'dyn-load/utils/config';
-import { FormattedMessage } from 'react-intl';
-import { compose } from 'redux';
-import { withRouter } from 'react-router';
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
+import config from "dyn-load/utils/config";
+import { FormattedMessage } from "react-intl";
+import { compose } from "redux";
+import { withRouter } from "react-router";
 
-import fileABug from 'utils/fileABug';
-import { logoutUser } from '@inject/actions/account';
-import accountMenuConfig from '@inject/components/SideNav/accountMenuConfig';
+import fileABug from "utils/fileABug";
+import { logoutUser } from "@inject/actions/account";
+import accountMenuConfig from "@inject/components/SideNav/accountMenuConfig";
 
+import Menu from "components/Menus/Menu";
+import MenuItem from "components/Menus/MenuItem";
+import DividerHr from "components/Menus/DividerHr";
+import { HookConsumer } from "@app/containers/RouteLeave";
+import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
 
-import Menu from 'components/Menus/Menu';
-import MenuItem from 'components/Menus/MenuItem';
-import DividerHr from 'components/Menus/DividerHr';
-import { HookConsumer } from '@app/containers/RouteLeave';
-import {menuListStyle} from '@app/components/SideNav/SideNavConstants';
-
-import './AccountMenu.less';
+import "./AccountMenu.less";
 
 const AccountMenu = (props) => {
   // eslint-disable-next-line no-shadow
-  const {closeMenu, router, logoutUser} = props;
+  const { closeMenu, router, logoutUser } = props;
 
   const onAccountSettings = () => {
     closeMenu();
-    router.push({pathname: '/account/info'});
+    router.push({ pathname: "/account/info" });
   };
 
   const onLogOut = (doChangesCheckFn) => {
     closeMenu();
     const { hasChanges, userChoiceToLeaveOrStayPromise } = doChangesCheckFn();
     if (hasChanges) {
-      userChoiceToLeaveOrStayPromise.then(leaveTheChanges => {
+      return userChoiceToLeaveOrStayPromise.then((leaveTheChanges) => {
         if (leaveTheChanges) {
           logoutUser();
         }
+        return null;
       });
     } else {
       logoutUser();
@@ -61,51 +61,51 @@ const AccountMenu = (props) => {
     fileABug();
   };
 
-  return (<Menu style={menuListStyle}>
-    {config.shouldEnableBugFiling &&
-      <MenuItem isInformational>
-        <span className={'menuInformation'}>
-          <FormattedMessage id='HeaderMenu.InternalBuild'/>
-        </span>
-      </MenuItem>
-    }
-    {config.shouldEnableBugFiling &&
-      <MenuItem onClick={onFileABug}>
-        <FormattedMessage id='HeaderMenu.FileABug'/>
-      </MenuItem>
-    }
-    {config.shouldEnableBugFiling &&
-      <DividerHr/>
-    }
-    {accountMenuConfig.enableAccountSettings &&
-      <MenuItem onClick={onAccountSettings}>
-        <FormattedMessage id='HeaderMenu.AccountSettings'/>
-      </MenuItem>
-    }
-    <HookConsumer>
-      {
-        ({ doChangesCheck }) => (
+  return (
+    <Menu style={menuListStyle}>
+      {config.shouldEnableBugFiling && (
+        <MenuItem isInformational>
+          <span className={"menuInformation"}>
+            <FormattedMessage id="HeaderMenu.InternalBuild" />
+          </span>
+        </MenuItem>
+      )}
+      {config.shouldEnableBugFiling && (
+        <MenuItem onClick={onFileABug}>
+          <FormattedMessage id="HeaderMenu.FileABug" />
+        </MenuItem>
+      )}
+      {config.shouldEnableBugFiling && <DividerHr />}
+      {accountMenuConfig.enableAccountSettings && (
+        <MenuItem onClick={onAccountSettings}>
+          <FormattedMessage id="HeaderMenu.AccountSettings" />
+        </MenuItem>
+      )}
+      <HookConsumer>
+        {({ doChangesCheck }) => (
           <MenuItem onClick={() => onLogOut(doChangesCheck)}>
-            <FormattedMessage id='HeaderMenu.LogOut'/>
+            <FormattedMessage id="HeaderMenu.LogOut" />
           </MenuItem>
-        )
-      }
-    </HookConsumer>
-  </Menu>
+        )}
+      </HookConsumer>
+    </Menu>
   );
 };
 
 AccountMenu.propTypes = {
   router: PropTypes.shape({
     isActive: PropTypes.func,
-    push: PropTypes.func
+    push: PropTypes.func,
   }),
   closeMenu: PropTypes.func.isRequired,
-  logoutUser: PropTypes.func.isRequired
+  logoutUser: PropTypes.func.isRequired,
 };
 
 const mapDispatchToProps = {
-  logoutUser
+  logoutUser,
 };
 
-export default compose(withRouter, connect(null, mapDispatchToProps))(AccountMenu);
+export default compose(
+  withRouter,
+  connect(null, mapDispatchToProps)
+)(AccountMenu);

@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-@import '../../../styles/constants/index.scss';
+@import "../../../styles/constants/index.scss";
 
 .dialogTitle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 55px;
-  border: 1px solid $solitude;
-  padding: 10px 16px;
+  height: 56px;
+  border-bottom: 1px solid $solitude;
+  padding: 0px 15px !important;
   .dialogTitle__content {
     h2 {
+      font-size: 16px;
       font-weight: 600;
     }
     &__icon {
@@ -35,7 +36,7 @@
       &.--error {
         svg {
           path {
-            fill: $trout !important
+            fill: $trout !important;
           }
         }
       }
@@ -50,6 +51,11 @@
   .dialogTitle__icon {
     display: flex;
     cursor: pointer;
+    &:hover {
+      svg path {
+        fill: $teal !important;
+      }
+    }
 
     // Todo: Replace with font icons
     svg {

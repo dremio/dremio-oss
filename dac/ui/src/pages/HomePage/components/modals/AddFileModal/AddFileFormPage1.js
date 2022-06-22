@@ -13,23 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import path from 'path';
-import { Component } from 'react';
+import path from "path";
+import { Component } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
-import { FieldWithError, TextField, FileField } from 'components/Fields';
-import { applyValidators, isRequired } from 'utils/validation';
-import { injectIntl } from 'react-intl';
+import { connectComplexForm } from "components/Forms/connectComplexForm";
+import { ModalForm, FormBody, modalFormProps } from "components/Forms";
+import { FieldWithError, TextField, FileField } from "components/Fields";
+import { applyValidators, isRequired } from "utils/validation";
+import { injectIntl } from "react-intl";
 
-const FIELDS = ['file', 'name', 'extension'];
+const FIELDS = ["file", "name", "extension"];
 
-import { formRow } from 'uiTheme/radium/forms';
+import { formRow } from "uiTheme/radium/forms";
 
 function validate(values) {
-  return applyValidators(values, [isRequired('file'), isRequired('name')]);
+  return applyValidators(values, [isRequired("file"), isRequired("name")]);
 }
 
 @injectIntl
@@ -40,11 +40,11 @@ export class AddFileFormPage1 extends Component {
     onChange: PropTypes.func,
     fields: PropTypes.object,
     handleSubmit: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   state = {
-    isUploading: false
+    isUploading: false,
   };
 
   onFileChange = (file, isUploading) => {
@@ -56,7 +56,7 @@ export class AddFileFormPage1 extends Component {
     fields.extension.onChange(extName.slice(1));
     fields.file.onChange(file);
     this.setState({
-      isUploading
+      isUploading,
     });
     onChange && onChange(file);
   };
@@ -64,8 +64,8 @@ export class AddFileFormPage1 extends Component {
   render() {
     const { fields, handleSubmit, onFormSubmit, intl } = this.props;
     const confirmText = this.state.isUploading
-      ? intl.formatMessage({ id: 'File.Uploading' })
-      : intl.formatMessage({ id: 'Common.Next' });
+      ? intl.formatMessage({ id: "File.Uploading" })
+      : intl.formatMessage({ id: "Common.Next" });
 
     return (
       <ModalForm
@@ -74,14 +74,19 @@ export class AddFileFormPage1 extends Component {
         confirmText={confirmText}
         onSubmit={handleSubmit(onFormSubmit)}
       >
-        <FormBody style={{height: '100%'}}>
-          <FileField accept='multipart/form-data' {...fields.file} onChange={this.onFileChange}/>
+        <FormBody style={{ height: "100%" }}>
+          <FileField
+            accept="multipart/form-data"
+            {...fields.file}
+            onChange={this.onFileChange}
+          />
           <FieldWithError
-            label={intl.formatMessage({ id: 'Common.Name' })}
-            {...fields.name} style={[formRow]}
-            errorPlacement='right'
+            label={intl.formatMessage({ id: "Common.Name" })}
+            {...fields.name}
+            style={formRow}
+            errorPlacement="right"
           >
-            <TextField accept='multipart/form-data' {...fields.name}/>
+            <TextField accept="multipart/form-data" {...fields.name} />
           </FieldWithError>
         </FormBody>
       </ModalForm>
@@ -90,8 +95,8 @@ export class AddFileFormPage1 extends Component {
 }
 
 export default connectComplexForm({
-  form: 'addFile',
+  form: "addFile",
   fields: FIELDS,
   validate,
-  destroyOnUnmount: false
+  destroyOnUnmount: false,
 })(AddFileFormPage1);

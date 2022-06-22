@@ -13,45 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
-import { KEEP_ONLY_TYPES } from '@app/constants/columnTypeGroups';
-import ColumnMenuItem from '@app/components/Menus/ExplorePage/ColumnMenus/ColumnMenuItem';
+import PropTypes from "prop-types";
+import { KEEP_ONLY_TYPES } from "@app/constants/columnTypeGroups";
+import ColumnMenuItem from "@app/components/Menus/ExplorePage/ColumnMenus/ColumnMenuItem";
 
-
-@Radium
-export default class OtherGroup extends PureComponent {
+class OtherGroup extends PureComponent {
   static propTypes = {
     makeTransform: PropTypes.func.isRequired,
-    columnType: PropTypes.string
-  }
+    columnType: PropTypes.string,
+  };
   static renderMenuItems(columnType, onClick) {
     return [
-      <ColumnMenuItem key='KEEP_ONLY'
+      <ColumnMenuItem
+        key="KEEP_ONLY"
         columnType={columnType}
-        actionType='KEEP_ONLY'
-        title={la('Keep Only…')}
+        actionType="KEEP_ONLY"
+        title={la("Keep Only…")}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
       />,
-      <ColumnMenuItem key='EXCLUDE'
+      <ColumnMenuItem
+        key="EXCLUDE"
         columnType={columnType}
-        actionType='EXCLUDE'
-        title={la('Exclude…')}
+        actionType="EXCLUDE"
+        title={la("Exclude…")}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
-      />
+      />,
     ];
   }
   render() {
     const { columnType, makeTransform } = this.props;
     const menuItems = OtherGroup.renderMenuItems(columnType, makeTransform);
-    return (
-      <div>
-        {menuItems}
-      </div>
-    );
+    return <div>{menuItems}</div>;
   }
 }
+export default OtherGroup;

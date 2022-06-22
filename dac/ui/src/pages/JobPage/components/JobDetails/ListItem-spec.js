@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import ListItem from './ListItem';
+import { shallow } from "enzyme";
+import ListItem from "./ListItem";
 
-describe('ListItem', () => {
+describe("ListItem", () => {
   let minimalProps;
   let commonProps;
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
   });
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ListItem {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<ListItem {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render common props', () => {
-    const wrapper = shallow(<ListItem {...commonProps}/>);
+  it("should render common props", () => {
+    const wrapper = shallow(<ListItem {...commonProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

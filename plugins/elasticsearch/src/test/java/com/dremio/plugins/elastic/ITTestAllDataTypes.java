@@ -33,6 +33,8 @@ import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalQueries;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,8 +42,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.DatatypeConverter;
 
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -51,14 +51,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class ITTestAllDataTypes extends ElasticBaseTestQuery {
   private static final Logger logger = LoggerFactory.getLogger(ITTestAllDataTypes.class);
-  DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").withZone(DateTimeZone.UTC);
+  DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE;
 
   private static final String SPECIAL_COLUMN_NAME_1 = "@column_name_with_symbols";
   private static final String SPECIAL_COLUMN_NAME_2 = "column name with spaces";
@@ -75,7 +74,7 @@ public class ITTestAllDataTypes extends ElasticBaseTestQuery {
   }
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void loadTable() throws IOException, ParseException {
@@ -94,7 +93,7 @@ public class ITTestAllDataTypes extends ElasticBaseTestQuery {
       new ElasticsearchCluster.ColumnData("colByte", BYTE, new Object[][]{  {3}, {null}  }),
       new ElasticsearchCluster.ColumnData("colDouble", DOUBLE, new Object[][]{  {434.564}, {null}  }),
       new ElasticsearchCluster.ColumnData("colFloat", FLOAT, new Object[][]{  { 34.54321 }, { null } }),
-      new ElasticsearchCluster.ColumnData("colDate", DATE, new Object[][]{  { formatter.parseLocalDateTime("2016-01-01") }, { null } }),
+      new ElasticsearchCluster.ColumnData("colDate", DATE, new Object[][]{  { formatter.parse("2016-01-01", TemporalQueries.localDate()) }, { null } }),
       new ElasticsearchCluster.ColumnData("colBoolean", BOOLEAN, new Object[][]{  { "true" }, { null } }),
       new ElasticsearchCluster.ColumnData("colBinary", BINARY, new Object[][]{  { DatatypeConverter.parseBase64Binary("U29tZSBiaW5hcnkgYmxvYg==") }, { null } }),
       new ElasticsearchCluster.ColumnData("colArrayString", TEXT, new Object[][]{

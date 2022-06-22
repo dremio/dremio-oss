@@ -13,43 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
+import Immutable from "immutable";
 
-import { UPDATE_HISTORY_WITH_JOB_STATE } from 'actions/explore/history';
+import { UPDATE_HISTORY_WITH_JOB_STATE } from "actions/explore/history";
 
-import historyItemReducer from './historyItem';
+import historyItemReducer from "./historyItem";
 
-describe('historyItem entity reducer', () => {
-  const initialState =  Immutable.fromJS({
+describe("historyItem entity reducer", () => {
+  const initialState = Immutable.fromJS({
     historyItem: {
-      '123': {
-        version: '123', state: 'COMPLETED'
+      123: {
+        version: "123",
+        state: "COMPLETED",
       },
-      '456': {
-        version: '456', state: 'RUNNING'
-      }
-    }
+      456: {
+        version: "456",
+        state: "RUNNING",
+      },
+    },
   });
 
-  it('returns unaltered state by default', () => {
-    const result = historyItemReducer(initialState, {type: 'bla'});
+  it("returns unaltered state by default", () => {
+    const result = historyItemReducer(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
-  describe('UPDATE_HISTORY_WITH_JOB_STATE', () => {
-    it('should update non-tip via history of tip dataset', () => {
-
+  describe("UPDATE_HISTORY_WITH_JOB_STATE", () => {
+    it("should update non-tip via history of tip dataset", () => {
       const result = historyItemReducer(initialState, {
         type: UPDATE_HISTORY_WITH_JOB_STATE,
         meta: {
           dataset: Immutable.fromJS({
-            tipVersion: '123',
-            datasetVersion: '456'
+            tipVersion: "123",
+            datasetVersion: "456",
           }),
-          jobState: 'COMPLETED'
-        }
+          jobState: "COMPLETED",
+        },
       });
-      expect(result.getIn(['historyItem', '123', 'state'])).to.eql('COMPLETED');
+      expect(result.getIn(["historyItem", "123", "state"])).to.eql("COMPLETED");
     });
   });
 });

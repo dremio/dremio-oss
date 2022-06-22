@@ -13,28 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { connect } from 'react-redux';
-import { withRouter } from 'react-router';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
-import { injectIntl } from 'react-intl';
+import { PureComponent } from "react";
+import { connect } from "react-redux";
+import { withRouter } from "react-router";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
+import { injectIntl } from "react-intl";
 
-import { SearchField } from 'components/Fields';
-import { getColumnFilter, getTableColumns } from 'selectors/explore';
-import { updateColumnFilter } from 'actions/explore/view';
+import { SearchField } from "components/Fields";
+import { getColumnFilter, getTableColumns } from "selectors/explore";
+import { updateColumnFilter } from "actions/explore/view";
 
-import exploreUtils from '@app/utils/explore/exploreUtils';
-import { compose } from 'redux';
-import { columnFilterWrapper, searchField } from './ExploreTableColumnFilter.less';
+import exploreUtils from "@app/utils/explore/exploreUtils";
+import { compose } from "redux";
+import {
+  columnFilterWrapper,
+  searchField,
+} from "./ExploreTableColumnFilter.less";
 
 export class ExploreTableColumnFilter extends PureComponent {
-
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     columnFilter: PropTypes.string,
     updateColumnFilter: PropTypes.func,
-    intl: PropTypes.any
+    intl: PropTypes.any,
+    disabled: PropTypes.bool,
   };
 
   updateColumnFilter = (columnFilter) => {
@@ -42,41 +45,45 @@ export class ExploreTableColumnFilter extends PureComponent {
   };
 
   render() {
-    const { columnFilter, intl: { formatMessage } } = this.props;
+    const {
+      columnFilter,
+      disabled,
+      intl: { formatMessage },
+    } = this.props;
 
     return (
-      <div className={columnFilterWrapper} data-qa='columnFilter'>
+      <div className={columnFilterWrapper} data-qa="columnFilter">
         <SearchField
           value={columnFilter}
           onChange={this.updateColumnFilter}
           className={searchField}
-          placeholder={formatMessage({ id: 'Explore.SearchFilter'})}
-          dataQa='explore-column-filter'
+          placeholder={formatMessage({ id: "Explore.SearchFilter" })}
+          dataQa="explore-column-filter"
+          disabled={disabled}
         />
       </div>
     );
   }
-
 }
 
 function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
-  const datasetVersion = props.dataset.get('datasetVersion');
+  const datasetVersion = props.dataset.get("datasetVersion");
   const columns = getTableColumns(state, datasetVersion, location);
   const columnFilter = getColumnFilter(state);
 
   return {
     columnFilter,
     columnCount: columns.size,
-    filteredColumnCount: exploreUtils.getFilteredColumnCount(columns, columnFilter)
+    filteredColumnCount: exploreUtils.getFilteredColumnCount(
+      columns,
+      columnFilter
+    ),
   };
 }
 
 export default compose(
-  connect(
-    mapStateToProps,
-    {updateColumnFilter}
-  ),
+  connect(mapStateToProps, { updateColumnFilter }),
   injectIntl,
   withRouter
 )(ExploreTableColumnFilter);

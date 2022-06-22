@@ -39,7 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
@@ -63,7 +65,7 @@ import io.grpc.StatusRuntimeException;
  * IcebergMetadataRefreshCommitter this committer has two update operation
  * DELETE Followed by INSERT
  */
-public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
+public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, SupportsTypeCoercionsAndUpPromotions {
 
   private static final Logger logger = LoggerFactory.getLogger(IncrementalMetadataRefreshCommitter.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(IncrementalMetadataRefreshCommitter.class);
@@ -140,13 +142,14 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
 
   @VisibleForTesting
   public void beginMetadataRefreshTransaction() {
-    this.icebergCommand.beginMetadataRefreshTransaction();
+    this.icebergCommand.beginTransaction();
 
     String currMetadataRootPointer = icebergCommand.getRootPointer();
     if (!prevMetadataRootPointer.equals(currMetadataRootPointer)) {
-      String message = String.format("Iceberg table has updated. Expected metadataRootPointer: %s, Found metadataRootPointer: %s", prevMetadataRootPointer, currMetadataRootPointer);
-      logger.error(message);
-      throw UserException.concurrentModificationError().message(message).buildSilently();
+      String metadataFiles = String.format("Expected metadataRootPointer: %s, Found metadataRootPointer: %s",
+        prevMetadataRootPointer, getRootPointer());
+      logger.error(CONCURRENT_DML_OPERATION_ERROR + metadataFiles);
+      throw UserException.concurrentModificationError().message(CONCURRENT_DML_OPERATION_ERROR).buildSilently();
     }
 
     if (hasAnythingChanged()) {
@@ -188,18 +191,18 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
 
   @VisibleForTesting
   public Snapshot endMetadataRefreshTransaction() {
-    table = icebergCommand.endMetadataRefreshTransaction();
+    table = icebergCommand.endTransaction();
     return table.currentSnapshot();
   }
 
   @VisibleForTesting
-  public Snapshot postCommitTransaction(Snapshot snapshot) {
+  public Snapshot postCommitTransaction() {
     injector.injectChecked(executionControls, INJECTOR_AFTER_ICEBERG_COMMIT_ERROR, UnsupportedOperationException.class);
     long numRecords = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-records", "0"));
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
     long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin);
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin, getCurrentSchema());
     BatchSchema newSchemaFromIceberg = new SchemaConverter().fromIceberg(table.schema());
     datasetCatalogRequestBuilder.overrideSchema(newSchemaFromIceberg);
     logger.debug("Committed incremental metadata change of table {}. Updating Dataset Catalog store", tableName);
@@ -207,11 +210,11 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
       client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
     } catch (StatusRuntimeException sre) {
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
-        String message = "Metadata refresh failed. Dataset: "
-          + Arrays.toString(datasetPath.toArray())
-          + " TableLocation: " + tableLocation;
-        logger.error(message);
-        throw UserException.concurrentModificationError(sre).message(message).build(logger);
+        logger.error("Metadata refresh failed. Dataset: " + Arrays.toString(datasetPath.toArray())
+          + " TableLocation: " + tableLocation, sre);
+        throw UserException.concurrentModificationError(sre)
+          .message(UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG)
+          .build(logger);
       }
       throw sre;
     }
@@ -224,8 +227,8 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
     try {
       beginMetadataRefreshTransaction();
       performUpdates();
-      Snapshot snapshot = endMetadataRefreshTransaction();
-      return postCommitTransaction(snapshot);
+      endMetadataRefreshTransaction();
+      return postCommitTransaction();
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
       operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
@@ -240,6 +243,11 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
   @Override
   public void consumeDeleteDataFile(DataFile icebergDeleteDatafile) {
     deleteDataFilesList.add(icebergDeleteDatafile);
+  }
+
+  @Override
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException("Deleting data file by path is not supported in metadata refresh Transaction");
   }
 
   @Override
@@ -275,7 +283,12 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
             //we drop the new struct field and replace it with old struct from the original batch schema.
             Field oldField = originalFieldsMap.get(field.getName().toLowerCase());
             newSchema = newSchema.dropField(field.getName());
-            newSchema = newSchema.mergeWithUpPromotion(BatchSchema.of(oldField));
+            try {
+              newSchema = newSchema.mergeWithUpPromotion(BatchSchema.of(oldField), this);
+            }catch (NoSupportedUpPromotionOrCoercionException e) {
+              e.addDatasetPath(datasetPath);
+              throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+            }
         }
       }
     }
@@ -339,6 +352,11 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
   @Override
   public Map<Integer, PartitionSpec> getCurrentSpecMap() {
     return icebergCommand.getPartitionSpecMap();
+  }
+
+  @Override
+  public Schema getCurrentSchema() {
+    return icebergCommand.getIcebergSchema();
   }
 
   @Override

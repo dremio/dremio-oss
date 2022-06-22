@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const MAPR = 'MAPR';
-export const APACHE = 'APACHE';
-export const HDP = 'HDP';
-export const CDH = 'CDH';
-export const OTHER = 'OTHER';
+export const MAPR = "MAPR";
+export const APACHE = "APACHE";
+export const HDP = "HDP";
+export const CDH = "CDH";
+export const OTHER = "OTHER";

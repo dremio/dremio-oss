@@ -26,11 +26,9 @@ import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -47,7 +45,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
-import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
@@ -70,8 +67,7 @@ import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
-import com.dremio.exec.util.BatchSchemaDiff;
-import com.dremio.exec.util.BatchSchemaDiffer;
+import com.dremio.exec.util.MetadataSupportsInternalSchema;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
@@ -90,7 +86,7 @@ import com.google.common.net.HostAndPort;
 /**
  * Dataset accessor for text/json.. file formats
  */
-public class EasyFormatDatasetAccessor implements FileDatasetHandle {
+public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSupportsInternalSchema {
 
   private final DatasetType type;
   private final FileSystem fs;
@@ -226,69 +222,15 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
         reader.allocate(fieldVectorMap);
         reader.next();
         mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-        return getMergedSchema(oldSchema, mutator, context, file);
+        return getMergedSchema(oldSchema,
+          mutator.getContainer().getSchema(),
+          oldConfig.isSchemaLearningEnabled(),
+          oldConfig.getDropColumns(),
+          oldConfig.getModifiedColumns(),
+          context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA),
+          tableSchemaPath.getPathComponents(),
+          file.getPath().toString());
       }
-    }
-  }
-
-  private BatchSchema getMergedSchema(BatchSchema oldSchema, SampleMutator mutator, SabotContext context, FileAttributes file) {
-    try {
-      boolean internalSchemaEnabled = context.getOptionManager().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
-      BatchSchema newSchema = mutator.getContainer().getSchema().removeNullFields().handleUnions();
-      oldSchema = oldSchema != null ? oldSchema.removeNullFields().handleUnions() : null;
-
-      if(internalSchemaEnabled) {
-
-        if(oldSchema == null) {
-          return newSchema;
-        }
-
-        if(!oldConfig.isSchemaLearningEnabled()) {
-          return oldSchema;
-        }
-
-        if(oldConfig.getDropColumns() != null && oldConfig.getModifiedColumns() != null) {
-          BatchSchemaDiffer batchSchemaDiffer = new BatchSchemaDiffer();
-          BatchSchemaDiff diff = batchSchemaDiffer.diff(oldSchema.getFields(), newSchema.getFields());
-
-          boolean schemaNotChanged = diff.getModifiedFields().equals(oldConfig.getModifiedColumns())
-            && diff.getDroppedFields().equals(oldConfig.getDropColumns()) && diff.getAddedFields().isEmpty();
-
-          if (schemaNotChanged) {
-            return oldSchema;
-          }
-
-          // we have to apply modifications to the schema
-          BatchSchema addedSchema = new BatchSchema(diff.getAddedFields());
-          addedSchema = addedSchema.difference(new BatchSchema(oldConfig.getDropColumns()));
-          addedSchema = addedSchema.difference(new BatchSchema(oldConfig.getModifiedColumns()));
-
-          // we have to apply modifications to the schema
-          BatchSchema modifiedSchema = new BatchSchema(diff.getModifiedFields());
-          modifiedSchema = modifiedSchema.difference(new BatchSchema(oldConfig.getDropColumns()));
-          modifiedSchema = modifiedSchema.difference(new BatchSchema(oldConfig.getModifiedColumns()));
-
-          //remove any columns where there is a struct. We don't do schema learning on top level structs
-          for (Field field : oldConfig.getModifiedColumns()) {
-            //only for non complex columns change the type
-            if (!field.getChildren().isEmpty()) {
-              addedSchema = addedSchema.dropField(field.getName());
-              modifiedSchema = modifiedSchema.dropField(field.getName());
-            }
-          }
-          //add the added fields
-          oldSchema = oldSchema.mergeWithUpPromotion(addedSchema);
-          oldSchema = oldSchema.mergeWithUpPromotion(modifiedSchema);
-        }
-        return oldSchema;
-      } else {
-        newSchema = oldSchema != null ? oldSchema.mergeWithUpPromotion(newSchema) : newSchema;
-        return newSchema;
-      }
-    } catch (NoSupportedUpPromotionOrCoercionException e) {
-      e.addFilePath(file.getPath().toString());
-      e.addDatasetPath(tableSchemaPath.getPathComponents());
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
     }
   }
 

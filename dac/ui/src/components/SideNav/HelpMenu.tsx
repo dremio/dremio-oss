@@ -13,75 +13,75 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { connect } from 'react-redux';
-import { useIntl } from 'react-intl';
+import { connect } from "react-redux";
+import { useIntl } from "react-intl";
 
-import { getLocation } from '@app/selectors/routing';
-import config from '@app/utils/config';
+import { getLocation } from "@app/selectors/routing";
+import config from "@app/utils/config";
 
-import Menu from 'components/Menus/Menu';
-import MenuItemLink from 'components/Menus/MenuItemLink';
-import SideNavHelpExtra from '@inject/components/SideNav/SideNavHelpExtra';
-import SideNavHelpCopyright from '@inject/components/SideNav/SideNavHelpCopyright';
-import {menuListStyle} from '@app/components/SideNav/SideNavConstants';
-
+import Menu from "components/Menus/Menu";
+import MenuItemLink from "components/Menus/MenuItemLink";
+import SideNavHelpExtra from "@inject/components/SideNav/SideNavHelpExtra";
+import SideNavHelpCopyright from "@inject/components/SideNav/SideNavHelpCopyright";
+import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
 
 type HelpMenuProps = {
   closeMenu: Function;
   location: object;
 };
 
-const HelpMenu = ({closeMenu, location}: HelpMenuProps) => {
+const HelpMenu = ({ closeMenu, location }: HelpMenuProps) => {
   const intl = useIntl();
-  const externalLink = <span className={'externalLinkIcon dremioIcon-External-link'}></span>;
-
+  const externalLink = (
+    <span className={"externalLinkIcon dremioIcon-External-link"}></span>
+  );
 
   return (
     <Menu style={menuListStyle}>
       <MenuItemLink
-        href={intl.formatMessage({id: 'SideNav.HelpDocUrl'})}
+        href={intl.formatMessage({ id: "SideNav.HelpDocUrl" })}
         external
         newWindow
         closeMenu={closeMenu}
-        text={intl.formatMessage({ id: 'SideNav.HelpDoc' })}
+        text={intl.formatMessage({ id: "SideNav.HelpDoc" })}
         rightIcon={externalLink}
       />
-      {config.displayTutorialsLink &&
+      {config.displayTutorialsLink && (
         <MenuItemLink
-          href={intl.formatMessage({id: 'SideNav.TutorialsUrl'})}
+          href={intl.formatMessage({ id: "SideNav.TutorialsUrl" })}
           external
           newWindow
           closeMenu={closeMenu}
-          text={intl.formatMessage({ id: 'SideNav.Tutorials' })}
+          text={intl.formatMessage({ id: "SideNav.Tutorials" })}
           rightIcon={externalLink}
         />
-      }
+      )}
       <MenuItemLink
-        href={intl.formatMessage({id: 'SideNav.CommunityUrl'})}
+        href={intl.formatMessage({ id: "SideNav.CommunityUrl" })}
         external
         newWindow
         closeMenu={closeMenu}
-        text={intl.formatMessage({ id: 'SideNav.CommunitySite' })}
+        text={intl.formatMessage({ id: "SideNav.CommunitySite" })}
         rightIcon={externalLink}
       />
       {/* @ts-ignore */}
-      {SideNavHelpExtra && <SideNavHelpExtra closeMenu={closeMenu}/>}
+      {SideNavHelpExtra && <SideNavHelpExtra closeMenu={closeMenu} />}
       {/* This will render the support dialogue in OSS/ENT and Copyright for DCS*/}
-      {SideNavHelpCopyright() ?
-        <SideNavHelpCopyright /> :
+      {SideNavHelpCopyright() ? (
+        <SideNavHelpCopyright />
+      ) : (
         <MenuItemLink
-          href={{...location, state: {modal: 'AboutModal'}}}
+          href={{ ...location, state: { modal: "AboutModal" } }}
           closeMenu={closeMenu}
-          text={intl.formatMessage({ id: 'App.AboutHeading' })}
+          text={intl.formatMessage({ id: "App.AboutHeading" })}
         />
-      }
+      )}
     </Menu>
   );
 };
 
-
 const mapStateToProps = (state: any) => ({
-  location: getLocation(state)
+  location: getLocation(state),
 });
 
 export default connect(mapStateToProps, {})(HelpMenu);

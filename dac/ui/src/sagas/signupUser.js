@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put, takeEvery } from 'redux-saga/effects';
-import { CREATE_FIRST_USER_SUCCESS } from 'actions/admin';
-import { loginUser } from 'actions/account';
+import { put, takeEvery } from "redux-saga/effects";
+import { CREATE_FIRST_USER_SUCCESS } from "actions/admin";
+import { loginUser } from "actions/account";
 
 export default function* signup() {
   yield takeEvery(CREATE_FIRST_USER_SUCCESS, handleSignup);
@@ -23,9 +23,7 @@ export default function* signup() {
 
 export function* handleSignup({ meta }) {
   const {
-    form: {
-      userName, password
-    }
+    form: { userName, password },
   } = meta;
-  yield put(loginUser({userName, password}));
+  yield put(loginUser({ userName, password }));
 }

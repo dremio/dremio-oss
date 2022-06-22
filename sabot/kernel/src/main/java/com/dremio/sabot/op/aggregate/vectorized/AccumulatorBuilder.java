@@ -447,6 +447,11 @@ public class AccumulatorBuilder {
         return new NdvAccumulators.NdvUnionAccumulators(incomingValues, transferVector, maxValuesPerBatch,
           computationVectorAllocator, tempAccumulatorHolder);
       }
+
+      case 8 /* LISTAGG */: {
+        return new ListAggAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+          computationVectorAllocator);
+      }
     }
 
     return null;
@@ -484,14 +489,15 @@ public class AccumulatorBuilder {
   }
 
   public enum AccumulatorType {
-    SUM,
-    MIN,
-    MAX,
-    SUM0,
-    COUNT,
-    COUNT1,
-    HLL,
-    HLL_MERGE,
+    SUM,       /* 0 */
+    MIN,       /* 1 */
+    MAX,       /* 2 */
+    SUM0,      /* 3 */
+    COUNT,     /* 4 */
+    COUNT1,    /* 5 */
+    HLL,       /* 6 */
+    HLL_MERGE, /* 7 */
+    LISTAGG,   /* 8 */
   }
 
   private static byte getAccumulatorTypeFromName(String name) {
@@ -513,9 +519,11 @@ public class AccumulatorBuilder {
       case "hll":
         switch (name) {
           case "hll_merge":
-            return (byte) AccumulatorType.HLL_MERGE.ordinal();
+            return (byte)AccumulatorType.HLL_MERGE.ordinal();
         }
-        return (byte) AccumulatorType.HLL.ordinal();
+        return (byte)AccumulatorType.HLL.ordinal();
+      case "listagg":
+        return (byte)AccumulatorType.LISTAGG.ordinal();
       default:
         throw UserException.unsupportedError().message("Unable to handle accumulator function %s", name).build(logger);
     }

@@ -13,56 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { IndexRoute, Redirect, Route } from 'react-router';
-import React from 'react';
+import { IndexRoute, Redirect, Route } from "react-router";
+import React from "react";
 
-import { CheckUserAuthentication, UserIsAuthenticated } from '@app/components/Auth/authWrappers';
+import {
+  CheckUserAuthentication,
+  UserIsAuthenticated,
+} from "@app/components/Auth/authWrappers";
 
-import { ENTITY_TYPES } from '@app/constants/Constants';
+import { ENTITY_TYPES } from "@app/constants/Constants";
 import {
   explorePageExit,
   explorePageLocationChanged,
-  startExplorePageListener
-} from '@app/actions/explore/dataset/data';
-import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
+  startExplorePageListener,
+} from "@app/actions/explore/dataset/data";
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
-import EulaPage from '@inject/pages/EulaPage/EulaPage';
-import SSOLandingPage from '@inject/pages/AuthenticationPage/components/SSOLandingPage';
-import { resetModuleState } from '@app/actions/modulesState';
-import { exploreStateKey } from '@app/selectors/explore';
-import { LOGIN_PATH, SIGNUP_PATH, SSO_LANDING_PATH } from '@app/sagas/loginLogout';
-import { lazy } from '@app/components/Lazy';
-import { AccountPageRouting, AdminPageRouting } from '@inject/RouteMixin.js';
-import AuthenticationPage from '@inject/pages/AuthenticationPage/AuthenticationPage';
-import additionalRoutes from '@inject/additionalRoutes';
-import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
-import JobPage from '@inject/pages/QVJobPage/QVJobPage';
-import SingleJobPage from '@app/pages/JobDetailsPageNew/JobDetailsPage';
-import config from '@inject/routesConfig';
+import EulaPage from "@inject/pages/EulaPage/EulaPage";
+import SSOLandingPage from "@inject/pages/AuthenticationPage/components/SSOLandingPage";
+import { resetModuleState } from "@app/actions/modulesState";
+import { exploreStateKey } from "@app/selectors/explore";
+import {
+  LOGIN_PATH,
+  SIGNUP_PATH,
+  SSO_LANDING_PATH,
+} from "@app/sagas/loginLogout";
+import { lazy } from "@app/components/Lazy";
+import { AccountPageRouting, AdminPageRouting } from "@inject/RouteMixin.js";
+import SSOConsent from "@inject/pages/AuthenticationPage/components/SSOConsent";
+import AuthenticationPage from "@inject/pages/AuthenticationPage/AuthenticationPage";
+import additionalRoutes from "@inject/additionalRoutes";
+import ReflectionJobsPage from "@inject/pages/JobPage/ReflectionJobsPage";
+import JobPage from "@inject/pages/QVJobPage/QVJobPage";
+import SingleJobPage from "@app/pages/JobDetailsPageNew/JobDetailsPage";
+import config from "@inject/routesConfig";
 
-import jobsUtils from './utils/jobsUtils.js';
-import App from './containers/App';
+import jobsUtils from "./utils/jobsUtils.js";
+import App from "./containers/App";
 
-import ReloadPage from './pages/ReloadPage';
+import ReloadPage from "./pages/ReloadPage";
 
-import HomeModals from './pages/HomePage/HomeModals';
-import Home from './pages/HomePage/subpages/Home';
-import { AllSpaces } from './pages/HomePage/subpages/AllSpaces/AllSpaces';
-import AllSources from './pages/HomePage/subpages/AllSources/AllSources';
+import HomeModals from "./pages/HomePage/HomeModals";
+import Home from "./pages/HomePage/subpages/Home";
+import { AllSpaces } from "./pages/HomePage/subpages/AllSpaces/AllSpaces";
+import AllSources from "./pages/HomePage/subpages/AllSources/AllSources";
 
-import ExploreModals from './pages/ExplorePage/ExploreModals';
+import ExploreModals from "./pages/ExplorePage/ExploreModals";
 
-import SignupPage from './pages/SignupPage/SignupPage';
-import ServerStatusPage from './pages/ServerStatusPage/ServerStatusPage';
+import SignupPage from "./pages/SignupPage/SignupPage";
+import ServerStatusPage from "./pages/ServerStatusPage/ServerStatusPage";
 
-import JobModals from './pages/JobPage/JobModals';
+import JobModals from "./pages/JobPage/JobModals";
 
-import Page, { MainMasterPage } from './components/Page';
-import NessieRoutes, { nessieSourceRoutes } from './pages/NessieHomePage/NessieRoutes';
+import Page, { MainMasterPage } from "./components/Page";
+import NessieRoutes, {
+  nessieSourceRoutes,
+} from "./pages/NessieHomePage/NessieRoutes";
 
 window.React = React;
 
-const resourceKeyName = 'resourceId';
+const resourceKeyName = "resourceId";
 export const getSourceRoute = (rootType, component) => {
   const suffix = `/${rootType}/:${resourceKeyName}`;
   return (
@@ -72,9 +82,12 @@ export const getSourceRoute = (rootType, component) => {
   );
 };
 
-const ExplorePage = lazy(() => import('./pages/ExplorePage/ExplorePageController' /* webpackChunkName: 'ExplorePage' */));
+const ExplorePage = lazy(() =>
+  import(
+    "./pages/ExplorePage/ExplorePageController" /* webpackChunkName: 'ExplorePage' */
+  )
+);
 const getExploreRoute = (routeProps, dispatch) => {
-
   const onEnter = () => {
     dispatch(startExplorePageListener(true));
   };
@@ -91,7 +104,8 @@ const getExploreRoute = (routeProps, dispatch) => {
   };
 
   return (
-    <Route {...routeProps}
+    <Route
+      {...routeProps}
       onEnter={onEnter}
       onLeave={onLeave}
       onChange={onChange}
@@ -103,47 +117,53 @@ const JobsRouting = () => {
   if (jobsUtils.isNewJobsPage()) {
     return (
       <Route component={Page}>
-        <Route path='/jobs/reflection/:reflectionId' component={ReflectionJobsPage} />
-        <Route path='/jobs' component={JobPage} />
-        <Route path='/job/:jobId' component={SingleJobPage} >
-        </Route>
+        <Route
+          path="/jobs/reflection/:reflectionId"
+          component={ReflectionJobsPage}
+        />
+        <Route path="/jobs" component={JobPage} />
+        <Route path="/job/:jobId" component={SingleJobPage}></Route>
       </Route>
     );
   } else {
     return (
       <>
-        <Redirect from='/job/:jobid' to={'/jobs'} />
+        <Redirect from="/job/:jobid" to={"/jobs"} />
         <Route component={Page}>
-          <Route path='/jobs/reflection/:reflectionId' component={ReflectionJobsPage} />
-          <Route path='/jobs' component={JobPage} />
+          <Route
+            path="/jobs/reflection/:reflectionId"
+            component={ReflectionJobsPage}
+          />
+          <Route path="/jobs" component={JobPage} />
         </Route>
       </>
     );
   }
 };
 
-export default (dispatch, projectContext) => {
-  const isDDPOnly = localStorageUtils ? localStorageUtils.isDataPlaneOnly(projectContext) : false;
+export default (dispatch, projectContext, isDataPlaneEnabled) => {
+  const isDDPOnly = localStorageUtils
+    ? localStorageUtils.isDataPlaneOnly(projectContext)
+    : false;
   return (
-    <Route path='/' component={App}>
+    <Route path="/" component={App}>
       {/* TODO conflict with (/:resources), need to change resources for all components */}
-      <Redirect from='/home' to='/' />
-      <Redirect from='/*/**/' to='/*/**' />
-      <Route path='/reload' component={ReloadPage} />
-      <Route path='/sso' component={SSOLandingPage} />
+      <Redirect from="/home" to="/" />
+      <Redirect from="/*/**/" to="/*/**" />
+      <Route path="/reload" component={ReloadPage} />
+      <Route path="/sso" component={SSOLandingPage} />
+      <Route path="/oauth-consent" component={SSOConsent} />
       <Route path={SSO_LANDING_PATH} component={SSOLandingPage} />
       <Route component={Page}>
-        <Route path='/eula' component={EulaPage} />
+        <Route path="/eula" component={EulaPage} />
         <Route component={CheckUserAuthentication}>
           <Route path={LOGIN_PATH} component={AuthenticationPage} />
-          {
-            config.enableSignUp ? (
-              <Route path={SIGNUP_PATH} component={SignupPage} />
-            ) : (
-              <Redirect from={SIGNUP_PATH} to='/' />
-            )
-          }
-          <Route path='/status' component={ServerStatusPage} />
+          {config.enableSignUp ? (
+            <Route path={SIGNUP_PATH} component={SignupPage} />
+          ) : (
+            <Redirect from={SIGNUP_PATH} to="/" />
+          )}
+          <Route path="/status" component={ServerStatusPage} />
         </Route>
       </Route>
       {additionalRoutes}
@@ -163,29 +183,40 @@ export default (dispatch, projectContext) => {
           from router package for case of onlyActiveOnIndex=false */}
               {getSourceRoute(ENTITY_TYPES.source, Home)}
               {getSourceRoute(ENTITY_TYPES.space, Home)}
-              <Route path='/home' component={Home}>
+              <Route path="/home" component={Home}>
                 <Route path={`/home/:${resourceKeyName}/folder/**`} />
               </Route>
-              <Route path='/spaces/list' component={AllSpaces} />
-              <Route path='/sources/list' component={AllSources} />
-              <Route path='/sources/datalake/list' component={AllSources} />
-              <Route path='/sources/external/list' component={AllSources} />
-              <Route path='/sources/dataplane/list' component={AllSources} />
-              {nessieSourceRoutes()}
+              <Route path="/spaces/list" component={AllSpaces} />
+              <Route path="/sources/list" component={AllSources} />
+              <Route path="/sources/datalake/list" component={AllSources} />
+              <Route path="/sources/external/list" component={AllSources} />
+              <Route path="/sources/dataplane/list" component={AllSources} />
+              {isDataPlaneEnabled && nessieSourceRoutes()}
             </Route>
           )}
         </Route>
-        <Route component={MainMasterPage}>
-          {
-            getExploreRoute({
-              component: UserIsAuthenticated(ExploreModals),
-              children: [
-                <Route key='new_query' path='/new_query' component={ExplorePage} />,
-                <Route key='existing_dataset' path='/:resources(/:resourceId)/:tableId(/:pageType)' component={ExplorePage} />
-              ]
-            }, dispatch)
-          }
-        </Route>
+        {!isDDPOnly && (
+          <Route component={MainMasterPage}>
+            {getExploreRoute(
+              {
+                component: UserIsAuthenticated(ExploreModals),
+                children: [
+                  <Route
+                    key="new_query"
+                    path="/new_query"
+                    component={ExplorePage}
+                  />,
+                  <Route
+                    key="existing_dataset"
+                    path="/:resources(/:resourceId)/:tableId(/:pageType)"
+                    component={ExplorePage}
+                  />,
+                ],
+              },
+              dispatch
+            )}
+          </Route>
+        )}
       </Route>
     </Route>
   );

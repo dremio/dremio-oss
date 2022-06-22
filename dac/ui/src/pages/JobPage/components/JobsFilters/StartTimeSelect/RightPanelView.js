@@ -13,168 +13,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import { DateRange } from 'react-date-range';
-import Radium from 'radium';
-import moment from 'moment';
+import { PureComponent } from "react";
+import moment from "@app/utils/dayjs";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import { PALE_GREY, PALE_NAVY } from 'uiTheme/radium/colors';
+import DateTimeInput from "./DateTimeInput";
+import DateRangePicker from "@app/components/DateRangePicker/DateRangePicker";
 
-import DateTimeInput from './DateTimeInput';
-import './RightPanelView.less';
+import "./RightPanelView.less";
 
-@Radium
 class RightPanelView extends PureComponent {
   static propTypes = {
     endMoment: PropTypes.object.isRequired,
     startMoment: PropTypes.object.isRequired,
     onChange: PropTypes.func.isRequired,
-    onChangeInInput: PropTypes.func.isRequired
+    onChangeInInput: PropTypes.func.isRequired,
   };
 
-  handleSelect = (date, source) => {
-    const dateId = String(date.endDate.unix()) + String(date.startDate.unix());
-    if (this.date === dateId) {
-      date.endDate.add(23, 'hours');
-    }
-    if (source) {
-      this.props.onChange(date);
-    }
-    this.date = dateId;
-  }
-  handleInit = (date) => this.props.onChange(date, true)
+  state = {
+    ranges: [
+      {
+        startDate: this.props.startMoment.toDate(),
+        endDate: this.props.endMoment.toDate(),
+        key: "selection",
+      },
+    ],
+  };
+
+  handleSelect = (item) => {
+    const { startDate, endDate } = item;
+    this.props.onChange({
+      startDate: moment(startDate),
+      endDate: moment(endDate),
+    });
+  };
+  handleInit = (date) => this.props.onChange(date, true);
 
   render() {
+    const { startMoment, endMoment } = this.props;
     return (
-      <div className='start-time-right-panel' style={[style.base, style.main]}>
-        <div style={[style.header]}>
+      <div className="start-time-right-panel">
+        <div className="start-time-right-panel__pickers">
           <DateTimeInput
             date={this.props.startMoment || moment()}
             onChange={this.props.onChangeInInput}
-            label='From'
-            type='startDate'/>
+            label="From"
+            type="startDate"
+          />
           <DateTimeInput
             date={this.props.endMoment || moment()}
             onChange={this.props.onChangeInInput}
-            label='To'
-            type='endDate'/>
+            label="To"
+            type="endDate"
+          />
         </div>
         <div>
-          <DateRange
-            calendars='3'
-            linkedCalendars
-            theme={calendarTheme}
-            classNames={{dayToday: 'today'}}
-            onInit={this.handleInit}
+          <DateRangePicker
             onChange={this.handleSelect}
-            startDate={this.props.startMoment.clone()}
-            endDate={this.props.endMoment.clone()}/>
+            startDate={startMoment.toDate()}
+            endDate={endMoment.toDate()}
+          />
         </div>
-      </div>);
+      </div>
+    );
   }
 }
-
 export default RightPanelView;
-
-const calendarTheme = {
-  DateRange: {
-    background: 'inherit',
-    margin: '4px auto 4px auto',
-    width: 430
-  },
-  Calendar: {
-    background: 'inherit',
-    boxSizing: 'content-box',
-    width: 140,
-    padding: '0'
-  },
-  MonthAndYear: {
-    padding: 0,
-    color: '#949494',
-    height: 20
-  },
-  MonthButton: {
-    margin: 0,
-    background: 'inherit'
-  },
-  MonthArrow: {
-    border: '6px solid transparent'
-  },
-  MonthArrowPrev: {
-    borderRightColor: '#a4a4a4'
-  },
-  MonthArrowNext: {
-    borderLeftColor: '#a4a4a4'
-  },
-  Weekday: {
-    lineHeight: '16px',
-    letterSpacing: 'none',
-    height: 17,
-    color: '#707070',
-    fontWeight: 0,
-    width: 19,
-    marginBottom: 1
-  },
-  DayInRange: {
-    background: PALE_NAVY,
-    color: '#333'
-  },
-  DayStartEdge: {
-    background: PALE_NAVY,
-    color: '#333'
-  },
-  DayEndEdge: {
-    background: PALE_NAVY,
-    color: '#333'
-  },
-  Day: {
-    width: 19,
-    marginBottom: 1,
-    borderBottom: '1px solid rgba(0,0,0,.1)',
-    color: '#333'
-  },
-  DayHover: {
-    color: '#f4f4f4'
-  }
-};
-
-const style = {
-  base: {
-    display: 'inline-block',
-    height: '100%',
-    verticalAlign: 'top'
-  },
-  header: {
-    padding: '5px 0 0 0',
-    backgroundColor: PALE_GREY
-  },
-  main: {
-    width: 450
-  },
-  underLine: {
-    textDecoration: 'underline',
-    margin: '0 5px 0 0',
-    ':hover': {
-      cursor: 'pointer'
-    }
-  },
-  block: {
-    padding: 6
-  },
-  nowBlock: {
-    color: '#a9a9a9'
-  },
-  applyButton: {
-    margin: '0 10px 0 0',
-    display: 'inline-flex',
-    float: 'right',
-    width: 110,
-    height: 25
-  },
-  buttonsHolder: {
-    overflow: 'hidden',
-    margin: '3px -6px 3px'
-  }
-};

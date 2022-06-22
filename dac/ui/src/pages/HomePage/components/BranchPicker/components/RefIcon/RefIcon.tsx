@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Art from '@app/components/Art';
-import { Reference } from '@app/services/nessie/client';
-import { getIconByType } from '@app/utils/nessieUtils';
+import Art from "@app/components/Art";
+import { COMMIT_TYPE } from "@app/constants/nessie";
+import { Reference } from "@app/services/nessie/client";
+import { getIconByType } from "@app/utils/nessieUtils";
 
 type RefIconProps = {
-    reference: Reference;
-    hash?: string | null;
-    style?: any;
-}
+  reference: Reference;
+  hash?: string | null;
+  style?: any;
+};
 
 function RefIcon({
   reference,
   hash,
-  style = { width: '16px', height: '16px' }
+  style = { width: "16px", height: "16px" },
 }: RefIconProps) {
   return (
     <Art
       style={style}
-      src={getIconByType(reference.type, hash)} alt={
-        hash ? 'COMMIT' : reference.type
-      }
+      src={getIconByType(reference.type, hash)}
+      alt={hash ? COMMIT_TYPE : reference.type}
     />
   );
 }

@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import { connect } from "react-redux";
 
-import EditUserForm from '@app/pages/AdminPage/components/forms/EditUserForm';
-import { modalFormProps } from '@app/components/Forms';
-import SettingHeader from '@app/components/SettingHeader';
+import EditUserForm from "@app/pages/AdminPage/components/forms/EditUserForm";
+import { modalFormProps } from "@app/components/Forms";
+import SettingHeader from "@app/components/SettingHeader";
 
-import './Info.less';
+import "./Info.less";
 
 export class Info extends Component {
   static propTypes = {
     userId: PropTypes.string,
     onFormSubmit: PropTypes.func.isRequired,
     updateFormDirtyState: PropTypes.func.isRequired,
-    cancel: PropTypes.func
+    cancel: PropTypes.func,
   };
 
   render() {
@@ -36,8 +36,8 @@ export class Info extends Component {
 
     const addProps = modalFormProps(this.props);
     return (
-      <div className='account-info-form'>
-        <SettingHeader title='Account.GeneralInformation' />
+      <div className="account-info-form">
+        <SettingHeader title="Account.GeneralInformation" />
         <EditUserForm
           userId={userId}
           {...addProps}
@@ -53,7 +53,7 @@ export class Info extends Component {
 
 function mapStateToProps(state) {
   const props = {
-    userId: state.account.getIn(['user', 'userId'])
+    userId: state.account.getIn(["user", "userId"]),
   };
 
   return props;

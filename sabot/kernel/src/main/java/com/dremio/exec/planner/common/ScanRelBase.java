@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
@@ -43,6 +44,9 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
@@ -115,6 +119,14 @@ public abstract class ScanRelBase extends TableScan {
                                          List<SchemaPath> projectedColumns,
                                          double observedRowcountAdjustment) {
     pw.item("table", tableMetadata.getName());
+
+    Optional.ofNullable(tableMetadata)
+      .map(TableMetadata::getDatasetConfig)
+      .map(DatasetConfig::getPhysicalDataset)
+      .map(PhysicalDataset::getIcebergMetadata)
+      .map(IcebergMetadata::getSnapshotId)
+      .ifPresent(snapshotId -> pw.item("snapshot", snapshotId));
+
     if(projectedColumns != null){
       pw.item("columns", FluentIterable.from(projectedColumns).transform(new Function<SchemaPath, String>(){
 

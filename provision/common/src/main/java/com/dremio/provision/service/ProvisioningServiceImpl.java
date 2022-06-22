@@ -141,7 +141,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
 
         concreteServices.put(provisioningService.getType(), provisioningService);
       } catch (ReflectiveOperationException e) {
-        logger.error("Unable to create instance of % class", provisioningServiceClass.getName(), e);
+        logger.error("Unable to create instance of {} class", provisioningServiceClass.getName(), e);
       }
     }
     return Collections.unmodifiableMap(concreteServices);
@@ -823,8 +823,8 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       return Action.RESTART;
     }
 
-    if (tempClusterSpec.getContainerCount() != storedClusterSpec.getContainerCount() &&
-      Objects.equal(modifiedCluster.getClusterConfig().getClusterSpec(),tempClusterSpec) &&
+    if (!Objects.equal(tempClusterSpec.getContainerCount(), storedClusterSpec.getContainerCount()) &&
+      Objects.equal(modifiedCluster.getClusterConfig().getClusterSpec(), tempClusterSpec) &&
       (ClusterState.RUNNING == storedCluster.getState() && ClusterState.RUNNING == modifiedCluster.getState())) {
       // only difference is in number of containers
       return Action.RESIZE;

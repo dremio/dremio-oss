@@ -64,7 +64,7 @@ import com.dremio.test.UserExceptionAssert;
 public class TestSpillingHashAgg extends BaseTestOperator {
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(1000, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(1000, TimeUnit.SECONDS);
 
   @Rule
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();

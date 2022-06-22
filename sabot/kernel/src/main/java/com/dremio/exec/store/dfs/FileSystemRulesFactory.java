@@ -50,8 +50,11 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.exec.store.deltalake.DeltaLakeScanPrel;
 import com.dremio.exec.store.dfs.easy.EasyScanPrel;
+import com.dremio.exec.store.iceberg.IcebergManifestFileContentScanPrel;
+import com.dremio.exec.store.iceberg.IcebergScanPlanBuilder;
 import com.dremio.exec.store.iceberg.IcebergScanPrel;
 import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
+import com.dremio.exec.store.mfunctions.TableFilesFunctionTableMetadata;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
@@ -122,8 +125,28 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       FilesystemScanDrel drel = call.rel(0);
-      return !isParquetDataset(drel.getTableMetadata()) && !isIcebergDataset(drel.getTableMetadata())
+      return !(drel.getTableMetadata() instanceof TableFilesFunctionTableMetadata) && !isParquetDataset(drel.getTableMetadata()) && !isIcebergDataset(drel.getTableMetadata())
               && !isDeltaLakeDataset(drel.getTableMetadata()) && !isIcebergMetadata(drel.getTableMetadata());
+    }
+  }
+
+  private static class TableFilesFunctionScanPrule extends ConverterRule {
+    public TableFilesFunctionScanPrule(SourceType pluginType) {
+      super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "TableFilesFunctionScanPrule");
+    }
+
+    @Override
+    public RelNode convert(RelNode rel) {
+      FilesystemScanDrel drel = (FilesystemScanDrel) rel;
+      return new IcebergManifestFileContentScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
+        drel.getTable(), drel.getTableMetadata(), drel.getProjectedColumns(),
+        drel.getObservedRowcountAdjustment());
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      FilesystemScanDrel drel = call.rel(0);
+      return drel.getTableMetadata() instanceof TableFilesFunctionTableMetadata;
     }
   }
 
@@ -140,11 +163,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     @Override
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
-      String partitionStatsFile = getPartitionStatsFile(drel);
-      return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
-        drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(),
-        drel.getPartitionFilter(), context, partitionStatsFile, false);
+      return IcebergScanPlanBuilder.fromDrel(drel, context, drel.isArrowCachingEnabled()).build();
     }
 
     @Override
@@ -206,7 +225,8 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
             new IcebergFilesystemScanPrule(pluginType, optimizerContext),
             new DeltaLakeFilesystemScanPrule(pluginType, optimizerContext),
             ConvertCountToDirectScan.getAggOnScan(pluginType),
-            ConvertCountToDirectScan.getAggProjOnScan(pluginType)
+            ConvertCountToDirectScan.getAggProjOnScan(pluginType),
+            new TableFilesFunctionScanPrule(pluginType)
             );
 
       default:
@@ -243,10 +263,9 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       InternalIcebergScanTableMetadata icebergTableMetadata = getInternalIcebergTableMetadata(drel.getTableMetadata(), context);
-      String partitionStatsFile = icebergTableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionStatsFile();
       return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
         drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context, partitionStatsFile, true);
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context, true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount());
     }
 
     @Override
@@ -292,13 +311,18 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   public static String getPartitionStatsFile(ScanRelBase drel) {
-    byte[] byteBuffer = drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
-    IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
-    try {
-      icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e);
+    if(DatasetHelper.isInternalIcebergTable(drel.getTableMetadata().getDatasetConfig())) {
+      return drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionStatsFile();
+    } else {
+      byte[] byteBuffer = drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
+
+      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
+      try {
+        icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException(e);
+      }
+      return icebergDatasetXAttr.getPartitionStatsFile();
     }
-    return icebergDatasetXAttr.getPartitionStatsFile();
   }
 }

@@ -569,7 +569,7 @@ public class TestReflectionManager {
       .addAttempts(jobAttempt)
       .build();
 
-    JobId jobId = new JobId().setId("jobid").setName("jobname");
+    JobId jobId = new JobId().setId("jobid");
     entry.setRefreshJobId(jobId);
 
     IcebergModel icebergModel = mock(IcebergModel.class);
@@ -645,7 +645,7 @@ public class TestReflectionManager {
       .addAttempts(jobAttempt)
       .build();
 
-    JobId jobId = new JobId().setId("jobid").setName("jobname");
+    JobId jobId = new JobId().setId("jobid");
     entry.setRefreshJobId(jobId);
 
     IcebergModel icebergModel = mock(IcebergModel.class);

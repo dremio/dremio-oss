@@ -182,13 +182,13 @@ class MaestroProxyQueryTracker implements QueryTracker {
       System.currentTimeMillis() > expirationTime;
   }
 
-  static private boolean isTerminal(FragmentState state) {
+  private static boolean isTerminal(FragmentState state) {
     return state == FragmentState.FAILED
       || state == FragmentState.FINISHED
       || state == FragmentState.CANCELLED;
   }
 
-  static private boolean isRunningOrTerminal(FragmentState state) {
+  private static boolean isRunningOrTerminal(FragmentState state) {
     return state == FragmentState.RUNNING || isTerminal(state);
   }
 
@@ -235,19 +235,15 @@ class MaestroProxyQueryTracker implements QueryTracker {
     return profile;
   }
 
-  static private QueryProgressMetrics buildProgressMetrics(List<FragmentStatus> fragmentStatuses) {
+  private static QueryProgressMetrics buildProgressMetrics(List<FragmentStatus> fragmentStatuses) {
     long recordCount = 0;
-    long outputRecordCount = -1;
+    long outputRecordCount = 0;
     for (FragmentStatus fragmentStatus : fragmentStatuses) {
       for (OperatorProfile operatorProfile : fragmentStatus.getProfile().getOperatorProfileList()) {
         for (StreamProfile streamProfile : operatorProfile.getInputProfileList()) {
           recordCount += streamProfile.getRecords();
           if (isOutputOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
-            if (outputRecordCount == -1) {
-              outputRecordCount = streamProfile.getRecords();
-            } else {
               outputRecordCount += streamProfile.getRecords();
-            }
           }
         }
       }
@@ -259,7 +255,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
   }
 
   // derived from QueryProfileParser.java, all operators which produce output to client except SCREEN.
-  static private boolean isOutputOperator(CoreOperatorType type) {
+  private static boolean isOutputOperator(CoreOperatorType type) {
     switch (type) {
       case ARROW_WRITER:
       case PARQUET_WRITER:

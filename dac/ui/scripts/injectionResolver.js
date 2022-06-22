@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const path = require('path');
-const forEachBail = require('enhanced-resolve/lib/forEachBail');
+const path = require("path");
+const forEachBail = require("enhanced-resolve/lib/forEachBail");
 
-const stubModule = path.resolve(__dirname, './stubModule.js');
-const alias = '@inject/';
+const stubModule = path.resolve(__dirname, "./stubModule.js");
+const alias = "@inject/";
 
 // optional path that allows controlling where injection happens - used by the dev server
-const injectionPath = process.env.DREMIO_INJECTION_PATH ? path.resolve(__dirname, process.env.DREMIO_INJECTION_PATH) : null;
+const injectionPath = process.env.DREMIO_INJECTION_PATH
+  ? path.resolve(__dirname, process.env.DREMIO_INJECTION_PATH)
+  : null;
 
 const dcsPath = process.env.DREMIO_DCS_LOADER_PATH;
 
@@ -32,8 +34,8 @@ const dcsPath = process.env.DREMIO_DCS_LOADER_PATH;
  */
 class InjectionResolver {
   constructor(source, target) {
-    this.source = source || 'resolve';
-    this.target = target || 'resolve';
+    this.source = source || "resolve";
+    this.target = target || "resolve";
   }
 
   getPathsToCheck(originalPath) {
@@ -42,76 +44,98 @@ class InjectionResolver {
     const pathsToCheck = [];
 
     if (injectionPath) {
-      pathsToCheck.push(this.createInfo(originalPath, `${injectionPath}/${relativePath}`));
+      pathsToCheck.push(
+        this.createInfo(originalPath, `${injectionPath}/${relativePath}`)
+      );
     }
     if (dcsPath) {
       pathsToCheck.push(this.createInfo(originalPath, `@dcs/${relativePath}`));
     }
-    pathsToCheck.push(this.createInfo(originalPath, `dyn-load/${relativePath}`));
+    pathsToCheck.push(
+      this.createInfo(originalPath, `dyn-load/${relativePath}`)
+    );
     pathsToCheck.push(this.createInfo(originalPath, `@app/${relativePath}`));
     // As last resort, go to the stub module that does nothing.
-    pathsToCheck.push(this.createInfo(originalPath, stubModule, `'${originalPath}' is redirected to stub module: ${stubModule}`));
+    pathsToCheck.push(
+      this.createInfo(
+        originalPath,
+        stubModule,
+        `'${originalPath}' is redirected to stub module: ${stubModule}`
+      )
+    );
     return pathsToCheck;
   }
 
   apply(resolver) {
     const target = resolver.ensureHook(this.target);
 
-    resolver.getHook(this.source).tapAsync('DremioResolver', (request, resolveContext, outerCallback) => {
-      const innerRequest = request.request || request.path;
-      if (!innerRequest) {
+    resolver
+      .getHook(this.source)
+      .tapAsync("DremioResolver", (request, resolveContext, outerCallback) => {
+        const innerRequest = request.request || request.path;
+        if (!innerRequest) {
+          return outerCallback();
+        }
+
+        // if the request starts with our alias, take over
+        if (innerRequest.startsWith(alias)) {
+          const locations = this.getPathsToCheck(innerRequest);
+
+          forEachBail(
+            locations,
+            (info, callback) => {
+              const { newPath, message } = info;
+              const newRequest = {
+                ...request,
+                request: newPath,
+              };
+
+              return resolver.doResolve(
+                target,
+                newRequest,
+                message,
+                resolveContext,
+                callback
+              );
+            },
+            outerCallback
+          );
+          return;
+        }
         return outerCallback();
-      }
-
-      // if the request starts with our alias, take over
-      if (innerRequest.startsWith(alias)) {
-        const locations = this.getPathsToCheck(innerRequest);
-
-        forEachBail(locations, (info, callback) => {
-          const { newPath, message } = info;
-          const newRequest = {
-            ...request,
-            request: newPath
-          };
-
-          return resolver.doResolve(target, newRequest, message, resolveContext, callback);
-        }, outerCallback);
-        return;
-      }
-      return outerCallback();
-    });
+      });
   }
 
   createInfo(originalPath, redirectToModulePath, message) {
     if (message === undefined) {
       message = `'${originalPath}' is redirected to module: ${redirectToModulePath}`;
     }
-    return ({
+    return {
       newPath: redirectToModulePath,
-      message
-    });
+      message,
+    };
   }
 
   applyNodeResolver() {
-    const Module = require('module');
+    const Module = require("module");
     const originalRequire = Module.prototype.require;
-    Module.prototype.require = function(module) {
+    Module.prototype.require = function (module) {
       if (module.startsWith(alias)) {
         try {
           if (dcsPath) {
-            return originalRequire.call(this, module.replace(alias, '@dcs/'));
+            return originalRequire.call(this, module.replace(alias, "@dcs/"));
           }
         } catch (e) {
           // ignored
         }
         try {
-          return originalRequire.call(this, module.replace(alias, 'dyn-load/'));
+          return originalRequire.call(this, module.replace(alias, "dyn-load/"));
         } catch (e) {
           // ignored
         }
 
         try {
-          return originalRequire.call(this, module.replace(alias, '@app/'));
+          return originalRequire.call(this, module.replace(alias, "@app/"));
         } catch (e) {
           // ignored
         }
@@ -125,5 +149,5 @@ class InjectionResolver {
 
 module.exports = {
   injectionPath,
-  InjectionResolver
+  InjectionResolver,
 };

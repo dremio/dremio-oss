@@ -19,6 +19,7 @@ package com.dremio.exec.physical.config;
 import java.util.Iterator;
 import java.util.Optional;
 
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -27,7 +28,6 @@ import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginResolver;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.service.namespace.NamespaceKey;
@@ -45,7 +45,7 @@ public class WriterCommitterPOP extends AbstractSingle {
 
   private final String tempLocation;
   private final String finalLocation;
-  private final FileSystemPlugin<?> plugin;
+  private final MutablePlugin plugin;
   private final IcebergTableProps icebergTableProps;
   private boolean partialRefresh;
   private final NamespaceKey datasetPath;
@@ -74,7 +74,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.finalLocation = finalLocation;
     this.icebergTableProps = icebergTableProps;
     this.partialRefresh = isPartialRefresh;
-    this.plugin = Preconditions.checkNotNull(storagePluginResolver.<FileSystemPlugin<?>>getSource(pluginId));
+    this.plugin = Preconditions.checkNotNull(storagePluginResolver.getSource(pluginId));
     this.datasetPath = datasetPath;
     this.datasetConfig = Optional.ofNullable(datasetConfig);
     this.readSignatureEnabled = isReadSignatureEnabled;
@@ -90,7 +90,7 @@ public class WriterCommitterPOP extends AbstractSingle {
       NamespaceKey datasetPath,
       Optional<DatasetConfig> datasetConfig,
       PhysicalOperator child,
-      FileSystemPlugin<?> plugin,
+      MutablePlugin plugin,
       StoragePlugin sourceTablePlugin,
       boolean isPartialRefresh,
       boolean isReadSignatureEnabled,
@@ -137,7 +137,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   }
 
   @JsonIgnore
-  public FileSystemPlugin<?> getPlugin() {
+  public MutablePlugin getPlugin() {
     return plugin;
   }
 

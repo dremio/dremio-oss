@@ -15,16 +15,15 @@
  */
 package com.dremio.plugins.elastic;
 
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
-import com.google.common.collect.ImmutableMap;
-
 import static com.dremio.plugins.elastic.ElasticsearchType.GEO_POINT;
 
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
+import com.google.common.collect.ImmutableMap;
 
 
 /**

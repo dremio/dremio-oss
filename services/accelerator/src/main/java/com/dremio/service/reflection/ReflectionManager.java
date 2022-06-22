@@ -892,6 +892,8 @@ public class ReflectionManager implements Runnable {
       .setState(MaterializationState.RUNNING)
       .setExpiration(materialization.getExpiration())
       .setLastRefreshFromPds(materialization.getLastRefreshFromPds())
+      .setLastRefreshFinished(materialization.getLastRefreshFinished())
+      .setLastRefreshDurationMillis(materialization.getLastRefreshDurationMillis())
       .setLogicalPlan(materialization.getLogicalPlan())
       .setReflectionGoalVersion(materialization.getReflectionGoalVersion())
       .setJoinAnalysis(materialization.getJoinAnalysis())

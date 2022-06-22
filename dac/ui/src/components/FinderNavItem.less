@@ -14,44 +14,83 @@
  * limitations under the License.
  */
 @import "../components/colors.less";
-@import '~@app/uiTheme/less/mixins.less';
+@import "~@app/uiTheme/less/mixins.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .finder-nav-item {
-    &.active, &:hover, &:focus {
-      background-color: #fff5dc;
+    &:hover,
+    &:focus {
+      background-color: var(--dremio--color--primary--100);
     }
 
-    a.finder-nav-item-link {
-      height: 28px;
-      padding: 0 2px 0 10px;
+    .pin {
+      opacity: 0;
+    }
 
-      display: block;
+    &:hover {
+      .pin {
+        opacity: 1;
+      }
+    }
+
+    .entity-link-wrapper {
       width: 100%;
+    }
 
-      text-decoration: none;
-      color: @black;
-      cursor: pointer;
+    .nav-item-ellipsed-text {
+      display: flex;
+      align-items: center;
+      margin-right: 5px;
+      width: 191px;
+      span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
 
+    cursor: pointer;
+    height: 32px;
+    display: flex;
+    align-items: center;
+
+    a.finder-nav-item-link {
+      width: 100%;
+      height: 100%;
+      padding-left: 8px;
+      padding-right: 16px;
+      font-size: 14px;
+      text-decoration: none !important;
       display: flex;
       flex-direction: row;
       align-items: center;
 
-      &:hover, &:focus {
-        .pin {
-          visibility: visible;
-        }
+      &:hover,
+      &:focus {
+        text-decoration: none !important;
+      }
+      &.active {
+        font-weight: 600;
+        background-color: var(--dremio--color--primary--150);
       }
     }
-    
+
     &.withExtra {
       .entity-link-wrapper {
         .flex-center;
       }
       a.finder-nav-item-link {
-        flex: 0;
-        max-width: 60%;
+        .nav-item-ellipsed-text {
+          width: auto;
+          max-width: 55%;
+          flex-grow: 0;
+          flex-shrink: 0;
+          span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
       }
     }
 
@@ -59,33 +98,25 @@
       margin-left: 8px;
       margin-right: 8px;
       flex: 1;
+      max-width: fit-content;
       min-width: 0;
       .branchPickerTag {
-        max-width: 100%
+        max-width: 100%;
       }
     }
 
-    &.readonly{
+    &.readonly {
       opacity: 0.5;
     }
 
-    .pin{
-      cursor: pointer;
-      visibility: hidden;
-      &.active{
-        visibility: visible;
-        color: @active-icon-dark;
-      }
-    }
-
-    .fa{
-      &.off{
+    .fa {
+      &.off {
         color: @light-red;
       }
-      &.on{
+      &.on {
         color: @light-green;
       }
-      &.in-border{
+      &.in-border {
         font-size: 10px;
         margin: 0 5px 0 0;
         border: 1px solid #111;
@@ -102,7 +133,8 @@
     }
 
     .count {
-      color: #c9c9c9;
+      font-size: 12px;
+      color: var(--dremio--color--text--faded);
     }
   }
 }

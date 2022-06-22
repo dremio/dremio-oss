@@ -59,6 +59,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.config.DremioConfig;
@@ -76,13 +77,13 @@ import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
@@ -96,6 +97,7 @@ import com.dremio.exec.hadoop.HadoopCompressionCodecFactory;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -126,6 +128,7 @@ import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.iceberg.IcebergModelCreator;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopTableIdentifier;
@@ -148,6 +151,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.MorePosixFilePermissions;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
@@ -193,7 +197,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
  * Storage plugin for file system
  */
 public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin,
-  SupportsReadSignature, AuthorizationCacheService, SupportsInternalIcebergTable, SupportsIcebergRootPointer {
+  SupportsReadSignature, AuthorizationCacheService, SupportsInternalIcebergTable, SupportsIcebergRootPointer, SupportsIcebergMutablePlugin, SupportsTypeCoercionsAndUpPromotions {
   /**
    * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to create new copies
    * of {@link Configuration} objects.
@@ -301,7 +305,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   @Override
   public BatchSchema mergeSchemas(DatasetConfig oldConfig, BatchSchema newSchema) {
     try {
-      return CalciteArrowHelper.fromDataset(oldConfig).mergeWithUpPromotion(newSchema);
+      return CalciteArrowHelper.fromDataset(oldConfig).mergeWithUpPromotion(newSchema, this);
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       if (basePath != null) {
         e.addFilePath(basePath.toString());
@@ -317,6 +321,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
 
     if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(context.getOptionManager())) {
+      logger.debug("Not using unlimited splits for {} since required support keys are not enabled", handle.getDatasetPath().toString());
       return false;
     }
     if (!metadataSourceAvailable(context.getCatalogService())) {
@@ -330,8 +335,12 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         fileType = Optional.ofNullable(physicalDataset.getFormatSettings().getType());
       }
     }
-    return fileType.map(type -> type == FileType.PARQUET)
+    boolean isParquetTable = fileType.map(type -> type == FileType.PARQUET)
       .orElseGet(() -> isParquetTable(handle.getDatasetPath().getComponents(), user));
+    if (!isParquetTable) {
+      logger.debug("Not using unlimited splits for {} since dataset is not a parquet dataset", handle.getDatasetPath().toString());
+    }
+    return isParquetTable;
   }
 
   private boolean isParquetTable(List<String> tablePathComponents, String user) {
@@ -994,6 +1003,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return systemUserFS;
   }
 
+  @Override
+  public boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
+    return true;
+  }
+
   public String getName() {
     return name;
   }
@@ -1026,7 +1040,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view) throws IOException {
+  public boolean createOrUpdateView(NamespaceKey tableSchemaPath,
+                                    SchemaConfig schemaConfig,
+                                    View view,
+                                    ViewOptions viewOptions) throws IOException {
     if (!Boolean.getBoolean(DremioConfig.LEGACY_STORE_VIEWS_ENABLED)) {
       throw UserException.parseError()
         .message("Unable to drop view. Filesystem views are unsupported.")
@@ -1049,7 +1066,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public void dropView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig) throws IOException {
+  public void dropView(NamespaceKey tableSchemaPath, ViewOptions viewOptions, SchemaConfig schemaConfig) throws IOException {
     if (!Boolean.getBoolean(DremioConfig.LEGACY_STORE_VIEWS_ENABLED)) {
       throw UserException.parseError()
         .message("Unable to drop view. Filesystem views are unsupported.")
@@ -1089,7 +1106,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         }
       }
     } catch (IOException e) {
-      logger.debug("Failed to find format matcher for file: %s", file, e);
+      logger.debug("Failed to find format matcher for file: {}", file, e);
     }
     return matcher;
   }
@@ -1143,7 +1160,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     List<String> fullPath = resolveTableNameToValidPath(tableSchemaPath.getPathComponents());
     FileSelection fileSelection;
     try {
-      fileSelection = FileSelection.create(fs, fullPath);
+      // ICEBERG or DELTALAKE
+      boolean isLayeredTable = tableMutationOptions != null && tableMutationOptions.isLayered();
+      fileSelection = isLayeredTable ? FileSelection.createNotExpanded(fs, fullPath) : FileSelection.create(fs, fullPath);;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -1182,6 +1201,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
               .message("Failed to drop table: " + e.getMessage())
               .build(logger);
     }
+  }
+
+  @Override
+  public void alterTable(NamespaceKey tableSchemaPath, DatasetConfig datasetConfig, AlterTableOption alterTableOption,
+                         SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    IcebergModel icebergModel = getIcebergModel();
+    icebergModel.alterTable(icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig).toString()), alterTableOption);
   }
 
   @Override
@@ -1239,30 +1265,50 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public void addColumns(NamespaceKey key,
+                         DatasetConfig datasetConfig,
                          SchemaConfig schemaConfig,
                          List<Field> columnsToAdd,
                          TableMutationOptions tableMutationOptions) {
-    AddColumn columnOperations = new AddColumn(key, context, schemaConfig, getIcebergModel(), validateAndGetPath(key, schemaConfig), this);
+    AddColumn columnOperations = new AddColumn(key, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(key, schemaConfig), this);
     columnOperations.performOperation(columnsToAdd);
   }
 
   @Override
   public void dropColumn(NamespaceKey table,
+                         DatasetConfig datasetConfig,
                          SchemaConfig schemaConfig,
                          String columnToDrop,
                          TableMutationOptions tableMutationOptions) {
-    DropColumn columnOperations = new DropColumn(table, context, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig), this);
+    DropColumn columnOperations = new DropColumn(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig), this);
     columnOperations.performOperation(columnToDrop);
   }
 
   @Override
   public void changeColumn(NamespaceKey table,
+                           DatasetConfig datasetConfig,
                            SchemaConfig schemaConfig,
                            String columnToChange,
                            Field fieldFromSql,
                            TableMutationOptions tableMutationOptions) {
-    ChangeColumn columnOperations = new ChangeColumn(table, context, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig), this);
+    ChangeColumn columnOperations = new ChangeColumn(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig), this);
     columnOperations.performOperation(columnToChange, fieldFromSql);
+  }
+
+  @Override
+  public void addPrimaryKey(NamespaceKey table,
+                            DatasetConfig datasetConfig,
+                            SchemaConfig schemaConfig,
+                            List<Field> columns) {
+    AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig), this);
+    op.performOperation(columns);
+  }
+
+  @Override
+  public void dropPrimaryKey(NamespaceKey table,
+                             DatasetConfig datasetConfig,
+                             SchemaConfig schemaConfig) {
+    DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig, getIcebergModel(), validateAndGetPath(table, schemaConfig), this);
+    op.performOperation();
   }
 
   @Override
@@ -1459,10 +1505,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName,
             icebergModel.getTableIdentifier(path.toString()), batchSchema,
-            writerOptions.getPartitionColumns(), null);
+            writerOptions.getPartitionColumns(), null,
+            writerOptions.getDeserializedPartitionSpec());
     icebergOpCommitter.commit();
   }
-
 
   @Override
   public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig config, IcebergTableProps icebergTableProps,
@@ -1524,9 +1570,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       Preconditions.checkState(icebergTableProps.getUuid() != null &&
         !icebergTableProps.getUuid().isEmpty(), "Unexpected state. UUID must be set");
       path = path.resolve(icebergTableProps.getUuid());
+      return new CreateParquetTableEntry(userName, this,
+        path.toString(), icebergTableProps, writerOptions, tableSchemaPath);
     }
 
-    return new FileSystemCreateTableEntry(
+    return new EasyFileSystemCreateTableEntry(
       userName,
       this,
       formatPlugin,
@@ -1630,10 +1678,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return getIcebergModel(null, operatorContext, null);
   }
 
-  public IcebergModel getVersionedIcebergModel(OperatorContext operatorContext,
-                                               List<String> tableKeyAsList,
-                                               ResolvedVersionContext version) {
-    throw new UnsupportedOperationException();
+  @Override
+  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context, FileSystem fileSystem) {
+    return getIcebergModel(fileSystem, context, null);
   }
 
   public String getRootLocation() {
@@ -1665,6 +1712,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       return false;
     }
     return true;
+  }
+
+  @Override
+  public boolean isSupportUserDefinedSchema(DatasetConfig dataset) {
+    return DatasetHelper.isInternalIcebergTable(dataset) || DatasetHelper.isJsonDataset(dataset);
   }
 
   @Override
@@ -1713,4 +1765,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
     return Optional.of(fileSelection);
   }
+
+  public String getDefaultCtasFormat() {
+    return config.getDefaultCtasFormat();
+  }
+
 }

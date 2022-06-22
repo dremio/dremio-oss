@@ -17,19 +17,22 @@ package com.dremio.exec.store.json;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.math.BigDecimal;
+import java.net.URL;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared;
+import com.google.common.io.Resources;
 
 public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
 
@@ -95,6 +98,7 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
 
     runMetadataRefresh(dirName);
     assertThat(runDescribeQuery(dirName)).contains("heading1|BOOLEAN");
+    alterTableForgetMetadata(dirName);
   }
 
   @Test
@@ -335,7 +339,7 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
     String dirName = "double_and_bigint";
     copyFilesFromNoMixedTypesSimple(dirName);
     // Run a query triggering a schema change
-    triggerSchemaLearning(dirName);
+    triggerOptionalSchemaLearning(dirName);
     // Schema should have changed to (DOUBLE,DOUBLE) now, irrespective of which file was picked first
     assertThat(runDescribeQuery(dirName)).contains("heading1|DOUBLE").contains("heading2|DOUBLE");
     // Run a query touching all the files and ensure that it returns the correct records
@@ -347,6 +351,7 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
     assertThat(runDescribeQuery(dirName)).contains("heading1|FLOAT");
     verifyRecords(dirName, "heading1", 12.3F, 12.0F, 12.4F, 13.0F);
     verifyCountStar(dirName, 4);
+    alterTableChangeColumn(dirName, "heading1", "DOUBLE");
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), dirName));
   }
 
@@ -365,7 +370,7 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
     String dirName = "varchar_and_bigint";
     copyFilesFromNoMixedTypesSimple(dirName);
     // Run a query triggering a schema change
-    triggerSchemaLearning(dirName);
+    triggerOptionalSchemaLearning(dirName);
     assertThat(runDescribeQuery(dirName)).contains("heading1|CHARACTER VARYING").contains("heading2|CHARACTER VARYING");
 
     alterTableDropColumn(dirName, "heading1");
@@ -383,13 +388,13 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
     verifyRecords(dirName, "heading1", 12.3F, 12.0F, 12.4F, 13.0F);
     verifyRecords(dirName, "heading2", 12.3, 12.0, 12.4, 13.0);
     verifyCountStar(dirName, 4);
+    alterTableChangeColumn(dirName, "heading1", "DOUBLE");
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), dirName));
   }
 
-  // TODO DX-37955. This fails as string in files cannot be cast to int. Need to check if we need to convert filers here.
-  @Ignore
+  // If the values in filters and data can't be cast, cast function fails
   @Test
-  public void testInternalSchemaOnLargeMixedFile() throws Exception {
+  public void testInternalSchemaFliterCastFailure() throws Exception {
     String dirName = "large_mixed_file";
     copyFilesFromNoMixedTypesSimple(dirName);
     // Run a query touching all the files and ensure that it returns the correct records
@@ -403,19 +408,17 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
     verifyCountStar(dirName, 10201);
 
     alterTableChangeColumn(dirName, "heading1", "INT");
-    query = String.format("SELECT * FROM dfs_test.\"%s\" where heading1 = 1", dirName);
-    testBuilder = testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("heading1");
-    testBuilder.baselineValues(1);
-    testBuilder.go();
+    String query2 = String.format("SELECT * FROM dfs_test.\"%s\" where heading1 = 1", dirName);
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query2))
+      .havingCause()
+      .isInstanceOf(UserException.class)
+      .withMessageContaining("GandivaException: Failed to cast the string hello to int32_t");
   }
 
-  // TODO DX-37650: This test should work once this story is done
-  @Ignore
+  // Internal schema does not work where we cannot promote a dataset
   @Test
-  public void testInternalSchemaOnInvalidMixedFile() throws Exception {
+  public void testInternalSchemaOnInvalidMixedFile() {
     String dirName = "invalid_mixed_file";
     copyFilesFromNoMixedTypesSimple(dirName);
     String query = String.format("SELECT * FROM dfs_test.\"%s\"", dirName);
@@ -428,9 +431,13 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
       .withMessageContaining(", column \"heading1\" and file")
       .withMessageContaining("mixed_file_int_bool.json");
 
-    alterTableChangeColumn(dirName, "heading1", "varchar");
-    assertThat(runDescribeQuery(dirName)).contains("heading1|CHARACTER VARYING");
-    verifyRecords(dirName, "heading1", "12", "false", "varchar");
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> alterTableChangeColumn(dirName, "heading1", "varchar"))
+      .isInstanceOf(UserException.class)
+      .withMessageContaining("Unable to coerce from the file's data type \"boolean\" to the column's data type \"int64\" in table")
+      .withMessageContaining("invalid_mixed_file")
+      .withMessageContaining(", column \"heading1\" and file")
+      .withMessageContaining("mixed_file_int_bool.json");
   }
 
   @Test
@@ -478,5 +485,74 @@ public class TestSimpleJsonInternalSchemaChange extends InternalSchemaTestBase {
       .havingCause()
       .isInstanceOf(UserException.class)
       .withMessageContaining("Modifications to partition columns are not allowed. Column dir0 is a partition column");
+  }
+
+  @Test
+  public void testDisableEnableSchemaLearningFlag() throws Exception {
+    String dirName = "double_and_bigint";
+    Path jsonDir = copyFilesFromNoMixedTypesSimple(dirName);
+    // Run a query triggering a schema change
+    triggerOptionalSchemaLearning(dirName);
+    assertThat(runDescribeQuery(dirName)).contains("heading1|DOUBLE");
+    assertThat(runDescribeQuery(dirName)).contains("heading2|DOUBLE");
+    verifyRecords(dirName, "heading1", 12.3, 12.0, 12.4, 13.0);
+    verifyRecords(dirName, "heading2", 12.3, 12.0, 12.4, 13.0);
+
+    alterTableDisableSchemaLearning(dirName);
+    Path path = Paths.get("json/schema_changes/no_mixed_types/complex/array_array_double_bigint/array_array_double_bigint.json");
+    URL resource = Resources.getResource(path.toString());
+    java.nio.file.Files.write(jsonDir.resolve("array_array_double_bigint.json"), Resources.toByteArray(resource));
+
+    runMetadataRefresh(dirName);
+    triggerOptionalSchemaLearning(dirName);
+    assertThat(runDescribeQuery(dirName)).contains("heading1|DOUBLE");
+    assertThat(runDescribeQuery(dirName)).contains("heading2|DOUBLE");
+    assertThat(runDescribeQuery(dirName)).doesNotContain("col1");
+    assertThat(runDescribeQuery(dirName)).doesNotContain("col2");
+
+    alterTableChangeColumn(dirName, "heading1", "INT");
+    runMetadataRefresh(dirName);
+    triggerOptionalSchemaLearning(dirName);
+    assertThat(runDescribeQuery(dirName)).contains("heading1|INT");
+    assertThat(runDescribeQuery(dirName)).contains("heading2|DOUBLE");
+    assertThat(runDescribeQuery(dirName)).doesNotContain("col1");
+    assertThat(runDescribeQuery(dirName)).doesNotContain("col2");
+
+    alterTableEnableSchemaLearning(dirName);
+    runMetadataRefresh(dirName);
+    triggerOptionalSchemaLearning(dirName);
+    assertThat(runDescribeQuery(dirName)).contains("heading1|INT");
+    assertThat(runDescribeQuery(dirName)).contains("heading2|DOUBLE");
+    assertThat(runDescribeQuery(dirName)).contains("col1");
+    assertThat(runDescribeQuery(dirName)).contains("col2");
+
+    alterTableChangeColumn(dirName, "heading1", "BIGINT");
+    alterTableDisableSchemaLearning(dirName);
+    runMetadataRefresh(dirName);
+    triggerOptionalSchemaLearning(dirName);
+    assertThat(runDescribeQuery(dirName)).contains("heading1|BIGINT");
+    assertThat(runDescribeQuery(dirName)).contains("heading2|DOUBLE");
+    assertThat(runDescribeQuery(dirName)).contains("col1");
+    assertThat(runDescribeQuery(dirName)).contains("col2");
+
+    alterTableEnableSchemaLearning(dirName);
+    alterTableChangeColumn(dirName, "heading1", "DOUBLE");
+    FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), dirName));
+  }
+
+  @Test
+  public void testInternalSchemaChangesPrimitiveToComplex() throws Exception {
+    String dirName = "bigint";
+    copyFilesFromInternalSchemaSimple(dirName);
+    promoteDataset(dirName);
+    assertThat(runDescribeQuery(dirName)).contains("heading1|BIGINT");
+    verifyRecords(dirName, "heading1", 12L);
+    try {
+      alterTableChangeColumn(dirName, "heading1", "list<bigint>");
+      fail("Primitive type cannot be changed to complex");
+    } catch (UserRemoteException e) {
+      assertThat(e.getMessage()).contains("INVALID_DATASET_METADATA ERROR: Field heading1: Int(64, true) and List are incompatible types, for type changes please ensure both columns are either of primitive types or complex but not mixed.");
+    }
+    alterTableForgetMetadata(dirName);
   }
 }

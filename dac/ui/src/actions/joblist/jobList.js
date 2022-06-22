@@ -13,51 +13,121 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import apiUtils from '@app/utils/apiUtils/apiUtils';
-import { renderQueryStateForServer } from 'utils/jobsQueryState';
+import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { renderQueryStateForServer } from "utils/jobsQueryState";
 
-export const FETCH_JOBS_LIST_REQUEST = 'FETCH_JOBS_LIST_REQUEST';
-export const FETCH_JOBS_LIST_SUCCESS = 'FETCH_JOBS_LIST_SUCCESS';
-export const FETCH_JOBS_LIST_FAILURE = 'FETCH_JOBS_LIST_FAILURE';
-export const FETCH_JOB_DETAILS_BY_ID_REQUEST = 'FETCH_JOB_DETAILS_BY_ID_REQUEST';
-export const FETCH_JOB_DETAILS_BY_ID_SUCCESS = 'FETCH_JOB_DETAILS_BY_ID_SUCCESS';
-export const FETCH_JOB_DETAILS_BY_ID_FAILURE = 'FETCH_JOB_DETAILS_BY_ID_FAILURE';
-export const ITEMS_FOR_FILTER_JOBS_LIST_REQUEST = 'ITEMS_FOR_FILTER_JOBS_LIST_REQUEST';
-export const ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS = 'ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS';
-export const ITEMS_FOR_FILTER_JOBS_LIST_FAILURE = 'ITEMS_FOR_FILTER_JOBS_LIST_FAILURE';
-export const JOB_DETAILS_VIEW_ID = 'JOB_DETAILS_VIEW_ID';
-export const JOB_PAGE_NEW_VIEW_ID = 'JOB_PAGE_NEW_VIEW_ID';
-export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST = 'FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST';
-export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS = 'FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS';
-export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE = 'FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE';
-export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST = 'FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST';
-export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS = 'FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS';
-export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE = 'FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE';
+export const FETCH_JOBS_LIST_REQUEST = "FETCH_JOBS_LIST_REQUEST";
+export const FETCH_JOBS_LIST_SUCCESS = "FETCH_JOBS_LIST_SUCCESS";
+export const FETCH_JOBS_LIST_FAILURE = "FETCH_JOBS_LIST_FAILURE";
+export const JOBS_LIST_RESET = "JOBS_LIST_RESET";
+export const FETCH_JOB_DETAILS_BY_ID_REQUEST =
+  "FETCH_JOB_DETAILS_BY_ID_REQUEST";
+export const FETCH_JOB_DETAILS_BY_ID_SUCCESS =
+  "FETCH_JOB_DETAILS_BY_ID_SUCCESS";
+export const FETCH_JOB_DETAILS_BY_ID_FAILURE =
+  "FETCH_JOB_DETAILS_BY_ID_FAILURE";
+export const ITEMS_FOR_FILTER_JOBS_LIST_REQUEST =
+  "ITEMS_FOR_FILTER_JOBS_LIST_REQUEST";
+export const ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS =
+  "ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS";
+export const ITEMS_FOR_FILTER_JOBS_LIST_FAILURE =
+  "ITEMS_FOR_FILTER_JOBS_LIST_FAILURE";
+export const JOB_DETAILS_VIEW_ID = "JOB_DETAILS_VIEW_ID";
+export const JOB_PAGE_NEW_VIEW_ID = "JOB_PAGE_NEW_VIEW_ID";
+export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST =
+  "FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST";
+export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS =
+  "FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS";
+export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE =
+  "FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE";
+export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST =
+  "FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST";
+export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS =
+  "FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS";
+export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE =
+  "FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE";
 
 function fetchJobsListAction(queryState, viewId) {
   const meta = { viewId };
   const query = renderQueryStateForServer(queryState);
   return (dispatch) => {
     dispatch({ type: FETCH_JOBS_LIST_REQUEST, meta });
-    return apiUtils.fetch(`jobs-listing/v1.0?detailLevel=1&${query}`, {}, 2)
-      .then(response => {
+    return apiUtils
+      .fetch(`jobs-listing/v1.0?detailLevel=1&${query}`, {}, 2)
+      .then((response) => {
         try {
           return response.json();
         } catch {
           return Promise.reject(response);
         }
       })
-      .then(payload => {
+      .then((payload) => {
         dispatch(fetchJobsListActionSuccess(payload, meta));
         return Promise.resolve(payload);
       })
-      .catch(response => {
-        if (Response.prototype.isPrototypeOf(response)) {
-          response.json().then(error => {
-            return dispatch(fetchJobsListActionFailure({ response: error }));
-          }).catch(() => dispatch(fetchJobsListActionFailure(response)));
+      .catch((response) => {
+        if (Object.prototype.isPrototypeOf.call(Response.prototype, response)) {
+          response
+            .json()
+            .then((error) => {
+              return dispatch(fetchJobsListActionFailure({ response: error }));
+            })
+            .catch(() => dispatch(fetchJobsListActionFailure(response)));
         } else {
-          dispatch(fetchJobsListActionFailure({response, meta: { notification: true }}));
+          dispatch(
+            fetchJobsListActionFailure({
+              response,
+              meta: { notification: true },
+            })
+          );
+        }
+      });
+  };
+}
+
+export const resetFilteredJobsList = () => ({
+  type: JOBS_LIST_RESET,
+  payload: Immutable.List(),
+});
+
+function fetchFilteredJobsListForExplorePageAction(
+  jobId = "",
+  viewId,
+  replaceIndex
+) {
+  const meta = { viewId, isExplorePage: true, replaceIndex };
+  return (dispatch) => {
+    return apiUtils
+      .fetch(
+        `jobs-listing/v1.0?detailLevel=1&sort=st&order=ASCENDING&filter=(${encodeURIComponent(
+          `job=="${jobId}"`
+        )
+          .replace(/'/g, "%27")
+          .replace(/"/g, "%22")})`,
+        {},
+        2
+      )
+      .then((response) => {
+        try {
+          return response.json();
+        } catch {
+          return Promise.reject(response);
+        }
+      })
+      .then((payload) => {
+        dispatch(fetchJobsListActionSuccess(payload, meta));
+        return Promise.resolve(payload);
+      })
+      .catch((response) => {
+        if (response) {
+          return response
+            .json()
+            .then((error) => {
+              return dispatch(fetchJobsListActionFailure({ response: error }));
+            })
+            .catch(
+              () => response && dispatch(fetchJobsListActionFailure(response))
+            );
         }
       });
   };
@@ -66,7 +136,7 @@ function fetchJobsListAction(queryState, viewId) {
 const fetchJobsListActionSuccess = (payload, meta) => ({
   type: FETCH_JOBS_LIST_SUCCESS,
   payload,
-  meta
+  meta,
 });
 
 const fetchJobsListActionFailure = (response) => ({
@@ -74,9 +144,9 @@ const fetchJobsListActionFailure = (response) => ({
   response,
   meta: {
     notification: true,
-    showDefaultMoreInfo: false
+    showDefaultMoreInfo: false,
   },
-  error: true
+  error: true,
 });
 
 export function fetchJobsList(queryState, viewId) {
@@ -85,46 +155,69 @@ export function fetchJobsList(queryState, viewId) {
   };
 }
 
-function loadJobDetailsAction(jobId, viewId, attempts = 1, skipStartAction = false) {
+export function fetchFilteredJobsList(jobId, viewId, replaceIndex) {
+  return (dispatch) => {
+    return dispatch(
+      fetchFilteredJobsListForExplorePageAction(jobId, viewId, replaceIndex)
+    );
+  };
+}
+
+function loadJobDetailsAction(
+  jobId,
+  viewId,
+  attempts = 1,
+  skipStartAction = false
+) {
   const meta = { viewId };
   return (dispatch) => {
     if (!skipStartAction) {
       dispatch({ type: FETCH_JOB_DETAILS_BY_ID_REQUEST, meta });
     }
     const params = new URLSearchParams();
-    params.append('detailLevel', 1);
+    params.append("detailLevel", 1);
     if (attempts !== undefined) {
-      params.append('attempt', attempts);
+      params.append("attempt", attempts);
     }
-    return apiUtils.fetch(`jobs-listing/v1.0/${jobId}/jobDetails?${params.toString()}`, {}, 2)
-      .then(response => {
+    return apiUtils
+      .fetch(
+        `jobs-listing/v1.0/${jobId}/jobDetails?${params.toString()}`,
+        {},
+        2
+      )
+      .then((response) => {
         try {
           return response.json();
         } catch {
           return Promise.reject(response);
         }
       })
-      .then(payload => {
+      .then((payload) => {
         dispatch(loadJobDetailsActionSuccess(payload, meta));
         return Promise.resolve(payload);
       })
-      .catch(response => {
+      .catch((response) => {
         const errorPayload = {
           meta: {
             notification: true,
-            showDefaultMoreInfo: false
+            showDefaultMoreInfo: false,
           },
-          error: true
+          error: true,
         };
-        return response.json()
+        return response
+          .json()
           .then((error) => {
             if (response.status === 404) {
               dispatch(loadJobDetailsActionFailure({ response: error }));
-              return Promise.resolve({error, status: response.status});
+              return Promise.resolve({ error, status: response.status });
             } else {
-              dispatch(loadJobDetailsActionFailure({ response: error }, errorPayload));
+              dispatch(
+                loadJobDetailsActionFailure({ response: error }, errorPayload)
+              );
             }
-          }).catch(() => dispatch(loadJobDetailsActionFailure(response)));
+            return null;
+          })
+          .catch(() => dispatch(loadJobDetailsActionFailure(response)));
       });
   };
 }
@@ -132,55 +225,58 @@ function loadJobDetailsAction(jobId, viewId, attempts = 1, skipStartAction = fal
 const loadJobDetailsActionSuccess = (payload, meta) => ({
   type: FETCH_JOB_DETAILS_BY_ID_SUCCESS,
   payload,
-  meta
+  meta,
 });
 
 const loadJobDetailsActionFailure = (response, meta = {}) => ({
   type: FETCH_JOB_DETAILS_BY_ID_FAILURE,
   response,
   ...meta,
-  error: true
+  error: true,
 });
-
 
 export function loadJobDetails(jobId, viewId, attempts, skipStartAction) {
   return (dispatch) => {
-    return dispatch(loadJobDetailsAction(jobId, viewId, attempts, skipStartAction));
+    return dispatch(
+      loadJobDetailsAction(jobId, viewId, attempts, skipStartAction)
+    );
   };
 }
 
-function fetchItemsForFilter(tag, filter = '', limit = '50') {
+function fetchItemsForFilter(tag, filter = "", limit = "50") {
   return (dispatch) => {
-    return apiUtils.fetch(`jobs/filters/${tag}?filter=${filter}&limit=${limit}`, {}, 2)
-      .then(response => {
+    return apiUtils
+      .fetch(`jobs/filters/${tag}?filter=${filter}&limit=${limit}`, {}, 2)
+      .then((response) => {
         try {
           return response.json();
         } catch {
           return Promise.reject(response);
         }
       })
-      .then(payload => {
+      .then((payload) => {
         dispatch(fetchItemsForFilterSuccess(payload, tag));
         return Promise.resolve(payload);
       })
-      .catch(payload => dispatch(fetchItemsForFilterFailure(payload, { tag })));
+      .catch((payload) =>
+        dispatch(fetchItemsForFilterFailure(payload, { tag }))
+      );
   };
 }
-
 
 const fetchItemsForFilterSuccess = (payload, tag) => ({
   type: ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS,
   payload,
-  meta: { tag }
+  meta: { tag },
 });
 
 const fetchItemsForFilterFailure = (payload, tag) => ({
   type: ITEMS_FOR_FILTER_JOBS_LIST_FAILURE,
   payload,
   meta: {
-    ...tag
+    ...tag,
   },
-  error: true
+  error: true,
 });
 
 export function loadItemsForFilter(tag, filter, limit) {
@@ -189,45 +285,49 @@ export function loadItemsForFilter(tag, filter, limit) {
   };
 }
 
-export const SET_JOB_LIST_CLUSTER_TYPE = 'SET_JOB_LIST_CLUSTER_TYPE';
+export const SET_JOB_LIST_CLUSTER_TYPE = "SET_JOB_LIST_CLUSTER_TYPE";
 
-export const setClusterType = value => ({
+export const setClusterType = (value) => ({
   type: SET_JOB_LIST_CLUSTER_TYPE,
-  payload: value
+  payload: value,
 });
 
-export const LOAD_NEXT_JOBS_LIST_REQUEST = 'LOAD_NEXT_JOBS_LIST_REQUEST';
-export const LOAD_NEXT_JOBS_LIST_SUCCESS = 'LOAD_NEXT_JOBS_LIST_SUCCESS';
-export const LOAD_NEXT_JOBS_LIST_FAILURE = 'LOAD_NEXT_JOBS_LIST_FAILURE';
+export const LOAD_NEXT_JOBS_LIST_REQUEST = "LOAD_NEXT_JOBS_LIST_REQUEST";
+export const LOAD_NEXT_JOBS_LIST_SUCCESS = "LOAD_NEXT_JOBS_LIST_SUCCESS";
+export const LOAD_NEXT_JOBS_LIST_FAILURE = "LOAD_NEXT_JOBS_LIST_FAILURE";
 
 const fetchNextJobList = (href, viewId) => {
   const meta = { viewId };
   return (dispatch) => {
     dispatch({ type: LOAD_NEXT_JOBS_LIST_REQUEST, meta });
-    return apiUtils.fetch(href.slice(6), {}, 2)
-      .then(response => {
+    return apiUtils
+      .fetch(href.slice(6), {}, 2)
+      .then((response) => {
         try {
           return response.json();
         } catch {
           return Promise.reject(response);
         }
       })
-      .then(payload => {
+      .then((payload) => {
         dispatch(fetchNextJobsSuccess(payload, meta));
         return Promise.resolve(payload);
       })
-      .catch(response => (
-        response.json().then(error => {
-          return dispatch(fetchNextJobsFailure({ response: error }));
-        }).catch(() => dispatch(fetchNextJobsFailure(response)))
-      ));
+      .catch((response) =>
+        response
+          .json()
+          .then((error) => {
+            return dispatch(fetchNextJobsFailure({ response: error }));
+          })
+          .catch(() => dispatch(fetchNextJobsFailure(response)))
+      );
   };
 };
 
 const fetchNextJobsSuccess = (payload, meta) => ({
   type: LOAD_NEXT_JOBS_LIST_SUCCESS,
   payload,
-  meta
+  meta,
 });
 
 const fetchNextJobsFailure = (response) => ({
@@ -235,9 +335,9 @@ const fetchNextJobsFailure = (response) => ({
   response,
   meta: {
     notification: true,
-    showDefaultMoreInfo: false
+    showDefaultMoreInfo: false,
   },
-  error: true
+  error: true,
 });
 
 export function loadNextJobs(href, viewId) {
@@ -246,26 +346,34 @@ export function loadNextJobs(href, viewId) {
   };
 }
 
-export const fetchJobExecutionDetails = (jobId, viewId, totalAttempts = 1, skipStartAction = false) => async (dispatch) => {
-  const meta = { viewId };
-  if (!skipStartAction) {
-    dispatch({ type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST, meta });
-  }
-  try {
-    let response = await apiUtils.fetch(`queryProfile/${jobId}/JobProfile?attempt=${totalAttempts}`, {}, 2);
-    response = await response.json();
-    dispatch(fetchJobExecutionDetailsSuccess(response, meta));
-  } catch (response) {
-    const error = await response.json();
-    const failureMeta = { ...meta, ...error };
-    return dispatch(fetchJobExecutionDetailsFailure({ response: error }, failureMeta));
-  }
-};
+export const fetchJobExecutionDetails =
+  (jobId, viewId, totalAttempts = 1, skipStartAction = false) =>
+  async (dispatch) => {
+    const meta = { viewId };
+    if (!skipStartAction) {
+      dispatch({ type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST, meta });
+    }
+    try {
+      let response = await apiUtils.fetch(
+        `queryProfile/${jobId}/JobProfile?attempt=${totalAttempts}`,
+        {},
+        2
+      );
+      response = await response.json();
+      dispatch(fetchJobExecutionDetailsSuccess(response, meta));
+    } catch (response) {
+      const error = await response.json();
+      const failureMeta = { ...meta, ...error };
+      return dispatch(
+        fetchJobExecutionDetailsFailure({ response: error }, failureMeta)
+      );
+    }
+  };
 
 const fetchJobExecutionDetailsSuccess = (payload, meta) => ({
   type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS,
   payload,
-  meta
+  meta,
 });
 
 const fetchJobExecutionDetailsFailure = (payload, meta) => ({
@@ -273,33 +381,58 @@ const fetchJobExecutionDetailsFailure = (payload, meta) => ({
   payload,
   meta: {
     ...meta,
-    notification: true
+    notification: true,
   },
-  error: true
+  error: true,
 });
 
-export function fetchJobExecutionOperatorDetails(jobId, viewId, phaseId, operatorId, totalAttempts) {
+export function fetchJobExecutionOperatorDetails(
+  jobId,
+  viewId,
+  phaseId,
+  operatorId,
+  totalAttempts = 1
+) {
   const meta = { viewId };
   return (dispatch) => {
-    dispatch({ type: FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST, meta, payload: {} });
-    return apiUtils.fetch(`queryProfile/${jobId}/JobProfile/OperatorDetails?phaseId=${phaseId}&operatorId=${operatorId}&attempt=${totalAttempts}`, {}, 2)
-      .then(response => response && response.json())
-      .then(payload => {
+    dispatch({
+      type: FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST,
+      meta,
+      payload: {},
+    });
+    return apiUtils
+      .fetch(
+        `queryProfile/${jobId}/JobProfile/OperatorDetails?attempt=${totalAttempts}&phaseId=${phaseId}&operatorId=${operatorId}`,
+        {},
+        2
+      )
+      .then((response) => response && response.json())
+      .then((payload) => {
         dispatch(fetchJobExecutionOperatorDetailsSuccess(payload, meta));
         return Promise.resolve(payload);
       })
-      .catch(response => (
-        response.json().then(error => {
-          return dispatch(fetchJobExecutionOperatorDetailsFailure({ response: error }, meta));
-        }).catch(() => dispatch(fetchJobExecutionOperatorDetailsFailure(response, meta)))
-      ));
+      .catch((response) =>
+        response
+          .json()
+          .then((error) => {
+            return dispatch(
+              fetchJobExecutionOperatorDetailsFailure(
+                { response: { ...error, status: response.status } },
+                meta
+              )
+            );
+          })
+          .catch(() =>
+            dispatch(fetchJobExecutionOperatorDetailsFailure(response, meta))
+          )
+      );
   };
 }
 
 const fetchJobExecutionOperatorDetailsSuccess = (payload, meta) => ({
   type: FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS,
   payload,
-  meta
+  meta,
 });
 
 const fetchJobExecutionOperatorDetailsFailure = (payload, meta) => ({
@@ -307,7 +440,7 @@ const fetchJobExecutionOperatorDetailsFailure = (payload, meta) => ({
   payload,
   meta: {
     ...meta,
-    notification: true
+    hideError: true,
   },
-  error: true
+  error: true,
 });

@@ -33,8 +33,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
-import org.apache.commons.collections4.MapUtils;
-
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -151,13 +149,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
                                              Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FromTable from = new FromTable(fromDatasetPath.toPathString());
-
-    //TODO: DX-44147: Fix the initialization of the sourceVersion map in Catalog to get summary for dataplane sources.
-    // Allowing for other sources for backwards compatibility. Summary is only needed for providing the exception
-    DatasetSummary summary = null;
-    if (MapUtils.isEmpty(references)) {
-      summary = getDatasetSummary(fromDatasetPath);
-    }
+    DatasetSummary summary = getDatasetSummary(fromDatasetPath, references);
 
     return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName, sessionId, references);
   }
@@ -308,13 +300,18 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   @GET
   @Path("/summary/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public DatasetSummary getDatasetSummary(@PathParam("path") String path) throws NamespaceException, DatasetNotFoundException {
+  public DatasetSummary getDatasetSummary(
+    @PathParam("path") String path,
+    @QueryParam("refType") String refType,
+    @QueryParam("refValue") String refValue) throws NamespaceException, DatasetNotFoundException {
     final DatasetPath datasetPath = new DatasetPath(PathUtils.toPathComponents(path));
-    return getDatasetSummary(datasetPath);
+    return getDatasetSummary(datasetPath, DatasetResourceUtils.createSourceVersionMapping(datasetPath.getRoot().getName(), refType, refValue));
   }
 
-  private DatasetSummary getDatasetSummary(DatasetPath datasetPath) throws NamespaceException, DatasetNotFoundException {
-    final DremioTable table = datasetCatalog.getTable(datasetPath.toNamespaceKey());
+  private DatasetSummary getDatasetSummary(DatasetPath datasetPath,
+                                           Map<String, VersionContextReq> references) throws NamespaceException, DatasetNotFoundException {
+    DatasetCatalog datasetNewCatalog = datasetCatalog.resolveCatalog(DatasetResourceUtils.createSourceVersionMapping(references));
+    final DremioTable table = datasetNewCatalog.getTable(datasetPath.toNamespaceKey());
     if (table == null) {
       throw new DatasetNotFoundException(datasetPath);
     }
@@ -322,11 +319,16 @@ public class DatasetsResource extends BaseResourceWithAllocator {
 
     return newDatasetSummary(datasetConfig,
       datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-      datasetService.getDescendantsCount(datasetPath.toNamespaceKey()));
+      datasetService.getDescendantsCount(datasetPath.toNamespaceKey()),
+      references);
   }
 
-  protected DatasetSummary newDatasetSummary(DatasetConfig datasetConfig, int jobCount, int descendants) throws NamespaceException {
-    return DatasetSummary.newInstance(datasetConfig, jobCount, descendants);
+  protected DatasetSummary newDatasetSummary(
+    DatasetConfig datasetConfig,
+    int jobCount,
+    int descendants,
+    Map<String, VersionContextReq> references) throws NamespaceException {
+    return DatasetSummary.newInstance(datasetConfig, jobCount, descendants, references);
   }
 
   @GET

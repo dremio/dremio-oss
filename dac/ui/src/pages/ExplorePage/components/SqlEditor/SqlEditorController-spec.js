@@ -13,38 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import sinon from 'sinon';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import sinon from "sinon";
+import Immutable from "immutable";
 
-import SqlAutoComplete from 'pages/ExplorePage/components/SqlEditor/SqlAutoComplete';
+import SqlAutoComplete from "pages/ExplorePage/components/SqlEditor/SqlAutoComplete";
 
-import { SqlEditorController } from './SqlEditorController';
+import { SqlEditorController } from "./SqlEditorController";
 
 const location = {
   query: {
-    version: '1234'
-  }
+    version: "1234",
+  },
 };
 
 const routeParams = {
-  tableId: 'newTable',
-  resourceId: 'newSpace',
-  resources: 'space'
+  tableId: "newTable",
+  resourceId: "newSpace",
+  resources: "space",
 };
 
-describe('SqlEditorController', () => {
+describe("SqlEditorController", () => {
   let commonProps;
   let wrapper;
   let instance;
   let context;
   beforeEach(() => {
     commonProps = {
-      dataset: Immutable.fromJS({context: ['SELECT'], sql: 'sql', canReapply: true}), // todo
+      dataset: Immutable.fromJS({
+        context: ["SELECT"],
+        sql: "sql",
+        canReapply: true,
+      }), // todo
       exploreViewState: Immutable.fromJS({}),
       updateSqlPartSize: sinon.spy(),
       sqlSize: 300,
-      dragType: 'help-func',
+      dragType: "help-func",
       sqlState: true,
       setCurrentSql: sinon.spy(),
       setQueryContext: sinon.spy(),
@@ -52,28 +56,29 @@ describe('SqlEditorController', () => {
       queryContext: Immutable.List(),
       getDatasetChangeDetails: () => ({}),
       location,
-      activeScript: {}
+      activeScript: {},
+      queryStatuses: [],
     };
     context = {
-      router : {
-        push: sinon.spy()
+      router: {
+        push: sinon.spy(),
       },
       location,
-      routeParams
+      routeParams,
     };
-    wrapper = shallow(<SqlEditorController {...commonProps}/>, {context});
+    wrapper = shallow(<SqlEditorController {...commonProps} />, { context });
     instance = wrapper.instance();
   });
 
-  describe('SqlEditorController specs', () => {
-    it('should render and wrapped in DragTarget', () => {
+  describe("SqlEditorController specs", () => {
+    it("should render and wrapped in DragTarget", () => {
       expect(wrapper.find(SqlAutoComplete)).to.have.length(1);
     });
 
-    describe('constructor', () => {
+    describe("constructor", () => {
       const initialState = {
         funcHelpPanel: false,
-        datasetsPanel: false
+        datasetsPanel: false,
       };
       Object.keys(initialState).forEach((key) => {
         it(`should set initial state ${key}`, () => {
@@ -82,33 +87,37 @@ describe('SqlEditorController', () => {
       });
     });
 
-    describe('#receiveProps', () => {
+    describe("#receiveProps", () => {
       beforeEach(() => {
-        instance.sqlEditorControllerRef =
-          {
-            resetValue: sinon.spy(),
-            focus: sinon.spy()
-          };
+        instance.sqlEditorControllerRef = {
+          resetValue: sinon.spy(),
+          focus: sinon.spy(),
+        };
       });
-      it('should call editor.resetValue if currentSql changes to null', () => {
-
-        instance.receiveProps({...commonProps, currentSql: 'some sql'}, {});
+      it("should call editor.resetValue if currentSql changes to null", () => {
+        instance.receiveProps({ ...commonProps, currentSql: "some sql" }, {});
         expect(instance.sqlEditorControllerRef.resetValue).to.not.be.called;
 
-        instance.receiveProps({...commonProps, currentSql: 'some sql'}, {...commonProps, currentSql: 'different sql'});
+        instance.receiveProps(
+          { ...commonProps, currentSql: "some sql" },
+          { ...commonProps, currentSql: "different sql" }
+        );
         expect(instance.sqlEditorControllerRef.resetValue).to.not.be.called;
 
-        instance.receiveProps({...commonProps, currentSql: null}, {...commonProps, currentSql: 'some sql'});
+        instance.receiveProps(
+          { ...commonProps, currentSql: null },
+          { ...commonProps, currentSql: "some sql" }
+        );
         expect(instance.sqlEditorControllerRef.resetValue).to.be.called;
       });
 
-      it('should call setQueryContext if old props are empty', () => {
+      it("should call setQueryContext if old props are empty", () => {
         commonProps.setQueryContext.resetHistory();
         instance.receiveProps(commonProps, {});
         expect(commonProps.setQueryContext).to.have.been.called;
       });
 
-      it('should call setQueryContext if dataset is the same', () => {
+      it("should call setQueryContext if dataset is the same", () => {
         // this is called in constructor, so need to reset
         commonProps.setQueryContext.resetHistory();
         instance.receiveProps(commonProps, commonProps);
@@ -116,75 +125,92 @@ describe('SqlEditorController', () => {
       });
     });
 
-    describe('#componentDidUpdate()', () => {
+    describe("#componentDidUpdate()", () => {
       beforeEach(() => {
-        instance.sqlEditorControllerRef =
-          {
-            focus: sinon.spy(),
-            resetValue: sinon.spy()
-          };
+        instance.sqlEditorControllerRef = {
+          focus: sinon.spy(),
+          resetValue: sinon.spy(),
+        };
       });
 
-      it('should focus editor when sql unchanged and dataset changed to isNewQuery', () => {
+      it("should focus editor when sql unchanged and dataset changed to isNewQuery", () => {
         instance.componentDidUpdate(commonProps);
         expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
 
-        wrapper.setProps({dataset: commonProps.dataset.set('isNewQuery', true), currentSql: 'foo'});
+        wrapper.setProps({
+          dataset: commonProps.dataset.set("isNewQuery", true),
+          currentSql: "foo",
+        });
         instance.componentDidUpdate(commonProps);
         expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
 
-        wrapper.setProps({currentSql: null});
+        wrapper.setProps({ currentSql: null });
         instance.componentDidUpdate(commonProps);
         expect(instance.sqlEditorControllerRef.focus).to.be.called;
       });
 
-      it('should focus editor when sql unchanged, isNewQuery and exploreViewState changed', () => {
+      it("should focus editor when sql unchanged, isNewQuery and exploreViewState changed", () => {
         instance.componentDidUpdate(commonProps);
         expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
-        const newQueryDataset = commonProps.dataset.set('isNewQuery', true);
+        const newQueryDataset = commonProps.dataset.set("isNewQuery", true);
 
-        wrapper.setProps({dataset: newQueryDataset, currentSql: 'foo'});
-        instance.componentDidUpdate({...commonProps,
+        wrapper.setProps({ dataset: newQueryDataset, currentSql: "foo" });
+        instance.componentDidUpdate({
+          ...commonProps,
           dataset: newQueryDataset,
-          exploreViewState: Immutable.Map({isFailed: true})});
+          exploreViewState: Immutable.Map({ isFailed: true }),
+        });
         expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
 
-        wrapper.setProps({currentSql: null});
-        instance.componentDidUpdate({...commonProps,
+        wrapper.setProps({ currentSql: null });
+        instance.componentDidUpdate({
+          ...commonProps,
           dataset: newQueryDataset,
-          exploreViewState: Immutable.Map({isFailed: true})});
+          exploreViewState: Immutable.Map({ isFailed: true }),
+        });
         expect(instance.sqlEditorControllerRef.focus).to.be.called;
       });
     });
 
-    describe('#shouldSqlBoxBeGrayedOut', () => {
-      it('should return true if isInProgress', () => {
+    describe("#shouldSqlBoxBeGrayedOut", () => {
+      it("should return true if isInProgress", () => {
         expect(instance.shouldSqlBoxBeGrayedOut()).to.be.false;
-        wrapper.setProps({exploreViewState: Immutable.Map({isInProgress: true})});
+        wrapper.setProps({
+          exploreViewState: Immutable.Map({ isInProgress: true }),
+        });
         expect(instance.shouldSqlBoxBeGrayedOut()).to.be.true;
       });
 
-      it('should return true if isFailed and !datasetVersion and !isNewQuery', () => {
+      it("should return true if isFailed and !datasetVersion and !isNewQuery", () => {
         expect(instance.shouldSqlBoxBeGrayedOut()).to.be.false;
-        wrapper.setProps({exploreViewState: Immutable.Map({isFailed: true})});
+        wrapper.setProps({
+          exploreViewState: Immutable.Map({ isFailed: true }),
+        });
         expect(instance.shouldSqlBoxBeGrayedOut()).to.be.true;
-        wrapper.setProps({dataset: commonProps.dataset.set('isNewQuery', true)});
+        wrapper.setProps({
+          dataset: commonProps.dataset.set("isNewQuery", true),
+        });
         expect(instance.shouldSqlBoxBeGrayedOut()).to.be.false;
-        wrapper.setProps({dataset: commonProps.dataset.merge({datasetVersion: 'abc123', isNewQuery: false})});
+        wrapper.setProps({
+          dataset: commonProps.dataset.merge({
+            datasetVersion: "abc123",
+            isNewQuery: false,
+          }),
+        });
         expect(instance.shouldSqlBoxBeGrayedOut()).to.be.false;
       });
     });
 
-    describe('toggleDatasetPanel', () => {
-      it('should toggle dataset panel state', () => {
+    describe("toggleDatasetPanel", () => {
+      it("should toggle dataset panel state", () => {
         instance.toggleDatasetPanel();
         expect(instance.state.datasetsPanel).to.be.true;
         expect(instance.state.funcHelpPanel).to.be.false;
       });
     });
 
-    describe('toggleFunctionsHelpPanel', () => {
-      it('should toggle function help panel state', () => {
+    describe("toggleFunctionsHelpPanel", () => {
+      it("should toggle function help panel state", () => {
         instance.toggleFunctionsHelpPanel();
         expect(instance.state.datasetsPanel).to.be.false;
         expect(instance.state.funcHelpPanel).to.be.true;

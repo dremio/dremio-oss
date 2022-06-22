@@ -299,4 +299,3 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
 }
 
 // End RexShuttle.java
-

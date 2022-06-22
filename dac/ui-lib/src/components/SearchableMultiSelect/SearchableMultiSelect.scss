@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../styles/constants/index.scss';
+@import "../../styles/constants/index.scss";
 .SearchableMultiSelect {
   width: 540px;
   &__value {
@@ -37,8 +37,23 @@
   }
 
   &__option {
+    font-size: 14px !important;
+
     &.--selected {
-      background-color: unset !important;
+      background-color: $FIGMA_PRIMARY_150 !important;
+
+      &:hover {
+        background-color: $FIGMA_PRIMARY_200 !important;
+      }
+    }
+  }
+
+  &__optionCheckbox {
+    width: 24px;
+    height: 24px;
+    svg {
+      width: 20px;
+      height: 20px;
     }
   }
 

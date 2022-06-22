@@ -17,7 +17,7 @@
 export default function enableFatalPropTypes() {
   // tweaked hacks from http://stackoverflow.com/a/37015747
   const origError = console.error;
-  console.error = function(log) {
+  console.error = function (log) {
     if (/(Failed \w+ type)/.test(log)) {
       throw new Error(log);
     }

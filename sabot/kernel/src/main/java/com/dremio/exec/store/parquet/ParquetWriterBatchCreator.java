@@ -18,12 +18,13 @@ package com.dremio.exec.store.parquet;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
+import com.dremio.sabot.op.writer.WriterOperator;
 
 public class ParquetWriterBatchCreator implements SingleInputOperator.Creator<ParquetWriter>{
 
   @Override
   public SingleInputOperator create(OperatorContext context, ParquetWriter config) throws ExecutionSetupException {
-    return config.getFormatPlugin().getWriterBatch(context, config);
+    ParquetRecordWriter writer = new ParquetRecordWriter(context, config, new ParquetFormatConfig());
+    return new WriterOperator(context, config.getOptions(), writer);
   }
-
 }

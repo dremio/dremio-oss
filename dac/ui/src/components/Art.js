@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
 
-import { allBitmaps } from 'dyn-load/components/bitmapLoader';
-import { Tooltip } from 'dremio-ui-lib';
+import { allBitmaps } from "dyn-load/components/bitmapLoader";
+import { Tooltip } from "dremio-ui-lib";
 // for lottie jsons
-import { allJsons } from '@app/components/jsonImageLoader';
-import Lottie from 'react-lottie';
-import SVG from './SVG';
-
+import { allJsons } from "@app/components/jsonImageLoader";
+import Lottie from "react-lottie";
+import SVG from "./SVG";
 
 // TBD: impact of not having inline dimensions on render jumps
 // can default dimensions be pulled in via webpack?
@@ -36,65 +35,66 @@ export default class Art extends PureComponent {
     title: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.any,
-      PropTypes.bool // set to true to take the aria-label
+      PropTypes.bool, // set to true to take the aria-label
     ]),
     interactive: PropTypes.bool,
     id: PropTypes.any,
-    tooltipOpen: PropTypes.bool
-  }
+    tooltipOpen: PropTypes.bool,
+  };
 
   render() {
-    let {src, alt, title, id, interactive, tooltipOpen, ...props} = this.props;
+    let { title } = this.props;
+    const { src, alt, id, interactive, tooltipOpen, ...props } = this.props;
 
     const bitmapURL = allBitmaps[`./${src}`];
     if (title === true) {
       title = alt;
     }
 
-    if (src.includes('.json')) {
+    if (src.includes(".json")) {
       const defaultOptions = {
         loop: true,
         autoplay: true,
         animationData: allJsons[`./${src}`],
         rendererSettings: {
-          preserveAspectRatio: 'xMidYMid slice'
-        }
+          preserveAspectRatio: "xMidYMid slice",
+        },
       };
-      return (
-        title ?
-          <div>
-            <Tooltip title={title} interactive={interactive} open={tooltipOpen}>
-              <div>
-                <Lottie
-                  options={defaultOptions}
-                  height={24}
-                  width={24}
-                />
-              </div>
-            </Tooltip>
-          </div> :
-          <div>
-            <Lottie
-              options={defaultOptions}
-              height={24}
-              width={24}
-            />
-          </div>
+      return title ? (
+        <div>
+          <Tooltip title={title} interactive={interactive} open={tooltipOpen}>
+            <div>
+              <Lottie options={defaultOptions} height={24} width={24} />
+            </div>
+          </Tooltip>
+        </div>
+      ) : (
+        <div>
+          <Lottie options={defaultOptions} height={24} width={24} />
+        </div>
       );
     }
 
     if (!bitmapURL) {
-      return <SVG src={src} aria-label={alt} title={title} dataQa={src} id={id} interactive={interactive} {...props} />;
+      return (
+        <SVG
+          src={src}
+          aria-label={alt}
+          title={title}
+          dataQa={src}
+          id={id}
+          interactive={interactive}
+          {...props}
+        />
+      );
     }
 
-
-    return (
-      title ?
-        <Tooltip title={title}>
-          <img src={bitmapURL} alt={alt} {...props} />
-        </Tooltip>
-        :
-        <img src={bitmapURL} alt={alt} {...props} />
+    return title ? (
+      <Tooltip title={title}>
+        <img src={bitmapURL.default} alt={alt} {...props} />
+      </Tooltip>
+    ) : (
+      <img src={bitmapURL.default} alt={alt} {...props} />
     );
   }
 }

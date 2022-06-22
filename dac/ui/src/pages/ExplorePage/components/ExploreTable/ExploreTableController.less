@@ -13,14 +13,143 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- :global {
-  .exploreTable {
-    position: relative;
-    overflow-y: visible;
-    opacity: 1;
-    display: flex;
-    flex-grow: 1;
-    margin: 10px;
-    padding-right: 5px;
+@import "~@app/uiTheme/less/color-schema.less";
+
+:global {
+  .sqlEditor {
+    &__exploreTable {
+      position: relative;
+      overflow-y: visible;
+      opacity: 1;
+      display: flex;
+      flex-grow: 1;
+      margin: 8px;
+    }
+
+    &__pendingTable {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      overflow: hidden;
+
+      &__statusMessage,
+      &__button {
+        display: flex;
+        flex-direction: row;
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 24px;
+      }
+    }
+
+    &__jobsTable {
+      position: relative;
+      min-width: 1100px;
+      overflow: scroll;
+
+      &--hidden {
+        display: none;
+      }
+
+      &--solo {
+        height: 100%;
+        margin: 0 8px;
+
+        // style overrides are necessary since AutoSizer doesn't grow on this page as expected
+        .jobListPage-wrapper {
+          .auto-sizer {
+            width: 100% !important;
+
+            .ReactVirtualized__Table {
+              width: fit-content;
+              min-width: 100%;
+
+              .ReactVirtualized__Table__headerRow.ReactVirtualized__Table--noZebraStripesRows {
+                width: fit-content !important;
+                min-width: 100% !important;
+
+                & > div:first-child {
+                  visibility: hidden;
+                }
+              }
+
+              .ReactVirtualized__Grid.ReactVirtualized__Table__Grid {
+                width: 100% !important;
+
+                .ReactVirtualized__Grid__innerScrollContainer {
+                  max-width: none !important;
+
+                  .ReactVirtualized__Table__row {
+                    width: fit-content !important;
+                    min-width: 100% !important;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      &--withPendingTable {
+        height: 100%;
+        overflow: auto;
+
+        .ReactVirtualized__Table__headerRow.ReactVirtualized__Table--noZebraStripesRows {
+          display: none;
+        }
+      }
+
+      &__buttons {
+        width: 24px;
+        height: 24px;
+
+        &:hover {
+          filter: invert(95%) sepia(32%) saturate(3044%) hue-rotate(156deg)
+            brightness(88%) contrast(91%);
+        }
+      }
+
+      &__actionButtonContainer {
+        display: flex;
+        width: 72px;
+        justify-content: space-evenly;
+      }
+    }
+
+    &__strikeThroughHeader {
+      white-space: nowrap;
+      text-align: center;
+      background-color: transparent;
+      line-height: 40px;
+      width: 100%;
+    }
+
+    &__strikeThroughHeaderContent {
+      position: relative;
+      width: 135px;
+      height: 18px;
+      padding: 8px;
+      z-index: 2;
+      background-color: white;
+      font-style: normal;
+      font-weight: normal;
+      font-size: 12px;
+    }
+
+    &__lineForStrikethrough {
+      width: 100%;
+      height: 1px;
+      transform: translateY(-20px);
+      background-color: @FIGMA_NEUTRAL_150;
+    }
+
+    &__strikeThroughContainer {
+      height: 40px;
+      width: 100%;
+    }
   }
 }

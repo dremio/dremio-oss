@@ -53,6 +53,7 @@ public final class JobRequest {
   /** if set to true, query is not going to be scheduled on a separate thread */
   private final boolean runInSameThread;
   private final boolean runInSingleThread;
+  private final boolean streamResultsMode;
 
   private JobRequest(RequestType requestType,
                      SqlQuery sqlQuery,
@@ -65,7 +66,8 @@ public final class JobRequest {
                      MaterializationSummary materializationSummary,
                      SubstitutionSettings substitutionSettings,
                      boolean runInSameThread,
-                     boolean runInSingleThread) {
+                     boolean runInSingleThread,
+                     boolean streamResultsMode) {
     this.requestType = requestType;
 
     this.sqlQuery = sqlQuery;
@@ -81,6 +83,7 @@ public final class JobRequest {
     this.substitutionSettings = substitutionSettings;
     this.runInSameThread = runInSameThread;
     this.runInSingleThread = runInSingleThread;
+    this.streamResultsMode = streamResultsMode;
   }
 
   public RequestType getRequestType() {
@@ -131,6 +134,10 @@ public final class JobRequest {
     return runInSingleThread;
   }
 
+  public boolean isStreamResultsMode() {
+    return streamResultsMode;
+  }
+
   JobInfo asJobInfo(final JobId jobId, final String inSpace) {
     final JobInfo jobInfo = new JobInfo(jobId, sqlQuery.getSql(), datasetVersion, queryType)
         .setSpace(inSpace)
@@ -179,6 +186,7 @@ public final class JobRequest {
     private SubstitutionSettings substitutionSettings;
     private boolean runInSameThread;
     private boolean runInSingleThread;
+    private boolean streamResultsMode;
 
     private Builder(String downloadId, String fileName, boolean runInSingleThread) {
       this.requestType = RequestType.DOWNLOAD;
@@ -274,6 +282,15 @@ public final class JobRequest {
     }
 
     /**
+     * Set JobRequest streamResultsMode. If true, results are streamed back instead of being stored & fetched
+     * @return this builder
+     */
+    public Builder setStreamResultsMode(boolean enabled) {
+      streamResultsMode = enabled;
+      return this;
+    }
+
+    /**
      * Build the job request.
      *
      * @return job request
@@ -314,7 +331,8 @@ public final class JobRequest {
           materializationSummary,
           substitutionSettings,
           runInSameThread,
-          runInSingleThread);
+          runInSingleThread,
+          streamResultsMode);
     }
   }
 

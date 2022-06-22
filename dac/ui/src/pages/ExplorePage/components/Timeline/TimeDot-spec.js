@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { TimeDot } from './TimeDot';
+import { TimeDot } from "./TimeDot";
 
-describe('TimeDot', () => {
-
+describe("TimeDot", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -27,105 +26,113 @@ describe('TimeDot', () => {
   beforeEach(() => {
     minimalProps = {
       location: {},
-      tipVersion: '12345',
-      activeVersion: '12345',
-      datasetPathname: '/space/foo/ds1',
-      navigateToHistory: sinon.stub()
+      tipVersion: "12345",
+      activeVersion: "12345",
+      datasetPathname: "/space/foo/ds1",
+      navigateToHistory: sinon.stub(),
     };
     commonProps = {
       ...minimalProps,
       historyItem: Immutable.fromJS({
-        state: 'STARTED',
+        state: "STARTED",
         finishedAt: 1462293722000,
         createdAt: 1462290000000,
-        owner: 'test_user',
-        transformDescription: 'the description',
+        owner: "test_user",
+        transformDescription: "the description",
         recordsReturned: 1337,
-        datasetVersion: 'abcdef'
+        datasetVersion: "abcdef",
       }),
       onClick: sinon.spy(),
       hideDelay: 0,
       location: {
-        pathname: 'orignal/path/name',
-        query: {jobId: 123}
-      }
+        pathname: "orignal/path/name",
+        query: { jobId: 123 },
+      },
     };
-    wrapper = shallow(<TimeDot {...commonProps}/>);
+    wrapper = shallow(<TimeDot {...commonProps} />);
     instance = wrapper.instance();
     timeDot = wrapper.find('[data-testid="timeDotWrapper"]');
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<TimeDot {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<TimeDot {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  it('should not render Link when at current version', () => {
-    wrapper.setProps({location: {query: {version: commonProps.historyItem.get('datasetVersion')}}});
-    expect(wrapper.find('TimeDot')).to.have.length(0);
+  it("should not render Link when at current version", () => {
+    wrapper.setProps({
+      location: {
+        query: { version: commonProps.historyItem.get("datasetVersion") },
+      },
+    });
+    expect(wrapper.find("TimeDot")).to.have.length(0);
   });
 
-  describe('#getLinkLocation', () => {
-    it('should take a pathname from location', () => {
-      expect(instance.getLinkLocation().pathname).to.equal(commonProps.location.pathname);
+  describe("#getLinkLocation", () => {
+    it("should take a pathname from location", () => {
+      expect(instance.getLinkLocation().pathname).to.equal(
+        commonProps.location.pathname
+      );
     });
 
-    it('should have query.tipVersion from props.tipVersion and version from historyItem.datasetVersion', () => {
+    it("should have query.tipVersion from props.tipVersion and version from historyItem.datasetVersion", () => {
       expect(instance.getLinkLocation().query).to.eql({
         tipVersion: commonProps.tipVersion,
-        version: commonProps.historyItem.get('datasetVersion')
+        version: commonProps.historyItem.get("datasetVersion"),
       });
     });
   });
 
-  describe('popover show/hide', () => {
-    const mockEvent = {target: {getBoundingClientRect: () => ({top: 0, height: 0})}};
+  describe("popover show/hide", () => {
+    const mockEvent = {
+      target: { getBoundingClientRect: () => ({ top: 0, height: 0 }) },
+    };
     /**
      * Returns a wrapper for a popover.
      * This method must be called when popover is shown, after mouseenter
      * event for dot element
      */
-    const getPopover = () => wrapper.find('Tooltip');
+    const getPopover = () => wrapper.find("Tooltip");
 
-    it('should show on mouse enter', () => {
-      timeDot.simulate('mouseenter', mockEvent);
+    it("should show on mouse enter", () => {
+      timeDot.simulate("mouseenter", mockEvent);
       wrapper.update();
-      expect(wrapper.state('open')).to.be.true;
-      timeDot.simulate('mouseleave');
+      expect(wrapper.state("open")).to.be.true;
+      timeDot.simulate("mouseleave");
     });
 
-    it('should show hide after a delay on mouseleave', (done) => {
-      timeDot.simulate('mouseenter', mockEvent);
-      timeDot.simulate('mouseleave');
-      expect(wrapper.state('open')).to.be.true;
+    it("should show hide after a delay on mouseleave", (done) => {
+      timeDot.simulate("mouseenter", mockEvent);
+      timeDot.simulate("mouseleave");
+      expect(wrapper.state("open")).to.be.true;
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.state('open')).to.be.false;
+        expect(wrapper.state("open")).to.be.false;
         done();
       }, 1);
     });
 
-    it('should hide popover if cursor is moved to a popover', (done) => {
-      timeDot.simulate('mouseenter', mockEvent);
+    it("should hide popover if cursor is moved to a popover", (done) => {
+      timeDot.simulate("mouseenter", mockEvent);
       const popover = getPopover();
-      timeDot.simulate('mouseleave');
-      popover.simulate('mouseenter', mockEvent);
+      timeDot.simulate("mouseleave");
+      popover.simulate("mouseenter", mockEvent);
 
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.state('open')).to.be.false;
+        expect(wrapper.state("open")).to.be.false;
         done();
       }, 1);
     });
 
-    it('should still show popover if mouse moves back to target', (done) => {
-      timeDot.simulate('mouseenter', mockEvent);
-      timeDot.simulate('mouseleave');
-      timeDot.simulate('mouseenter', mockEvent);
+    it("should still show popover if mouse moves back to target", (done) => {
+      timeDot.simulate("mouseenter", mockEvent);
+      timeDot.simulate("mouseleave");
+      timeDot.simulate("mouseenter", mockEvent);
 
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.state('open')).to.be.true;
+        expect(wrapper.state("open")).to.be.true;
         done();
       }, 1);
     });

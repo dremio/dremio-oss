@@ -16,12 +16,9 @@
 package com.dremio.dac.model.job;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.dremio.dac.util.JobUtil;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.RequestType;
 import com.dremio.service.job.proto.DataSet;
@@ -49,9 +46,8 @@ public class PartialJobListingItem {
   private final long duration;
   private final long outputRecords;
   private final long rowsScanned;
-  private final String wlmQueue;
+  private String wlmQueue;
   private List<DurationDetails> durationDetails = new ArrayList<>();
-  Map<UserBitShared.AttemptEvent.State, Long> stateDurations = new HashMap<>();
   private final Double plannerEstimatedCost;
   private List<DataSet> queriedDatasets = new ArrayList<>();
   private final String engine;
@@ -283,5 +279,9 @@ public class PartialJobListingItem {
 
   public Boolean getOutputLimited() {
     return outputLimited;
+  }
+
+  public void setWlmQueue(String wlmQueue) {
+    this.wlmQueue = wlmQueue;
   }
 }

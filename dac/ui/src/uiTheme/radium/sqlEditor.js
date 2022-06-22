@@ -13,26 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BORDER, BACKGROUND } from './colors';
-
+import { BORDER, BACKGROUND } from "./colors";
 
 export const panel = {
-  position: 'absolute',
+  position: "absolute",
   background: BACKGROUND,
   top: 42,
   bottom: 2,
   right: 0,
-  left: 'calc(60% - 4px)',
-  transform: 'translateX(100%)',
+  left: "calc(60% - 4px)",
+  transform: "translateX(100%)",
   borderRight: `1px solid ${BORDER}`,
   borderTop: `1px solid ${BORDER}`,
   borderBottom: `1px solid ${BORDER}`,
-  display: 'flex',
-  flexDirection: 'column',
-  flexWrap: 'nowrap'
+  display: "flex",
+  flexDirection: "column",
+  flexWrap: "nowrap",
 };
 
-
 export const activePanel = {
-  transform: 'translateX(-17px)'
+  transform: "translateX(-17px)",
 };

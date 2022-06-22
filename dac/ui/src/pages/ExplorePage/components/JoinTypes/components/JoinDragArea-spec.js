@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import ExploreDragArea from '../../ExploreDragArea';
+import ExploreDragArea from "../../ExploreDragArea";
 
-import JoinDragArea from './JoinDragArea';
+import JoinDragArea from "./JoinDragArea";
 
-describe('JoinDragArea', () => {
+describe("JoinDragArea", () => {
   let props;
 
   beforeEach(() => {
     props = {
       style: {},
-      dragColumntableType: 'type',
+      dragColumntableType: "type",
       items: Immutable.fromJS([{}, {}]),
       defaultColumns: Immutable.List(),
       customColumns: Immutable.List(),
@@ -34,17 +34,17 @@ describe('JoinDragArea', () => {
       handleDrop: sinon.spy(),
       removeColumn: sinon.spy(),
       moveColumn: sinon.spy(),
-      dragType: 'type',
-      columnDragName: 'name',
+      dragType: "type",
+      columnDragName: "name",
       isDragInProgress: false,
-      addColumn: sinon.spy()
+      addColumn: sinon.spy(),
     };
   });
-  it('should render with props', () => {
+  it("should render with props", () => {
     const wrapper = shallow(<JoinDragArea {...props} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render JoinDragAreaColumn', () => {
+  it("should render JoinDragAreaColumn", () => {
     const wrapper = shallow(<JoinDragArea {...props} />);
     expect(wrapper.find(ExploreDragArea)).to.have.length(1);
   });

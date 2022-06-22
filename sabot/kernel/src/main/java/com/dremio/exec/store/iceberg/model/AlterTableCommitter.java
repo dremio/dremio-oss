@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,13 +23,17 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AlterTableCommitter implements IcebergOpCommitter  {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AlterTableCommitter.class);
 
   private IcebergCommand command;
   private ColumnOperations.AlterOperationType operationType;
@@ -39,6 +44,7 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
   private BatchSchema updatedColumns;
   private Map<Integer, PartitionSpec> specMap;
   private Table table;
+  private Schema icebergSchema;
 
   public AlterTableCommitter(IcebergCommand icebergCommand, ColumnOperations.AlterOperationType alterOperationType, String columnName, List<Field> columnTypes, BatchSchema droppedColumns, BatchSchema updatedColumns) {
     this.command = icebergCommand;
@@ -63,15 +69,21 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
         command.changeColumnForInternalTable(columnName, columnTypes.get(0));
         break;
     }
-    command.updatePropertiesMap(droppedColumns, updatedColumns);
+    command.updatePropertiesMap(getPropertiesMap());
     table = command.endAlterTableTransaction();
     rootPointer = command.getRootPointer();
     specMap = command.getPartitionSpecMap();
+    icebergSchema = table.schema();
     return table.currentSnapshot();
   }
 
   @Override
   public void consumeDeleteDataFile(DataFile icebergDeleteDatafile) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void consumeDeleteDataFilePath(String icebergDeleteDatafilePath)throws UnsupportedOperationException {
     throw new UnsupportedOperationException();
   }
 
@@ -96,11 +108,34 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
   }
 
   @Override
+  public Schema getCurrentSchema() {
+    return icebergSchema;
+  }
+
+  @Override
   public boolean isIcebergTableUpdated() {
     return false;
   }
 
   public Table getIcebergTable() {
     return table;
+  }
+
+  private Map<String, String> getPropertiesMap() {
+    Map<String, String> propertiesMap = new HashMap<>();
+    ObjectMapper mapper = new ObjectMapper();
+    String droppedColumnJson;
+    String updateColumnJson;
+    try {
+      updateColumnJson = mapper.writeValueAsString(updatedColumns);
+      droppedColumnJson = mapper.writeValueAsString(droppedColumns);
+    } catch (JsonProcessingException e) {
+      String error = "Unexpected error occurred while serializing dropped and updatedColumn in json string. " + e.getMessage();
+      logger.error(error);
+      throw new RuntimeException(error);
+    }
+    propertiesMap.put(ColumnOperations.DREMIO_DROPPED_COLUMNS, droppedColumnJson);
+    propertiesMap.put(ColumnOperations.DREMIO_UPDATE_COLUMNS, updateColumnJson);
+    return propertiesMap;
   }
 }

@@ -23,10 +23,8 @@ import java.util.stream.StreamSupport;
 import javax.inject.Provider;
 
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.SpaceName;
@@ -47,9 +45,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 
 public class TestDatasetDeleteOrphan extends BaseTestServer {
-
-  @ClassRule
-  public static final TemporaryFolder temp = new TemporaryFolder();
 
   private Provider<OptionManager> optionManagerProvider;
 
@@ -104,9 +99,10 @@ public class TestDatasetDeleteOrphan extends BaseTestServer {
     DatasetVersionMutator.deleteOrphans(optionManagerProvider, datasetStore, 0, true);
 
     // It is expected to have all tmp.UNTITLED versions are deleted.
-    // It is expected to have only ONE a.vds dataset version.
+    // It is expected to have (_numberOfVds_ + 1) a.vds dataset versions.
     // It is expected to have two dataset versions of a.ds1.
-    assertEquals(3, toStream(datasetStore.find()).count());
+    int expected = numberOfVds + 1 + 2;
+    assertEquals(expected, toStream(datasetStore.find()).count());
   }
 
   private void createVDS(String name, boolean replace) {

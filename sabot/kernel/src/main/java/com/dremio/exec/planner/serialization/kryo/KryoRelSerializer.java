@@ -198,7 +198,7 @@ public class KryoRelSerializer {
    * Builder injects the given cluster, catalog and registry by default.
    */
   public static class Builder {
-    private final static int MAX_BUFFER_SIZE = 2 << 15;
+    private static final int MAX_BUFFER_SIZE = 2 << 15;
 
     private final List<Injection> injections = Lists.newArrayList();
     private final Kryo kryo;

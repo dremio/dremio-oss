@@ -43,8 +43,8 @@ import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
 import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.metastore.utils.SecurityUtils;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
-import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivObjectActionType;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.helpers.NOPLogger;
 
@@ -261,6 +261,20 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
     }
   }
 
+
+  @Override
+  public void dropTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
+    doCommand((RetryableClientCommand<Table>) client -> {
+      try {
+        client.dropTable(dbName, tableName, true, false, false);
+      } catch (NoSuchObjectException e) {
+        logger.warn("Database '{}', table '{}', dropTable failed since the table doesn't exist", dbName, tableName);
+        throw e;
+      }
+      return null;
+    });
+  }
+
   @Override
   public List<Partition> getPartitionsByName(final String dbName, final String tableName, final List<String> partitionNames) throws TException {
     return doCommand(client -> {
@@ -435,5 +449,30 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
     } catch (final InterruptedException | IOException e) {
       throw new RuntimeException(String.format("%s, doAs User: %s", errMsg, ugi.getUserName()), e);
     }
+  }
+
+  @Override
+  public IMetaStoreClient getMetastoreClient() {
+    return this.client;
+  }
+
+  @Override
+  public void checkDmlPrivileges(String dbName, String tableName, List<HivePrivObjectActionType> actionTypes) {
+    // do nothing - HiveClientWithAuthz overrides this to check based on user
+  }
+
+  @Override
+  public void checkCreateTablePrivileges(String dbName, String tableName) {
+    // do nothing - HiveClientWithAuthz overrides this to check based on user
+  }
+
+  @Override
+  public void checkTruncateTablePrivileges(String dbName, String tableName) {
+    // do nothing - HiveClientWithAuthz overrides this to check based on user
+  }
+
+  @Override
+  public void checkAlterTablePrivileges(String dbName, String tableName) {
+    // do nothing - HiveClientWithAuthz overrides this to check based on user
   }
 }

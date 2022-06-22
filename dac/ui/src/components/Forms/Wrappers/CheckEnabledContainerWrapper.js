@@ -13,25 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import CheckEnabledContainer from 'components/Forms/CheckEnabledContainer';
+import { Component } from "react";
+import CheckEnabledContainer from "components/Forms/CheckEnabledContainer";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class CheckEnabledContainerWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
     fields: PropTypes.object,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
   };
 
   render() {
-    const {elementConfig, disabled, fields} = this.props;
+    const { elementConfig, disabled, fields } = this.props;
     return (
       <CheckEnabledContainer
         fields={fields}
         mainCheckboxIsDisabled={disabled}
-        elementConfig={elementConfig}/>
+        elementConfig={elementConfig}
+      />
     );
   }
 }

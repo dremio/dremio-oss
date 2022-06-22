@@ -13,5 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-declare module '*.less';
+declare module "*.less";
 declare function la(textToLocalize: string): string;
+
+// adding dremio-icon to JSX.IntrinsicElements, prevents lint error in TS files
+// https://goulet.dev/posts/consuming-web-component-react-typescript/
+declare namespace JSX {
+  interface IntrinsicElements {
+    "dremio-icon": any;
+  }
+}

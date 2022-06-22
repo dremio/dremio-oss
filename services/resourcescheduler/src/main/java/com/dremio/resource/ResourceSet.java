@@ -49,5 +49,3 @@ public interface ResourceSet extends Closeable {
     }
   }
 }
-
-

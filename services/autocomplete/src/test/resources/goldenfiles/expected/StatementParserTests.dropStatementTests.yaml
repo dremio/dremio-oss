@@ -1,0 +1,83 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "JUST DROP"
+  input: "DROP^"
+  output: "DROP: DROP^ "
+ -
+  description: "DROP INCOMPLETE / UNKNOWN TYPE"
+  input: "DROP BR^"
+  output:
+   - "DROP: DROP BR^ "
+   - "  TYPE: UNKNOWN"
+ -
+  description: "DROP BRANCH"
+  input: "DROP BRANCH^"
+  output:
+   - "DROP: DROP BRANCH^ "
+   - "  TYPE: BRANCH"
+ -
+  description: "DROP ROLE"
+  input: "DROP ROLE^"
+  output:
+   - "DROP: DROP ROLE^ "
+   - "  TYPE: ROLE"
+ -
+  description: "DROP TABLE"
+  input: "DROP TABLE^"
+  output:
+   - "DROP: DROP TABLE^ "
+   - "  TYPE: TABLE"
+ -
+  description: "DROP TAG"
+  input: "DROP TAG^"
+  output:
+   - "DROP: DROP TAG^ "
+   - "  TYPE: TAG"
+ -
+  description: "DROP VDS"
+  input: "DROP VDS^"
+  output:
+   - "DROP: DROP VDS^ "
+   - "  TYPE: VDS"
+ -
+  description: "DROP VIEW"
+  input: "DROP VIEW^"
+  output:
+   - "DROP: DROP VIEW^ "
+   - "  TYPE: VIEW"
+ -
+  description: "IF EXISTS"
+  input: "DROP VIEW IF EXISTS^"
+  output:
+   - "DROP: DROP VIEW IF EXISTS^ "
+   - "  TYPE: VIEW"
+ -
+  description: "WITH CATALOG PATH"
+  input: "DROP VIEW myspace.myfolder.myview^"
+  output:
+   - "DROP: DROP VIEW myspace . myfolder . myview^ "
+   - "  TYPE: VIEW"
+   - "  CATALOG PATH: myspace.myfolder.myview^."
+ -
+  description: "WITH CATALOG PATH AND IF EXISTS"
+  input: "DROP VIEW IF EXISTS myspace.myfolder.myview^"
+  output:
+   - "DROP: DROP VIEW IF EXISTS myspace . myfolder . myview^ "
+   - "  TYPE: VIEW"
+   - "  CATALOG PATH: myspace.myfolder.myview^."

@@ -14,16 +14,29 @@
  * limitations under the License.
  */
 
-import {TEXT, LIST, DATE, TIME, DATETIME, getTransformType} from '@app/constants/DataTypes';
-
+import {
+  TEXT,
+  LIST,
+  DATE,
+  TIME,
+  DATETIME,
+  getTransformType,
+} from "@app/constants/DataTypes";
 
 export default function mapConvertDataType(form) {
-  const { columnName, newFieldName, dropSourceField, columnType, toType, ...data } = form;
+  const {
+    columnName,
+    newFieldName,
+    dropSourceField,
+    columnType,
+    toType,
+    ...data
+  } = form;
   const transformType = getTransformType(data, columnType, toType);
 
   let fieldTransformation = {
     ...data,
-    type: transformType
+    type: transformType,
   };
   // hacky tweaking of params for different transform types
 
@@ -31,7 +44,7 @@ export default function mapConvertDataType(form) {
     delete fieldTransformation.format;
   }
 
-  if (fieldTransformation.type === 'SimpleConvertToType') {
+  if (fieldTransformation.type === "SimpleConvertToType") {
     fieldTransformation.dataType = toType;
   } else {
     if ([DATE, TIME, DATETIME].indexOf(toType) !== -1) {
@@ -49,15 +62,15 @@ export default function mapConvertDataType(form) {
   }
 
   //remove other arguments for JSON
-  if (fieldTransformation.type === 'ConvertToJSON') {
-    fieldTransformation = {type: 'ConvertToJSON'};
+  if (fieldTransformation.type === "ConvertToJSON") {
+    fieldTransformation = { type: "ConvertToJSON" };
   }
 
   return {
-    type: 'field',
+    type: "field",
     sourceColumnName: columnName,
     newColumnName: newFieldName,
     dropSourceColumn: dropSourceField,
-    fieldTransformation
+    fieldTransformation,
   };
 }

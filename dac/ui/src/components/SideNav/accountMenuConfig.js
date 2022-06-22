@@ -15,5 +15,5 @@
  */
 
 export default {
-  enableAccountSettings: true
+  enableAccountSettings: true,
 };

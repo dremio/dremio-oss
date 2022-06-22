@@ -27,6 +27,7 @@ import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.SessionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -61,6 +62,11 @@ public class DataPOJO implements JobDataFragment {
 
   @Override
   public JobId getJobId() {
+    return null;
+  }
+
+  @Override
+  public SessionId getSessionId() {
     return null;
   }
 

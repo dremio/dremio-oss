@@ -58,10 +58,9 @@ public class ExpressionSplitCache {
     public ExpressionSplitsHolder load(final ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder) throws Exception {
       int initialOutPutFieldCounter = expAndCodeGenEngineHolder.getExpressionSplitter().getOutputFieldCounter();
       ExpressionSplitter expressionSplitter = expAndCodeGenEngineHolder.getExpressionSplitter();
-      ExpressionSplitsHolder expressionSplitsHolder = expressionSplitter.splitExpressionAndReturnTheSplits(expAndCodeGenEngineHolder.getNamedExpression(), expAndCodeGenEngineHolder.getOriginalExp());
+      ExpressionSplitsHolder expressionSplitsHolder = expressionSplitter.splitExpressionWhenCacheIsEnabled(expAndCodeGenEngineHolder.getNamedExpression());
       expAndCodeGenEngineHolder.getExpressionSplitter().setOutputFieldCounter(initialOutPutFieldCounter);
       expAndCodeGenEngineHolder.setExpressionSplitter(null);
-      expAndCodeGenEngineHolder.setNamedExpression(null);
       return expressionSplitsHolder;
     }
   }

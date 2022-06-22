@@ -29,4 +29,6 @@ public class TestResult {
   }
 
   public QueryId getQueryId() { return header.getQueryId(); }
+
+  public int getRowCount() { return header.getRowCount(); }
 }

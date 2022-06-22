@@ -1,0 +1,321 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "BRANCH"
+  input: "SELECT ^ FROM EMP AT BRANCH \"Branch A\""
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
+ -
+  description: "COMMIT"
+  input: "SELECT ^ FROM EMP AT COMMIT \"DEADBEEF\""
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
+ -
+  description: "TAG"
+  input: "SELECT ^ FROM EMP AT TAG \"Tag A\""
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
+ -
+  description: "WITH ALIAS"
+  input: "SELECT ^ FROM EMP AT BRANCH \"Branch A\" AS EMPATBRANCH"
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMPATBRANCH"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMPATBRANCH"
+ -
+  description: "MULTIPLE ATS"
+  input: "SELECT ^ FROM EMP AT BRANCH \"Branch A\", DEPT AT BRANCH \"Branch B\""
+  output:
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "DEPT"
+   -
+    column:
+      name: "NAME"
+      type: "VARCHAR"
+    tableAlias: "DEPT"
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
+ -
+  description: "SUBQUERY"
+  input: "SELECT * FROM (SELECT ^ FROM EMP AT BRANCH \"Branch A\") as subtable"
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"

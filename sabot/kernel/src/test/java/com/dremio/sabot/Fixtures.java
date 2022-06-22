@@ -20,11 +20,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -41,7 +44,9 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -475,10 +480,10 @@ public final class Fixtures {
     return ok;
   }
 
-  private static Field mergeField(Field field, Cell c){
+  private static Field mergeField(Field field, ColumnHeader header, Cell c){
     Preconditions.checkNotNull(field);
     Preconditions.checkNotNull(c);
-    Field newField = c.toField(field.getName());
+    Field newField = c.toField(header);
     if(!newField.getType().equals(field.getType())){
       throw new UnsupportedOperationException(String.format("Not supporting mixed types yet. Initial Field was %s but new field was %s", field.getType(), newField.getType()));
     }
@@ -487,16 +492,16 @@ public final class Fixtures {
   }
 
   public static Field[] getFields(HeaderRow row, DataBatch... data){
-    Field[] fields = new Field[row.names.length];
+    Field[] fields = new Field[row.columns.length];
     for(DataBatch b : data){
       for(DataRow r : b.rows){
-        Preconditions.checkArgument(row.names.length == r.cells.length, "Row must be equivalent length to header.");
+        Preconditions.checkArgument(row.columns.length == r.cells.length, "Row must be equivalent length to header.");
         for(int i =0; i < r.cells.length; i++) {
           Field current = fields[i];
           if(current == null){
-            fields[i] = r.cells[i].toField(row.names[i]);
+            fields[i] = r.cells[i].toField(row.columns[i]);
           }else{
-            fields[i] = mergeField(current, r.cells[i]);
+            fields[i] = mergeField(current, row.columns[i], r.cells[i]);
           }
         }
       }
@@ -537,14 +542,34 @@ public final class Fixtures {
     }
   }
 
-  public static class HeaderRow {
-    String[] names;
+  public static class ColumnHeader {
+    String name;
 
-    public HeaderRow(String[] names) {
+    public ColumnHeader(String name) {
+      this.name = name;
+    }
+  }
+
+  public static class ComplexColumnHeader extends ColumnHeader {
+    ColumnHeader[] fields;
+
+    public ComplexColumnHeader(String name, ColumnHeader[] fields) {
+      super(name);
+      this.fields = fields;
+    }
+  }
+
+  public static class HeaderRow {
+    ColumnHeader[] columns;
+
+    public HeaderRow(ColumnHeader[] columns) {
       super();
-      this.names = names;
+      this.columns = columns;
     }
 
+    public HeaderRow(String[] names) {
+      this(Arrays.stream(names).map(ColumnHeader::new).toArray(ColumnHeader[]::new));
+    }
   }
 
   public static class DataBatch {
@@ -560,8 +585,23 @@ public final class Fixtures {
 
   }
 
-  public static HeaderRow th(String... headers){
-    return new HeaderRow(headers);
+  public static HeaderRow th(Object... headers){
+    return new HeaderRow(Arrays.stream(headers).map(Fixtures::convertToHeader).toArray(ColumnHeader[]::new));
+  }
+
+  private static ColumnHeader convertToHeader(Object header) {
+    if (header instanceof String) {
+      return new ColumnHeader((String) header);
+    } else if (header instanceof ColumnHeader) {
+      return (ColumnHeader) header;
+    } else {
+      throw new IllegalArgumentException("Header must be either a String or a ColumnHeader instance");
+    }
+  }
+
+  public static ComplexColumnHeader struct(String name, List<Object> childHeaders) {
+    return new ComplexColumnHeader(name,
+        childHeaders.stream().map(Fixtures::convertToHeader).toArray(ColumnHeader[]::new));
   }
 
   public static DataRow tr(Object... objects){
@@ -599,8 +639,12 @@ public final class Fixtures {
       return new Time((LocalTime)obj);
     }else if(obj instanceof LocalDate) {
       return new Date((LocalDate)obj);
+    }else if(obj instanceof ValueList) {
+      return new ListCell((ValueList<?>)obj);
     }else if(obj instanceof List) {
-      return new ListCell((List<Integer>)obj);
+      IntList list = new IntList();
+      list.addAll((List)obj);
+      return new ListCell(list);
     }else if(obj instanceof BigDecimal) {
       return new Decimal((BigDecimal) obj);
     } else if(obj instanceof Period) {
@@ -613,6 +657,8 @@ public final class Fixtures {
       if (p.getDays() == 0) {
         return new IntervalYearMonth(p);
       }
+    } else if (obj instanceof Cell[]) {
+      return new StructCell((Cell[]) obj);
     }
     throw new UnsupportedOperationException(String.format("Unable to interpret object of type %s.", obj.getClass().getSimpleName()));
   }
@@ -659,13 +705,70 @@ public final class Fixtures {
 
 
   public interface Cell {
-    Field toField(String name);
+    Field toField(ColumnHeader header);
     CellCompare compare(ValueVector vector, int index, boolean isValid);
-    void set(ValueVector v, int index);
+    void set(ValueVector v, int index, ArrowBuf workBuffer);
     Object unwrap();
   }
 
-  static abstract class ValueCell<V> implements Cell {
+  private static String objectToString(Object obj) {
+    if (obj == null) {
+      return "null";
+    } else if (obj instanceof List) {
+      return listToString((List<?>) obj);
+    } else {
+      return obj.toString();
+    }
+  }
+
+  private static String listToString(List<?> list) {
+    StringBuilder builder = new StringBuilder();
+    builder.append('[');
+    boolean addSeparator = false;
+    for (Object obj : list) {
+      if (addSeparator) {
+        builder.append(",");
+      } else {
+        addSeparator = true;
+      }
+
+      if (obj == null) {
+        builder.append("null");
+      } else if (obj instanceof byte[]) {
+        builder.append(BaseEncoding.base16().encode((byte[]) obj));
+      } else {
+        builder.append(obj);
+      }
+    }
+    builder.append(']');
+    return builder.toString();
+  }
+
+  private static boolean evaluateListEquality(List<?> list1, List<?> list2) {
+    if (list1.size() != list2.size()) {
+      return false;
+    }
+
+    Iterator<?> it1 = list1.iterator();
+    Iterator<?> it2 = list2.iterator();
+    while (it1.hasNext()) {
+      Object t1 = it1.next();
+      Object t2 = it2.next();
+      if (t1 instanceof byte[] && t2 instanceof byte[]) {
+        if (!Arrays.equals((byte[]) t1, (byte[]) t2)) {
+          return false;
+        }
+      } else {
+        if (!Objects.equals(t1, t2)) {
+          return false;
+        }
+      }
+
+    }
+    return true;
+  }
+
+  abstract static class ValueCell<V> implements Cell {
     public final V obj;
 
     public ValueCell(V obj) {
@@ -676,8 +779,8 @@ public final class Fixtures {
     abstract ArrowType getType();
 
     @Override
-    public Field toField(String name) {
-      return new Field(name, new FieldType(true, getType(), null), Collections.<Field>emptyList());
+    public Field toField(ColumnHeader header) {
+      return new Field(header.name, new FieldType(true, getType(), null), Collections.<Field>emptyList());
     }
 
 
@@ -685,25 +788,32 @@ public final class Fixtures {
     public CellCompare compare(ValueVector vector, int index, boolean isValid) {
       V obj = isValid ? (V)getVectorObject(vector, index) : null;
       if(obj == null && this.obj == null){
-        return new CellCompare(true, toString(obj));
+        return new CellCompare(true, objectToString(obj));
       }
       if(this.obj == null){
-        return new CellCompare(false, toString(obj) + " (null)");
+        return new CellCompare(false, objectToString(obj) + " (null)");
       }
 
       if(obj == null){
-        return new CellCompare(false, null + " ("+toString(this.obj)+")");
+        return new CellCompare(false, null + " (" + objectToString(this.obj) + ")");
       }
 
-      if(!obj.getClass().equals(this.obj.getClass())){
-        return new CellCompare(false, obj.toString() + "(" + this.obj.toString() + ")");
+      if(!(obj.getClass().equals(this.obj.getClass()) ||
+          (obj instanceof List && this.obj instanceof List))) {
+        return new CellCompare(false, objectToString(obj) + "(" + objectToString(this.obj) + ")");
       }
 
-      boolean isEqual = evaluateEquality(obj, this.obj);
+      boolean isEqual = false;
+      if (this.obj instanceof List) {
+        isEqual = evaluateListEquality((List<?>) obj, (List<?>)this.obj);
+      } else {
+        isEqual = evaluateEquality(obj, this.obj);
+      }
+
       if(isEqual){
-        return new CellCompare(true, toString(this.obj));
+        return new CellCompare(true, objectToString(this.obj));
       }else{
-        return new CellCompare(false, toString(obj) + " ("+toString(this.obj)+")");
+        return new CellCompare(false, objectToString(obj) + " (" + objectToString(this.obj) + ")");
       }
     }
 
@@ -736,12 +846,17 @@ public final class Fixtures {
 
   }
 
-  private static class ListCell extends ValueCell<List<Integer>> {
+  private static class ListCell extends ValueCell<ValueList<?>> {
 
-    private ValueVector dataVector;
+    public ListCell(ValueList<?> list) {
+      super(Preconditions.checkNotNull(list));
+    }
 
-    public ListCell(List<Integer> obj) {
-      super(obj);
+    @Override
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
+      if (obj != null) {
+        obj.writeToVector(v, index, workBuffer);
+      }
     }
 
     @Override
@@ -750,23 +865,17 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
-      this.dataVector = ((ListVector)v).getDataVector();
-      if(obj != null){
-        UnionListWriter listWriter = ((ListVector)v).getWriter();
-        listWriter.setPosition(index);
-        List<Integer> list = obj;
-        listWriter.startList();
-        for (int i = 0; i < list.size(); i++) {
-          listWriter.bigInt().writeBigInt(list.get(i));
-        }
-        listWriter.endList();
-      }
+    public Field toField(ColumnHeader header) {
+      return new Field(header.name, new FieldType(true, getType(), null),
+          ImmutableList.of(obj.getValueType().toField(ListVector.DATA_VECTOR_NAME)));
     }
 
     @Override
-    public Field toField(String name) {
-      return new Field(name, new FieldType(true, getType(), null), ImmutableList.of(CompleteType.BIGINT.toField("$data$")));
+    public String toString(ValueList<?> obj) {
+      if (obj == null) {
+        return "null";
+      }
+      return listToString(obj);
     }
   }
 
@@ -782,13 +891,11 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((BigIntVector) v).setSafe(index, obj);
       }
     }
-
-
   }
 
   private static class IntCell extends ValueCell<Integer> {
@@ -802,12 +909,11 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((IntVector) v).setSafe(index, obj);
       }
     }
-
   }
 
   private static class Floating extends ValueCell<Float> {
@@ -821,7 +927,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((Float4Vector) v).setSafe(index, obj);
       }
@@ -856,7 +962,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((Float8Vector) v).setSafe(index, obj);
       }
@@ -892,14 +998,12 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         byte[] bytes = obj.getBytes();
         ((VarCharVector) v).setSafe(index, bytes, 0, obj.getLength());
       }
     }
-
-
   }
 
   private static class Timestamp extends ValueCell<LocalDateTime> {
@@ -909,7 +1013,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((TimeStampMilliVector) v).setSafe(index, com.dremio.common.util.DateTimes.toMillis(obj));
       }
@@ -919,7 +1023,6 @@ public final class Fixtures {
     ArrowType getType() {
       return CompleteType.TIMESTAMP.getType();
     }
-
   }
 
 
@@ -930,7 +1033,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((DateMilliVector) v).setSafe(index,  obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
       }
@@ -950,7 +1053,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((TimeMilliVector) v).setSafe(index, (int) obj.getMillisOfDay());
       }
@@ -960,7 +1063,6 @@ public final class Fixtures {
     ArrowType getType() {
       return CompleteType.TIME.getType();
     }
-
   }
 
   private static class IntervalDaySecond extends ValueCell<Period> {
@@ -969,7 +1071,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         int numMillis = obj.getHours() * DateUtility.hoursToMillis
           + obj.getMinutes() * DateUtility.minutesToMillis
@@ -991,7 +1093,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((IntervalYearVector) v).setSafe(index, obj.getMonths() + obj.getYears() * DateUtility.yearsToMonths);
       }
@@ -1015,12 +1117,11 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
-        ((BitVector) v).setSafe(index, obj == true ? 1 : 0);
+        ((BitVector) v).setSafe(index, obj ? 1 : 0);
       }
     }
-
   }
 
   private static class VarBinary extends ValueCell<byte[]> {
@@ -1044,7 +1145,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((VarBinaryVector) v).setSafe(index, obj, 0, obj.length);
       }
@@ -1076,7 +1177,7 @@ public final class Fixtures {
     }
 
     @Override
-    public void set(ValueVector v, int index) {
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
       if(obj != null){
         ((DecimalVector) v).setSafe(index, obj);
       }
@@ -1088,11 +1189,188 @@ public final class Fixtures {
     }
   }
 
+  public static class StructCell implements Cell {
+    Cell[] cells;
+
+    public StructCell(Cell[] cells) {
+      this.cells = cells;
+    }
+
+    @Override
+    public Field toField(ColumnHeader header) {
+      Preconditions.checkArgument(header instanceof ComplexColumnHeader, "Struct cell value provided for non-struct column");
+      ComplexColumnHeader complexHeader = (ComplexColumnHeader) header;
+      Preconditions.checkArgument(complexHeader.fields.length == cells.length, "Struct cell field count does not match header.");
+
+      ArrayList<Field> children = new ArrayList<>();
+      for (int i = 0; i < cells.length; i++) {
+        children.add(cells[i].toField(complexHeader.fields[i]));
+      }
+
+      return new Field(complexHeader.name, new FieldType(true, ArrowType.Struct.INSTANCE, null), children);
+    }
+
+    @Override
+    public CellCompare compare(ValueVector vector, int index, boolean isValid) {
+      StructVector sv = (StructVector) vector;
+      int nFields = sv.getField().getChildren().size();
+      Object[] vals = null;
+      if (isValid) {
+        vals = new Object[nFields];
+        for (int i = 0; i < nFields; i++) {
+          vals[i] = getVectorObject(sv.getChildByOrdinal(i), index);
+        }
+      }
+
+      if (cells == null && vals == null) {
+       return new CellCompare(true, "null");
+      }
+      if (cells == null) {
+       return new CellCompare(false, valsToString(vals) + " (null)");
+      }
+      if (vals == null) {
+       return new CellCompare(false, "null (" + cellsToString(cells) + ")");
+      }
+
+      if (cells.length != vals.length) {
+       return new CellCompare(false, valsToString(vals) + " (" + cellsToString(cells) + ")");
+      }
+
+      boolean isEqual = true;
+      for (int i = 0; i < cells.length; i++) {
+        if (cells[i] instanceof ValueCell) {
+          ValueCell<Object> valueCell = (ValueCell<Object>) cells[i];
+          isEqual = isEqual && valueCell.evaluateEquality(valueCell.obj, vals[i]);
+        } else {
+          throw new UnsupportedOperationException("Nested structs not supported");
+        }
+      }
+
+      if (isEqual) {
+        return new CellCompare(true, cellsToString(cells));
+      } else {
+        return new CellCompare(false, valsToString(vals) + " (" + cellsToString(cells) + ")");
+      }
+    }
+
+    @Override
+    public void set(ValueVector v, int index, ArrowBuf workBuffer) {
+      StructVector structVector = (StructVector) v;
+      for (int i = 0; i < cells.length; i++) {
+        cells[i].set(structVector.getChildByOrdinal(i), index, workBuffer);
+      }
+      structVector.setIndexDefined(index);
+    }
+
+    @Override
+    public Object unwrap() {
+      return cells;
+    }
+
+    private String cellsToString(Cell[] cells) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{ ");
+      for (int i = 0; i < cells.length; i++) {
+        if (i > 0) {
+          builder.append(", ");
+        }
+        if (cells[i] == null) {
+          builder.append("null");
+        } else {
+          builder.append(cells[i].unwrap().toString());
+        }
+      }
+      builder.append(" }");
+
+      return builder.toString();
+    }
+
+    private String valsToString(Object[] vals) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{ ");
+      for (int i = 0; i < vals.length; i++) {
+        if (i > 0) {
+          builder.append(", ");
+        }
+        if (vals[i] == null) {
+          builder.append("null");
+        } else {
+          builder.append(vals[i].toString());
+        }
+      }
+      builder.append(" }");
+
+      return builder.toString();
+    }
+  }
+
+  public static Cell[] tuple(Object... vals) {
+    return Arrays.stream(vals).map(Fixtures::toCell).toArray(Cell[]::new);
+  }
+
+  public abstract static class ValueList<T> extends ArrayList<T> {
+
+    public abstract CompleteType getValueType();
+
+    public void writeToVector(ValueVector v, int index, ArrowBuf workBuffer) {
+      UnionListWriter listWriter = ((ListVector)v).getWriter();
+      listWriter.setPosition(index);
+      listWriter.startList();
+      for (T val : this) {
+        if (val == null) {
+          listWriter.writeNull();
+        } else {
+          write(listWriter, val, workBuffer);
+        }
+      }
+      listWriter.endList();
+    }
+
+    protected abstract void write(BaseWriter.ListWriter writer, T val, ArrowBuf workBuffer);
+  }
+
+  public static class IntList extends ValueList<Integer> {
+
+    public CompleteType getValueType() {
+      return CompleteType.INT;
+    }
+
+    public void write(BaseWriter.ListWriter writer, Integer val, ArrowBuf workBuffer) {
+      writer.integer().writeInt(val);
+    }
+  }
+
+  public static IntList intList(Integer... values) {
+    IntList list = new IntList();
+    Collections.addAll(list, values);
+    return list;
+  }
+
+  public static class VarCharList extends ValueList<Text> {
+
+    public CompleteType getValueType() {
+      return CompleteType.VARCHAR;
+    }
+
+    public void write(BaseWriter.ListWriter writer, Text val, ArrowBuf workBuffer) {
+      byte[] bytes = val.toString().getBytes();
+      workBuffer.setBytes(0, bytes);
+      writer.varChar().writeVarChar(0, bytes.length, workBuffer);
+    }
+  }
+
+  public static VarCharList varCharList(String... values) {
+    VarCharList list = new VarCharList();
+    Collections.addAll(list, Arrays.stream(values).map(v -> v != null ? new Text(v) : null).toArray(Text[]::new));
+    return list;
+  }
+
   private static class TableFixtureGenerator implements Generator {
     private Table table;
     private final VectorContainer container;
     private ValueVector[] vectors;
     private int batchOffset = 0;
+    private ArrowBuf workBuffer;
 
     public TableFixtureGenerator(BufferAllocator allocator, Table table){
       this.table = table;
@@ -1102,10 +1380,12 @@ public final class Fixtures {
         vectors[i] = container.addOrGet(table.fields[i]);
       }
       container.buildSchema(SelectionVectorMode.NONE);
+      workBuffer = allocator.buffer(256);
     }
     @Override
     public void close() throws Exception {
       container.close();
+      workBuffer.close();
     }
 
     @Override
@@ -1124,7 +1404,7 @@ public final class Fixtures {
       for(int i =0; i < rows.length; i++){
         DataRow row = rows[i];
         for (int v = 0; v < vectors.length; v++ ) {
-          row.cells[v].set(vectors[v], i);
+          row.cells[v].set(vectors[v], i, workBuffer);
         }
       }
       return container.setAllCount(rows.length);

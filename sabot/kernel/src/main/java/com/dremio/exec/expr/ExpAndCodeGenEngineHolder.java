@@ -17,18 +17,17 @@ package com.dremio.exec.expr;
 
 import java.util.Objects;
 
-import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.logical.data.NamedExpression;
 
 public class ExpAndCodeGenEngineHolder {
-  //The below fields (namedExpression and expressionSplitter) are used once and we can make it null after that and also these are not used in the equals method,
+
+  private final NamedExpression namedExpression;
+  //The below field   expressionSplitter is used once and we can make it null after that and also it is not used in the equals method,
   // hence keeping it non final and mutable, but rest of the fields are and should be immutable
-  private NamedExpression namedExpression;
   private ExpressionSplitter expressionSplitter;
 
   private final SupportedEngines.CodeGenOption codeGenOption;
-  private final LogicalExpression originalExp;
 
   public ExpressionSplitter getExpressionSplitter() {
     return expressionSplitter;
@@ -42,11 +41,16 @@ public class ExpAndCodeGenEngineHolder {
     return codeGenOption;
   }
 
-  public ExpAndCodeGenEngineHolder(NamedExpression namedExpression, SupportedEngines.CodeGenOption codeGenOption, ExpressionSplitter expressionSplitter, LogicalExpression originalExp) {
-    this.namedExpression = namedExpression;
+  public ExpAndCodeGenEngineHolder(NamedExpression namedExpression, SupportedEngines.CodeGenOption codeGenOption, ExpressionSplitter expressionSplitter) {
+    //the expression we store in cache shouldn't be annotated with CodeGenContextInfo
+    if(namedExpression.getExpr() instanceof CodeGenContext) {
+      this.namedExpression = new NamedExpression(CodeGenerationContextRemover.removeCodeGenContext
+        (namedExpression.getExpr()), namedExpression.getRef());
+    } else {
+      this.namedExpression = namedExpression;
+    }
     this.codeGenOption = codeGenOption;
     this.expressionSplitter = expressionSplitter;
-    this.originalExp = originalExp;
   }
 
   @Override
@@ -59,22 +63,14 @@ public class ExpAndCodeGenEngineHolder {
     }
     ExpAndCodeGenEngineHolder that = (ExpAndCodeGenEngineHolder) o;
     return this.codeGenOption == that.codeGenOption &&
-      this.originalExp.accept(new EqualityVisitor(), that.originalExp);
+      this.namedExpression.getExpr().accept(new EqualityVisitor(), that.namedExpression.getExpr());
   }
 
-  public LogicalExpression getOriginalExp() {
-    return originalExp;
-  }
 
 
   @Override
   public int hashCode() {
-    return Objects.hash(codeGenOption) + this.originalExp.accept(new HashVisitor(), null);
-  }
-
-
-  public void setNamedExpression(NamedExpression namedExpression) {
-    this.namedExpression = namedExpression;
+    return Objects.hash(codeGenOption) + this.namedExpression.getExpr().accept(new HashVisitor(), null);
   }
 
   public void setExpressionSplitter(ExpressionSplitter expressionSplitter) {

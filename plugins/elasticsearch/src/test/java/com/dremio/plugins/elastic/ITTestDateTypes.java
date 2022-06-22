@@ -50,11 +50,11 @@ public class ITTestDateTypes extends ElasticBaseTestQuery {
 
   private final String format;
   private final FormatterAndType formatter;
-  private final static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME));
+  private static final ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME));
   private static Level originalLogLevel;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void initLogLevel() {

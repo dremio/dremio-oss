@@ -13,35 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import Immutable from 'immutable';
+import { shallow } from "enzyme";
+import Immutable from "immutable";
 
-import MetadataRefresh from './MetadataRefresh';
+import MetadataRefresh from "./MetadataRefresh";
 
 const hour = 60 * 60 * 1000;
 const day = 24 * hour;
 
-describe('MetadataRefresh', () => {
+describe("MetadataRefresh", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       fields: {
-        metadataPolicy: {}
-      }
+        metadataPolicy: {},
+      },
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<MetadataRefresh {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<MetadataRefresh {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('#mapToFormFields', () => {
-    it('should return default values if source is not defined', () => {
-      expect(MetadataRefresh.mapToFormFields()).to.be.eql(MetadataRefresh.defaultFormValues().metadataPolicy);
+  describe("#mapToFormFields", () => {
+    it("should return default values if source is not defined", () => {
+      expect(MetadataRefresh.mapToFormFields()).to.be.eql(
+        MetadataRefresh.defaultFormValues().metadataPolicy
+      );
     });
 
-    it('should convert metadataPolicy values for form to appropriate format', () => {
+    it("should convert metadataPolicy values for form to appropriate format", () => {
       const source = Immutable.fromJS({
         metadataPolicy: {
           namesRefreshMillis: 40 * hour,
@@ -49,9 +51,9 @@ describe('MetadataRefresh', () => {
           datasetDefinitionExpireAfterMillis: 30 * day,
           authTTLMillis: 6 * day,
           updateMode: {
-            value: 'PREFETCH'
-          }
-        }
+            value: "PREFETCH",
+          },
+        },
       });
       expect(MetadataRefresh.mapToFormFields(source)).to.be.eql({
         authTTLMillis: 518400000,
@@ -59,8 +61,8 @@ describe('MetadataRefresh', () => {
         datasetDefinitionExpireAfterMillis: 2592000000,
         namesRefreshMillis: 144000000,
         updateMode: {
-          value: 'PREFETCH'
-        }
+          value: "PREFETCH",
+        },
       });
     });
   });

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .page {
     min-height: 100%;
     display: flex;
@@ -30,12 +31,12 @@
   }
 
   .mainPage .sideNav {
-    min-height: 700px; // Matches the min-height set in ExplorePage.tsx for the SQL content area
+    min-height: 754px; // Matches the min-height set in ExplorePage.tsx for the SQL content area
   }
 }
 
 .page-content {
-  composes: flex-element-auto flex-container flex-stretch-items from '~@app/uiTheme/less/layout.less';
+  composes: flex-element-auto flex-container flex-stretch-items from "~@app/uiTheme/less/layout.less";
   //needed to show a spinner in of <Suspense /> only above content area
   position: relative;
 }

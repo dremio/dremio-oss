@@ -905,7 +905,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * Function can be useful for debugging.
    */
   public void dumpSpilledPartitionInfo() {
-    logger.debug("Number of spilled partitions: ", spilledPartitions.size());
+    logger.debug("Number of spilled partitions: {}", spilledPartitions.size());
     Iterator<VectorizedHashAggDiskPartition> iterator = spilledPartitions.iterator();
     while (iterator.hasNext()) {
       VectorizedHashAggDiskPartition spilledPartition = iterator.next();

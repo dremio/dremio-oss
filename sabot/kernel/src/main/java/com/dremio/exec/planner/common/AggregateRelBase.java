@@ -43,7 +43,7 @@ public abstract class AggregateRelBase extends Aggregate {
     super(cluster, traits, child, groupSet, groupSets, aggCalls);
   }
 
-  static protected RelTraitSet adjustTraits(RelTraitSet traitSet) {
+  protected static RelTraitSet adjustTraits(RelTraitSet traitSet) {
     return traitSet.replace(RelCollationTraitDef.INSTANCE, ImmutableList.of());
   }
 

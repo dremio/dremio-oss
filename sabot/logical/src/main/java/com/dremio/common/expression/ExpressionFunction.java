@@ -28,10 +28,10 @@ import com.google.common.reflect.TypeToken;
 
 @SuppressWarnings("unchecked")
 public class ExpressionFunction {
-  final static Logger logger = LoggerFactory.getLogger(ExpressionFunction.class);
+  static final Logger logger = LoggerFactory.getLogger(ExpressionFunction.class);
 
   @SuppressWarnings("serial")
-  final static Type EXPR_LIST = (new TypeToken<List<LogicalExpression>>() {
+  static final Type EXPR_LIST = (new TypeToken<List<LogicalExpression>>() {
   }).getType();
 
   private static final Class<?>[] FUNCTIONS = {};

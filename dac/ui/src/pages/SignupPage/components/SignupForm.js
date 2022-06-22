@@ -13,42 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Immutable from "immutable";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Spinner from '@app/components/Spinner';
-import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import Button from 'components/Buttons/Button';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import { createFirstUser } from 'actions/admin';
-import { noUsersError } from 'actions/account';
-import { getViewState } from 'selectors/resources';
-import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm.js';
-import { divider, formRow } from 'uiTheme/radium/forms';
-import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import Spinner from "@app/components/Spinner";
+import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import Button from "components/Buttons/Button";
+import ViewStateWrapper from "components/ViewStateWrapper";
+import { createFirstUser } from "actions/admin";
+import { noUsersError } from "actions/account";
+import { getViewState } from "selectors/resources";
+import {
+  connectComplexForm,
+  InnerComplexForm,
+} from "components/Forms/connectComplexForm.js";
+import { divider, formRow } from "uiTheme/radium/forms";
+import localStorageUtils from "utils/storageUtils/localStorageUtils";
 
-import UserForm from 'components/Forms/UserForm';
+import UserForm from "components/Forms/UserForm";
 
-import SignupTitle from './SignupTitle';
+import SignupTitle from "./SignupTitle";
 
-export const SIGNUP_FORM_VIEW_ID = 'SIGNUP_FORM_VIEW_ID';
+export const SIGNUP_FORM_VIEW_ID = "SIGNUP_FORM_VIEW_ID";
 
-@Radium
 export class SignupForm extends PureComponent {
   static propTypes = {
     createFirstUser: PropTypes.func,
     fields: PropTypes.object,
     viewState: PropTypes.instanceOf(Immutable.Map),
     noUsersError: PropTypes.func,
-    location: PropTypes.object.isRequired
-  }
+    location: PropTypes.object.isRequired,
+  };
 
   state = {
-    showSpinner: false
-  }
+    showSpinner: false,
+  };
 
   componentDidMount() {
     this.props.noUsersError(); // if user navigated directly to /signup - ensure socket closing, etc
@@ -57,53 +58,57 @@ export class SignupForm extends PureComponent {
   submit = (form) => {
     const instanceId = localStorageUtils.getInstanceId();
     const mappedValues = {
-      'userName' : form.userName,
-      'firstName' : form.firstName,
-      'lastName' : form.lastName,
-      'email' : form.email,
-      'createdAt' : new Date().getTime(),
-      'password': form.password,
-      'extra': form.extra || instanceId
+      userName: form.userName,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      createdAt: new Date().getTime(),
+      password: form.password,
+      extra: form.extra || instanceId,
     };
     const viewId = SIGNUP_FORM_VIEW_ID;
-    this.setState({showSpinner: true}, () => {
-      return this.props.createFirstUser(mappedValues, {viewId});
+    this.setState({ showSpinner: true }, () => {
+      return this.props.createFirstUser(mappedValues, { viewId });
     });
-  }
+  };
 
   render() {
     const { viewState, fields } = this.props;
 
     return (
-      <div id='signup-form' style={[styles.base]}>
+      <div id="signup-form" style={styles.base}>
         <SignupTitle />
         <ViewStateWrapper viewState={viewState} />
         <InnerComplexForm
           {...this.props}
           style={styles.form}
-          onSubmit={this.submit}>
-          <UserForm
-            fields={fields}
-            style={{padding: 0}}
-          />
-          <hr style={[divider, { width: '100vw'}]}/>
+          onSubmit={this.submit}
+        >
+          <UserForm fields={fields} style={{ padding: 0 }} />
+          <hr style={{ ...divider, width: "100vw" }} />
           <div style={styles.footer}>
             <div style={styles.submit}>
               <Button
                 type={ButtonTypes.NEXT}
-                text={la('Next')}
+                text={la("Next")}
                 disable={this.state.showSpinner}
               />
-              { this.state.showSpinner &&
+              {this.state.showSpinner && (
                 <Spinner
                   iconStyle={styles.spinnerIcon}
                   style={styles.spinner}
-                  message='Loading...'
+                  message="Loading..."
                 />
-              }
+              )}
             </div>
             <div style={styles.footerLink}>
-              <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
+              <a
+                href="https://www.dremio.com/legal/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {la("Privacy")}
+              </a>
             </div>
           </div>
         </InnerComplexForm>
@@ -114,51 +119,56 @@ export class SignupForm extends PureComponent {
 
 const styles = {
   base: {
-    width: 640
+    width: 640,
   },
   form: {
-    display: 'flex',
-    flexWrap: 'wrap'
+    display: "flex",
+    flexWrap: "wrap",
   },
   formRow: {
     ...formRow,
-    display: 'flex'
+    display: "flex",
   },
   formRowSingle: {
     ...formRow,
-    display: 'flex',
-    width: '100%'
+    display: "flex",
+    width: "100%",
   },
   footer: {
-    display: 'flex',
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'space-between'
+    display: "flex",
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   footerLink: {
-    marginBottom: '5px'
+    marginBottom: "5px",
   },
   spinner: {
-    position: 'relative',
-    height: 'auto',
-    width: 'auto'
+    position: "relative",
+    height: "auto",
+    width: "auto",
   },
   spinnerIcon: {
     width: 24,
-    height: 24
+    height: 24,
   },
   submit: {
-    display: 'flex',
-    alignItems: 'center'
-  }
+    display: "flex",
+    alignItems: "center",
+  },
 };
 
 function mapToFormState(state) {
   return {
-    viewState: getViewState(state, SIGNUP_FORM_VIEW_ID)
+    viewState: getViewState(state, SIGNUP_FORM_VIEW_ID),
   };
 }
 
-export default connectComplexForm({
-  form: 'signup'
-}, [UserForm], mapToFormState, { createFirstUser, noUsersError })(SignupForm);
+export default connectComplexForm(
+  {
+    form: "signup",
+  },
+  [UserForm],
+  mapToFormState,
+  { createFirstUser, noUsersError }
+)(SignupForm);

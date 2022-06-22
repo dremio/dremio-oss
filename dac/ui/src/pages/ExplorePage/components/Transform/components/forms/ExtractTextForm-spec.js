@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 
-import { ExtractTextForm } from './ExtractTextForm';
+import { ExtractTextForm } from "./ExtractTextForm";
 
-describe('ExtractTextForm', () => {
+describe("ExtractTextForm", () => {
   let minimalProps;
   let commonProps;
   let wrapper;
@@ -27,56 +27,58 @@ describe('ExtractTextForm', () => {
   beforeEach(() => {
     minimalProps = {
       transform: Immutable.Map({
-        columnName: 'a'
+        columnName: "a",
       }),
-      submit: sinon.stub().returns('submitResponse'),
+      submit: sinon.stub().returns("submitResponse"),
       onCancel: sinon.spy(),
       cards: Immutable.fromJS([{}]),
-      fields: { cards: {addField: sinon.spy()}}
+      fields: { cards: { addField: sinon.spy() } },
     };
     commonProps = {
-      ...minimalProps
+      ...minimalProps,
     };
-    wrapper = shallow(<ExtractTextForm {...commonProps}/>);
+    wrapper = shallow(<ExtractTextForm {...commonProps} />);
     instance = wrapper.instance();
   });
 
-  it('should render with minimal props without exploding', () => {
-    wrapper = shallow(<ExtractTextForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    wrapper = shallow(<ExtractTextForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('submit', () => {
+  describe("submit", () => {
     let values;
     beforeEach(() => {
       values = {
-        newFieldName: 'a2',
+        newFieldName: "a2",
         dropSourceField: false,
         activeCard: 0,
-        cards: [{
-          type: 'position',
-          position: {
-            startIndex: { value: 1, direction: 'FROM_THE_START' },
-            endIndex: { value: 2, direction: 'FROM_THE_START' }
-          }
-        }]
+        cards: [
+          {
+            type: "position",
+            position: {
+              startIndex: { value: 1, direction: "FROM_THE_START" },
+              endIndex: { value: 2, direction: "FROM_THE_START" },
+            },
+          },
+        ],
       };
     });
 
-    it('should pass submitType to props.submit', () => {
-      instance.submit(values, 'apply');
-      expect(commonProps.submit.getCall(0).args[1]).to.eql('apply');
+    it("should pass submitType to props.submit", () => {
+      instance.submit(values, "apply");
+      expect(commonProps.submit.getCall(0).args[1]).to.eql("apply");
     });
 
-    it('should return correct values on submit', () => {
+    it("should return correct values on submit", () => {
       const expectedResult = {
         ...fieldsMappers.getCommonValues(values, commonProps.transform),
         fieldTransformation: {
-          type:'extract',
-          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard)
-        }
+          type: "extract",
+          rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard),
+        },
       };
-      expect(instance.submit(values)).to.eql('submitResponse');
+      expect(instance.submit(values)).to.eql("submitResponse");
       expect(commonProps.submit.calledOnce).to.eql(true);
       expect(commonProps.submit.getCall(0).args[0]).to.eql(expectedResult);
     });

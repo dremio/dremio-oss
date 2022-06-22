@@ -56,7 +56,7 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType == 0 ? false : true)) {
+      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
         final ExternalSortOperator o = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
 
         assertState(o, MasterState.NEEDS_SETUP);
@@ -98,7 +98,7 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType == 0 ? false : true)) {
+      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
         newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
       }
     }
@@ -110,7 +110,7 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType == 0 ? false : true)) {
+      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
         ExternalSortOperator operator = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
         try (TpchGenerator g = TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
           ; // create schema on vector container but don't generate any records since we're only setting up.
@@ -126,7 +126,7 @@ public class TestSortOperator extends BaseTestOperator {
       // Test ExternalSort with both QuickSorter (default) and SplayTreeSorter:
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = false (default) when sortOperatorType = 0
       // EXTERNAL_SORT_ENABLE_SPLAY_SORT = true when sortOperatorType = 1
-      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType == 0 ? false : true)) {
+      try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, sortOperatorType != 0)) {
         final ExternalSortOperator o = newOperator(ExternalSortOperator.class, getRegionSort(), 4095);
         try (TpchGenerator generator = TpchGenerator.singleGenerator(TABLE, SCALE, getTestAllocator())) {
           o.setup(generator.getOutput());
@@ -136,5 +136,4 @@ public class TestSortOperator extends BaseTestOperator {
       }
     }
   }
-
 }

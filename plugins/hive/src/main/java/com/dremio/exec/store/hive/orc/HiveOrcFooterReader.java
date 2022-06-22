@@ -29,10 +29,10 @@ import org.apache.orc.impl.InStream;
 import org.apache.orc.impl.WriterImpl;
 
 import com.dremio.common.util.Closeable;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.hive.HiveFooterReaderTableFunction;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.metadatarefresh.footerread.Footer;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReader;
 import com.dremio.exec.store.metadatarefresh.footerread.OrcFooter;

@@ -24,7 +24,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 /**
  * Interface to perform actions on sources.
  */
-public interface SourceCatalog {
+public interface SourceCatalog extends PrivilegeCatalog {
 
   SourceState refreshSourceStatus(NamespaceKey key) throws Exception;
 

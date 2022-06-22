@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Immutable from 'immutable';
-import $ from 'jquery';
-import uuid from 'uuid';
-import { HISTORY_PANEL_SIZE } from 'uiTheme/radium/sizes';
-import { HIGHLIGHTED_TABLE, PALE_ORANGE } from 'uiTheme/radium/colors';
+import Immutable from "immutable";
+import $ from "jquery";
+import uuid from "uuid";
+import { HISTORY_PANEL_SIZE } from "uiTheme/radium/sizes";
+import { HIGHLIGHTED_TABLE, PALE_ORANGE } from "uiTheme/radium/colors";
 
 const MARGIN_LEFT = 0;
 
@@ -33,36 +33,40 @@ class GridMap {
     // it can be changed later to color other operations.
     function getColumnColor(code) {
       const hash = {
-        'HIGHLIGHTED': HIGHLIGHTED_TABLE,
-        'DELETED': PALE_ORANGE,
-        'DELETION_MARKER': PALE_ORANGE
+        HIGHLIGHTED: HIGHLIGHTED_TABLE,
+        DELETED: PALE_ORANGE,
+        DELETION_MARKER: PALE_ORANGE,
       };
-      return hash[code] || 'none';
+      return hash[code] || "none";
     }
     const result = {};
     let index = 0;
-    const windowWidth = !isRunInTest && typeof window !== 'undefined' && $(window).width() || 1280;
-    result.width = windowWidth / (numOfTables) - (HISTORY_PANEL_SIZE / numOfTables);
+    const windowWidth =
+      (!isRunInTest && typeof window !== "undefined" && $(window).width()) ||
+      1280;
+    result.width = windowWidth / numOfTables - HISTORY_PANEL_SIZE / numOfTables;
     if (numOfTables > 1) {
       result.width -= MARGIN_LEFT;
     }
     const jsonData = json.data ? json.data : json;
-    result.columns = jsonData && jsonData.columns && jsonData.columns.map((value) => {
-      const defaultWidth = result.width / Math.max(jsonData.columns.length, 1);
-      return {
-        name: value.name,
-        type: value.type,
-        defaultWidth: defaultWidth < MIN_WIDTH
-          ? MIN_WIDTH
-          : defaultWidth,
-        width: 0,
-        height: 0,
-        visible: true,
-        status: value.status,
-        color: getColumnColor(value.status),
-        index: index++
-      };
-    });
+    result.columns =
+      jsonData &&
+      jsonData.columns &&
+      jsonData.columns.map((value) => {
+        const defaultWidth =
+          result.width / Math.max(jsonData.columns.length, 1);
+        return {
+          name: value.name,
+          type: value.type,
+          defaultWidth: defaultWidth < MIN_WIDTH ? MIN_WIDTH : defaultWidth,
+          width: 0,
+          height: 0,
+          visible: true,
+          status: value.status,
+          color: getColumnColor(value.status),
+          index: index++,
+        };
+      });
     result.rows = jsonData.rows;
     return result;
   }
@@ -72,7 +76,7 @@ class GridMap {
       name: json.datasetConfig.name,
       sql: json.datasetConfig.sql,
       version: json.datasetConfig.version,
-      state: {} // TODO will be improved in future
+      state: {}, // TODO will be improved in future
     };
   }
 
@@ -82,7 +86,7 @@ class GridMap {
       for (const key in row) {
         const newRow = {
           columnName: key,
-          rowName: row[key]
+          rowName: row[key],
         };
         res.push(newRow);
       }
@@ -98,7 +102,7 @@ class GridMap {
         matchNumber: item.matchNumber,
         unmatchNumber: item.unmatchNumber,
         examples: item.examples,
-        hits: item.hits
+        hits: item.hits,
       };
     });
   }
@@ -106,30 +110,30 @@ class GridMap {
   mapDrop() {
     return [
       {
-        id: 'ExtractID',
-        transform: 'extract',
-        name: 'Extract'
+        id: "ExtractID",
+        transform: "extract",
+        name: "Extract",
       },
       {
-        id: 'ReplaceID',
-        transform: 'replace',
-        name: 'Replace'
+        id: "ReplaceID",
+        transform: "replace",
+        name: "Replace",
       },
       {
-        id: 'SplitID',
-        transform: 'split',
-        name: 'Split'
+        id: "SplitID",
+        transform: "split",
+        name: "Split",
       },
       {
-        id: 'KeepID',
-        transform: 'keeponly',
-        name: 'Keep Only'
+        id: "KeepID",
+        transform: "keeponly",
+        name: "Keep Only",
       },
       {
-        id: 'ExcludeID',
-        transform: 'exclude',
-        name: 'Exclude'
-      }
+        id: "ExcludeID",
+        transform: "exclude",
+        name: "Exclude",
+      },
     ];
   }
 
@@ -139,22 +143,27 @@ class GridMap {
 
   mapHelpFunctions(json) {
     const result = {};
-    result.funcs = json && json.map((item) => {
-      return {
-        id: uuid.v4(),
-        ...item
-      };
-    });
-    result.helpSimilar = json && json.helpSimilar && json.helpSimilar.map((item) => {
-      return {
-        id: item.id,
-        percents: item.percents,
-        name: item.name,
-        path: item.path,
-        owner: item.owner,
-        columns: item.columns
-      };
-    });
+    result.funcs =
+      json &&
+      json.map((item) => {
+        return {
+          id: uuid.v4(),
+          ...item,
+        };
+      });
+    result.helpSimilar =
+      json &&
+      json.helpSimilar &&
+      json.helpSimilar.map((item) => {
+        return {
+          id: item.id,
+          percents: item.percents,
+          name: item.name,
+          path: item.path,
+          owner: item.owner,
+          columns: item.columns,
+        };
+      });
     this.sortFunctions(result);
     return Immutable.fromJS(result);
   }
@@ -163,8 +172,8 @@ class GridMap {
     result.funcs.sort((a, b) => {
       // some function should be wrapped in double quotes in SQL Editor (e.g. CORR, LEFT, RIGHT)
       // but when we sort array of func, we need to ignore double quotes
-      const curFuncName = a.name.replace(/"/g, '');
-      const nextFuncName = b.name.replace(/"/g, '');
+      const curFuncName = a.name.replace(/"/g, "");
+      const nextFuncName = b.name.replace(/"/g, "");
 
       if (curFuncName < nextFuncName) {
         return -1;
@@ -179,7 +188,7 @@ class GridMap {
   mapConfig(json) {
     return Immutable.fromJS({
       id: json.id,
-      query: json.query
+      query: json.query,
     });
   }
 
@@ -191,7 +200,7 @@ class GridMap {
       }
       return arr;
     });
-    return  Immutable.fromJS(old);
+    return Immutable.fromJS(old);
   }
 
   _mapLayer(layer, nextLayerKey, layers) {
@@ -200,19 +209,22 @@ class GridMap {
         path: child.path,
         name: child.name,
         type: child.type,
-        connectedToThis: this._getNumberOfItemsConnectedToItem(layers, child.path),
+        connectedToThis: this._getNumberOfItemsConnectedToItem(
+          layers,
+          child.path
+        ),
         parentIds: child.parents.map((parent) => {
-          return nextLayerKey !== 'nextChildren'
+          return nextLayerKey !== "nextChildren"
             ? parent.path
-            : 'nextChildren-' + index;
+            : "nextChildren-" + index;
         }),
         fields: {
           owner: child.owner,
           created: child.created,
           queries: child.queries,
           descendants: child.descendants,
-          columns: child.columns
-        }
+          columns: child.columns,
+        },
       };
     });
   }
@@ -244,7 +256,7 @@ class GridMap {
       return {
         current: item.first,
         next: item.second,
-        type: item.type
+        type: item.type,
       };
     });
   }
@@ -259,24 +271,28 @@ class GridMap {
   mapJoinDataToSend(columns, dpath, current, next) {
     return {
       dpath,
-      columns: columns.map(column => {
-        return {
-          [current]: column.get('cur'),
-          [next]: column.get('next')
-        };
-      }).toJS()
+      columns: columns
+        .map((column) => {
+          return {
+            [current]: column.get("cur"),
+            [next]: column.get("next"),
+          };
+        })
+        .toJS(),
     };
   }
 
   mapGroupByDataToSend(groupColumns, valueColumns) {
     return {
-      groupColumns: groupColumns.map(column => column.get('name')).toJS(),
-      valueColumns: valueColumns.map(column => {
-        return {
-          name: column.get('name'),
-          type: column.get('type')
-        };
-      }).toJS()
+      groupColumns: groupColumns.map((column) => column.get("name")).toJS(),
+      valueColumns: valueColumns
+        .map((column) => {
+          return {
+            name: column.get("name"),
+            type: column.get("type"),
+          };
+        })
+        .toJS(),
     };
   }
 
@@ -285,7 +301,7 @@ class GridMap {
       return {
         name: item.name,
         path: item.path,
-        search: item.criteria
+        search: item.criteria,
       };
     });
   }
@@ -297,45 +313,44 @@ class GridMap {
         defaultWidth: 445,
         height: 0,
         index: 0,
-        name: 'phone',
-        type: 'A',
+        name: "phone",
+        type: "A",
         visible: true,
         width: 0,
-        isFile: 'file'
+        isFile: "file",
       },
       {
         defaultWidth: 445,
         height: 0,
         index: 1,
-        name: 'phone2',
-        type: 'A',
+        name: "phone2",
+        type: "A",
         visible: true,
         width: 0,
-        isFile: 'file'
+        isFile: "file",
       },
       {
         defaultWidth: 445,
         height: 0,
         index: 2,
-        name: 'email',
-        type: 'A',
+        name: "email",
+        type: "A",
         visible: true,
         width: 0,
-        isFile: 'file'
+        isFile: "file",
       },
       {
         defaultWidth: 445,
         height: 0,
         index: 3,
-        name: 'fax',
-        type: 'A',
+        name: "fax",
+        type: "A",
         visible: true,
         width: 0,
-        isFile: 'file'
-      }
+        isFile: "file",
+      },
     ];
   }
-
 }
 
 const gridMap = new GridMap();

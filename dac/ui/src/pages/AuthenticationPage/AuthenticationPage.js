@@ -13,51 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import Radium from 'radium';
-import PropTypes from 'prop-types';
-import browserUtils from 'utils/browserUtils';
-import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
-import LoginFormContainer from './components/LoginFormContainer';
+import PropTypes from "prop-types";
+import browserUtils from "utils/browserUtils";
+import UnsupportedBrowserForm from "components/UnsupportedBrowserForm";
+import LoginFormContainer from "./components/LoginFormContainer";
 
-@Radium
 export class AuthenticationPage extends PureComponent {
   static propTypes = {
-    style: PropTypes.object
+    style: PropTypes.object,
   };
 
   state = {
-    showLoginForm: browserUtils.hasSupportedBrowserVersion() || browserUtils.isApprovedUnsupportedBrowser()
-  }
+    showLoginForm:
+      browserUtils.hasSupportedBrowserVersion() ||
+      browserUtils.isApprovedUnsupportedBrowser(),
+  };
 
   approveBrowser = () => {
     browserUtils.approveUnsupportedBrowser();
     this.setState({
-      showLoginForm: true
+      showLoginForm: true,
     });
-  }
+  };
 
   render() {
-    const { style } = this.props;
-
-    return (
-      this.state.showLoginForm ?
-        <div id='authentication-page' className='page' style={[style, styles.base]}>
-          <LoginFormContainer />
-        </div>
-        : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} style={style}/>
+    return this.state.showLoginForm ? (
+      <div id="authentication-page" className="page" style={styles.base}>
+        <LoginFormContainer />
+      </div>
+    ) : (
+      <UnsupportedBrowserForm approveBrowser={this.approveBrowser} />
     );
   }
 }
 
 const styles = {
   base: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#2A394A',
-    overflow: 'hidden'
-  }
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2A394A",
+    overflow: "hidden",
+  },
 };
-
 export default AuthenticationPage;

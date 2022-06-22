@@ -217,8 +217,6 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
   @Test
   public void testFullRefreshWideCols() throws Exception {
     final String tableName = "refresh_v2_test_maxwidth_" + formatType;
-    final String insertCmd = IntStream.range(0, 810).mapToObj(i -> String.valueOf(i)).collect(Collectors.joining(",", "INSERT INTO " + tableName + " VALUES(", ")"));
-    dataGenerator.executeDDL(insertCmd);
     final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
 
     try (AutoCloseable c1 = setMaxLeafColumns(1000)) {
@@ -328,4 +326,3 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     return dataGenerator;
   }
 }
-

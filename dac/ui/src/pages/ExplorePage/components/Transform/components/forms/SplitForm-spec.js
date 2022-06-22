@@ -13,72 +13,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
+import fieldsMappers from "utils/mappers/ExplorePage/Transform/fieldsMappers";
 
-import { SplitForm } from './SplitForm';
+import { SplitForm } from "./SplitForm";
 
-describe('SplitForm', () => {
+describe("SplitForm", () => {
   let minimalProps;
   let commonProps;
   let values;
   beforeEach(() => {
     minimalProps = {
       transform: Immutable.Map({
-        columnName: 'a',
-        transformType: 'split'
-      })
+        columnName: "a",
+        transformType: "split",
+      }),
     };
     commonProps = {
       ...minimalProps,
-      submit: sinon.stub().returns('submitResponse')
+      submit: sinon.stub().returns("submitResponse"),
     };
     values = {
-      cards: [{
-        rule: {
-          ignoreCase: false,
-          pattern: 'Lorem',
-          matchType: 'exact'
+      cards: [
+        {
+          rule: {
+            ignoreCase: false,
+            pattern: "Lorem",
+            matchType: "exact",
+          },
+          type: "split",
         },
-        type: 'split'
-      }],
+      ],
       activeCard: 0,
-      position: 'First',
+      position: "First",
       index: 0,
       maxFields: 10,
-      newFieldName: 'a',
-      dropSourceField: true
+      newFieldName: "a",
+      dropSourceField: true,
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<SplitForm {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<SplitForm {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 
-  describe('submit', () => {
-
-    it('should pass submitType to props.submit', () => {
-      const wrapper = shallow(<SplitForm {...commonProps}/>);
-      wrapper.instance().submit(values, 'apply');
-      expect(commonProps.submit.getCall(0).args[1]).to.eql('apply');
+  describe("submit", () => {
+    it("should pass submitType to props.submit", () => {
+      const wrapper = shallow(<SplitForm {...commonProps} />);
+      wrapper.instance().submit(values, "apply");
+      expect(commonProps.submit.getCall(0).args[1]).to.eql("apply");
     });
 
-    it('should return correct values on submit when transformType=replace', () => {
-      const wrapper = shallow(<SplitForm {...commonProps}/>);
-      expect(wrapper.instance().submit(values)).to.eql('submitResponse');
+    it("should return correct values on submit when transformType=replace", () => {
+      const wrapper = shallow(<SplitForm {...commonProps} />);
+      expect(wrapper.instance().submit(values)).to.eql("submitResponse");
 
       expect(commonProps.submit.calledOnce).to.eql(true);
       expect(commonProps.submit.getCall(0).args[0]).to.eql({
         ...fieldsMappers.getCommonValues(values, commonProps.transform),
         fieldTransformation: {
-          type: 'Split',
+          type: "Split",
           rule: fieldsMappers.getRuleFromCards(values.cards, values.activeCard),
-          ...fieldsMappers.getSplitPosition(values)
-        }
+          ...fieldsMappers.getSplitPosition(values),
+        },
       });
     });
   });
 });
-

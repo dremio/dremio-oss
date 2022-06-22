@@ -80,11 +80,13 @@ service Chronicle {
 
 message JobEvent {
   oneof event {
-    com.dremio.service.job.proto.JobId job_id = 1;
+    com.dremio.service.job.proto.JobId job_id = 1 [deprecated = true];
     google.protobuf.Empty job_submitted = 2;
     dremio.job.QueryMetadata query_metadata = 3;
     JobSummary progress_job_summary = 4;
     JobSummary final_job_summary = 5;
+    com.dremio.service.job.proto.JobSubmission job_submission = 6;
+    bytes result_data = 7;
   }
 }
 
@@ -146,6 +148,7 @@ message JobSummary {
   int64 input_bytes = 31;
   int64 output_bytes = 32;
   repeated com.dremio.service.job.proto.ParentDatasetInfo parents = 33;
+  com.dremio.service.job.proto.SessionId session_id = 34;
   bool job_completed = 35;
 }
 
@@ -187,6 +190,43 @@ message ActiveJobSummary {
   string query = 35;
 }
 
+message DCSActiveJobSummary {
+  string job_id = 1;
+  string status = 2;
+  string query_type = 3;
+  string user_name = 4;
+  string queried_datasets = 5;
+  string scanned_datasets = 6;
+  int32 attempt_count = 7;
+  google.protobuf.Timestamp submitted_ts = 8;
+  google.protobuf.Timestamp attempt_started_ts = 9;
+  google.protobuf.Timestamp metadata_retrieval_ts = 10;
+  google.protobuf.Timestamp planning_start_ts = 11;
+  google.protobuf.Timestamp query_enqueued_ts = 12;
+  google.protobuf.Timestamp engine_start_ts = 13;
+  google.protobuf.Timestamp execution_planning_ts = 14;
+  google.protobuf.Timestamp execution_start_ts = 15;
+  google.protobuf.Timestamp final_state_ts = 16;
+  int64 submitted_epoch_millis = 17;
+  int64 attempt_started_epoch_millis = 18;
+  int64 metadata_retrieval_epoch_millis = 19;
+  int64 planning_start_epoch_millis = 20;
+  int64 query_enqueued_epoch_millis = 21;
+  int64 engine_start_epoch_millis = 22;
+  int64 execution_planning_epoch_millis = 23;
+  int64 execution_start_epoch_millis = 24;
+  int64 final_state_epoch_millis = 25;
+  double planner_estimated_cost = 26;
+  int64 rows_scanned = 27;
+  int64 bytes_scanned = 28;
+  int64 rows_returned = 29;
+  int64 bytes_returned = 30;
+  bool accelerated = 31;
+  string engine = 33;
+  string error_msg = 34;
+  string query = 35;
+}
+
 //proto2 enums cannot be used directly in proto3 syntax
 //definition already exists UserBitShared.proto
 message AttemptEvent {
@@ -219,6 +259,7 @@ message JobDetails {
   string job_result_table_name = 3;
   bool completed = 4;
   bool has_results = 5;
+  com.dremio.service.job.proto.SessionId session_id = 6;
 }
 
 message QueryProfileRequest {
@@ -295,6 +336,7 @@ message JobCounts {
 message JobStatsRequest {
   google.protobuf.Timestamp start_date = 1;
   google.protobuf.Timestamp end_date = 2;
+  repeated JobStats.Type job_stats_type = 3;
 }
 
 message JobStats {
@@ -304,6 +346,8 @@ message JobStats {
     ACCELERATION = 2;
     DOWNLOAD = 3;
     INTERNAL = 4;
+    DAILY_JOBS = 5;
+    USER_JOBS = 6;
   }
 
   message JobCountWithType {
@@ -397,6 +441,7 @@ message SubmitJobRequest {
   string username = 5;
   VersionedDatasetPath versionedDataset = 6;
   bool runInSameThread = 7;
+  bool streamResultsMode = 8;
 }
 
 message MaterializationSettings {

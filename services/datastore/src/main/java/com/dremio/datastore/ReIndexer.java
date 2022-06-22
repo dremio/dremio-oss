@@ -133,7 +133,7 @@ public class ReIndexer implements ReplayHandler {
   private <K, V> Document toDoc(String tableName, KVStoreTuple<K> key, KVStoreTuple<V> value) {
     final Document doc = new Document();
     final SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
-    converter(tableName).convert(documentWriter, key.getObject(), value.getObject());
+    converter(tableName).doConvert(documentWriter, key.getObject(), value.getObject());
 
     if (doc.getFields().isEmpty()) {
       return null;

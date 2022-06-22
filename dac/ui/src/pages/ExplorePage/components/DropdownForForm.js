@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import $ from 'jquery';
-import classNames from 'classnames';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import $ from "jquery";
+import classNames from "classnames";
 
-import './DropdownForForm.less';
+import "./DropdownForForm.less";
 
 export default class DropdownForForm extends Component {
   static propTypes = {
     name: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
     items: PropTypes.array.isRequired,
-    currentValue: PropTypes.string.isRequired
-  }
+    currentValue: PropTypes.string.isRequired,
+  };
 
   constructor(props) {
     super(props);
@@ -34,29 +34,33 @@ export default class DropdownForForm extends Component {
     this.setValue = this.setValue.bind(this);
     this.showList = this.showList.bind(this);
     this.state = {
-      active: false
+      active: false,
     };
   }
 
   componentDidMount() {
     this.clickHandler = (e) => {
-      if (!e.target.className.match('dropdown')) {
+      if (!e.target.className.match("dropdown")) {
         this.setState({
-          active: false
+          active: false,
         });
       }
     };
-    $(document).on('click', this.clickHandler);
+    $(document).on("click", this.clickHandler);
   }
 
   componentWillUnmount() {
-    $(document).off('click', this.clickHandler);
+    $(document).off("click", this.clickHandler);
   }
 
   getItems() {
     return this.props.items.map((item) => {
       const setValue = this.setValue.bind(this, item);
-      return <li onClick={setValue}>{item}</li>;
+      return (
+        <li key={item} onClick={setValue}>
+          {item}
+        </li>
+      );
     });
   }
 
@@ -66,18 +70,18 @@ export default class DropdownForForm extends Component {
 
   showList() {
     this.setState({
-      active: !this.state.active
+      active: !this.state.active,
     });
   }
 
   render() {
-    const classes = classNames('wrapper-dropdown', {'active': this.state.active});
+    const classes = classNames("wrapper-dropdown", {
+      active: this.state.active,
+    });
     return (
       <div id={this.props.name} onClick={this.showList} className={classes}>
-        <span className='dropdown-text'>{this.props.currentValue}</span>
-        <ul className='dropdown'>
-          {this.getItems()}
-        </ul>
+        <span className="dropdown-text">{this.props.currentValue}</span>
+        <ul className="dropdown">{this.getItems()}</ul>
       </div>
     );
   }

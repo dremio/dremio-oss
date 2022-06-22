@@ -40,6 +40,7 @@ import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.UniqueUserStats;
 import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 
 /**
  * Job Service interface. Submit job, maintain job states
@@ -51,9 +52,9 @@ public interface JobsService extends Service {
    *
    * @param jobRequest      job request
    * @param statusListener  a listener to notify for change of status. Must not be null
-   * @return {@link JobId} of submitted job
+   * @return {@link JobSubmission} of submitted job
    */
-  JobId submitJob(SubmitJobRequest jobRequest, JobStatusListener statusListener);
+  JobSubmission submitJob(SubmitJobRequest jobRequest, JobStatusListener statusListener);
 
   /**
    * Get details of a job.
@@ -223,5 +224,3 @@ public interface JobsService extends Service {
     return true;
   };
 }
-
-

@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -52,8 +51,8 @@ public class TestMergeJoinRandom extends BaseTestOperator {
 
   private ArrayList<DataRow> rowsLeft;
   private ArrayList<DataRow> rowsRight;
-  private Map<Integer, Pair<Integer, Integer>> leftRowCount;
-  private Map<Integer, Pair<Integer, Integer>> rightRowCount;
+  private Map<Integer, org.apache.commons.lang3.tuple.Pair<Integer, Integer>> leftRowCount;
+  private Map<Integer, org.apache.commons.lang3.tuple.Pair<Integer, Integer>> rightRowCount;
   private Table left;
   private Table right;
 
@@ -69,7 +68,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
       int numOfFalse = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
       int numOfTrue = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
 
-      leftRowCount.put(i, Pair.of(numOfFalse, numOfTrue));
+      leftRowCount.put(i, org.apache.commons.lang3.tuple.Pair.of(numOfFalse, numOfTrue));
 
       for (int j = 0; j < numOfFalse; j++) {
         rowsLeft.add(tr(false, i));
@@ -84,7 +83,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
       int numOfFalse = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
       int numOfTrue = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
 
-      rightRowCount.put(i,  Pair.of(numOfFalse, numOfTrue));
+      rightRowCount.put(i,  org.apache.commons.lang3.tuple.Pair.of(numOfFalse, numOfTrue));
 
       for (int j = 0; j < numOfFalse; j++) {
         rowsRight.add(tr(false, i));

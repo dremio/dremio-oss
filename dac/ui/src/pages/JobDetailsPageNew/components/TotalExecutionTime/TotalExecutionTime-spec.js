@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import TotalExecutionTime from './TotalExecutionTime';
-describe('Reflection', () => {
-  it('should render with minimal props without exploding', () => {
+import { shallow } from "enzyme";
+import TotalExecutionTime from "./TotalExecutionTime";
+describe("Reflection", () => {
+  it("should render with minimal props without exploding", () => {
     const wrapper = shallow(<TotalExecutionTime />);
     expect(wrapper).to.have.length(1);
   });

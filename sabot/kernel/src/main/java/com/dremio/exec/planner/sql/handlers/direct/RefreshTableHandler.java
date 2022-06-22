@@ -33,6 +33,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshQuery;
@@ -77,6 +78,7 @@ public class RefreshTableHandler extends SimpleDirectHandler {
 
     NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
     DatasetConfig datasetConfig = getConfigFromNamespace(tableNSKey);
+    catalog.validatePrivilege(tableNSKey, SqlGrant.Privilege.ALTER);
     if (datasetConfig != null) {
       tableNSKey = new NamespaceKey(datasetConfig.getFullPathList());
     }
@@ -100,7 +102,7 @@ public class RefreshTableHandler extends SimpleDirectHandler {
 
     builder.setRefreshQuery(new MetadataRefreshQuery(sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()), SystemUser.SYSTEM_USERNAME));
 
-    UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build());
+    UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build(), false);
 
     final String message;
     switch(status){

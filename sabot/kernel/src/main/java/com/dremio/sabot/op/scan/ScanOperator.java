@@ -386,7 +386,8 @@ public class ScanOperator implements ProducerOperator {
 
       final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
       String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats());
+
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
       rollbackCloseable.add(filter);
 
       boolean isAlreadyPresent = this.runtimeFilters.stream()
@@ -490,6 +491,7 @@ public class ScanOperator implements ProducerOperator {
       return clazz.cast(v);
     }
 
+    @Override
     public VectorContainer getContainer() {
       return outgoing;
     }

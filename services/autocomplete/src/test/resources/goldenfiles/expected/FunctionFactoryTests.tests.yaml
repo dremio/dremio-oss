@@ -16,214 +16,260 @@
 
 ---
  -
-  description: "ZERO_ARG_FUNCTION"
-  input: "ZERO_ARG_FUNCTION"
-  output:
-    name: "ZERO_ARG_FUNCTION"
-    signatures:
-     -
-      returnType: "DOUBLE"
-      operandTypes: []
- -
   description: "ONE_ARG_BOOLEAN_FUNCTION"
   input: "ONE_ARG_BOOLEAN_FUNCTION"
   output:
+    description: null
     name: "ONE_ARG_BOOLEAN_FUNCTION"
     signatures:
      -
-      returnType: "BOOLEAN"
       operandTypes:
        - "BOOLEAN"
+      returnType: "BOOLEAN"
+      template: null
+    syntax: "<BOOLEAN>"
  -
   description: "ONE_ARG_NUMERIC_FUNCTION"
   input: "ONE_ARG_NUMERIC_FUNCTION"
   output:
+    description: null
     name: "ONE_ARG_NUMERIC_FUNCTION"
     signatures:
      -
+      operandTypes:
+       - "INTEGER"
       returnType: "INTEGER"
-      operandTypes:
-       - "INTEGER"
+      template: null
      -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DOUBLE"
-     -
-      returnType: "FLOAT"
-      operandTypes:
-       - "FLOAT"
-     -
-      returnType: "DECIMAL"
       operandTypes:
        - "DECIMAL"
- -
-  description: "TWO_ARG_NUMERIC_FUNCTION"
-  input: "TWO_ARG_NUMERIC_FUNCTION"
-  output:
-    name: "TWO_ARG_NUMERIC_FUNCTION"
-    signatures:
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "INTEGER"
-       - "INTEGER"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "INTEGER"
-       - "DOUBLE"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "INTEGER"
-       - "FLOAT"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "INTEGER"
-       - "DECIMAL"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DOUBLE"
-       - "INTEGER"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DOUBLE"
-       - "DOUBLE"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DOUBLE"
-       - "FLOAT"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DOUBLE"
-       - "DECIMAL"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "FLOAT"
-       - "INTEGER"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "FLOAT"
-       - "DOUBLE"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "FLOAT"
-       - "FLOAT"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "FLOAT"
-       - "DECIMAL"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DECIMAL"
-       - "INTEGER"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DECIMAL"
-       - "DOUBLE"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DECIMAL"
-       - "FLOAT"
-     -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "DECIMAL"
-       - "DECIMAL"
- -
-  description: "UNSTABLE_RETURN_TYPE_FUNCTION"
-  input: "UNSTABLE_RETURN_TYPE_FUNCTION"
-  output:
-    name: "UNSTABLE_RETURN_TYPE_FUNCTION"
-    signatures:
-     -
       returnType: "INTEGER"
-      operandTypes:
-       - "INTEGER"
+      template: null
      -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "BOOLEAN"
-     -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "BINARY"
-     -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "NULL"
-     -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "DATE"
-     -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "DOUBLE"
-     -
-      returnType: "DECIMAL"
       operandTypes:
        - "FLOAT"
-     -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "TIME"
-     -
-      returnType: "DECIMAL"
-      operandTypes:
-       - "VARCHAR"
-     -
-      returnType: "INTEGER"
-      operandTypes:
-       - "DECIMAL"
- -
-  description: "VARADIC_FUNCTION"
-  input: "VARADIC_FUNCTION"
-  output:
-    name: "VARADIC_FUNCTION"
-    signatures:
-     -
       returnType: "DOUBLE"
-      operandTypes:
-       - "VARCHAR"
-       - "VARCHAR"
+      template: null
      -
-      returnType: "DOUBLE"
       operandTypes:
-       - "VARCHAR"
-       - "VARCHAR"
-       - "VARCHAR"
+       - "DOUBLE"
+      returnType: "DOUBLE"
+      template: null
+    syntax: "<NUMERIC>"
  -
   description: "OVERLOADED_FUNCTION"
   input: "OVERLOADED_FUNCTION"
   output:
+    description: null
     name: "OVERLOADED_FUNCTION"
     signatures:
      -
-      returnType: "DOUBLE"
-      operandTypes:
-       - "BINARY"
-       - "BOOLEAN"
-     -
-      returnType: "DOUBLE"
       operandTypes:
        - "DATE"
        - "BINARY"
-     -
       returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "BINARY"
+       - "BOOLEAN"
+      returnType: "DOUBLE"
+      template: null
+     -
       operandTypes:
        - "BOOLEAN"
        - "DATE"
        - "BINARY"
+      returnType: "DOUBLE"
+      template: null
+    syntax: null
+ -
+  description: "TWO_ARG_NUMERIC_FUNCTION"
+  input: "TWO_ARG_NUMERIC_FUNCTION"
+  output:
+    description: null
+    name: "TWO_ARG_NUMERIC_FUNCTION"
+    signatures:
+     -
+      operandTypes:
+       - "INTEGER"
+       - "INTEGER"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "INTEGER"
+       - "DECIMAL"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "INTEGER"
+       - "FLOAT"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "INTEGER"
+       - "DOUBLE"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DECIMAL"
+       - "INTEGER"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DECIMAL"
+       - "DECIMAL"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DECIMAL"
+       - "FLOAT"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DECIMAL"
+       - "DOUBLE"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "FLOAT"
+       - "INTEGER"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "FLOAT"
+       - "DECIMAL"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "FLOAT"
+       - "FLOAT"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "FLOAT"
+       - "DOUBLE"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DOUBLE"
+       - "INTEGER"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DOUBLE"
+       - "DECIMAL"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DOUBLE"
+       - "FLOAT"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "DOUBLE"
+       - "DOUBLE"
+      returnType: "DOUBLE"
+      template: null
+    syntax: "<NUMERIC>, <NUMERIC>"
+ -
+  description: "UNSTABLE_RETURN_TYPE_FUNCTION"
+  input: "UNSTABLE_RETURN_TYPE_FUNCTION"
+  output:
+    description: null
+    name: "UNSTABLE_RETURN_TYPE_FUNCTION"
+    signatures:
+     -
+      operandTypes:
+       - "BOOLEAN"
+      returnType: "DECIMAL"
+      template: null
+     -
+      operandTypes:
+       - "INTEGER"
+      returnType: "INTEGER"
+      template: null
+     -
+      operandTypes:
+       - "DECIMAL"
+      returnType: "INTEGER"
+      template: null
+     -
+      operandTypes:
+       - "FLOAT"
+      returnType: "DECIMAL"
+      template: null
+     -
+      operandTypes:
+       - "DOUBLE"
+      returnType: "DECIMAL"
+      template: null
+     -
+      operandTypes:
+       - "DATE"
+      returnType: "DECIMAL"
+      template: null
+     -
+      operandTypes:
+       - "TIME"
+      returnType: "DECIMAL"
+      template: null
+     -
+      operandTypes:
+       - "VARCHAR"
+      returnType: "DECIMAL"
+      template: null
+     -
+      operandTypes:
+       - "BINARY"
+      returnType: "DECIMAL"
+      template: null
+    syntax: "<ANY>"
+ -
+  description: "VARADIC_FUNCTION"
+  input: "VARADIC_FUNCTION"
+  output:
+    description: null
+    name: "VARADIC_FUNCTION"
+    signatures:
+     -
+      operandTypes:
+       - "VARCHAR"
+       - "VARCHAR"
+      returnType: "DOUBLE"
+      template: null
+     -
+      operandTypes:
+       - "VARCHAR"
+       - "VARCHAR"
+       - "VARCHAR"
+      returnType: "DOUBLE"
+      template: null
+    syntax: null
+ -
+  description: "ZERO_ARG_FUNCTION"
+  input: "ZERO_ARG_FUNCTION"
+  output:
+    description: null
+    name: "ZERO_ARG_FUNCTION"
+    signatures:
+     -
+      operandTypes: []
+      returnType: "DOUBLE"
+      template: null
+    syntax: ""

@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import Select from 'components/Fields/Select';
-import { FieldWithError, TextField, Checkbox } from 'components/Fields';
+import Select from "components/Fields/Select";
+import { FieldWithError, TextField, Checkbox } from "components/Fields";
 
-import { LINE_START_START, FLEX_COL_START_START } from 'uiTheme/radium/flexStyle';
+import {
+  LINE_START_START,
+  FLEX_COL_START_START,
+} from "uiTheme/radium/flexStyle";
 
-@Radium
-export default class SplitContent extends PureComponent {
+class SplitContent extends PureComponent {
   static propTypes = {
     matchType: PropTypes.object,
     ignoreCase: PropTypes.object,
-    pattern: PropTypes.object
+    pattern: PropTypes.object,
   };
 
   constructor(props) {
@@ -36,40 +38,45 @@ export default class SplitContent extends PureComponent {
 
     this.options = [
       {
-        label: 'Fixed String',
-        option: 'exact'
+        label: "Fixed String",
+        option: "exact",
       },
       {
-        label: 'Regular Expression',
-        option: 'regex'
-      }
+        label: "Regular Expression",
+        option: "regex",
+      },
     ];
   }
 
   renderContent() {
     const { pattern, matchType, ignoreCase } = this.props;
-    const foundItem = this.options.find(item => item.option === matchType.value);
+    const foundItem = this.options.find(
+      (item) => item.option === matchType.value
+    );
     const defaultSelect = foundItem && foundItem.label;
     return (
       <div style={[LINE_START_START, styles.base]}>
         <Select
-          dataQa='SplitSelect'
+          dataQa="SplitSelect"
           items={this.options}
           style={styles.select}
           {...matchType}
-          defaultValue={defaultSelect}/>
+          defaultValue={defaultSelect}
+        />
         <div style={FLEX_COL_START_START}>
-          <FieldWithError {...pattern} errorPlacement='bottom'>
+          <FieldWithError {...pattern} errorPlacement="bottom">
             <TextField
-              data-qa='SplitText'
+              data-qa="SplitText"
               style={styles.textField}
-              {...pattern}/>
+              {...pattern}
+            />
           </FieldWithError>
           <Checkbox
-            data-qa='SplitIgnoreCase'
+            data-qa="SplitIgnoreCase"
             style={styles.check}
-            label={la('Ignore Case')}
-            {...ignoreCase}/>
+            label={la("Ignore Case")}
+            {...ignoreCase}
+          />
         </div>
       </div>
     );
@@ -82,16 +89,18 @@ export default class SplitContent extends PureComponent {
 
 const styles = {
   base: {
-    marginLeft: 10
+    marginLeft: 10,
   },
   select: {
-    width: 140
+    width: 140,
+    background: "white",
   },
   textField: {
     width: 230,
-    marginLeft: 10
+    marginLeft: 10,
   },
   check: {
-    marginLeft: 10
-  }
+    marginLeft: 10,
+  },
 };
+export default Radium(SplitContent);

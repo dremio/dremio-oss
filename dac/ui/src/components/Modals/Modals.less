@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import '~@app/components/colors.less';
- @import "~@app/uiTheme/less/color-schema.less";
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
+@import "~@app/components/colors.less";
+@import "~@app/uiTheme/less/color-schema.less";
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
   .ReactModalPortal {
     position: absolute;
     top: 0;
@@ -147,8 +148,12 @@
   }
 
   .modal-header {
-    border: 1px solid @solitude;
-    border-radius: 3px 3px 0 0;
+    border-bottom: 1px solid @solitude;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .add-shadow {
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 10%);
   }
 
   .confirm-cancel-footer {
@@ -160,11 +165,11 @@
     inset: 10% 40px;
     position: absolute;
     max-width: 600px;
-     
+
     .modal-header {
       background: @WHITE;
       border-bottom: 1px solid @solitude;
-      height: 55px !important;
+      height: 56px !important;
 
       .EllipsedText {
         color: #060607 !important;
@@ -192,6 +197,12 @@
       [data-qa="confirm"] {
         margin-right: 0 !important;
       }
+    }
+
+    .warning-icon {
+      height: 24px;
+      width: 24px;
+      margin-right: 8px;
     }
   }
 }

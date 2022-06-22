@@ -29,9 +29,14 @@
 @line-height-computed: floor((@font-size-base * @line-height-base));
 @table-cell-padding: 8px;
 @table-condensed-cell-padding: 5px;
-@blue: #008489;
+@blue: var(--dremio--color--link);
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .ReactModal__Content {
+    outline: none;
+  }
 
   .VirtualScroll {
     outline: none;
@@ -104,26 +109,28 @@
 
       /* checkbox aspect */
       [type="checkbox"] + label::before {
-        content: '';
+        content: "";
         position: absolute;
-        left:0; top: 2px;
-        width: 17px; height: 17px;
+        left: 0;
+        top: 2px;
+        width: 17px;
+        height: 17px;
         border: 1px solid #aaa;
         background: #f8f8f8;
         border-radius: 3px;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,.3)
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
       }
 
       /* checked mark aspect */
       [type="checkbox"] + label::after {
-        content: '✔';
+        content: "✔";
         position: absolute;
         top: 5px;
         left: 2px;
         font-size: 16px;
         line-height: 0.8;
         color: #000;
-        transition: all .2s;
+        transition: all 0.2s;
         opacity: 0;
         transform: scale(0);
       }
@@ -176,13 +183,14 @@
           position: absolute;
           left: 0;
           bottom: 1px;
-          background-color: #E1E1E1;
-          box-shadow: inset 0 2px 3px 0 rgba(0, 0, 0, .1), 0 1px 0 0 rgba(255, 255, 255, .7);
+          background-color: #e1e1e1;
+          box-shadow: inset 0 2px 3px 0 rgba(0, 0, 0, 0.1),
+            0 1px 0 0 rgba(255, 255, 255, 0.7);
           border-radius: 8px;
         }
       }
 
-      .item-input[type=radio]:checked + label::before {
+      .item-input[type="radio"]:checked + label::before {
         content: "\2022";
         color: #000;
         font-size: 23px;
@@ -191,7 +199,7 @@
         align-items: center;
       }
 
-      .item-input[type=radio] {
+      .item-input[type="radio"] {
         display: none;
       }
     }
@@ -325,14 +333,15 @@
     height: auto;
   }
 
-
-  a, .link {
+  a,
+  .link {
     color: @blue;
     text-decoration: none;
     outline: 0;
     cursor: pointer;
-    &:hover, &:focus {
-      text-decoration: underline !important;
+    &:hover,
+    &:focus {
+      text-decoration: underline;
     }
   }
   .link--disabled {
@@ -346,15 +355,20 @@
     color: #333;
     text-decoration: underline;
   }
-  button:not([disabled]){
+  button:not([disabled]) {
     cursor: pointer;
   }
-  input, textarea, keygen, select, button {
+  input,
+  textarea,
+  keygen,
+  select,
+  button {
     font-family: Inter var, Arial, sans-serif;
     box-sizing: border-box;
   }
   /* several small tricks to customazi calendar icons, active elements */
-  .rdr-MonthAndYear-button.next, .rdr-MonthAndYear-button.prev {
+  .rdr-MonthAndYear-button.next,
+  .rdr-MonthAndYear-button.prev {
     i {
       border: none !important;
       width: 26px !important;
@@ -384,12 +398,13 @@
     background: transparent !important;
   }
 
-  .rdr-Day.is-selected:not(.is-passive), .rdr-Day.is-inRange:not(.is-passive) {
+  .rdr-Day.is-selected:not(.is-passive),
+  .rdr-Day.is-inRange:not(.is-passive) {
     position: relative;
     border-bottom: 2px solid #fff !important;
 
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       display: inline-block;
       width: 21px;

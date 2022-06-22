@@ -13,66 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { BOOLEAN, TEXT, DATE } from '@app/constants/DataTypes';
+import { BOOLEAN, TEXT, DATE } from "@app/constants/DataTypes";
 
-import ReplaceFooter from './ReplaceFooter';
+import ReplaceFooter from "./ReplaceFooter";
 
-describe('ReplaceFooter', () => {
+describe("ReplaceFooter", () => {
   let commonProps;
   let booleanProps;
   let dateProps;
   beforeEach(() => {
     commonProps = {
       transform: Immutable.fromJS({
-        method: '',
-        columnName: 'text',
-        columnType: TEXT
+        method: "",
+        columnName: "text",
+        columnType: TEXT,
       }),
       fields: {
-        replaceType: '',
-        replacementValue: '',
-        replaceSelectionType: ''
-      }
+        replaceType: "",
+        replacementValue: "",
+        replaceSelectionType: "",
+      },
     };
     booleanProps = {
       ...commonProps,
       transform: Immutable.fromJS({
-        method: '',
-        columnName: 'bool',
-        columnType: BOOLEAN
-      })
+        method: "",
+        columnName: "bool",
+        columnType: BOOLEAN,
+      }),
     };
     dateProps = {
       ...commonProps,
       transform: Immutable.fromJS({
-        method: '',
-        columnName: 'date',
-        columnType: DATE
-      })
+        method: "",
+        columnName: "date",
+        columnType: DATE,
+      }),
     };
   });
 
-  it('renders', () => {
+  it("renders", () => {
     const wrapper = shallow(<ReplaceFooter {...commonProps} />);
-    expect(wrapper.type()).to.eql('div');
+    expect(wrapper.type()).to.eql("div");
   });
 
-  describe('renderReplaceValueInput', () => {
-    it('should render BooleanSelect if columnType is BOOLEAN', () => {
+  describe("renderReplaceValueInput", () => {
+    it("should render BooleanSelect if columnType is BOOLEAN", () => {
       const wrapper = shallow(<ReplaceFooter {...booleanProps} />);
-      expect(wrapper.find('BooleanSelect')).to.have.length(1);
+      expect(wrapper.find("BooleanSelect")).to.have.length(1);
     });
-    it('should render DateInput if columnType is dateType', () => {
+    it("should render DateInput if columnType is dateType", () => {
       const wrapper = shallow(<ReplaceFooter {...dateProps} />);
-      expect(wrapper.find('DateInput')).to.have.length(1);
+      expect(wrapper.find("DateInput")).to.have.length(1);
     });
-    it('should render text input', () => {
+    it("should render text input", () => {
       const wrapper = shallow(<ReplaceFooter {...commonProps} />);
-      expect(wrapper.find('BooleanSelect')).to.have.length(0);
-      expect(wrapper.find('DateInput')).to.have.length(0);
-      expect(wrapper.find('TextField')).to.have.length(1);
+      expect(wrapper.find("BooleanSelect")).to.have.length(0);
+      expect(wrapper.find("DateInput")).to.have.length(0);
+      expect(wrapper.find("TextField")).to.have.length(1);
     });
   });
 });

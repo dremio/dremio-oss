@@ -127,6 +127,7 @@ public class TestFragmentExecutor {
                 executionControls,
                 fragment,
                 1,
+                null,
                 clusterCoordinator,
                 reader,
                 sharedResources,

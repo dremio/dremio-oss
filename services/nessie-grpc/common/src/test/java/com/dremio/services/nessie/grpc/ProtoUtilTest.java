@@ -34,6 +34,8 @@ import org.projectnessie.api.params.DiffParams;
 import org.projectnessie.api.params.EntriesParams;
 import org.projectnessie.api.params.FetchOption;
 import org.projectnessie.api.params.GetReferenceParams;
+import org.projectnessie.api.params.MultipleNamespacesParams;
+import org.projectnessie.api.params.NamespaceParams;
 import org.projectnessie.api.params.ReferencesParams;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
@@ -47,6 +49,7 @@ import org.projectnessie.model.EntriesResponse.Entry;
 import org.projectnessie.model.GetMultipleContentsRequest;
 import org.projectnessie.model.GetMultipleContentsResponse;
 import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
+import org.projectnessie.model.GetNamespacesResponse;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
 import org.projectnessie.model.ImmutableBranch;
@@ -54,15 +57,20 @@ import org.projectnessie.model.ImmutableDeltaLakeTable;
 import org.projectnessie.model.ImmutableDiffEntry;
 import org.projectnessie.model.ImmutableDiffResponse;
 import org.projectnessie.model.ImmutableEntry;
+import org.projectnessie.model.ImmutableGetNamespacesResponse;
 import org.projectnessie.model.ImmutableLogEntry;
 import org.projectnessie.model.ImmutableLogResponse;
+import org.projectnessie.model.ImmutableMerge;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.ImmutableRefLogResponseEntry;
 import org.projectnessie.model.ImmutableReferenceMetadata;
 import org.projectnessie.model.ImmutableTag;
+import org.projectnessie.model.ImmutableTransplant;
 import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.LogResponse.LogEntry;
+import org.projectnessie.model.Merge;
+import org.projectnessie.model.Namespace;
 import org.projectnessie.model.NessieConfiguration;
 import org.projectnessie.model.Operation;
 import org.projectnessie.model.Operation.Delete;
@@ -73,6 +81,7 @@ import org.projectnessie.model.RefLogResponse.RefLogResponseEntry;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.Tag;
+import org.projectnessie.model.Transplant;
 
 import com.dremio.services.nessie.grpc.api.CommitLogEntry;
 import com.dremio.services.nessie.grpc.api.CommitLogRequest;
@@ -269,7 +278,10 @@ public class ProtoUtilTest {
       .hasMessage("Content must be non-null");
 
     IcebergTable icebergTable = IcebergTable.of("test.me.txt", 42L, 42, 42, 42);
-    assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
+    assertThat(fromProto(toProto((Content) icebergTable))).isEqualTo(icebergTable);
+
+    Namespace namespace = Namespace.of("a", "b", "c");
+    assertThat(fromProto(toProto((Content) namespace))).isEqualTo(namespace);
   }
 
   @Test
@@ -460,7 +472,7 @@ public class ProtoUtilTest {
         .endHash("456")
         .maxRecords(23)
         .pageToken("abc")
-        .fetch(FetchOption.ALL)
+        .fetchOption(FetchOption.ALL)
         .build();
     assertThat(fromProto(toProto("main", params))).isEqualTo(params);
 
@@ -659,7 +671,7 @@ public class ProtoUtilTest {
     ReferencesParams params = ReferencesParams.builder()
       .maxRecords(3)
       .pageToken("xx")
-      .fetch(FetchOption.ALL)
+      .fetchOption(FetchOption.ALL)
       .filter("a > b")
       .build();
     assertThat(fromProto(toProto(params))).isEqualTo(params);
@@ -678,7 +690,7 @@ public class ProtoUtilTest {
     GetReferenceParams params = GetReferenceParams.builder().refName("x").build();
     assertThat(fromProto(toProto(params))).isEqualTo(params);
 
-    params = GetReferenceParams.builder().refName("x").fetch(FetchOption.ALL).build();
+    params = GetReferenceParams.builder().refName("x").fetchOption(FetchOption.ALL).build();
     assertThat(fromProto(toProto(params))).isEqualTo(params);
   }
 
@@ -829,5 +841,144 @@ public class ProtoUtilTest {
       .build();
 
     assertThat(fromProto(toProto(refLogEntry))).isEqualTo(refLogEntry);
+  }
+
+  @Test
+  public void namespaceConversion() {
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.Namespace) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Namespace must be non-null");
+
+    assertThatThrownBy(() -> toProto((Namespace) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Namespace must be non-null");
+
+    Namespace namespace = Namespace.of("a", "b", "c");
+    assertThat(fromProto(toProto(namespace))).isEqualTo(namespace);
+
+    assertThat(fromProto(toProto(Namespace.EMPTY))).isEqualTo(Namespace.EMPTY);
+    Namespace namespaceWithProperties = Namespace.of(ImmutableMap.of("key1", "prop1"), "a", "b", "c");
+    assertThat(fromProto(toProto(namespaceWithProperties))).isEqualTo(namespaceWithProperties);
+  }
+
+  @Test
+  public void namespaceParamsConversion() {
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.NamespaceRequest) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("NamespaceRequest must be non-null");
+
+    assertThatThrownBy(() -> toProto((NamespaceParams) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("NamespaceParams must be non-null");
+
+    NamespaceParams params = NamespaceParams.builder()
+      .refName("main")
+      .namespace(Namespace.of("a", "b", "c"))
+      .build();
+
+    assertThat(fromProto(toProto(params))).isEqualTo(params);
+
+    params = NamespaceParams.builder()
+      .refName("main")
+      .namespace(Namespace.of("a", "b", "c"))
+      .hashOnRef("someHash")
+      .build();
+
+    assertThat(fromProto(toProto(params))).isEqualTo(params);
+  }
+
+  @Test
+  public void multipleNamespaceParamsConversion() {
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.MultipleNamespacesRequest) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("MultipleNamespacesRequest must be non-null");
+
+    assertThatThrownBy(() -> toProto((MultipleNamespacesParams) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("MultipleNamespacesParams must be non-null");
+
+    MultipleNamespacesParams params = MultipleNamespacesParams.builder()
+      .refName("main")
+      .build();
+
+    assertThat(fromProto(toProto(params))).isEqualTo(params);
+
+    params = MultipleNamespacesParams.builder()
+      .refName("main")
+      .namespace(Namespace.of("a", "b", "c"))
+      .hashOnRef("someHash")
+      .build();
+
+    assertThat(fromProto(toProto(params))).isEqualTo(params);
+  }
+
+  @Test
+  public void multipleNamespaceResponseConversion() {
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.MultipleNamespacesResponse) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("MultipleNamespacesResponse must be non-null");
+
+    assertThatThrownBy(() -> toProto((GetNamespacesResponse) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("GetNamespacesResponse must be non-null");
+
+    GetNamespacesResponse empty = ImmutableGetNamespacesResponse.builder().build();
+
+    assertThat(fromProto(toProto(empty))).isEqualTo(empty);
+
+    GetNamespacesResponse response = ImmutableGetNamespacesResponse.builder()
+      .addNamespaces(Namespace.of("a", "b", "c"), Namespace.of("a", "b", "d"))
+      .build();
+
+    assertThat(fromProto(toProto(response))).isEqualTo(response);
+  }
+
+  @Test
+  public void mergeConversion() {
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.MergeRequest) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("MergeRequest must be non-null");
+
+    assertThatThrownBy(() -> toProto("main", "x", (Merge) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Merge must be non-null");
+
+    String hash = "1234567890123456";
+
+    Merge merge = ImmutableMerge.builder().fromRefName("main").fromHash(hash).build();
+    assertThat(fromProto(toProto("y", "z", merge))).isEqualTo(merge);
+
+    Merge mergeWithKeepingCommits = ImmutableMerge.builder()
+      .keepIndividualCommits(true)
+      .fromRefName("main")
+      .fromHash(hash)
+      .build();
+    assertThat(fromProto(toProto("y", "z", mergeWithKeepingCommits))).isEqualTo(mergeWithKeepingCommits);
+  }
+
+  @Test
+  public void transplant() {
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.TransplantRequest) null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("TransplantRequest must be non-null");
+
+    assertThatThrownBy(() -> toProto("main", "x", "msg", null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Transplant must be non-null");
+
+    String hash = "1234567890123456";
+
+    Transplant transplant = ImmutableTransplant.builder().fromRefName("main")
+      .hashesToTransplant(Collections.singletonList(hash))
+      .build();
+
+    assertThat(fromProto(toProto("y", "z", "msg", transplant))).isEqualTo(transplant);
+
+    Transplant transplantWithKeepingCommits = ImmutableTransplant.builder().fromRefName("main")
+      .hashesToTransplant(Collections.singletonList(hash))
+      .keepIndividualCommits(true)
+      .build();
+
+    assertThat(fromProto(toProto("y", "z", "msg", transplantWithKeepingCommits))).isEqualTo(transplantWithKeepingCommits);
   }
 }

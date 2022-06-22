@@ -23,11 +23,37 @@
   <!-- This file doesn't use dremio parent to avoid circular dependencies -->
   <groupId>com.dremio.tools</groupId>
   <artifactId>dremio-build-tools</artifactId>
-  <version>21.2.0-202205262146080444-038d6d1b</version>
+  <version>22.0.0-202206221430090603-1fa4049f</version>
   <packaging>jar</packaging>
   <name>Tools - Build tools</name>
 
   <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>xml-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>validate</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <catalogHandling>strict</catalogHandling>
+          <validationSets>
+            <validationSet>
+              <dir>src/main/resources/dremio-owasp/</dir>
+              <systemId>https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd</systemId>
+            </validationSet>
+          </validationSets>
+          <!-- Use of XML Catalog to avoid open resolution of entities -->
+          <catalogs>
+            <catalog>src/main/xmlcatalog/catalog.xml </catalog>
+          </catalogs>
+        </configuration>
+      </plugin>
+    </plugins>
     <pluginManagement>
       <plugins>
         <!-- Please keep in sync with top level pom.xml -->
@@ -40,6 +66,11 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-deploy-plugin</artifactId>
           <version>3.0.0-M1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>xml-maven-plugin</artifactId>
+          <version>1.0.2</version>
         </plugin>
       </plugins>
     </pluginManagement>

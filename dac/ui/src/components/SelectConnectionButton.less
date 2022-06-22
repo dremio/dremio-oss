@@ -17,35 +17,41 @@
 
 .button-base {
   position: relative;
+  height: 48px;
   display: flex;
-  margin: 0 10px 10px 0;
-  border: 1px solid @COLLABORATION_BORDER;
-  border-radius: 2px;
+  border: none;
   width: 100%;
-  background-color: white;
-  align-content: center;
-  padding: 8px 10px;
+  background-color: var(--dremio--color--neutral--000);
+  align-items: center;
+  padding: 10px 0;
 }
 .button-disabled {
   opacity: 0.5;
 }
 .button-clickable {
   &:hover {
-    border: 1px solid @btn-hover-border;
-    box-shadow: 0 0 5px 0 @TABLE_BORDER;
+    background-color: var(--dremio--color--primary--100);
   }
 }
 .connection-label {
   font-size: 14px;
-  line-height: 40px;
   display: flex;
+  color: var(--dremio--color--text--main);
   flex: 1;
   align-items: center;
-  margin-left: 10px;
   text-align: left;
 }
+
+.iconContainer {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 4px;
+}
 .pill {
-  color: white;
+  color: var(--dremio--color--neutral--000);
   font-size: 10px;
   font-weight: 500;
   height: 16px;
@@ -63,6 +69,3 @@
 .pill-community {
   background: green;
 }
-
-
-

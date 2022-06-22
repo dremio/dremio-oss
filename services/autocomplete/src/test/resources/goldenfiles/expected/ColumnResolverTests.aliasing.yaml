@@ -1,0 +1,402 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "NO ALIAS"
+  input: "SELECT ^ FROM EMP"
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "EMP"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "EMP"
+ -
+  description: "BASIC ALIAS"
+  input: "SELECT ^ FROM EMP as e"
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "e"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "e"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "e"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "e"
+ -
+  description: "JOIN ALIAS COMMA"
+  input: "SELECT ^ FROM EMP as e, DEPT as d"
+  output:
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "d"
+   -
+    column:
+      name: "NAME"
+      type: "VARCHAR"
+    tableAlias: "d"
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "e"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "e"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "e"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "e"
+ -
+  description: "JOIN ALIAS ON"
+  input: "SELECT ^ FROM EMP as e JOIN DEPT as d ON e.DEPTNO = d.DEPTNO"
+  output:
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "d"
+   -
+    column:
+      name: "NAME"
+      type: "VARCHAR"
+    tableAlias: "d"
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "e"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "e"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "e"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "e"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "e"
+ -
+  description: "SELF JOIN"
+  input: "SELECT ^ FROM EMP as e1, EMP as e2"
+  output:
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "e1"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "e1"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "e1"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "e1"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "e1"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "e1"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "e1"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "e1"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "e1"
+   -
+    column:
+      name: "COMM"
+      type: "INTEGER"
+    tableAlias: "e2"
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "e2"
+   -
+    column:
+      name: "EMPNO"
+      type: "INTEGER"
+    tableAlias: "e2"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "e2"
+   -
+    column:
+      name: "HIREDATE"
+      type: "TIMESTAMP"
+    tableAlias: "e2"
+   -
+    column:
+      name: "JOB"
+      type: "VARCHAR"
+    tableAlias: "e2"
+   -
+    column:
+      name: "MGR"
+      type: "INTEGER"
+    tableAlias: "e2"
+   -
+    column:
+      name: "SAL"
+      type: "INTEGER"
+    tableAlias: "e2"
+   -
+    column:
+      name: "SLACKER"
+      type: "BOOLEAN"
+    tableAlias: "e2"
+ -
+  description: "SUBQUERY NO ALIAS"
+  input: "SELECT ^ FROM (SELECT EMP.ENAME, EMP.DEPTNO FROM EMP)"
+  output:
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "EXPR$0"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "EXPR$0"
+ -
+  description: "SUBQUERY TABLE ALIAS"
+  input: "SELECT ^ FROM (SELECT EMP.ENAME, EMP.DEPTNO FROM EMP) as subtable"
+  output:
+   -
+    column:
+      name: "DEPTNO"
+      type: "INTEGER"
+    tableAlias: "subtable"
+   -
+    column:
+      name: "ENAME"
+      type: "VARCHAR"
+    tableAlias: "subtable"
+ -
+  description: "SUBQUERY COLUMN ALIASES"
+  input: "SELECT ^ FROM (SELECT EMP.ENAME as a, EMP.DEPTNO as b FROM EMP)"
+  output:
+   -
+    column:
+      name: "a"
+      type: "VARCHAR"
+    tableAlias: "EXPR$0"
+   -
+    column:
+      name: "b"
+      type: "INTEGER"
+    tableAlias: "EXPR$0"
+ -
+  description: "SUBQUERY COLUMN AND TABLE ALIASES"
+  input: "SELECT ^ FROM (SELECT EMP.ENAME as a, EMP.DEPTNO as b FROM EMP) as subtable"
+  output:
+   -
+    column:
+      name: "a"
+      type: "VARCHAR"
+    tableAlias: "subtable"
+   -
+    column:
+      name: "b"
+      type: "INTEGER"
+    tableAlias: "subtable"
+ -
+  description: "SUBQUERY WITH JOIN"
+  input: "SELECT ^ FROM (SELECT EMP.ENAME as a, EMP.DEPTNO as b, DEPT.DEPTNO as c FROM EMP, DEPT) as joinedTable"
+  output:
+   -
+    column:
+      name: "a"
+      type: "VARCHAR"
+    tableAlias: "joinedTable"
+   -
+    column:
+      name: "b"
+      type: "INTEGER"
+    tableAlias: "joinedTable"
+   -
+    column:
+      name: "c"
+      type: "INTEGER"
+    tableAlias: "joinedTable"

@@ -37,6 +37,10 @@ public final class SimpleIntVector extends AbstractVector implements AutoCloseab
     dataBuffer.setInt(index * TYPE_WIDTH, value);
   }
 
+  public void setZero(int index, int length) {
+    dataBuffer.setZero(index * TYPE_WIDTH, length * TYPE_WIDTH);
+  }
+
   public int get(int index) {
     return dataBuffer.getInt(index * TYPE_WIDTH);
   }

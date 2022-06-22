@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Server, Response } from 'miragejs';
+import { Server, Response } from "miragejs";
 
 //======
 // use this file for api mocking while debugging the UI by adding a line to index.js:
@@ -23,34 +23,34 @@ import { Server, Response } from 'miragejs';
 
 export const MirageServer = new Server({
   baseConfig() {
-    this.urlPrefix = 'http://localhost:3005';
+    this.urlPrefix = "http://localhost:3005";
     // this.namespace = 'apiv2';
 
-    this.get('apiv2/login', () => {
+    this.get("apiv2/login", () => {
       return {
-        'token': '1nf15tk90d3ca0jslobir29c0m',
-        'userName': 'dremio',
-        'firstName': 'dremio',
-        'lastName': 'dremio',
-        'expires': 1590036969647,
-        'email': 'dremio@dremio.com',
-        'userId': 'a4e67ebd-cf35-4360-804c-936a3d1737a8',
-        'admin': true,
-        'clusterId': '7532a686-4b8f-471f-829f-b1104fceee30',
-        'clusterCreatedAt': 1589823242678,
-        'version': '4.5.0-SNAPSHOT',
-        'permissions': {
-          'canUploadProfiles': true,
-          'canDownloadProfiles': true,
-          'canEmailForSupport': true,
-          'canChatForSupport': false
+        token: "1nf15tk90d3ca0jslobir29c0m",
+        userName: "dremio",
+        firstName: "dremio",
+        lastName: "dremio",
+        expires: 1590036969647,
+        email: "dremio@dremio.com",
+        userId: "a4e67ebd-cf35-4360-804c-936a3d1737a8",
+        admin: true,
+        clusterId: "7532a686-4b8f-471f-829f-b1104fceee30",
+        clusterCreatedAt: 1589823242678,
+        version: "4.5.0-SNAPSHOT",
+        permissions: {
+          canUploadProfiles: true,
+          canDownloadProfiles: true,
+          canEmailForSupport: true,
+          canChatForSupport: false,
         },
-        'userCreatedAt': 1589823501207
+        userCreatedAt: 1589823501207,
       };
     });
 
-    this.post('TODO', () => {
-      return new Response(409, {some: 'header'}, {error: 'Invalid ...'});
+    this.post("TODO", () => {
+      return new Response(409, { some: "header" }, { error: "Invalid ..." });
     });
-  }
+  },
 });

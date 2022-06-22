@@ -15,37 +15,45 @@
  */
 package com.dremio.exec.store.iceberg.manifestwriter;
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.util.Text;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.GenericManifestFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.io.CloseableIterable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -55,6 +63,8 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
 /**
@@ -66,6 +76,8 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     protected final WriterCommitterPOP config;
     protected final OperatorContext context;
     protected VarBinaryVector icebergMetadataVector;
+    protected IntVector operationTypeVector;
+    protected VarCharVector pathVector;
     protected ListVector partitionDataVector;
     protected IcebergOpCommitter icebergOpCommitter;
     private final Set<IcebergPartitionData> addedPartitions = new HashSet<>(); // partitions with new files
@@ -75,6 +87,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     protected ReadSignatureProvider readSigProvider = (added, deleted) -> ByteString.EMPTY;
     protected List<ManifestFile> icebergManifestFiles = new ArrayList<>();
     protected boolean success;
+    private final DremioFileIO dremioFileIO;
 
     public static IcebergCommitOpHelper getInstance(OperatorContext context, WriterCommitterPOP config) {
         if (config.getIcebergTableProps() == null) {
@@ -89,25 +102,25 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     protected IcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
         this.config = config;
         this.context = context;
+        this.dremioFileIO = new DremioFileIO(config.getPlugin().getFsConfCopy(), config.getPlugin());
     }
 
     public void setup(VectorAccessible incoming) {
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
       IcebergTableProps icebergTableProps = config.getIcebergTableProps();
-      List<String> tableKeyAsList = Arrays.asList(icebergTableProps.getTableName().split(Pattern.quote(".")));
 
       final IcebergModel icebergModel;
       final IcebergTableIdentifier icebergTableIdentifier;
-      if(config.getPlugin() instanceof VersionedPlugin) {
-        icebergModel = config.getPlugin().getVersionedIcebergModel(context, tableKeyAsList, icebergTableProps.getVersion());
-        icebergTableIdentifier = icebergModel.getTableIdentifier(config.getPlugin().getRootLocation());
-      } else {
-        icebergModel = config.getPlugin().getIcebergModel(context);
-        icebergTableIdentifier = icebergModel.getTableIdentifier(icebergTableProps.getTableLocation());
-      }
+      final SupportsIcebergMutablePlugin icebergMutablePlugin = (SupportsIcebergMutablePlugin)config.getPlugin();
+      icebergModel = icebergMutablePlugin.getIcebergModel(icebergTableProps, config.getProps().getUserName(), context, null);
+      icebergTableIdentifier = icebergModel.getTableIdentifier(icebergMutablePlugin.getTableLocation(icebergTableProps));
 
-        TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
-        icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, id.getFieldIds()).getValueVector();
+        TypedFieldId metadataFileId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
+        TypedFieldId operationTypeId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE_COLUMN));
+        TypedFieldId pathId = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.PATH_COLUMN));
+        icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, metadataFileId.getFieldIds()).getValueVector();
+        operationTypeVector = incoming.getValueAccessorById(IntVector.class, operationTypeId.getFieldIds()).getValueVector();
+        pathVector = incoming.getValueAccessorById(VarCharVector.class, pathId.getFieldIds()).getValueVector();
         partitionDataVector = (ListVector) VectorUtil.getVectorFromSchemaPath(incoming, RecordWriter.PARTITION_DATA_COLUMN);
 
         switch (icebergTableProps.getIcebergOpType()) {
@@ -117,7 +130,10 @@ public class IcebergCommitOpHelper implements AutoCloseable {
                         icebergTableIdentifier,
                         icebergTableProps.getFullSchema(),
                         icebergTableProps.getPartitionColumnNames(),
-                        context.getStats()
+                        context.getStats(),
+                        icebergTableProps.getPartitionSpec() != null ?
+                                IcebergSerDe.deserializePartitionSpec(deserializedJsonAsSchema(icebergTableProps.getIcebergSchema()),
+                                        icebergTableProps.getPartitionSpec().toByteArray()) : null
                 );
                 break;
             case INSERT:
@@ -126,18 +142,27 @@ public class IcebergCommitOpHelper implements AutoCloseable {
                         context.getStats()
                 );
                 break;
+            case UPDATE:
+            case DELETE:
+            case MERGE:
+                icebergOpCommitter = icebergModel.getDmlCommitter(
+                  context.getStats(),
+                  icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+                  config.getDatasetConfig().get());
+                break;
           case FULL_METADATA_REFRESH:
             createReadSignProvider(icebergTableProps, true);
             icebergOpCommitter = icebergModel.getFullMetadataRefreshCommitter(
                   icebergTableProps.getTableName(),
                   config.getDatasetPath().getPathComponents(),
-                  icebergTableProps.getTableLocation(),
+                  icebergTableProps.getDataTableLocation(),
                   icebergTableProps.getUuid(),
                   icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                   icebergTableProps.getFullSchema(),
                   icebergTableProps.getPartitionColumnNames(),
                   config.getDatasetConfig().get(),
-                  context.getStats()
+                  context.getStats(),
+                  null
                 );
                 break;
             case INCREMENTAL_METADATA_REFRESH:
@@ -146,7 +171,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
                     context,
                     icebergTableProps.getTableName(),
                     config.getDatasetPath().getPathComponents(),
-                    icebergTableProps.getTableLocation(),
+                    icebergTableProps.getDataTableLocation(),
                     icebergTableProps.getUuid(),
                     icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                     icebergTableProps.getPersistedFullSchema(),
@@ -165,21 +190,22 @@ public class IcebergCommitOpHelper implements AutoCloseable {
 
   public void consumeData(int records) throws Exception {
         for (int i = 0; i < records; ++i) {
-            IcebergMetadataInformation icebergMetadataInformation = getIcebergMetadataInformation(i);
-            IcebergMetadataInformation.IcebergMetadataFileType metadataFileType = icebergMetadataInformation.getIcebergMetadataFileType();
-            switch (metadataFileType) {
-                case MANIFEST_FILE:
-                    ManifestFile manifestFile = IcebergSerDe.deserializeManifestFile(icebergMetadataInformation.getIcebergMetadataFileByte());
-                    consumeManifestFile(manifestFile);
+            OperationType operationType = getOperationType(i);
+            switch (operationType) {
+                case ADD_MANIFESTFILE:
+                    consumeManifestFile(getManifestFile(i));
                     consumeManifestPartitionData(i);
                     break;
                 case DELETE_DATAFILE:
-                    DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
-                    consumeDeletedDataFile(dataFile);
+                    if (isDmlCommandType()) {
+                        consumeDeleteDataFilePath(i);
+                    } else {
+                        consumeDeletedDataFile(getDeleteDataFile(i));
+                    }
                     consumeDeletedDataFilePartitionData(i);
                     break;
                 default:
-                    throw new Exception("Unsupported File Type: " + metadataFileType);
+                    throw new Exception("Unsupported File Type: " + operationType);
             }
         }
     }
@@ -193,10 +219,40 @@ public class IcebergCommitOpHelper implements AutoCloseable {
         icebergOpCommitter.consumeDeleteDataFile(deletedDataFile);
     }
 
+    protected void consumeDeleteDataFilePath(int row) {
+        // For Dml commands, the data file paths to be deleted are carried in through RecordWriter.Path field.
+        Preconditions.checkNotNull(pathVector);
+        // For inserted rows in MERGE, we don't have a deleted data file path but is passed here as null. As a result, we need to do a null check.
+        byte[] filePath = pathVector.get(row);
+        if (filePath == null) {
+          return;
+        }
+        Text text = new Text(pathVector.get(row));
+        String deletedDataFilePath = text.toString();
+        icebergOpCommitter.consumeDeleteDataFilePath(deletedDataFilePath);
+    }
+
     protected IcebergMetadataInformation getIcebergMetadataInformation(int row) throws IOException, ClassNotFoundException {
         return IcebergSerDe.deserializeFromByteArray(icebergMetadataVector.get(row));
     }
 
+    protected ManifestFile getManifestFile(int row) throws IOException, ClassNotFoundException {
+        return IcebergSerDe.deserializeManifestFile(getIcebergMetadataInformation(row).getIcebergMetadataFileByte());
+    }
+
+    protected DataFile getDeleteDataFile(int row) throws IOException, ClassNotFoundException {
+        return IcebergSerDe.deserializeDataFile(getIcebergMetadataInformation(row).getIcebergMetadataFileByte());
+    }
+
+    protected boolean isDmlCommandType() {
+        IcebergCommandType commandType = config.getIcebergTableProps().getIcebergOpType();
+        return commandType == IcebergCommandType.DELETE || commandType == IcebergCommandType.UPDATE
+          || commandType == IcebergCommandType.MERGE;
+    }
+
+    protected OperationType getOperationType(int row) {
+      return OperationType.valueOf(operationTypeVector.get(row));
+    }
 
     public void commit() throws Exception {
         if (icebergOpCommitter == null) {
@@ -207,7 +263,10 @@ public class IcebergCommitOpHelper implements AutoCloseable {
         icebergOpCommitter.updateReadSignature(newReadSignature);
       try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
             icebergOpCommitter.commit();
-        }
+        } catch (Exception ex) {
+        icebergOpCommitter.cleanup(dremioFileIO);
+        throw ex;
+      }
       success = true;
     }
 
@@ -281,7 +340,8 @@ public class IcebergCommitOpHelper implements AutoCloseable {
         }
         for(int i = 0; i < icebergMetadataVector.getValueCount(); i++) {
             IcebergMetadataInformation information = getIcebergMetadataInformation(i);
-            if(information.getIcebergMetadataFileType() == IcebergMetadataInformation.IcebergMetadataFileType.MANIFEST_FILE) {
+            OperationType operationType = getOperationType(i);
+            if(operationType == OperationType.ADD_MANIFESTFILE) {
               Path p = Path.of(IcebergSerDe.deserializeManifestFile(information.getIcebergMetadataFileByte()).path());
               if(fs.exists(p)) {
                 fs.delete(p, false);
@@ -289,6 +349,11 @@ public class IcebergCommitOpHelper implements AutoCloseable {
             }
         }
     }
+
+  @VisibleForTesting
+  IcebergOpCommitter getIcebergOpCommitter() {
+    return icebergOpCommitter;
+  }
 
   @Override
   public void close() throws Exception {
@@ -299,7 +364,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
         // we can safely delete the files as exception thrown before
         if ((icebergOpCommitter == null || (icebergOpCommitter != null
           && !icebergOpCommitter.isIcebergTableUpdated()))) {
-          deleteManifestFiles();
+          deleteManifestFiles(dremioFileIO, icebergManifestFiles, false);
         }
       }
     } catch (Exception e) {
@@ -310,11 +375,32 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     AutoCloseables.close(fsToCheckIfPartitionExists);
   }
 
-  protected void deleteManifestFiles() {
+  /**
+   * Delete all data files referenced in a manifestFile
+   */
+  private static void deleteDataFilesInManifestFile(DremioFileIO dremioFileIO, ManifestFile manifestFile) {
     try {
-      DremioFileIO dremioFileIO = new DremioFileIO(config.getPlugin().getFsConfCopy(), config.getPlugin());
-      for (ManifestFile filePath : icebergManifestFiles) {
-        ManifestWritesHelper.deleteManifestFileIfExists(dremioFileIO, filePath.path());
+      // ManifestFiles.readPaths requires snapshotId not null, created manifestFile has null snapshot id
+      // use a NonNullSnapshotIdManifestFileWrapper to provide a non-null dummy snapshotId
+      ManifestFile nonNullSnapshotIdManifestFile =
+        manifestFile.snapshotId()==null ? GenericManifestFile.copyOf(manifestFile).withSnapshotId(-1L).build():manifestFile;
+      CloseableIterable<String> dataFiles = ManifestFiles.readPaths(nonNullSnapshotIdManifestFile, dremioFileIO);
+      dataFiles.forEach(f -> dremioFileIO.deleteFile(f));
+    } catch (Exception e) {
+      logger.warn(String.format("Failed to delete up data files in manifestFile %s" , manifestFile), e);
+    }
+  }
+
+  public static void deleteManifestFiles(DremioFileIO dremioFileIO, List<ManifestFile> manifestFiles, boolean deleteDataFiles) {
+    try {
+      for (ManifestFile manifestFile : manifestFiles) {
+        // delete data files
+        if (deleteDataFiles) {
+          deleteDataFilesInManifestFile(dremioFileIO, manifestFile);
+        }
+
+        // delete manifest file and corresponding crc file
+        ManifestWritesHelper.deleteManifestFileIfExists(dremioFileIO, manifestFile.path());
       }
     } catch (Exception e) {
       logger.warn("Failed to clean up manifest files", e);

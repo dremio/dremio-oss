@@ -112,7 +112,8 @@ public class WriterCommitterOperator implements SingleInputOperator {
       throw new IllegalStateException(String.format("Incoming record writer schema doesn't match intended. Expected %s, received %s", RecordWriter.SCHEMA, schema));
     }
 
-    fs = config.getPlugin().createFS(config.getProps().getUserName());
+    fs = config.getPlugin().createFS(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()),
+      config.getProps().getUserName(), context);
     icebergCommitHelper.setup(accessible);
 
     // replacement expression.
@@ -138,7 +139,8 @@ public class WriterCommitterOperator implements SingleInputOperator {
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName()))
+        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName())),
+        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE.getName()), new FieldReference(RecordWriter.OPERATION_TYPE.getName()))
       ));
     this.project = new ProjectOperator(context, projectConfig);
     return project.setup(accessible);
@@ -201,10 +203,22 @@ public class WriterCommitterOperator implements SingleInputOperator {
       icebergCommitHelper.cleanUpManifestFiles(fs);
   }
 
+  private String getCleanupLocation() {
+    if ( (config.getIcebergTableProps() != null) &&
+          (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.FULL_METADATA_REFRESH ||
+              config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.CREATE) ) {
+      return config.getIcebergTableProps().getTableLocation();
+    }
+    return Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation());
+  }
+
   private void cleanUpFiles() throws IOException, ClassNotFoundException {
-    if(config.getIcebergTableProps() == null || (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.FULL_METADATA_REFRESH)) {
+    if(config.getIcebergTableProps() == null ||
+            (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.FULL_METADATA_REFRESH) ||
+            (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.CREATE) ||
+            (config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INSERT)) {
       if(!success) {
-        Path path = Path.of(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
+        Path path = Path.of(getCleanupLocation());
           if (fs != null && fs.exists(path)) {
             fs.delete(path, true);
           }

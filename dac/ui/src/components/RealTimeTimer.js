@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent } from "react";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 export default class RealTimeTimer extends PureComponent {
   static propTypes = {
     startTime: PropTypes.number.isRequired,
     updateInterval: PropTypes.number,
-    formatter: PropTypes.func
+    formatter: PropTypes.func,
   };
 
   static defaultProps = {
     updateInterval: 1000,
-    formatter: (data) => data
-  }
+    formatter: (data) => data,
+  };
 
   intervalId = null; // eslint-disable-line react/sort-comp
 
@@ -48,9 +48,7 @@ export default class RealTimeTimer extends PureComponent {
 
   render() {
     return (
-      <span >
-        {this.props.formatter(Date.now() - this.props.startTime)}
-      </span>
+      <span>{this.props.formatter(Date.now() - this.props.startTime)}</span>
     );
   }
 }

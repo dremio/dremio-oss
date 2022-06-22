@@ -13,21 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {get as lodashGet} from 'lodash/object';
-import { NEW_UNTITLED_FAILURE, NEW_UNTITLED_SUCCESS } from '@app/actions/explore/dataset/new';
-import { LOAD_EXPLORE_ENTITIES_FAILURE, LOAD_EXPLORE_ENTITIES_SUCCESS } from '@app/actions/explore/dataset/get';
+import { get as lodashGet } from "lodash/object";
+import {
+  NEW_UNTITLED_FAILURE,
+  NEW_UNTITLED_SUCCESS,
+} from "@app/actions/explore/dataset/new";
+import {
+  LOAD_EXPLORE_ENTITIES_FAILURE,
+  LOAD_EXPLORE_ENTITIES_SUCCESS,
+} from "@app/actions/explore/dataset/get";
 
 export default function data(state, action) {
   switch (action.type) {
-  case NEW_UNTITLED_SUCCESS:
-  case LOAD_EXPLORE_ENTITIES_SUCCESS:
-    return state.set('datasetSummary', null);
-  case NEW_UNTITLED_FAILURE: //read data set summary here
-  case LOAD_EXPLORE_ENTITIES_FAILURE: {
-    const datasetSummary = lodashGet(action, 'payload.response.details.datasetSummary') || null;
-    return state.set('datasetSummary', datasetSummary);
-  }
-  default:
-    return state;
+    case NEW_UNTITLED_SUCCESS:
+    case LOAD_EXPLORE_ENTITIES_SUCCESS:
+      return state.set("datasetSummary", null);
+    case NEW_UNTITLED_FAILURE: //read data set summary here
+    case LOAD_EXPLORE_ENTITIES_FAILURE: {
+      const datasetSummary =
+        lodashGet(action, "payload.response.details.datasetSummary") || null;
+      return state.set("datasetSummary", datasetSummary);
+    }
+    default:
+      return state;
   }
 }

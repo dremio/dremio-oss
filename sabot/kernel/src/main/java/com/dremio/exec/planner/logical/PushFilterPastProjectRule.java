@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -43,11 +44,10 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
-import com.google.common.collect.Lists;
 
 public class PushFilterPastProjectRule extends RelOptRule {
 
-  public final static PushFilterPastProjectRule INSTANCE = new PushFilterPastProjectRule(
+  public static final PushFilterPastProjectRule INSTANCE = new PushFilterPastProjectRule(
       FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
 
   public static final PushFilterPastProjectRule LOGICAL_INSTANCE = new PushFilterPastProjectRule(
@@ -58,7 +58,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
   public static final RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
       LogicalFilter.class, LogicalProject.class, RelNode.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
-  public final static RelOptRule CALCITE_NO_CHILD_CHECK = new PushFilterPastProjectRule(
+  public static final RelOptRule CALCITE_NO_CHILD_CHECK = new PushFilterPastProjectRule(
       LogicalFilter.class, LogicalProject.class, null, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   private final RexVisitorImpl<Void> unsupportedExprFinder;
@@ -199,9 +199,8 @@ public class PushFilterPastProjectRule extends RelOptRule {
     // then we could not pushed down. Otherwise, it's qualified to be pushed down.
     final List<RexNode> predList = RelOptUtil.conjunctions(filterRel.getCondition());
 
-    final List<RexNode> qualifiedPredList = Lists.newArrayList();
-    final List<RexNode> unqualifiedPredList = Lists.newArrayList();
-
+    final List<RexNode> qualifiedPredList = new ArrayList<>();
+    final List<RexNode> unqualifiedPredList = new ArrayList<>();
 
     for (final RexNode pred : predList) {
       if (qualifies(pred, projRel.getProjects())) {
@@ -211,15 +210,15 @@ public class PushFilterPastProjectRule extends RelOptRule {
       }
     }
 
-    final RexNode qualifedPred = RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), qualifiedPredList, true);
+    final RexNode qualifiedPred = RexUtil.composeConjunction(filterRel.getCluster().getRexBuilder(), qualifiedPredList, true);
 
-    if (qualifedPred == null) {
+    if (qualifiedPred == null) {
       return filterRel;
     }
 
     // convert the filter to one that references the child of the project
     RexNode newCondition =
-        RelOptUtil.pushPastProject(qualifedPred, projRel);
+        RelOptUtil.pushPastProject(qualifiedPred, projRel);
 
     RelBuilder relBuilder = relBuilderFactory.create(filterRel.getCluster(), null);
     relBuilder.push(projRel.getInput());

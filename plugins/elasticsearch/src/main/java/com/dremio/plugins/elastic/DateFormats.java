@@ -938,7 +938,7 @@ public final class DateFormats {
     }
   }
 
-  public static abstract class AbstractFormatterAndType {
+  public abstract static class AbstractFormatterAndType {
 
     private java.time.format.DateTimeFormatter formatterJT;
     private java.time.format.DateTimeFormatter printerJT;

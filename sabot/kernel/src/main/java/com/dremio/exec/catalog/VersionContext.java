@@ -38,10 +38,9 @@ import com.google.common.collect.Lists;
  *  Special types include:
  *  - UNSPECIFIED, which represents a "not set" case, this will either be
  *      overriden later or use the repository default
- *  - REF, which represents either a BRANCH or a TAG, but we don't yet know which
+ *  - REF, which represents a BRANCH, a TAG, or a BARE_COMMIT, but we don't yet know which
  *     - Special case for REF type: For ease of parsing user input, if refName
  *         is null or empty, NOT_SPECIFIED will be returned
- *     - TODO: We may add support for REF possibly being a commit too in the future
  */
 @Value.Immutable
 @Value.Style(visibility = ImplementationVisibility.PACKAGE)
@@ -56,14 +55,9 @@ public abstract class VersionContext {
     BARE_COMMIT,
   }
 
-  @Value.Default
-  public Type getType() {
-    return Type.REF;
-  }
+  public abstract Type getType();
   @Nullable
-  public abstract String getRefName();
-  @Nullable
-  public abstract String getCommitHash();
+  public abstract String getValue();
 
   public static VersionContext ofRef(String refName) {
     if (Strings.isNullOrEmpty(refName)) {
@@ -71,28 +65,28 @@ public abstract class VersionContext {
     }
     return ImmutableVersionContext.builder()
       .type(Type.REF)
-      .refName(refName)
+      .value(refName)
       .build();
   }
 
   public static VersionContext ofBranch(String branchName) {
     return ImmutableVersionContext.builder()
       .type(Type.BRANCH)
-      .refName(branchName)
+      .value(branchName)
       .build();
   }
 
   public static VersionContext ofTag(String tagName) {
     return ImmutableVersionContext.builder()
       .type(Type.TAG)
-      .refName(tagName)
+      .value(tagName)
       .build();
   }
 
   public static VersionContext ofBareCommit(String commitHash) {
     return ImmutableVersionContext.builder()
       .type(Type.BARE_COMMIT)
-      .commitHash(commitHash)
+      .value(commitHash)
       .build();
   }
 
@@ -100,35 +94,32 @@ public abstract class VersionContext {
   protected void check() {
     switch (getType()) {
     case UNSPECIFIED:
-      Preconditions.checkArgument(getRefName() == null);
-      Preconditions.checkArgument(getCommitHash() == null);
+      Preconditions.checkArgument(getValue() == null);
       break;
     case REF: // Intentional fallthrough
     case TAG:  // Intentional fallthrough
     case BRANCH:
-      Preconditions.checkNotNull(getRefName());
-      Preconditions.checkArgument(getCommitHash() == null);
+      Preconditions.checkNotNull(getValue());
       break;
     case BARE_COMMIT:
-      Preconditions.checkArgument(getRefName() == null);
-      validateHash();
+      validateHash(getValue());
       break;
     default:
       throw new IllegalStateException("Unexpected value: " + getType());
     }
   }
 
-  private void validateHash() {
-    Preconditions.checkNotNull(getCommitHash());
+  private static void validateHash(String hash) {
+    Preconditions.checkNotNull(hash);
     Preconditions.checkArgument(
-      !getCommitHash().isEmpty(),
-      "If commitHash is non-null, it must not be empty.");
+      !hash.isEmpty(),
+      "If commit is non-null, it must not be empty.");
     Preconditions.checkArgument(
-      getCommitHash().length() <= 64,
-      "commitHash is too long.");
+      hash.length() <= 64,
+      String.format("commitHash %s is too long.", hash));
     Preconditions.checkArgument(
-      Lists.charactersOf(getCommitHash()).stream().allMatch(c -> Character.digit(c, 16) >= 0),
-      "commitHash must be hexadecimal.");
+      Lists.charactersOf(hash).stream().allMatch(c -> Character.digit(c, 16) >= 0),
+      String.format("commitHash %s must be hexadecimal.", hash));
   }
 
   public VersionContext orElse(VersionContext other) {
@@ -140,23 +131,24 @@ public abstract class VersionContext {
     .type(Type.UNSPECIFIED)
     .build();
 
-  public String prettyString() {
+  @Override
+  public String toString() {
     String out;
     switch (getType()) {
       case UNSPECIFIED:
         out = "Unspecified version context";
         break;
       case REF:
-        out = String.format("Ref %s", getRefName());
+        out = String.format("reference %s", getValue());
         break;
       case BRANCH:
-        out = String.format("Branch %s", getRefName());
+        out = String.format("branch %s", getValue());
         break;
       case TAG:
-        out = String.format("Tag %s", getRefName());
+        out = String.format("tag %s", getValue());
         break;
       case BARE_COMMIT:
-        out = String.format("Commit hash %s", getCommitHash());
+        out = String.format("commit %s", getValue());
         break;
       default:
         throw new IllegalStateException("Unexpected value: " + getType());

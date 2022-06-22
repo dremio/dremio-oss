@@ -64,6 +64,11 @@ public class SqlQuery {
     this(sql, context, securityContext.getUserPrincipal().getName(), engineName, sessionId);
   }
 
+  public SqlQuery(String sql, List<String> context, SecurityContext securityContext, String engineName,
+                  String sessionId, Map<String, JobsVersionContext> references) {
+    this(sql, context, securityContext.getUserPrincipal().getName(), engineName, sessionId, references);
+  }
+
   public SqlQuery(String sql, String username) {
     this(sql, Collections.<String>emptyList(), username);
   }

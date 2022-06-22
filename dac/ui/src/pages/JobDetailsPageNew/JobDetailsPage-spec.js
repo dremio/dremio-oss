@@ -13,24 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
-import JobDetailsPage from './JobDetailsPage';
+import { shallow } from "enzyme";
+import JobDetailsPage from "./JobDetailsPage";
 
-describe('JobDetailsPage', () => {
-
+describe("JobDetailsPage", () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
       changePages: sinon.spy(),
-      jobDetails : Immutable.fromJS({
-        queryText: 'select * from test',
-        id: 'job id'
-      })
+      jobDetails: Immutable.fromJS({
+        queryText: "select * from test",
+        id: "job id",
+      }),
     };
   });
 
-  it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<JobDetailsPage {...minimalProps}/>);
+  it("should render with minimal props without exploding", () => {
+    const wrapper = shallow(<JobDetailsPage {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
 });

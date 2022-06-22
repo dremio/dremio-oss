@@ -16,4 +16,4 @@
 
 export const getQueueName = () => null;
 
-export const getRouteLabel = () => 'Common.Queue';
+export const getRouteLabel = () => "Common.Queue";

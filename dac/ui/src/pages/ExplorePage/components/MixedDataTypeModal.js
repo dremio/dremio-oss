@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PropTypes from 'prop-types';
-import Modal from 'components/Modal';
+import { Component } from "react";
+import PropTypes from "prop-types";
+import Modal from "components/Modal";
 // import AddFileController from './AddFileController';
-
 
 class RealOne extends Component {
   constructor(props) {
@@ -27,7 +26,10 @@ class RealOne extends Component {
   render() {
     return (
       <div>
-        <p> <b>Hello Modal!</b> </p>
+        <p>
+          {" "}
+          <b>Hello Modal!</b>{" "}
+        </p>
       </div>
     );
   }
@@ -35,7 +37,7 @@ class RealOne extends Component {
 
 export default class MixedDataTypeModal extends Component {
   static propTypes = {
-    hide: PropTypes.func
+    hide: PropTypes.func,
   };
 
   constructor(props) {
@@ -44,7 +46,7 @@ export default class MixedDataTypeModal extends Component {
 
   render() {
     return (
-      <div className='add-file-modal'>
+      <div className="add-file-modal">
         <Modal hide={this.props.hide}>
           <RealOne> </RealOne>
         </Modal>

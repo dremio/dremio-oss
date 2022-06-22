@@ -13,42 +13,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import { FormValidationMessage } from 'dremio-ui-lib';
+import { FormValidationMessage } from "dremio-ui-lib";
 
-import FieldWithError from './FieldWithError';
+import FieldWithError from "./FieldWithError";
 
-describe('FieldWithError', () => {
-  it('should render children', () => {
-    const wrapper = shallow(<FieldWithError><input/></FieldWithError>);
+describe("FieldWithError", () => {
+  it("should render children", () => {
+    const wrapper = shallow(
+      <FieldWithError>
+        <input />
+      </FieldWithError>
+    );
     expect(wrapper.contains(<input />)).to.equal(true);
-    expect(wrapper.find('label')).to.have.length(0);
+    expect(wrapper.find("label")).to.have.length(0);
   });
 
-  it('should render label', () => {
-    const wrapper = shallow(<FieldWithError label='label'><input/></FieldWithError>);
-    expect(wrapper.find('label').text()).to.equal('label');
+  it("should render label", () => {
+    const wrapper = shallow(
+      <FieldWithError label="label">
+        <input />
+      </FieldWithError>
+    );
+    expect(wrapper.find("label").text()).to.equal("label");
   });
 
-  it('should not render error if there is none', () => {
-    const wrapper = shallow(<FieldWithError><input/></FieldWithError>);
+  it("should not render error if there is none", () => {
+    const wrapper = shallow(
+      <FieldWithError>
+        <input />
+      </FieldWithError>
+    );
     wrapper.instance().refs = { target: {} }; // simulate refs
     expect(wrapper.find(FormValidationMessage)).to.have.length(0);
   });
 
-  it('should render error when there is one', () => {
+  it("should render error when there is one", () => {
     const props = {
       touched: true,
-      error: 'error'
+      error: "error",
     };
-    const wrapper = shallow(<FieldWithError {...props}><input/></FieldWithError>);
+    const wrapper = shallow(
+      <FieldWithError {...props}>
+        <input />
+      </FieldWithError>
+    );
     const refObj = {};
     wrapper.instance().refs = { target: refObj }; // simulate refs
     expect(wrapper.find(FormValidationMessage)).to.have.length(1);
   });
 
-  it('should throw when there is no child', () => {
+  it("should throw when there is no child", () => {
     expect(() => {
       shallow(<FieldWithError />);
     }).to.throw(Error);

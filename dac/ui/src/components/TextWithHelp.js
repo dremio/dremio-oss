@@ -13,34 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useRef } from 'react';
-import PropTypes from 'prop-types';
-import classNames from 'classnames';
+import { useState, useRef } from "react";
+import PropTypes from "prop-types";
+import classNames from "classnames";
 
-import { Tooltip } from 'components/Tooltip';
+import { Tooltip } from "components/Tooltip";
 
-import './TextWithHelp.less';
+import "./TextWithHelp.less";
 
-export const DARK = 'dark';
-export const LIGHT = 'light';
+export const DARK = "dark";
+export const LIGHT = "light";
 
 const TextWithHelp = (props) => {
-  const {
-    text,
-    helpText,
-    showToolTip,
-    className,
-    color
-  } = props;
+  const { text, helpText, showToolTip, className, color } = props;
 
   const textRef = useRef(null);
   const [isHover, setIsHover] = useState(false);
 
   const onMouseEnter = () => {
-    const {
-      clientWidth,
-      scrollWidth
-    } = textRef.current || {};
+    const { clientWidth, scrollWidth } = textRef.current || {};
     setIsHover(clientWidth < scrollWidth || showToolTip);
   };
 
@@ -48,27 +39,31 @@ const TextWithHelp = (props) => {
     setIsHover(false);
   };
 
-  const tooltipClass = classNames(
-    'textWithHelp__tooltip',
-    { '--light': color === LIGHT }
-  );
+  const tooltipClass = classNames("textWithHelp__tooltip", {
+    "--light": color === LIGHT,
+  });
 
-  const arrowClass = classNames(
-    'textWithHelp__tooltipArrow',
-    { '--light': color === LIGHT }
-  );
+  const arrowClass = classNames("textWithHelp__tooltipArrow", {
+    "--light": color === LIGHT,
+  });
 
-  const contentClass = classNames(
-    'textWithHelp__content',
-    { [className]: className }
-  );
+  const contentClass = classNames("textWithHelp__content", {
+    [className]: className,
+  });
 
   return (
-    <div className='textWithHelp' onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-      <div className={contentClass} ref={textRef}>{ helpText || text }</div>
-      <Tooltip key='tooltip'
-        target={() => isHover ? textRef.current : null}
-        placement='bottom-start'
+    <div
+      className="textWithHelp"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className={contentClass} ref={textRef}>
+        {helpText || text}
+      </div>
+      <Tooltip
+        key="tooltip"
+        target={() => (isHover ? textRef.current : null)}
+        placement="bottom-start"
         tooltipInnerClass={tooltipClass}
         tooltipArrowClass={arrowClass}
       >
@@ -83,12 +78,12 @@ TextWithHelp.propTypes = {
   helpText: PropTypes.any,
   showToolTip: PropTypes.bool,
   className: PropTypes.string,
-  color: PropTypes.oneOf([DARK, LIGHT])
+  color: PropTypes.oneOf([DARK, LIGHT]),
 };
 
 TextWithHelp.defaultProps = {
-  className: '',
-  color: DARK
+  className: "",
+  color: DARK,
 };
 
 export default TextWithHelp;

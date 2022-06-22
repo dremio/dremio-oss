@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import forms from 'uiTheme/radium/forms';
+import forms from "uiTheme/radium/forms";
 
-@Radium
-export default class TextArea extends PureComponent {
-
+class TextArea extends PureComponent {
   static propTypes = {
     error: PropTypes.string,
     disabled: PropTypes.bool,
@@ -38,7 +36,7 @@ export default class TextArea extends PureComponent {
     touched: PropTypes.any,
     visited: PropTypes.any,
     autofilled: PropTypes.any,
-    placeholder: PropTypes.any
+    placeholder: PropTypes.any,
   };
 
   constructor(props) {
@@ -46,19 +44,18 @@ export default class TextArea extends PureComponent {
   }
 
   render() {
-    const {
-      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
-      ...props
-    } = this.props;
     return (
-      <textarea {...props} className='field'
+      <textarea
+        {...this.props}
+        className="field"
         style={[
           forms.textArea,
           this.props.error && forms.textInputError,
           this.props.disabled && forms.textInputDisabled,
-          this.props.style && {...this.props.style}
+          this.props.style && { ...this.props.style },
         ]}
       />
     );
   }
 }
+export default Radium(TextArea);

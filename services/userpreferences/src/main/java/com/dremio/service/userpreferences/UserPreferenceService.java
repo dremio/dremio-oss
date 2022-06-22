@@ -42,7 +42,7 @@ public interface UserPreferenceService {
    * @return
    */
   Preference addEntityToPreference(PreferenceType type, UUID entityId)
-    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException;
+    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException;
 
   /**
    * remove an entity from specific preference type

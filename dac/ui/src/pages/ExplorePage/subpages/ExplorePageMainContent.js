@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Immutable from 'immutable';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Immutable from "immutable";
 
-import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
+import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 
-import { connect } from 'react-redux';
-import TopSplitterContent from '../components/TopSplitterContent';
+import { connect } from "react-redux";
+import TopSplitterContent from "../components/TopSplitterContent";
 class ExplorePageMainContent extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -32,12 +32,13 @@ class ExplorePageMainContent extends PureComponent {
     dragType: PropTypes.string,
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
     sidebarCollapsed: PropTypes.bool,
-    handleSidebarCollapse: PropTypes.func
+    handleSidebarCollapse: PropTypes.func,
+    editorWidth: PropTypes.any,
   };
 
   static contextTypes = {
-    location: PropTypes.object
-  }
+    location: PropTypes.object,
+  };
 
   explorePageMainContentRef = null;
 
@@ -48,15 +49,15 @@ class ExplorePageMainContent extends PureComponent {
 
   handleSidebarCollapse = () => {
     this.props.handleSidebarCollapse();
-  }
+  };
 
   render() {
-    const { dataset, pageType, dragType, sqlState, sqlSize, sidebarCollapsed } = this.props;
+    const { dataset, pageType, dragType, sqlState, sqlSize, sidebarCollapsed } =
+      this.props;
 
     return (
       <>
-        {
-          pageType === PageTypes.default && // show sql editor only on data page
+        {pageType === PageTypes.default && ( // show sql editor only on data page
           <TopSplitterContent
             startDrag={this.props.startDrag}
             sqlState={sqlState}
@@ -66,12 +67,15 @@ class ExplorePageMainContent extends PureComponent {
             exploreViewState={this.props.exploreViewState}
             handleSidebarCollapse={this.handleSidebarCollapse}
             sidebarCollapsed={sidebarCollapsed}
-            ref={(ref) => this.explorePageMainContentRef = ref}>
-          </TopSplitterContent>
-        }
+            ref={(ref) => (this.explorePageMainContentRef = ref)}
+            editorWidth={this.props.editorWidth}
+          ></TopSplitterContent>
+        )}
       </>
     );
   }
 }
 
-export default connect(null, null, null, { forwardRef: true })(ExplorePageMainContent);
+export default connect(null, null, null, { forwardRef: true })(
+  ExplorePageMainContent
+);

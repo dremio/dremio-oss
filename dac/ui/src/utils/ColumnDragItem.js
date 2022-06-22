@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import invariant from 'invariant';
+import invariant from "invariant";
 
-const validTypes = ['dimensions', 'measures', 'columnsList'];
+const validTypes = ["dimensions", "measures", "columnsList"];
 
 export default class ColumnDragItem {
   constructor(id = null, dragOrigin = null) {
-    invariant(dragOrigin === null || validTypes.includes(dragOrigin),
-      'Drag origin should be one of the valid types');
+    invariant(
+      dragOrigin === null || validTypes.includes(dragOrigin),
+      "Drag origin should be one of the valid types"
+    );
 
     this.id = id;
     this.dragOrigin = dragOrigin;

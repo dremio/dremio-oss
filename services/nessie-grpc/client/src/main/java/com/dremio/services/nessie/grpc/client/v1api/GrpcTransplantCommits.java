@@ -15,17 +15,16 @@
  */
 package com.dremio.services.nessie.grpc.client.v1api;
 
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
-import java.util.Collections;
 import java.util.List;
 
 import org.projectnessie.client.api.TransplantCommitsBuilder;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.ImmutableTransplant;
 
-import com.dremio.services.nessie.grpc.api.TransplantRequest;
-import com.dremio.services.nessie.grpc.api.TransplantRequest.Builder;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
 final class GrpcTransplantCommits implements TransplantCommitsBuilder {
@@ -34,8 +33,7 @@ final class GrpcTransplantCommits implements TransplantCommitsBuilder {
   private String branchName;
   private String hash;
   private String message;
-  private String fromRefName;
-  private List<String> hashesToTransplant = Collections.emptyList();
+  private final ImmutableTransplant.Builder transplant = ImmutableTransplant.builder();
 
   public GrpcTransplantCommits(TreeServiceBlockingStub stub) {
     this.stub = stub;
@@ -61,29 +59,25 @@ final class GrpcTransplantCommits implements TransplantCommitsBuilder {
 
   @Override
   public TransplantCommitsBuilder fromRefName(String fromRefName) {
-    this.fromRefName = fromRefName;
+    transplant.fromRefName(fromRefName);
+    return this;
+  }
+
+  @Override
+  public TransplantCommitsBuilder keepIndividualCommits(boolean keepIndividualCommits) {
+    transplant.keepIndividualCommits(keepIndividualCommits);
     return this;
   }
 
   @Override
   public TransplantCommitsBuilder hashesToTransplant(List<String> hashesToTransplant) {
-    this.hashesToTransplant = hashesToTransplant;
+    transplant.hashesToTransplant(hashesToTransplant);
     return this;
   }
 
   @Override
   public void transplant() throws NessieNotFoundException, NessieConflictException {
     handle(
-      () -> {
-        Builder builder = TransplantRequest.newBuilder().setBranchName(branchName).setHash(hash);
-        if (null != message) {
-          builder.setMessage(message);
-        }
-        if (null != fromRefName) {
-          builder.setFromRefName(fromRefName);
-        }
-        builder.addAllHashesToTransplant(hashesToTransplant);
-        return stub.transplantCommitsIntoBranch(builder.build());
-      });
+      () -> stub.transplantCommitsIntoBranch(toProto(branchName, hash, message, transplant.build())));
   }
 }

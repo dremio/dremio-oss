@@ -239,6 +239,11 @@ public class TestFragmentTracker {
         public void reconcileActiveQueries(CoordExecRPC.ActiveQueryList activeQueryList, StreamObserver<Empty> emptyStreamObserver) {
 
         }
+
+        @Override
+        public void propagatePluginChange(CoordExecRPC.SourceWrapper sourceWrapper, StreamObserver<Empty> emptyStreamObserver) {
+
+        }
       };
   }
 

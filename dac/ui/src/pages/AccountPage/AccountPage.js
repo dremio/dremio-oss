@@ -13,35 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
-import { injectIntl } from 'react-intl';
+import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 
-import SideNav from '@app/components/SideNav/SideNav';
-import SettingPage from '@app/containers/SettingPage';
-import UserNavigation from 'components/UserNavigation';
-import { accountSection } from 'dyn-load/pages/AccountPage/AccountPageConstants';
-import './AccountPage.less';
+import SideNav from "@app/components/SideNav/SideNav";
+import SettingPage from "@app/containers/SettingPage";
+import UserNavigation from "components/UserNavigation";
+import { accountSection } from "dyn-load/pages/AccountPage/AccountPageConstants";
+import "./AccountPage.less";
 
 const AccountPage = (props) => {
   const {
     style,
     children,
-    intl: {
-      formatMessage
-    }
+    intl: { formatMessage },
   } = props;
 
   return (
-    <SettingPage id='account-page' style={style}>
-      <div className='page-content'>
+    <SettingPage id="account-page" style={style}>
+      <div className="page-content">
         <SideNav />
         <UserNavigation
-          title={formatMessage({ id: 'SideNav.AccountSettings' })}
+          title={formatMessage({ id: "SideNav.AccountSettings" })}
           sections={[accountSection]}
         />
-        <div className='main-content'>
-          {children}
-        </div>
+        <div className="main-content">{children}</div>
       </div>
     </SettingPage>
   );
@@ -50,7 +46,7 @@ const AccountPage = (props) => {
 AccountPage.propTypes = {
   children: PropTypes.node,
   style: PropTypes.object,
-  intl: PropTypes.object
+  intl: PropTypes.object,
 };
 
 export default injectIntl(AccountPage);

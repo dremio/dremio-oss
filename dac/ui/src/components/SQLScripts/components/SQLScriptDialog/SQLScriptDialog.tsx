@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { injectIntl } from 'react-intl';
-import Modal from '@app/components/Modals/Modal';
-import ApiUtils from 'utils/apiUtils/apiUtils';
-import openPopupNotification from '@app/components/PopupNotification/PopupNotification';
-import SQLScriptForm from './SQLScriptForm';
+import React from "react";
+import { injectIntl } from "react-intl";
+import Modal from "@app/components/Modals/Modal";
+import ApiUtils from "utils/apiUtils/apiUtils";
+import openPopupNotification from "@app/components/PopupNotification/PopupNotification";
+import SQLScriptForm from "./SQLScriptForm";
 
 type SQLScriptDialogProps = {
   title: string;
@@ -43,13 +43,18 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
     onSubmit,
     postSubmit,
     intl,
-    hideFail
+    hideFail,
   } = props;
   const { content, context } = script;
 
   const onFormSubmit = (values: any): void => {
     const newContext = context.toJS ? context.toJS() : context;
-    const payload: any = { name: values.name, content, context: newContext, description: '' };
+    const payload: any = {
+      name: values.name,
+      content,
+      context: newContext,
+      description: "",
+    };
     return ApiUtils.attachFormSubmitHandlers(
       onSubmit(payload, script.id, hideFail)
     ).then((res: any) => {
@@ -58,7 +63,10 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       }
 
       postSubmit(res.payload);
-      openPopupNotification({ message: intl.formatMessage({ id: 'NewQuery.ScriptSaved' }), type: 'success' });
+      openPopupNotification({
+        message: intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
+        type: "success",
+      });
       onCancel();
     });
   };
@@ -66,14 +74,18 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
   return (
     <Modal
       isOpen={isOpen}
-      size='small'
+      size="small"
       title={title}
-      className='--newModalStyles'
+      className="--newModalStyles"
       hide={onCancel}
-      closeButtonType='XBig'
-      modalHeight={'250px'}
+      closeButtonType="XBig"
+      modalHeight={"250px"}
     >
-      <SQLScriptForm initialValues={script} onFormSubmit={onFormSubmit} intl={intl} />
+      <SQLScriptForm
+        initialValues={script}
+        onFormSubmit={onFormSubmit}
+        intl={intl}
+      />
     </Modal>
   );
 }

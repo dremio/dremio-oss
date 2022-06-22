@@ -221,7 +221,7 @@ public class MaterializationExpander {
   }
 
   private RelNode expandSchemaPath(final List<String> path) {
-    final DremioCatalogReader catalog = parent.getCatalogReader();
+    final DremioCatalogReader catalog = new DremioCatalogReader(parent.getCatalog(), parent.getTypeFactory());
     final RelOptTable table = catalog.getTable(path);
     if(table == null){
       return null;
@@ -240,14 +240,14 @@ public class MaterializationExpander {
 
 
   public static RelNode deserializePlan(final byte[] planBytes, SqlConverter parent, CatalogService catalogService) {
-    final SqlConverter parser = parent.withSchemaPath(ImmutableList.of());
+    final DremioCatalogReader dremioCatalogReader = new DremioCatalogReader(parent.getCatalog(), parent.getTypeFactory());
     try {
-      final LogicalPlanDeserializer deserializer = parser.getSerializerFactory().getDeserializer(parser.getCluster(), parser.getCatalogReader(), parser.getFunctionImplementationRegistry(), catalogService);
+      final LogicalPlanDeserializer deserializer = parent.getSerializerFactory().getDeserializer(parent.getCluster(), dremioCatalogReader, parent.getFunctionImplementationRegistry(), catalogService);
       return deserializer.deserialize(planBytes);
     } catch (Exception ex) {
       try {
         // Try using legacy serializer. If this one also fails, throw the original exception.
-        final LogicalPlanDeserializer deserializer = parser.getLegacySerializerFactory().getDeserializer(parser.getCluster(), parser.getCatalogReader(), parser.getFunctionImplementationRegistry(), catalogService);
+        final LogicalPlanDeserializer deserializer = parent.getLegacySerializerFactory().getDeserializer(parent.getCluster(), dremioCatalogReader, parent.getFunctionImplementationRegistry(), catalogService);
         return deserializer.deserialize(planBytes);
       } catch (Exception ignored) {
         throw ex;

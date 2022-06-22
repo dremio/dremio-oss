@@ -13,19 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import AccelerationSection from './AccelerationSection';
+import AccelerationSection from "./AccelerationSection";
 
-export const FIELDS = ['id', 'name', 'description', 'version', ...AccelerationSection.getFields()];
+export const FIELDS = [
+  "id",
+  "name",
+  "description",
+  "version",
+  ...AccelerationSection.getFields(),
+];
 
-export default function(input) {
-  Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+export default function (input) {
+  Object.assign(input.prototype, {
+    // eslint-disable-line no-restricted-properties
     renderFooter() {
       return null;
-    }
+    },
   });
-  Object.assign(input, { // eslint-disable-line no-restricted-properties
+  Object.assign(input, {
+    // eslint-disable-line no-restricted-properties
     getFields() {
       return FIELDS;
-    }
+    },
   });
 }

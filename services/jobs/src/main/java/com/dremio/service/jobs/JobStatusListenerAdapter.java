@@ -24,7 +24,7 @@ import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobSummary;
-import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobSubmission;
 import com.google.common.util.concurrent.SettableFuture;
 
 import io.grpc.StatusRuntimeException;
@@ -36,7 +36,7 @@ import io.grpc.stub.StreamObserver;
 class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobStatusListenerAdapter.class);
 
-  private final SettableFuture<JobId> jobId = SettableFuture.create();
+  private final SettableFuture<JobSubmission> jobSubmission = SettableFuture.create();
 
   // an exception that occurs before this event is considered a submission failure, otherwise a job failure
   private final AtomicBoolean jobSubmitted = new AtomicBoolean(false);
@@ -51,8 +51,8 @@ class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
   public void onNext(JobEvent value) {
     switch (value.getEventCase()) {
 
-    case JOB_ID:
-      jobId.set(JobsProtoUtil.toStuff(value.getJobId()));
+    case JOB_SUBMISSION:
+      jobSubmission.set(JobsProtoUtil.toStuff(value.getJobSubmission()));
       break;
 
     case JOB_SUBMITTED:
@@ -111,7 +111,7 @@ class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
     } else {
       failureCallback.accept(new RuntimeException(t));
     }
-    jobId.setException(t);
+    jobSubmission.setException(t);
   }
 
   @Override
@@ -119,9 +119,9 @@ class JobStatusListenerAdapter implements StreamObserver<JobEvent> {
     // ignore; all events are delivered through #onNext
   }
 
-  public JobId getJobId() {
+  public JobSubmission getJobSubmission() {
     try {
-      return jobId.get();
+      return jobSubmission.get();
     } catch (InterruptedException | ExecutionException e) {
       throw new RuntimeException(e);
     }

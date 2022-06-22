@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from 'utils/FormUtils/FormUtils';
-import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import HostList from 'components/Forms/HostList';
-import HostListWrapper from 'components/Forms/Wrappers/HostListWrapper';
+import FormUtils from "utils/FormUtils/FormUtils";
+import FormElementConfig from "utils/FormUtils/FormElementConfig";
+import HostList from "components/Forms/HostList";
+import HostListWrapper from "components/Forms/Wrappers/HostListWrapper";
 
 export default class HostListConfig extends FormElementConfig {
-
   constructor(props) {
     super(props);
     this._renderer = HostListWrapper;
@@ -35,11 +34,13 @@ export default class HostListConfig extends FormElementConfig {
 
   addInitValues(initValues, state, props) {
     const elementConfig = super.getConfig();
-    const {editing} = props;
+    const { editing } = props;
     if (editing) {
       FormUtils.addInitValueForEditing(initValues, super.getPropName(), state);
     } else if (elementConfig.showOneRowForEmptyList !== false) {
-      initValues = FormUtils.addInitValue(initValues, elementConfig.propName, [{port: elementConfig.defaultPort}]);
+      initValues = FormUtils.addInitValue(initValues, elementConfig.propName, [
+        { port: elementConfig.defaultPort },
+      ]);
     }
     return initValues;
   }
@@ -48,5 +49,4 @@ export default class HostListConfig extends FormElementConfig {
     validations.functions.push(HostList.getValidators(super.getConfig()));
     return validations;
   }
-
 }

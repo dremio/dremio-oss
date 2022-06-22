@@ -20,7 +20,9 @@ import static java.lang.String.format;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.IntVector;
@@ -89,11 +91,25 @@ class PartitionWriteManager {
       bucketNumber = null;
     }
 
-    for(String column : options.getPartitionColumns()){
+    List<String> partitionColumns = null;
+    boolean isIcebergPartitionSpecNull = true;
+    PartitionSpec partitionSpec = options.getDeserializedPartitionSpec();
+    if (isIcebergWriter && partitionSpec != null) {
+      icebergPartitionSpec = partitionSpec;
+      partitionColumns = getPartitionSpecColumns(icebergPartitionSpec);
+      isIcebergPartitionSpecNull = false;
+    } else {
+      partitionColumns = options.getPartitionColumns();
+    }
+
+    for (String column : partitionColumns) {
       final TypedFieldId partitionValueField = incoming.getValueVectorId(SchemaPath.getSimplePath(column));
       if (partitionValueField != null) {
         partitionFields.add(partitionValueField.getFinalType());
         partitions.add(incoming.getValueAccessorById(ValueVector.class, partitionValueField.getFieldIds()).getValueVector());
+        if (isIcebergWriter && !isIcebergPartitionSpecNull) {
+          maskedIds.add(partitionValueField.getFieldIds()[0]); // Mask in case of icebergWriter
+        }
       } else {
         throw new IllegalArgumentException("Incoming schema didn't include partitions even though writer was configured for partitioning.");
       }
@@ -102,16 +118,16 @@ class PartitionWriteManager {
 
 
     maskedContainer = new VectorContainer();
-    int id = 0;
+    int id = -1;
     for(VectorWrapper<?> wrapper : incoming){
+      id++;
       if(maskedIds.contains(id)){
         continue;
       }
       maskedContainer.add(wrapper.getValueVector());
-      id++;
     }
     maskedContainer.buildSchema();
-    if (isIcebergWriter && partitions.size() > 0) {
+    if (isIcebergWriter && Objects.isNull(icebergPartitionSpec) && partitions.size() > 0) {
       icebergPartitionSpec = IcebergUtils.getIcebergPartitionSpec(maskedContainer.getSchema(), options.getPartitionColumns(), null);
     }
   }
@@ -169,5 +185,9 @@ class PartitionWriteManager {
         return value;
       }
     }
+  }
+
+  List<String> getPartitionSpecColumns(PartitionSpec partitionSpec) {
+    return partitionSpec.fields().stream().map(IcebergUtils::getPartitionFieldName).collect(Collectors.toList());
   }
 }

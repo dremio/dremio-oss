@@ -28,16 +28,19 @@ import com.google.common.collect.ImmutableList;
 public final class FunctionSignature {
   private final SqlTypeName returnType;
   private final ImmutableList<SqlTypeName> operandTypes;
+  private final String template;
 
   @JsonCreator
   public FunctionSignature(
     @JsonProperty("returnType") SqlTypeName returnType,
-    @JsonProperty("operandTypes") ImmutableList<SqlTypeName> operandTypes) {
+    @JsonProperty("operandTypes") ImmutableList<SqlTypeName> operandTypes,
+    @JsonProperty("template") String template) {
     Preconditions.checkNotNull(returnType);
     Preconditions.checkNotNull(operandTypes);
 
     this.returnType = returnType;
     this.operandTypes = operandTypes;
+    this.template = template;
   }
 
   public SqlTypeName getReturnType() {
@@ -46,5 +49,9 @@ public final class FunctionSignature {
 
   public ImmutableList<SqlTypeName> getOperandTypes() {
     return operandTypes;
+  }
+
+  public String getTemplate() {
+    return template;
   }
 }

@@ -33,4 +33,6 @@ public interface Task {
   }
 
   State getState();
+
+  long getTaskWeight();
 }

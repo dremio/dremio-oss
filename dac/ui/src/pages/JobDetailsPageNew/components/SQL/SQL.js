@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState } from 'react';
-import PropTypes from 'prop-types';
-import Art from '@app/components/Art';
-import CopyButton from 'components/Buttons/CopyButton';
-import SqlEditor from '@app/components/SQLEditor.js';
-import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
-import './SQL.less';
+import { useState } from "react";
+import PropTypes from "prop-types";
+import { Tooltip } from "dremio-ui-lib";
+import CopyButton from "components/Buttons/CopyButton";
+import SqlEditor from "@app/components/SQLEditor.js";
+import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import "./SQL.less";
 
 const options = {
   selectOnLineNumbers: false,
   disableLayerHinting: true,
-  wordWrap: 'on',
+  wordWrap: "on",
   overviewRulerBorder: false,
-  lineNumbers: 'on',
+  lineNumbers: "on",
   readOnly: true,
   minimap: {
-    enabled: false
-  }
+    enabled: false,
+  },
 };
 export const SQL = ({
   title,
@@ -39,50 +39,51 @@ export const SQL = ({
   showContrast,
   customOptions = {},
   sqlClass,
-  defaultContrast
+  defaultContrast,
 }) => {
   const [isContrast, setIsContrast] = useState(defaultContrast);
-  const theme = (isContrast) ? 'vs-dark' : 'vs';
-  const background = (isContrast) ? '#333333' : '#F3F4F4';
+  const theme = isContrast ? "vs-dark" : "vs";
+  const background = isContrast ? "#333333" : "#F3F4F4";
   const handleClick = () => {
     localStorageUtils.setSqlThemeContrast(!isContrast);
     setIsContrast(!isContrast);
-    if (onClick && typeof onClick === 'function') {
+    if (onClick && typeof onClick === "function") {
       onClick(!isContrast);
     }
   };
   return (
     <>
-      <div className='sql'>
-        <div className='sql__titleWrapper'>
-          <span className='sql__title'>
-            {title}
-          </span>
-          <span className='sql__copyIcon'>
+      <div className="sql">
+        <div className="sql__titleWrapper">
+          <span className="sql__title">{title}</span>
+          <span className="sql__copyIcon">
             <CopyButton
-              data-qa='copy-icon'
-              title={'copy'}
+              data-qa="copy-icon"
+              title={"copy"}
               text={sqlString}
               iconVersion={2}
-              iconStyle={{ width: '16px', height: '16px' }}
+              iconStyle={{ width: "16px", height: "16px" }}
             />
           </span>
         </div>
-        {
-          showContrast && <span
-            data-qa='toggle-icon'
-            id='toggle-icon'
-            className='sql__toggleIcon'
+        {showContrast && (
+          <span
+            data-qa="toggle-icon"
+            id="toggle-icon"
+            className="sql__toggleIcon"
             onClick={handleClick}
           >
-            <Art
-              src={isContrast ? 'Vector.svg' : 'Vector_lite.svg'}
-              alt='icon'
-              title='icon'
-              style={{ width: '15px' }}
-            />
+            <Tooltip
+              title={isContrast ? "Common.Theme.Dark" : "Common.Theme.Light"}
+            >
+              <dremio-icon
+                name="sql-editor/sqlThemeSwitcher"
+                alt="Theme Switcher"
+                class="theme-switcher-icon"
+              />
+            </Tooltip>
           </span>
-        }
+        )}
       </div>
       <div className={sqlClass}>
         <SqlEditor
@@ -111,9 +112,9 @@ SQL.propTypes = {
   sqlString: PropTypes.string,
   isContrast: PropTypes.bool,
   defaultContrast: PropTypes.bool,
-  onClick: PropTypes.func
+  onClick: PropTypes.func,
 };
 SQL.defaultProps = {
-  defaultContrast: true
+  defaultContrast: true,
 };
 export default SQL;

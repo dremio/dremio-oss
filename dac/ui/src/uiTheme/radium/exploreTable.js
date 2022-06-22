@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 export const headerCell = {
-  width: '100%',
+  width: "100%",
   height: 25,
   opacity: 1,
-  backgroundColor: '#f3f3f3'
+  backgroundColor: "#f3f3f3",
 };
 
-export const headerCellText = {
-
-};
+export const headerCellText = {};
 
 export const bodyCell = {
-  width: '100%'
+  width: "100%",
 };
 
 export const DEFAULT_ROW_HEIGHT = 25;

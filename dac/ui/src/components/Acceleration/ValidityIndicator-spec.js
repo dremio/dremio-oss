@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { shallow } from "enzyme";
 
-import ValidityIndicator from './ValidityIndicator';
+import ValidityIndicator from "./ValidityIndicator";
 
-describe('ValidityIndicator', () => {
+describe("ValidityIndicator", () => {
   let minimalProps;
   let commonProps;
 
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
-      isValid: true
+      isValid: true,
     };
   });
 
-  it('should render with minimal props without exploding (false case)', () => {
-    const wrapper = shallow(<ValidityIndicator {...minimalProps}/>);
-    expect(wrapper.find('FontIcon').props().type).to.equal('Flame-Disabled');
+  it("should render with minimal props without exploding (false case)", () => {
+    const wrapper = shallow(<ValidityIndicator {...minimalProps} />);
+    expect(wrapper.find("FontIcon").props().type).to.equal("Flame-Disabled");
   });
 
-  it('should render with common props without exploding (true case)', () => {
-    const wrapper = shallow(<ValidityIndicator {...commonProps}/>);
-    expect(wrapper.find('FontIcon').props().type).to.equal('Flame');
+  it("should render with common props without exploding (true case)", () => {
+    const wrapper = shallow(<ValidityIndicator {...commonProps} />);
+    expect(wrapper.find("FontIcon").props().type).to.equal("Flame");
   });
 });

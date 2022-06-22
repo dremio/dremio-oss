@@ -13,48 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import Immutable from 'immutable';
-import { connect }   from 'react-redux';
-import { replace } from 'react-router-redux';
-import urlParse from 'url-parse';
-import moment from 'moment';
+import { PureComponent } from "react";
+import Immutable from "immutable";
+import { connect } from "react-redux";
+import { replace } from "react-router-redux";
+import urlParse from "url-parse";
+import moment from "@app/utils/dayjs";
 
-import Radium from 'radium';
+import PropTypes from "prop-types";
 
-import PropTypes from 'prop-types';
+import LoginTitle from "pages/AuthenticationPage/components/LoginTitle";
+import SimpleButton from "components/Buttons/SimpleButton";
 
-import LoginTitle from 'pages/AuthenticationPage/components/LoginTitle';
-import SimpleButton from 'components/Buttons/SimpleButton';
+import { getViewState } from "selectors/resources";
 
-import { getViewState } from 'selectors/resources';
+import { SERVER_STATUS_OK } from "@app/constants/serverStatus";
 
-import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
-
-import {LIGHT_GREY} from 'uiTheme/radium/colors';
+import { LIGHT_GREY } from "uiTheme/radium/colors";
 
 import {
   scheduleCheckServerStatus,
   unscheduleCheckServerStatus,
   manuallyCheckServerStatus,
-  CHECK_SERVER_STATUS_VIEW_ID
-} from 'actions/serverStatus';
+  CHECK_SERVER_STATUS_VIEW_ID,
+} from "actions/serverStatus";
 
 const COUNTDOWN_UPDATE_INTERVAL = 100;
 
-@Radium
 export class ServerStatusPage extends PureComponent {
   static propTypes = {
     serverStatus: PropTypes.instanceOf(Immutable.Map),
     scheduleCheckServerStatus: PropTypes.func.isRequired,
     unscheduleCheckServerStatus: PropTypes.func.isRequired,
     manuallyCheckServerStatus: PropTypes.func.isRequired,
-    checkViewState: PropTypes.instanceOf(Immutable.Map)
+    checkViewState: PropTypes.instanceOf(Immutable.Map),
   };
 
   static redirectIfStatusOk(props) {
-    if (props.serverStatus.get('status') === SERVER_STATUS_OK) {
-      if (typeof window !== 'undefined') {
+    if (props.serverStatus.get("status") === SERVER_STATUS_OK) {
+      if (typeof window !== "undefined") {
         const query = urlParse(window.location.href, true).query;
         const url = query.redirect;
         if (url) {
@@ -90,17 +87,21 @@ export class ServerStatusPage extends PureComponent {
   };
 
   getSubTitle() {
-    if (this.props.serverStatus.get('status') === SERVER_STATUS_OK) {
-      return la('Everything is OK. Carry on.');
+    if (this.props.serverStatus.get("status") === SERVER_STATUS_OK) {
+      return la("Everything is OK. Carry on.");
     }
-    return la('Oops, something is wrong with the server.');
+    return la("Oops, something is wrong with the server.");
   }
 
   renderCheckTime() {
-    const {serverStatus} = this.props;
-    const lastCheckMoment = serverStatus.get('lastCheckMoment');
+    const { serverStatus } = this.props;
+    const lastCheckMoment = serverStatus.get("lastCheckMoment");
     if (lastCheckMoment) {
-      const d = Math.round(moment.duration(serverStatus.get('delay') - moment().diff(lastCheckMoment)).asSeconds());
+      const d = Math.round(
+        moment
+          .duration(serverStatus.get("delay") - moment().diff(lastCheckMoment))
+          .asSeconds()
+      );
       if (d) {
         return <div style={styles.checking}>Checking in {d} seconds.</div>;
       }
@@ -110,13 +111,14 @@ export class ServerStatusPage extends PureComponent {
 
   render() {
     return (
-      <div id='status-page' style={styles.base}>
+      <div id="status-page" style={styles.base}>
         <div style={styles.content}>
-          <LoginTitle subTitle={this.getSubTitle()}/>
+          <LoginTitle subTitle={this.getSubTitle()} />
           <SimpleButton
-            disabled={this.props.checkViewState.get('isInProgress')}
-            buttonStyle='primary'
-            onClick={this.onUpdateClick}>
+            disabled={this.props.checkViewState.get("isInProgress")}
+            buttonStyle="primary"
+            onClick={this.onUpdateClick}
+          >
             Check Now
           </SimpleButton>
           {this.renderCheckTime()}
@@ -129,55 +131,53 @@ export class ServerStatusPage extends PureComponent {
 function mapStateToProps(state) {
   return {
     serverStatus: state.serverStatus,
-    checkViewState: getViewState(CHECK_SERVER_STATUS_VIEW_ID)
+    checkViewState: getViewState(CHECK_SERVER_STATUS_VIEW_ID),
   };
 }
 
 const styles = {
   base: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#2A394A',
-    width: '100vw',
-    height: '100vh',
-    overflow: 'hidden'
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#2A394A",
+    width: "100vw",
+    height: "100vh",
+    overflow: "hidden",
   },
   content: {
-    position: 'relative',
-    backgroundColor: '#344253',
+    position: "relative",
+    backgroundColor: "#344253",
     minWidth: 775,
     minHeight: 430,
     maxWidth: 775,
     maxHeight: 430,
-    overflow: 'hidden',
-    padding: 40
+    overflow: "hidden",
+    padding: 40,
   },
   subtitle: {
-    color: '#43B8C9',
-    fontSize: 27
+    color: "#43B8C9",
+    fontSize: 27,
   },
   mainTitle: {
-    display: 'flex',
-    alignItems: 'center'
+    display: "flex",
+    alignItems: "center",
   },
   theme: {
     Icon: {
       width: 240,
-      height: 75
-    }
+      height: 75,
+    },
   },
   checking: {
     color: LIGHT_GREY,
-    marginTop: 10
-  }
+    marginTop: 10,
+  },
 };
 
-export default connect(
-  mapStateToProps, {
-    replace,
-    scheduleCheckServerStatus,
-    unscheduleCheckServerStatus,
-    manuallyCheckServerStatus
-  }
-)(ServerStatusPage);
+export default connect(mapStateToProps, {
+  replace,
+  scheduleCheckServerStatus,
+  unscheduleCheckServerStatus,
+  manuallyCheckServerStatus,
+})(ServerStatusPage);

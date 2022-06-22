@@ -13,34 +13,160 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
- :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
+
+:global {
+  // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
   .datasetItemLabel-item {
     align-items: center;
     display: flex;
     justify-content: space-between;
 
     &:hover {
+      border-radius: 0.4rem;
+
       .datasetItemLabel-item__add {
+        opacity: 1;
+      }
+      .datasetItemLabel-item__starIcon {
         opacity: 1;
       }
     }
 
+    &__iconBlock {
+      display: flex;
+      align-items: center;
+      margin-right: 0.5rem;
+      gap: 0.4rem;
+    }
+
     &__add {
-      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg) brightness(91%) contrast(85%);
-      height: 1.6rem;
-      margin-right: .5rem;
+      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg)
+        brightness(91%) contrast(85%);
+      height: 2.4rem;
       opacity: 0;
       transition: 300ms ease all;
-      width: 1.6rem;
+      width: 2.4rem;
 
       &:hover {
-        filter: invert(23%) sepia(91%) saturate(2296%) hue-rotate(165deg) brightness(99%) contrast(101%);
+        .gray-icon-hover();
+      }
+    }
+
+    &__starIcon {
+      height: 2.4rem;
+      margin-right: 0.5rem;
+      transition: 300ms ease all;
+      width: 2.4rem;
+      opacity: 0;
+      margin-bottom: 1px;
+
+      &:hover {
+        cursor: pointer;
+      }
+    }
+
+    &--starred {
+      opacity: 1 !important;
+    }
+
+    &--limitReached {
+      filter: invert(95%) sepia(11%) saturate(88%) hue-rotate(170deg)
+        brightness(120%) contrast(89%);
+    }
+
+    &--unstarred {
+      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg)
+        brightness(91%) contrast(85%);
+
+      &:hover {
+        .gray-icon-hover();
       }
     }
 
     &__content {
       flex: 1;
+
+      .font-icon {
+        min-width: 2.4rem;
+        justify-content: center;
+      }
+      .searchHeading {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--dremio--color--text--main);
+      }
+      .searchSubHeading {
+        font-size: 12px;
+        color: var(--dremio--color--text--faded);
+      }
+    }
+    .search-wrapper {
+      margin-left: 10px !important;
     }
   }
- } 
+
+  .resourceTree .datasetItemLabel-item__content.--isNotExpandable {
+    margin-left: 2.4rem;
+  }
+
+  .dependantItem {
+    .datasetItemLabel-item {
+      &:hover {
+        background: none;
+        border-radius: none;
+
+        .datasetItemLabel-item__add {
+          opacity: 1;
+        }
+      }
+
+      &__content > div {
+        margin-bottom: 0px !important;
+        margin-top: 2px;
+      }
+
+      & * {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .dataset-label-overlay {
+    .font-icon {
+      .icon-type {
+        background-size: initial;
+      }
+      .Loader {
+        height: 24px !important;
+        width: 24px !important;
+      }
+    }
+
+    .EllipsedText {
+      margin-left: 0.5rem;
+    }
+  }
+
+  .draggable-row {
+    // .ColumnMenuItem__content
+    margin-left: 21px;
+    margin-right: 0;
+    padding: 0 0.4rem;
+    width: 100%;
+  }
+
+  .info-draggable-row.draggable-row {
+    // .ColumnMenuItem__content
+    width: calc(100% - 29px);
+  }
+
+  .search_draggable-row {
+    // .ColumnMenuItem__content
+    .draggable-row {
+      width: calc(100% - 21px - 0.5rem);
+    }
+  }
+}

@@ -13,19 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
+import { Component } from "react";
+import Radium from "radium";
 
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
-import AddFieldEditor from 'components/Wizards/DetailsWizard/components/AddFieldEditor';
-import actionUtils from 'utils/actionUtils/actionUtils';
+import AddFieldEditor from "components/Wizards/DetailsWizard/components/AddFieldEditor";
+import actionUtils from "utils/actionUtils/actionUtils";
 
-@Radium
-export default class CustomCondition extends Component {
+import "./CustomCondition.less";
+
+class CustomCondition extends Component {
   static propTypes = {
     fields: PropTypes.object,
-    submitForm: PropTypes.func
+    submitForm: PropTypes.func,
   };
 
   constructor(props) {
@@ -34,26 +35,31 @@ export default class CustomCondition extends Component {
   }
 
   onChange(data) {
-    const { fields: { booleanExpression } } = this.props;
+    const {
+      fields: { booleanExpression },
+    } = this.props;
     actionUtils.runAutoPreview(this.props.submitForm);
     booleanExpression.onChange(data);
   }
 
   render() {
-    const { fields: { booleanExpression } } = this.props;
+    const {
+      fields: { booleanExpression },
+    } = this.props;
     return (
-      <div style={[styles.base]}>
+      <div style={[styles.base]} className="custom-condition-editor">
         <AddFieldEditor
           {...booleanExpression}
           onChange={this.onChange}
           style={styles.addFieldEditor}
-          tooltip={la('Write an expression that evaluates to TRUE or FALSE.')}
+          tooltip={la("Write an expression that evaluates to TRUE or FALSE.")}
           //todo DX-12762
           blockHeight={140}
           sqlHeight={142}
           functionPaneHeight={142}
           activeMode
-          dragType='help-func'/>
+          dragType="help-func"
+        />
       </div>
     );
   }
@@ -61,37 +67,39 @@ export default class CustomCondition extends Component {
 
 const styles = {
   addFieldEditor: {
-    height: 160
+    height: 160,
+    width: "calc(100% - 27px)",
   },
   base: {
-    width: '100%',
-    position: 'relative',
-    marginTop: -10
+    width: "100%",
+    position: "relative",
+    marginTop: -10,
   },
   wrap: {
-    margin: '0 10px 0 10px',
-    height: 24
+    margin: "0 10px 0 10px",
+    height: 24,
   },
   wrapFooter: {
     marginTop: 40,
     marginLeft: 10,
-    position: 'relative'
+    position: "relative",
   },
   input: {
     width: 230,
     height: 24,
     fontSize: 13,
-    border: '1px solid #ccc',
+    border: "1px solid #ccc",
     borderRadius: 3,
-    outline: 'none',
-    float: 'left',
-    padding: 2
+    outline: "none",
+    float: "left",
+    padding: 2,
   },
   check: {
-    float: 'left',
-    marginLeft: 10
+    float: "left",
+    marginLeft: 10,
   },
   nameCheck: {
-    marginLeft: 5
-  }
+    marginLeft: 5,
+  },
 };
+export default Radium(CustomCondition);

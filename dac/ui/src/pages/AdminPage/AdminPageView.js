@@ -13,28 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
-import PropTypes from 'prop-types';
-import Radium from 'radium';
+import { PureComponent } from "react";
+import PropTypes from "prop-types";
+import Radium from "radium";
 
-import withFilteredSections from '@inject/pages/AdminPage/withFilteredSections';
+import withFilteredSections from "@inject/pages/AdminPage/withFilteredSections";
 
-import SettingPage from '@app/containers/SettingPage';
-import UserNavigation from 'components/UserNavigation';
-import SideNav from '@app/components/SideNav/SideNav';
-import { getTitle } from '@inject/pages/AdminPage/navSections';
+import SettingPage from "@app/containers/SettingPage";
+import UserNavigation from "components/UserNavigation";
+import SideNav from "@app/components/SideNav/SideNav";
+import { getTitle } from "@inject/pages/AdminPage/navSections";
 
-import './AdminPage.less'; // TODO to Vasyl, need to use Radium for each child component
+import "./AdminPage.less"; // TODO to Vasyl, need to use Radium for each child component
 
-@Radium
 class AdminPageView extends PureComponent {
   static propTypes = {
     sections: PropTypes.arrayOf(PropTypes.object),
     children: PropTypes.node,
     location: PropTypes.object.isRequired,
-    style: PropTypes.object
+    style: PropTypes.object,
   };
-
 
   constructor(props) {
     super(props);
@@ -45,31 +43,34 @@ class AdminPageView extends PureComponent {
 
     const title = getTitle();
 
-    const projectsHeaderSection = title !== 'Settings' ? { titleObject: {
-      url: '/',
-      icon: 'Back.svg',
-      topTitle: 'Admin.Settings.Projects',
-      title
-    }} : {
-      title
-    };
+    const projectsHeaderSection =
+      title !== "Settings"
+        ? {
+            titleObject: {
+              url: "/",
+              icon: "Back.svg",
+              topTitle: "Admin.Settings.Projects",
+              title,
+            },
+          }
+        : {
+            title,
+          };
 
     return (
-      <SettingPage id='admin-page' style={style}>
-        <div className='page-content'>
-          <SideNav/>
+      <SettingPage id="admin-page" style={style}>
+        <div className="page-content">
+          <SideNav />
           <UserNavigation
             sections={sections}
             location={location}
             {...projectsHeaderSection}
           />
-          <div className='main-content'>
-            {children}
-          </div>
+          <div className="main-content">{children}</div>
         </div>
       </SettingPage>
     );
   }
 }
 
-export default withFilteredSections(AdminPageView);
+export default Radium(withFilteredSections(AdminPageView));

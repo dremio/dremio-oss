@@ -37,7 +37,6 @@ import com.dremio.exec.store.parquet.CopyingFilteringReader;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.sabot.op.scan.ScanOperator;
 
 /**
  * Similar to CoercionReader, additionally applies filter after coercion if the filter was modified by inner reader
@@ -58,7 +57,7 @@ public class FilteringCoercionReader extends CoercionReader {
   private CopyingFilteringReader filteringReader;
   private final List<ParquetFilterCondition> filterConditions;
   private boolean initialProjectorSetUpDone;
-  private ScanOperator.ScanMutator filteringReaderInputMutator;
+  private OutputMutator filteringReaderInputMutator;
 
   public FilteringCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
                                    BatchSchema targetSchema, List<ParquetFilterCondition> parqfilterConditions) {
@@ -78,7 +77,7 @@ public class FilteringCoercionReader extends CoercionReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     if (setupCalledByFilteringReader) {
-      this.filteringReaderInputMutator = (ScanOperator.ScanMutator) output;
+      this.filteringReaderInputMutator = output;
     } else {
       createCoercions();
       this.outputMutator = output;

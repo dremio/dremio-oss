@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-import {CONVERT_DATASET_TO_FOLDER_SUCCESS} from 'actions/home';
+import { CONVERT_DATASET_TO_FOLDER_SUCCESS } from "actions/home";
 
 export default function folder(state, action) {
   switch (action.type) {
-  case CONVERT_DATASET_TO_FOLDER_SUCCESS:
-    if (state.getIn(['folder', action.meta.folderId])) {
-      return state.setIn(['folder', action.meta.folderId, 'queryable'], false);
-    }
-    return state;
-  default:
-    return state;
+    case CONVERT_DATASET_TO_FOLDER_SUCCESS:
+      if (state.getIn(["folder", action.meta.folderId])) {
+        return state.setIn(
+          ["folder", action.meta.folderId, "queryable"],
+          false
+        );
+      }
+      return state;
+    default:
+      return state;
   }
 }
-

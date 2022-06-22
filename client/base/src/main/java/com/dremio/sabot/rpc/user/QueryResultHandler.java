@@ -151,8 +151,8 @@ public class QueryResultHandler {
                             byte[] pBody, ByteBuf dBody ) throws RpcException {
     final QueryData queryData = RpcBus.get( pBody, QueryData.PARSER );
     // Current batch coming in.
-    final ArrowBuf ArrowBuf = dBody != null ? ((NettyArrowBuf) dBody).arrowBuf() : null;
-    final QueryDataBatch batch = new QueryDataBatch( queryData, ArrowBuf );
+    final ArrowBuf arrowBuf = dBody != null ? ((NettyArrowBuf) dBody).arrowBuf() : null;
+    final QueryDataBatch batch = new QueryDataBatch( queryData, arrowBuf );
 
     final QueryId queryId = queryData.getQueryId();
 

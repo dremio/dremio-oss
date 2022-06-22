@@ -27,7 +27,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.metadatarefresh.footerread.Footer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;

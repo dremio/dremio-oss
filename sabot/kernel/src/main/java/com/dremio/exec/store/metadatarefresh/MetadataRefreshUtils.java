@@ -28,6 +28,7 @@ import com.dremio.options.OptionManager;
  */
 public final class MetadataRefreshUtils {
 
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataRefreshUtils.class);
   /**
    * checks if unlimited splits is enabled
    * @param options
@@ -42,8 +43,23 @@ public final class MetadataRefreshUtils {
    * @return
    */
   public static boolean metadataSourceAvailable(final CatalogService catalogService) {
-    FileSystemPlugin<?> metadataPlugin = catalogService.getSource(METADATA_STORAGE_PLUGIN_NAME);
-    return metadataPlugin.supportsIcebergTables();
+    FileSystemPlugin<?> metadataPlugin = null;
+    try {
+      metadataPlugin = catalogService.getSource(METADATA_STORAGE_PLUGIN_NAME);
+    }
+    catch (Exception e) {
+      logger.debug("Exception while getting the plugin for the source [{}].", METADATA_STORAGE_PLUGIN_NAME, e);
+      return false;
+    }
+    if (metadataPlugin == null) {
+      logger.debug("Source {} could not be found", METADATA_STORAGE_PLUGIN_NAME);
+      return false;
+    }
+    boolean supportsIceberg = metadataPlugin.supportsIcebergTables();
+    if (!supportsIceberg) {
+      logger.debug("metadata plugin does not supports Iceberg tables");
+    }
+    return supportsIceberg;
   }
 
   private MetadataRefreshUtils() {}

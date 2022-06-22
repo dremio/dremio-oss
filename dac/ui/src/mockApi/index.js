@@ -13,10 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import CALL_MOCK_API from './CALL_MOCK_API';
-import mockApiMiddleware from './middleware';
+import CALL_MOCK_API from "./CALL_MOCK_API";
+import mockApiMiddleware from "./middleware";
 
-export {
-  CALL_MOCK_API,
-  mockApiMiddleware
-};
+export { CALL_MOCK_API, mockApiMiddleware };

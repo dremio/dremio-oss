@@ -47,11 +47,13 @@ public class MetadataRefreshExecConstants {
   public static class FooterRead {
     public static class OUTPUT_SCHEMA {
       public static final String DATA_FILE = RecordWriter.ICEBERG_METADATA_COLUMN;
+      public static final String OPERATION_TYPE = RecordWriter.OPERATION_TYPE_COLUMN;
       public static final String MODIFICATION_TIME = "modificationtime";
       public static final String FILE_SCHEMA = "fileschema";
 
       public static BatchSchema BATCH_SCHEMA = BatchSchema.newBuilder()
         .addField(MajorTypeHelper.getFieldForNameAndMajorType(DATA_FILE, Types.optional(TypeProtos.MinorType.VARBINARY)))
+        .addField(MajorTypeHelper.getFieldForNameAndMajorType(OPERATION_TYPE, Types.optional(TypeProtos.MinorType.INT)))
         .addField(MajorTypeHelper.getFieldForNameAndMajorType(MODIFICATION_TIME, Types.optional(TypeProtos.MinorType.BIGINT)))
         .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILE_SCHEMA, Types.optional(TypeProtos.MinorType.VARBINARY)))
         .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
