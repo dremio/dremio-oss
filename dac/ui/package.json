@@ -77,7 +77,7 @@
     "jwt-decode": "^3.1.2",
     "linkifyjs": "^2.1.9",
     "lodash": "4.17.21",
-    "marked": "^0.7.0",
+    "marked": "^4.0.10",
     "material-ui-popup-state": "^1.9.3",
     "moize": "^6.1.0",
     "monaco-editor": "^0.10.0",
