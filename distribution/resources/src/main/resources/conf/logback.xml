@@ -17,6 +17,10 @@
 
 -->
 <configuration>
+  <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
+    <defaultLogLevelThreshold>INFO</defaultLogLevelThreshold>
+    <packageLogLevel>com.dremio,DEBUG</packageLogLevel>
+  </turboFilter>
   <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator"/>
   <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>

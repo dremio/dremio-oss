@@ -122,7 +122,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
     }
   }
 
-  private void testInsertCommandWithContext(String tblName, String path, String schema) throws Exception {
+  private void testInsertWithContextWithPathTable(String tblName, String path, String schema) throws Exception {
     try {
       final String createTableQuery = String.format("CREATE TABLE %s.%s.%s(id INT, data VARCHAR)", schema, path, tblName);
       test(createTableQuery);
@@ -144,36 +144,34 @@ public class TestInsertIntoTable extends BaseTestQuery {
     }
   }
 
-  @Ignore("DX-49941")
   @Test
-  public void testInsertCommandWithContext() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testInsertCommandWithContext("with_context", "path", TEMP_SCHEMA_HADOOP);
+  public void testInsertWithContextWithPathTable() throws Exception {
+    try (AutoCloseable ignored = enableIcebergTables()) {
+      testInsertWithContextWithPathTable("with_context", "path", TEMP_SCHEMA_HADOOP);
     }
   }
 
-  private void testInsertCommandWithBadContext(String tblName, String path, String schema) throws Exception {
+  private void testInsertWithWrongContextWithPathTable(String tblName, String path, String schema) throws Exception {
     try {
       final String createTableQuery = String.format("CREATE TABLE %s.%s.%s(id INT, data VARCHAR)", schema, path, tblName);
       test(createTableQuery);
 
-      test(String.format("USE %s", schema));
+      test(String.format("USE %s.%s", schema, path));
 
-      final String insertQuery = String.format("INSERT INTO %s VALUES(1, 'one')", tblName);
+      final String insertQuery = String.format("INSERT INTO %s.%s VALUES(1, 'one')", path, tblName);
       assertThatThrownBy(() ->
         test(insertQuery))
         .isInstanceOf(Exception.class)
-        .hasMessageContaining(String.format("Table [%s] not found", tblName));
+        .hasMessageContaining("Table [%s.%s] does not exist.", path, tblName);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
     }
   }
 
-  @Ignore("DX-49941")
   @Test
-  public void testInsertCommandWithBadContext() throws Exception {
-    try (AutoCloseable c = enableIcebergTables()) {
-      testInsertCommandWithBadContext("with_bad_context", "path", TEMP_SCHEMA_HADOOP);
+  public void testInsertWithWrongContextWithPathTable() throws Exception {
+    try (AutoCloseable ignored = enableIcebergTables()) {
+      testInsertWithWrongContextWithPathTable("with_bad_context", "path", TEMP_SCHEMA_HADOOP);
     }
   }
 
@@ -211,9 +209,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       final String insertQuery = "INSERT INTO INFORMATION_SCHEMA.CATALOGS VALUES('A', 'A', 'A')";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
         .isInstanceOf(UserException.class)
-        // DX-49941
-        // .hasMessageContaining("VALIDATION ERROR: [INFORMATION_SCHEMA.CATALOGS] is a SYSTEM_TABLE");
-        .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: INSERT clause is not supported in the query for this source");
+        .hasMessageContaining("INSERT is not supported on this SYSTEM_TABLE at [INFORMATION_SCHEMA.CATALOGS]");
     }
   }
 
@@ -228,7 +224,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         Thread.sleep(1001);
 
         final String insertQuery = String.format("INSERT INTO %s.%s VALUES('A', 'A', 'A')", schema, tblName);
-        errorMsgTestHelper(insertQuery, String.format("[%s.%s] is a VIEW", schema, tblName));
+        errorMsgTestHelper(insertQuery, String.format("INSERT is not supported on this VIEW at [%s.%s].", schema, tblName));
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
       }

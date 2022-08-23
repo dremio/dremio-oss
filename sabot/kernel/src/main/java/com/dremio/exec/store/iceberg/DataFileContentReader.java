@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
@@ -37,6 +38,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.common.AutoCloseables;
@@ -58,6 +60,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   private PartitionSpec icebergPartitionSpec;
   private boolean doneWithCurrentDatafile;
   private final ArrowBuf tmpBuf;
+  private Map<Integer, Type> idTypeMap;
 
   public DataFileContentReader(OperatorContext context, TableFunctionContext functionContext) {
     outputSchema = functionContext.getFullSchema();
@@ -87,6 +90,8 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   public void initialise(PartitionSpec partitionSpec) {
     icebergPartitionSpec = partitionSpec;
     fileSchema = icebergPartitionSpec.schema();
+    idTypeMap = fileSchema.columns().stream().collect(
+      Collectors.toMap(Types.NestedField::fieldId, Types.NestedField::type));
   }
 
   /**
@@ -160,17 +165,27 @@ public class DataFileContentReader implements ManifestEntryProcessor {
     }
     writer.startList();
     List<FieldVector> childrenFromFields = vector.getChildrenFromFields().get(0).getChildrenFromFields();
-    int colId = 0;
     if (data instanceof Map) {
       BaseWriter.StructWriter structWriter = writer.struct();
+      //https://iceberg.apache.org/spec/, All the Map contents from data_file should always come with key as int which refers to col id.
+      // It will only use columns from current schema, For deleted cols data will not be sent for output.
+      //eg: for lower_bounds -> it will only output for current cols with current dataFile. For older dataFile it will be null.
       for (Map.Entry<Object, Object> entry :  ((Map<Object , Object >) data).entrySet()) {
-        structWriter.start();
-        writeStringValue(structWriter, childrenFromFields.get(0).getName(), String.valueOf(entry.getKey()));
         if (entry.getValue() instanceof ByteBuffer) {
-          writeStringValue(structWriter, childrenFromFields.get(1).getName(),
-            IcebergUtils.getValueFromByteBuffer((ByteBuffer) entry.getValue(), fileSchema.columns().get(colId++).type()).toString());
+          if (entry.getKey() instanceof Integer && idTypeMap.containsKey(entry.getKey())) {
+            structWriter.start();
+            writeStringValue(structWriter, childrenFromFields.get(0).getName(), String.valueOf(entry.getKey()));
+            writeStringValue(structWriter, childrenFromFields.get(1).getName(),
+              IcebergUtils.getValueFromByteBuffer((ByteBuffer) entry.getValue(), idTypeMap.get(entry.getKey())).toString());
+            structWriter.end();
+          }
+        }  else {
+          structWriter.start();
+          writeStringValue(structWriter, childrenFromFields.get(0).getName(), String.valueOf(entry.getKey()));
+          writeStringValue(structWriter, childrenFromFields.get(1).getName(), String.valueOf(entry.getValue()));
+          structWriter.end();
         }
-        structWriter.end();
+
       }
     }
     if (data instanceof List) {

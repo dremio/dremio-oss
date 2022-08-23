@@ -152,6 +152,11 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
   }
 
   @Override
+  public boolean isPartitionInferenceEnabled() {
+    return false;
+  }
+
+  @Override
   public String getConnection() {
     URI path = uri.get();
     if(path.getAuthority() != null) {

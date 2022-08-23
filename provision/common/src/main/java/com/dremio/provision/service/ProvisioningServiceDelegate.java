@@ -19,6 +19,7 @@ import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterType;
+import com.dremio.provision.PreviewEngineState;
 import com.dremio.service.Service;
 
 /**
@@ -77,6 +78,10 @@ public interface ProvisioningServiceDelegate extends Service {
 
 
   default void restartPreviewEngine() {
+  }
+
+  default PreviewEngineState getPreviewEngineState() {
+    return PreviewEngineState.UNKNOWN;
   }
 
   /**

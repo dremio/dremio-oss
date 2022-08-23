@@ -54,7 +54,7 @@ public class NessieDatabaseAdapterConfig implements NonTransactionalDatabaseAdap
       "nessie.kvversionstore.key_list_distance", Integer.MAX_VALUE, DEFAULT_KEY_LIST_DISTANCE);
 
   public static final PositiveLongValidator MAX_KEY_LIST_SIZE = new PositiveLongValidator(
-      "nessie.kvversionstore.max_key_list_size", Integer.MAX_VALUE, DEFAULT_MAX_KEY_LIST_SIZE);
+      "nessie.kvversionstore.max_key_list_size", Integer.MAX_VALUE, DEFAULT_MAX_ENTITY_SIZE);
 
   // Note: default retry timeouts are set based on DCS experience
   public static final PositiveLongValidator RETRY_INITIAL_SLEEP_MILLIS_LOWER = new PositiveLongValidator(

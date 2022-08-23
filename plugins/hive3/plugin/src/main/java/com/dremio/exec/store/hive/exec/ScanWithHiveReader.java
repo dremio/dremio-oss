@@ -45,7 +45,6 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.io.compress.snappy.SnappyDecompressor;
 import org.apache.hadoop.io.compress.zlib.ZlibDecompressor;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -127,11 +126,6 @@ class ScanWithHiveReader {
         if (!NativeCodeLoader.isNativeCodeLoaded()) {
           throw UserException.dataReadError()
               .message("Hadoop native library is required for Hive ORC data, but is not loaded").build(logger);
-        }
-        // TODO: find a way to access compression codec information?
-        if (!SnappyDecompressor.isNativeCodeLoaded()) {
-          throw UserException.dataReadError()
-            .message("Snappy native library is required for Hive ORC data, but is not loaded").build(logger);
         }
 
         if (!isNativeZlibLoaded) {

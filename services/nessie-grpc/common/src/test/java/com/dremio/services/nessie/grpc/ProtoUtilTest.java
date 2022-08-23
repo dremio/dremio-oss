@@ -215,6 +215,9 @@ public class ProtoUtilTest {
 
     IcebergTable icebergTable = IcebergTable.of("test.me.txt", 42L, 42, 42, 42);
     assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
+
+    icebergTable = IcebergTable.of("test.me.txt", 42L, 42, 42, 42, "test-id");
+    assertThat(fromProto(toProto(icebergTable))).isEqualTo(icebergTable);
   }
 
   @Test
@@ -227,6 +230,9 @@ public class ProtoUtilTest {
       .hasMessage("IcebergView must be non-null");
 
     IcebergView icebergView = IcebergView.of("test.me.txt", 42, 42, "dialect", "SELECT foo FROM bar");
+    assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
+
+    icebergView = IcebergView.of("test-id", "test.me.txt", 42, 42, "dialect", "SELECT foo FROM bar");
     assertThat(fromProto(toProto(icebergView))).isEqualTo(icebergView);
   }
 
@@ -247,6 +253,9 @@ public class ProtoUtilTest {
         .build();
 
     assertThat(fromProto(toProto(deltaLakeTable))).isEqualTo(deltaLakeTable);
+
+    DeltaLakeTable deltaLakeTableWithId = ImmutableDeltaLakeTable.builder().from(deltaLakeTable).id("test-id").build();
+    assertThat(fromProto(toProto(deltaLakeTableWithId))).isEqualTo(deltaLakeTableWithId);
 
     DeltaLakeTable deltaLakeTableWithoutLastCheckpoint =
       ImmutableDeltaLakeTable.builder().from(deltaLakeTable).lastCheckpoint(null).build();

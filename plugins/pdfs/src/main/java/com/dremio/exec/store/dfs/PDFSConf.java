@@ -67,4 +67,8 @@ public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return false;
+  }
 }

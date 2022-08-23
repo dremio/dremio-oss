@@ -30,6 +30,13 @@
           {
             "elements": [
               {
+                "propName": "config.isPartitionInferenceEnabled"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
                 "propName": "config.defaultCtasFormat",
                 "uiType": "container_selection",
                 "selectorType": "select",

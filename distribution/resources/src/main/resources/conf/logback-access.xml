@@ -18,6 +18,11 @@
 -->
 <configuration>
 
+  <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
+    <defaultLogLevelThreshold>INFO</defaultLogLevelThreshold>
+    <packageLogLevel>com.dremio,DEBUG</packageLogLevel>
+  </turboFilter>
+
   <!-- The following appender is only available if dremio.log.path is defined -->
   <if condition='isDefined("dremio.log.path")'>
     <then>

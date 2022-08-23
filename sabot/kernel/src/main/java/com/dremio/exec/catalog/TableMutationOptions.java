@@ -42,4 +42,6 @@ public abstract class TableMutationOptions {
     return new ImmutableTableMutationOptions.Builder();
   }
 
+  @Value.Default
+  public boolean shouldDeleteCatalogEntry() { return false; }
 }

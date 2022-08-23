@@ -102,6 +102,16 @@ public class KVStoreOptionUtility {
     return Optional.empty();
   }
 
+  public static boolean canSkipMeta(KVStore.DeleteOption... options) {
+    for (KVStore.DeleteOption option : options) {
+      if (option == KVStore.DeleteOption.NO_META) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /**
    * Helper function to validate that IndexPutOption does not exist in the array of KVStoreOption
    * objects.

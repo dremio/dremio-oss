@@ -544,6 +544,7 @@ public interface ExecConstants {
 
   DoubleValidator EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD = new DoubleValidator("exec.expression.complexity.no_optimize.threshold", 2000.00);
 
+  BooleanValidator ENABLE_ASYNC_READER_REUSE = new BooleanValidator("exec.storage.enable_async_reader_reuse", true);
   BooleanValidator ENABLE_BOOSTING = new BooleanValidator("exec.storage.enable_arrow_caching", true);
   BooleanValidator ENABLE_BOOST_FILTERING_READER = new BooleanValidator("exec.storage.enable_arrow_filtering_reader", true);
   BooleanValidator ENABLE_BOOST_DELTA_READER = new BooleanValidator("exec.storage.enable_arrow_delta_reader", true);
@@ -559,10 +560,10 @@ public interface ExecConstants {
   String CODE_CACHE_LOCATION_PROP = "CODE_CACHE_LOCATION";
   BooleanValidator EXEC_CODE_CACHE_SAVE_EXPR = new BooleanValidator("exec.code_cache.save_expr", false);
 
-  BooleanValidator ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET =  new BooleanValidator("exec.non_partitioned_parquet.enable_runtime_filter", false); // in beta right now
-  RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE = new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
+  BooleanValidator ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET =  new BooleanValidator("exec.non_partitioned_parquet.enable_runtime_filter", true);
+  RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE = new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 10000);
   RangeLongValidator RUNTIME_FILTER_KEY_MAX_SIZE = new RangeLongValidator("exec.runtime_filter.max_key_size", 32, 1_024, 128);
-  BooleanValidator ENABLE_ROW_LEVEL_RUNTIME_FILTERING = new BooleanValidator("exec.row_level.runtime_filter.enable", false);
+  BooleanValidator ENABLE_ROW_LEVEL_RUNTIME_FILTERING = new BooleanValidator("exec.row_level.runtime_filter.enable", true);
 
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
@@ -574,6 +575,7 @@ public interface ExecConstants {
 
   // Use this as a factor to scale the rowcount estimation of number of rows in a data file
   DoubleValidator DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR = new RangeDoubleValidator("store.delta.rowcount_estimation_factor", 0.8d, 2.0d, 1.25d);
+  LongValidator DELTALAKE_MAX_ADDED_FILE_ESTIMATION_LIMIT = new PositiveLongValidator("store.delta.max.added_file_estimation_limit", Integer.MAX_VALUE, 100);
   StringValidator DISABLED_GANDIVA_FUNCTIONS = new StringValidator("exec.disabled.gandiva-functions", "");
   BooleanValidator GANDIVA_TARGET_HOST_CPU = new BooleanValidator("exec.gandiva.target_host_cpu", true);
   BooleanValidator GANDIVA_OPTIMIZE = new BooleanValidator("exec.gandiva.optimize_ir", true);

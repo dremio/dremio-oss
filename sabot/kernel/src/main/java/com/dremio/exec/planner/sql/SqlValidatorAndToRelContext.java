@@ -255,6 +255,10 @@ public class SqlValidatorAndToRelContext {
       return new Builder(sqlConverter, catalog, contextualSqlOperatorTable, isSubQuery);
     }
 
+    public Builder withSystemDefaultParserConfig() {
+      return new Builder(sqlConverter.withSystemDefaultParserConfig(), catalog, contextualSqlOperatorTable, isSubQuery);
+    }
+
     public SqlValidatorAndToRelContext build() {
       return new SqlValidatorAndToRelContext(sqlConverter,
         new DremioCatalogReader(catalog, sqlConverter.getTypeFactory()),

@@ -19,6 +19,8 @@ import org.junit.Test;
 
 /**
  * Runs test cases on the local filesystem-based Hadoop source.
+ *
+ * Note: Contains all tests in MergeTests.
  */
 public class ITMerge extends ITDmlQueryBase {
 
@@ -27,81 +29,111 @@ public class ITMerge extends ITDmlQueryBase {
 
   @Test
   public void testMalformedMergeQueries() throws Exception {
-    MergeTestCases.testMalformedMergeQueries(SOURCE);
+    MergeTests.testMalformedMergeQueries(SOURCE);
+  }
+
+  @Test
+  public void testMergeOnView() throws Exception {
+    MergeTests.testMergeOnView(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateAllWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateAllWithLiteral(allocator, SOURCE);
+    MergeTests.testMergeUpdateAllWithLiteral(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateAllWithScalar() throws Exception {
-    MergeTestCases.testMergeUpdateAllWithScalar(allocator, SOURCE);
+    MergeTests.testMergeUpdateAllWithScalar(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateAllWithSubQuery() throws Exception {
-    MergeTestCases.testMergeUpdateAllWithSubQuery(allocator, SOURCE);
+    MergeTests.testMergeUpdateAllWithSubQuery(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateHalfWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateHalfWithLiteral(allocator, SOURCE);
+    MergeTests.testMergeUpdateHalfWithLiteral(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateHalfWithScalar() throws Exception {
-    MergeTestCases.testMergeUpdateHalfWithScalar(allocator, SOURCE);
+    MergeTests.testMergeUpdateHalfWithScalar(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateHalfWithSubQuery() throws Exception {
-    MergeTestCases.testMergeUpdateHalfWithSubQuery(allocator, SOURCE);
+    MergeTests.testMergeUpdateHalfWithSubQuery(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateWithFloat() throws Exception {
-    MergeTestCases.testMergeUpdateWithFloat(allocator, SOURCE);
+    MergeTests.testMergeUpdateWithFloat(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateUsingSubQueryWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateUsingSubQueryWithLiteral(allocator, SOURCE);
+    MergeTests.testMergeUpdateUsingSubQueryWithLiteral(allocator, SOURCE);
   }
 
   @Test
   public void testMergeInsertWithScalar() throws Exception {
-    MergeTestCases.testMergeInsertWithScalar(allocator, SOURCE);
+    MergeTests.testMergeInsertWithScalar(allocator, SOURCE);
   }
 
   @Test
   public void testMergeInsertWithLiteral() throws Exception {
-    MergeTestCases.testMergeInsertWithLiteral(allocator, SOURCE);
+    MergeTests.testMergeInsertWithLiteral(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeInsertWithFloat() throws Exception {
+    MergeTests.testMergeInsertWithFloat(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateInsertWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithLiteral(allocator, SOURCE);
+    MergeTests.testMergeUpdateInsertWithLiteral(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeUpdateInsertWithFloats() throws Exception {
+    MergeTests.testMergeUpdateInsertWithFloats(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateInsertWithScalar() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithScalar(allocator, SOURCE);
+    MergeTests.testMergeUpdateInsertWithScalar(allocator, SOURCE);
   }
 
   @Test
   public void testMergeUpdateInsertWithSubQuery() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithSubQuery(allocator, SOURCE);
+    MergeTests.testMergeUpdateInsertWithSubQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeWithSubQuerySourceAndInsert() throws Exception {
+    MergeTests.testMergeWithSubQuerySourceAndInsert(allocator, SOURCE);
   }
 
   @Test
   public void testMergeTargetTableWithAndWithoutAlias() throws Exception {
-    MergeTestCases.testMergeTargetTableWithAndWithoutAlias(allocator, SOURCE);
+    MergeTests.testMergeTargetTableWithAndWithoutAlias(allocator, SOURCE);
   }
 
   @Test
   public void testMergeWithDupsInSource() throws Exception {
-    MergeTestCases.testMergeWithDupsInSource(allocator, SOURCE);
+    MergeTests.testMergeWithDupsInSource(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeWithWrongContextWithPathTable() throws Exception {
+    MergeTests.testMergeWithWrongContextWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMergeWithContextWithPathTable() throws Exception {
+    MergeTests.testMergeWithContextWithPathTable(allocator, SOURCE);
   }
 }

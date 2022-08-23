@@ -25,6 +25,7 @@ import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.ClusterState;
 import com.dremio.provision.ClusterType;
+import com.dremio.provision.PreviewEngineState;
 import com.dremio.service.Service;
 
 /**
@@ -135,6 +136,8 @@ public interface ProvisioningService extends Service {
   CompletableFuture<Void> autostartCluster(String name);
 
   void restartPreviewEngine();
+
+  PreviewEngineState getPreviewEngineState();
 
   /**
    * Stop the collection of clusterIds if possible. No exceptions are thrown if the stop is disallowed.

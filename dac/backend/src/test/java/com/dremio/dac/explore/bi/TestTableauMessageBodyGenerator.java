@@ -19,13 +19,11 @@ import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_CONNEC
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_FLIGHT_CONNECTION_PROPERTIES;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_NATIVE_CONNECTION_PROPERTIES;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE;
-import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_SOFTWARE_SSO_ENABLED;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_VERSION;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_NOMINAL;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_ORDINAL;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TableauColumnMetadata.TABLEAU_TYPE_QUANTITATIVE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -72,7 +70,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.xml.SafeXMLFactories;
-import com.google.common.base.Strings;
 
 /**
  * Unit tests for {@link TableauMessageBodyGenerator}
@@ -134,9 +131,10 @@ public class TestTableauMessageBodyGenerator {
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
 
-    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
     final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
@@ -228,19 +226,6 @@ public class TestTableauMessageBodyGenerator {
     verifyFlightOutput("", TableauSDKConstants.REQUIRE);
   }
 
-  @Test
-  public void verifySsoEnabledSslOff()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
-    when(optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)).thenReturn(true);
-    verifySdkOutput("", TableauSDKConstants.NOT_REQUIRE);
-  }
-
-  @Test
-  public void verifySsoEnabledSslOn()
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
-    when(optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)).thenReturn(true);
-    verifySdkOutput("ssl = true", TableauSDKConstants.REQUIRE);
-  }
 
   protected void verifySdkCustomOutput(Element connection) {
     assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
@@ -249,23 +234,10 @@ public class TestTableauMessageBodyGenerator {
   }
 
   protected void verifySdkAuthenticationOutput(Element connection) {
-    if (optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)) {
-      assertEquals(TableauSDKConstants.OAUTH, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
-      assertFalse(Strings.isNullOrEmpty(connection.getAttribute(TableauSDKConstants.INSTANCEURL)));
-    } else {
-      assertEquals(TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
-    }
+    assertEquals(TableauSDKConstants.BASIC, connection.getAttribute(TableauSDKConstants.AUTHENTICATION));
   }
 
   protected void verifySdkSSLOutput(Element connection, String sslmode) {
-    if (optionManager.getOption(TABLEAU_SOFTWARE_SSO_ENABLED)) {
-      if (sslmode.equalsIgnoreCase(TableauSDKConstants.REQUIRE)) {
-        assertEquals("https://foo:9047", connection.getAttribute(TableauSDKConstants.INSTANCEURL));
-      } else {
-        assertEquals("http://foo:9047", connection.getAttribute(TableauSDKConstants.INSTANCEURL));
-      }
-    }
-
     assertEquals(sslmode, connection.getAttribute(TableauSDKConstants.SSL));
   }
 
@@ -283,22 +255,24 @@ public class TestTableauMessageBodyGenerator {
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
-    TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
-    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    final TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
     assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
     // Convert the baos into a DOM Tree to verify content
-    DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+    final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
+    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
 
-    NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
+    final NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
 
     assertEquals(1, connections.getLength());
-    Element connection = (Element) connections.item(0);
+    final Element connection = (Element) connections.item(0);
     assertEquals("dremio", connection.getAttribute(TableauSDKConstants.CLASS));
     assertEquals("DREMIO", connection.getAttribute(TableauSDKConstants.DBNAME));
     assertEquals(path.toParentPath(), connection.getAttribute(TableauSDKConstants.SCHEMA));
@@ -316,7 +290,7 @@ public class TestTableauMessageBodyGenerator {
     verifyBatchSchema(columnAliases);
 
     // Also check that Content-Disposition header is set with a filename ending by tds
-    ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
 
     return connection;
@@ -332,22 +306,24 @@ public class TestTableauMessageBodyGenerator {
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
-    TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
-    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    final TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
     assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
     // Convert the baos into a DOM Tree to verify content
-    DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+    final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
+    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
     assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
 
-    NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
+    final NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
 
     assertEquals(1, connections.getLength());
-    Element connection = (Element) connections.item(0);
+    final Element connection = (Element) connections.item(0);
     assertEquals("dremio-flight-sql", connection.getAttribute(TableauSDKConstants.CLASS));
     assertEquals("DREMIO", connection.getAttribute(TableauSDKConstants.DBNAME));
     assertEquals(path.toParentPath(), connection.getAttribute(TableauSDKConstants.SCHEMA));
@@ -365,7 +341,7 @@ public class TestTableauMessageBodyGenerator {
     verifyBatchSchema(columnAliases);
 
     // Also check that Content-Disposition header is set with a filename ending by tds
-    ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
 
     return connection;
@@ -385,20 +361,21 @@ public class TestTableauMessageBodyGenerator {
     final BatchSchema schema = generateBatchSchema();
     datasetConfig.setRecordSchema(schema.toByteString());
 
-    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
-    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE));
     generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE, httpHeaders, baos);
 
     // Convert the baos into a DOM Tree to verify content
-    DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+    final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
+    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
-    NodeList connections = document.getDocumentElement().getElementsByTagName("connection");
+    final NodeList connections = document.getDocumentElement().getElementsByTagName("connection");
 
     assertEquals(1, connections.getLength());
-    Element connection = (Element) connections.item(0);
+    final Element connection = (Element) connections.item(0);
 
     assertEquals("drill", connection.getAttribute("class"));
     assertEquals("Direct", connection.getAttribute("connection-type"));
@@ -434,7 +411,7 @@ public class TestTableauMessageBodyGenerator {
     assertEqualsMetadataRecord(metadataRecords.item(14), "[decimal_NBR]", "real");
 
     // Also check that Content-Disposition header is set with a filename ending by tds
-    ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
     assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
   }
 

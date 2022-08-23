@@ -86,13 +86,12 @@ class TestNessieRepoMaintenanceTask {
     ArgumentCaptor<RepoMaintenanceParams> params = ArgumentCaptor.forClass(RepoMaintenanceParams.class);
     Mockito.verify(adapter, Mockito.times(1)).repoMaintenance(params.capture());
     assertThat(params.getValue())
-      .isEqualTo(RepoMaintenanceParams.builder().globalLogCompactionParams(
-        ImmutableGlobalLogCompactionParams.builder()
+      .isEqualTo(EmbeddedRepoMaintenanceParams.builder()
+        .setGlobalLogCompactionParams(ImmutableGlobalLogCompactionParams.builder()
           .noCompactionUpToLength(11)
           .noCompactionWhenCompactedWithin(22)
           .build())
+        .setEmbeddedRepoPurgeParams(EmbeddedRepoPurgeParams.builder().setDryRun(false).build())
         .build());
   }
-
-
 }

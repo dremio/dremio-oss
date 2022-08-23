@@ -78,6 +78,9 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
   @Tag(12)
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.PARQUET;
 
+  @Tag(13)
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public Path getPath() {
     return Path.of(path);
@@ -86,6 +89,11 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
   @Override
   public boolean isImpersonationEnabled() {
     return enableImpersonation;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

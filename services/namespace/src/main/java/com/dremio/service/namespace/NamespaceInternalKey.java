@@ -82,9 +82,11 @@ class NamespaceInternalKey {
 
   // Max and Min values for building root lookup keys.
 
-  //The largest valid 2-byte value in UTF-8. This value is used as a terminator for end range keys.
-  static final byte[] MAX_2_BYTES_UTF8_VALUE = new byte[]{(byte) 0xdf, (byte)0xbf}; //U+07FF
-  //The smallest valid value in UTF-8. This value is used as a terminator for start range keys.
+  // The largest value in Unicode Plane 0 aka Basic Multilingual Plane (BMP).
+  // This value is used as a terminator for end range keys.
+  static final byte[] MAX_UTF8_VALUE = new byte[]{(byte) 0xef, (byte) 0xbf, (byte) 0xbf}; //U+FFFF
+
+  // The smallest valid value in UTF-8. This value is used as a terminator for start range keys.
   private static final byte[] MIN_UTF8_VALUE = new byte[]{(byte) 0x0};
 
   // Root lookup keys for FindByRange searches.
@@ -107,7 +109,7 @@ class NamespaceInternalKey {
    * @return root lookup end key.
    */
   private static String generateRootLookupEndKey() {
-    return rootLookupKeyHelper(MAX_2_BYTES_UTF8_VALUE);
+    return rootLookupKeyHelper(MAX_UTF8_VALUE);
   }
 
 
@@ -186,7 +188,7 @@ class NamespaceInternalKey {
       throw UserException.validationError().message("Invalid name space key. Given: %s, Expected format: %s",
         path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT).build(logger);
     } else if (numPathComponents > MAX_NUM_PATH_COMPONENTS) {
-      throw UserException.unsupportedError().message("Provided file path is too long.")
+      throw UserException.unsupportedError().message("Provided file path has too many components.")
         .addContext("File Path: ", path.getSchemaPath()).build(logger);
     }
     path.getPathComponents().forEach(component -> {
@@ -226,10 +228,10 @@ class NamespaceInternalKey {
    * Used in FindByRange as the end range key.
    *
    * @param rangeStartKey rangeStartKey.
-   * @return arange end key.
+   * @return range end key.
    */
   private String buildRangeEndKey(String rangeStartKey) {
-    return rangeStartKey + new String(MAX_2_BYTES_UTF8_VALUE, StandardCharsets.UTF_8);
+    return rangeStartKey + new String(MAX_UTF8_VALUE, StandardCharsets.UTF_8);
   }
 
 
@@ -243,7 +245,7 @@ class NamespaceInternalKey {
    */
   private String buildKeyWithPrefixes(List<String> pathComponents, boolean isRangeKey) {
     final StringBuilder keyBuilder = new StringBuilder(calculateKeyLength(pathComponents, isRangeKey));
-    int prefixIndex = (isRangeKey)? pathComponents.size() : pathComponents.size() - 1;
+    int prefixIndex = pathComponents.size() - (isRangeKey ?  0 : 1);
     for (int i = 0; i < pathComponents.size(); i++) {
       keyBuilder.append(PREFIXES.get(prefixIndex));
       keyBuilder.append(pathComponents.get(i));
@@ -264,13 +266,13 @@ class NamespaceInternalKey {
    */
   private int calculateKeyLength(List<String> pathComponents, boolean isRangeKey) {
     int length = 0;
-    int prefixIndex = (isRangeKey)? pathComponents.size() : pathComponents.size() - 1;
-    for(int i = 0; i < pathComponents.size(); i++) {
+    int prefixIndex = pathComponents.size() - (isRangeKey ?  0 : 1);
+    for (int i = 0; i < pathComponents.size(); i++) {
       length += pathComponents.get(i).length();
       length += PREFIXES.get(prefixIndex).length();
       prefixIndex--;
     }
-    return (isRangeKey)? length + PREFIXES.get(prefixIndex).length() : length;
+    return length + (isRangeKey ? PREFIXES.get(prefixIndex).length() : 0);
   }
 
   /**

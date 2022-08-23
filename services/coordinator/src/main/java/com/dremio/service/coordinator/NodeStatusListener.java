@@ -15,7 +15,6 @@
  */
 package com.dremio.service.coordinator;
 
-
 import java.util.Set;
 
 import com.dremio.exec.proto.CoordinationProtos;

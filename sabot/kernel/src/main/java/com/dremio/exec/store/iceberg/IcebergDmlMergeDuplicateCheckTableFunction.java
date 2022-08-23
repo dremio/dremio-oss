@@ -109,6 +109,7 @@ public class IcebergDmlMergeDuplicateCheckTableFunction extends AbstractTableFun
 
       if (currentFilePathVectorHolder.isSet == 1) {
         previousFilePathBufLength = currentFilePathBufLength;
+        previousFilePathBuf = previousFilePathBuf.reallocIfNeeded(currentFilePathBufLength);
         previousFilePathBuf.setBytes(0, currentFilePathVectorHolder.buffer, currentFilePathVectorHolder.start, previousFilePathBufLength);
       } else {
         previousFilePathBufLength = 0;

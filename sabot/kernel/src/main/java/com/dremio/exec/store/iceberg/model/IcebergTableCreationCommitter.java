@@ -43,7 +43,7 @@ import com.google.common.base.Stopwatch;
 public class IcebergTableCreationCommitter implements IcebergOpCommitter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergTableCreationCommitter.class);
   private final List<ManifestFile> manifestFileList = new ArrayList<>();
-  private final IcebergCommand icebergCommand;
+  protected final IcebergCommand icebergCommand;
   private final OperatorStats operatorStats;
 
   public IcebergTableCreationCommitter(String tableName, BatchSchema batchSchema, List<String> partitionColumnNames,

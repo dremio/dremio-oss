@@ -47,7 +47,6 @@ import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
-import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.MultiJoinOptimizeBushyRule;
 import org.apache.calcite.rel.rules.MultiJoinProjectTransposeRule;
@@ -89,6 +88,7 @@ import com.dremio.exec.planner.logical.FilterRule;
 import com.dremio.exec.planner.logical.FilterWindowTransposeRule;
 import com.dremio.exec.planner.logical.FlattenRule;
 import com.dremio.exec.planner.logical.InClauseCommonSubexpressionEliminationRule;
+import com.dremio.exec.planner.logical.JoinBooleanRewriteRule;
 import com.dremio.exec.planner.logical.JoinFilterCanonicalizationRule;
 import com.dremio.exec.planner.logical.JoinNormalizationRule;
 import com.dremio.exec.planner.logical.JoinRel;
@@ -303,11 +303,21 @@ public enum PlannerPhase {
     public RuleSet getRules(OptimizerRulesContext context) {
       // Check if multi-join optimization has been disabled
 
+      RelOptRule joinToMultiJoinRule;
+
+      if (context.getPlannerSettings().isJoinOptimizationEnabled()
+        && context.getPlannerSettings().isExperimentalBushyJoinOptimizerEnabled()) {
+        // bushy join optimizer doesn't currently handle outer joins
+        joinToMultiJoinRule = JOIN_TO_MULTIJOIN_RULE_NO_OUTER;
+      } else {
+        joinToMultiJoinRule = JOIN_TO_MULTIJOIN_RULE;
+      }
+
       return RuleSets.ofList(
           MULTIJOIN_BOTH_PROJECTS_TRANSPOSE_RULE,
           MULTIJOIN_LEFT_PROJECT_TRANSPOSE_RULE,
           MULTIJOIN_RIGHT_PROJECT_TRANSPOSE_RULE,
-          JOIN_TO_MULTIJOIN_RULE,
+          joinToMultiJoinRule,
           PROJECT_MULTIJOIN_MERGE_RULE,
           FILTER_MULTIJOIN_MERGE_RULE,
           MergeProjectRule.LOGICAL_INSTANCE,
@@ -332,11 +342,15 @@ public enum PlannerPhase {
         .add(MergeProjectRule.LOGICAL_INSTANCE)
         .add(PushJoinFilterIntoProjectRule.INSTANCE);
 
+      if (context.getPlannerSettings().isJoinBooleanRewriteEnabled()) {
+        builder.add(JoinBooleanRewriteRule.INSTANCE);
+      }
 
       // Check if multi-join optimization has been enabled
       if (context.getPlannerSettings().isJoinOptimizationEnabled()) {
         if (context.getPlannerSettings().isExperimentalBushyJoinOptimizerEnabled()) {
           builder.add(MULTI_JOIN_OPTIMIZE_BUSHY_RULE);
+          builder.add(DremioJoinCommuteRule.INSTANCE);
         } else {
           boolean useKey = context.getPlannerSettings().joinUseKeyForNextFactor();
           boolean rotateFactors = context.getPlannerSettings().joinRotateFactors();
@@ -716,7 +730,9 @@ public enum PlannerPhase {
       DremioRelFactories.LOGICAL_BUILDER,
       "MultiJoinProjectTransposeRule:RightProject");
 
-  private static final RelOptRule JOIN_TO_MULTIJOIN_RULE = new JoinToMultiJoinRule(JoinRel.class, DremioRelFactories.LOGICAL_BUILDER);
+  private static final RelOptRule JOIN_TO_MULTIJOIN_RULE = DremioJoinToMuliJoinRule.INSTANCE;
+
+  private static final RelOptRule JOIN_TO_MULTIJOIN_RULE_NO_OUTER = DremioJoinToMuliJoinRule.NO_OUTER;
   private static final RelOptRule PROJECT_MULTIJOIN_MERGE_RULE = new ProjectMultiJoinMergeRule(ProjectRel.class, DremioRelFactories.LOGICAL_BUILDER);
   private static final RelOptRule FILTER_MULTIJOIN_MERGE_RULE = new FilterMultiJoinMergeRule(FilterRel.class, DremioRelFactories.LOGICAL_BUILDER);
   private static final RelOptRule LOPT_UNOPTIMIZE_JOIN_RULE =

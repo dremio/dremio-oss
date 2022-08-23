@@ -140,6 +140,7 @@ import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.UnlimitedSplitsFileDatasetHandle;
+import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ParquetScanTableFunction;
 import com.dremio.exec.store.parquet.ParquetSplitCreator;
@@ -167,9 +168,11 @@ import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
+import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -860,12 +863,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         final List<TimedRunnable<Boolean>> permissionCheckTasks = Lists.newArrayList();
 
         permissionCheckTasks.addAll(getUpdateKeyPermissionTasks(datasetConfig, userFs));
-        //Permission check is not required here
-        Boolean isIcebergMetaData = datasetConfig.getPhysicalDataset() != null ? datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled():null;
-        logger.debug("Checking iceberg enabled or not for this physical dataset with value: {} . ", isIcebergMetaData);
-        if (isIcebergMetaData == null || !isIcebergMetaData) {
-          permissionCheckTasks.addAll(getSplitPermissionTasks(datasetConfig, userFs, user));
-        }
+        permissionCheckTasks.addAll(getSplitPermissionTasks(datasetConfig, userFs, user));
 
         try {
           Stopwatch stopwatch = Stopwatch.createStarted();
@@ -930,6 +928,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   private Collection<FsPermissionTask> getSplitPermissionTasks(DatasetConfig datasetConfig, FileSystem userFs, String user) {
     final SplitsPointer splitsPointer = DatasetSplitsPointer.of(context.getNamespaceService(user), datasetConfig);
     final boolean isParquet = DatasetHelper.hasParquetDataFiles(datasetConfig.getPhysicalDataset().getFormatSettings());
+    Boolean isIcebergMetaData = datasetConfig.getPhysicalDataset() != null ? datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled() : Boolean.FALSE;
+    logger.debug("Checking iceberg enabled or not for this physical dataset with value: {} . ", isIcebergMetaData);
     final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
     final List<Path> batch = Lists.newArrayList();
 
@@ -937,7 +937,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       for (DatasetSplit split : partitionChunkMetadata.getDatasetSplits()) {
         final Path filePath;
         try {
-          if (isParquet) {
+          if (isParquet && !Boolean.TRUE.equals(isIcebergMetaData)) {
             filePath = Path.of(LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty().toByteArray()).getPath());
           } else {
             filePath = Path.of(LegacyProtobufSerializer.parseFrom(EasyDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty().toByteArray()).getPath());
@@ -1189,6 +1189,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         throw UserException.ioExceptionError()
             .message("Failed to drop table: %s", PathUtils.constructFullPath(tableSchemaPath.getPathComponents()))
             .build(logger);
+      }
+      if (tableMutationOptions != null && tableMutationOptions.shouldDeleteCatalogEntry()) {
+          deleteIcebergTableRootPointer(schemaConfig.getUserName(), fsPath);
       }
     } catch (AccessControlException e) {
       throw UserException
@@ -1768,6 +1771,20 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   public String getDefaultCtasFormat() {
     return config.getDefaultCtasFormat();
+  }
+
+  public boolean isPartitionInferenceEnabled() {
+    return config.isPartitionInferenceEnabled();
+  }
+
+  public DirListingRecordReader createDirListRecordReader(OperatorContext context,
+                                                            FileSystem fs,
+                                                            DirListInputSplitProto.DirListInputSplit dirListInputSplit,
+                                                            boolean isRecursive,
+                                                            BatchSchema tableSchema,
+                                                            List<PartitionProtobuf.PartitionValue> partitionValues) {
+
+    return new DirListingRecordReader(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, true, isPartitionInferenceEnabled());
   }
 
 }

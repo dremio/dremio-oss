@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
@@ -42,6 +43,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
@@ -52,6 +54,7 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
+import com.dremio.service.catalog.GetDatasetRequest;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -81,9 +84,9 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   private final boolean isPartitioned;
   private List<ManifestFile> manifestFileList = new ArrayList<>();
   private List<DataFile> deleteDataFilesList = new ArrayList<>();
-  List<Types.NestedField> updatedColumnTypes = new ArrayList();
-  List<Types.NestedField> newColumnTypes = new ArrayList();
-  List<Types.NestedField> dropColumns = new ArrayList();
+  private List<Types.NestedField> updatedColumnTypes = new ArrayList();
+  private List<Types.NestedField> newColumnTypes = new ArrayList();
+  private List<Types.NestedField> dropColumns = new ArrayList();
   private final DatasetCatalogRequestBuilder datasetCatalogRequestBuilder;
   private BatchSchema batchSchema;
   private boolean isFileSystem;
@@ -151,7 +154,6 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       logger.error(CONCURRENT_DML_OPERATION_ERROR + metadataFiles);
       throw UserException.concurrentModificationError().message(CONCURRENT_DML_OPERATION_ERROR).buildSilently();
     }
-
     if (hasAnythingChanged()) {
       Snapshot snapshot = icebergCommand.getCurrentSnapshot();
       Preconditions.checkArgument(snapshot != null, "Iceberg metadata does not have a snapshot");
@@ -204,6 +206,8 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
     datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin, getCurrentSchema());
     BatchSchema newSchemaFromIceberg = new SchemaConverter().fromIceberg(table.schema());
+    newSchemaFromIceberg = BatchSchema.newBuilder().addFields(newSchemaFromIceberg.getFields())
+      .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
     datasetCatalogRequestBuilder.overrideSchema(newSchemaFromIceberg);
     logger.debug("Committed incremental metadata change of table {}. Updating Dataset Catalog store", tableName);
     try {
@@ -225,10 +229,22 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   public Snapshot commit() {
     Stopwatch stopwatch = Stopwatch.createStarted();
     try {
-      beginMetadataRefreshTransaction();
-      performUpdates();
-      endMetadataRefreshTransaction();
-      return postCommitTransaction();
+      boolean shouldCommit = hasAnythingChanged();
+      Table oldTable = null;
+      if (!shouldCommit) {
+        oldTable = this.icebergCommand.loadTable();
+        shouldCommit = oldTable.currentSnapshot().snapshotId() != client.getCatalogServiceApi()
+          .getDataset(GetDatasetRequest.newBuilder().addAllDatasetPath(datasetPath).build()).getIcebergMetadata().getSnapshotId();
+      }
+      if(shouldCommit) {
+        beginMetadataRefreshTransaction();
+        performUpdates();
+        endMetadataRefreshTransaction();
+        return postCommitTransaction();
+      } else {
+        logger.debug("Nothing is changed for  table " + this.tableName + ", Skipping commit");
+        return oldTable.currentSnapshot();
+      }
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
       operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
@@ -320,8 +336,10 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     }
 
     for (Map.Entry<String, Types.NestedField> entry : nameToTypeOld.entrySet()) {
-      if(!nameToTypeNew.containsKey(entry.getKey())) {
-        dropColumns.add(entry.getValue());
+      if (!nameToTypeNew.containsKey(entry.getKey())) {
+        if (!entry.getValue().name().equals(IncrementalUpdateUtils.UPDATE_COLUMN)) {
+          dropColumns.add(entry.getValue());
+        }
       }
     }
 

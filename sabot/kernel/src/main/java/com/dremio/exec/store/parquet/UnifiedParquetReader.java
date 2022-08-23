@@ -783,7 +783,7 @@ public class UnifiedParquetReader implements RecordReader {
       public List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) {
         boolean isVectorizableFilterOn = unifiedReader.isConditionSet(unifiedReader.nonVectorizableReaderColumns);
         final SimpleIntVector deltas;
-        if (isVectorizableFilterOn || unifiedReader.isNonPartitionColFilterPresent() ||
+        if (isVectorizableFilterOn || unifiedReader.isVectorizableNonPartitionColFilterPresent() ||
             unifiedReader.filters.hasPositionalDeleteFilter()) {
           deltas = new SimpleIntVector("deltas", unifiedReader.context.getAllocator());
         } else {
@@ -942,8 +942,12 @@ public class UnifiedParquetReader implements RecordReader {
     public abstract List<RecordReader> getReaders(UnifiedParquetReader unifiedReader) throws ExecutionSetupException;
   }
 
-  private boolean isNonPartitionColFilterPresent() {
-    return this.runtimeFilters.stream().flatMap(f -> f.getNonPartitionColumnFilters().stream()).findAny().isPresent();
+  private boolean isVectorizableNonPartitionColFilterPresent() {
+    return this.runtimeFilters.stream()
+      .flatMap(f -> f.getNonPartitionColumnFilters().stream())
+      .flatMap(f -> f.getColumnsList().stream())
+      .map(SchemaPath::getSimplePath)
+      .anyMatch(vectorizableReaderColumns::contains);
   }
 
   private ExecutionPath getExecutionPath() {

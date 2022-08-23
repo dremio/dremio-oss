@@ -328,4 +328,65 @@ public class GroupSetTest extends BaseTestQuery {
       .go();
   }
 
+  @Test
+  public void testGroupingSetWithCaseStmt() throws Exception {
+    String query = "SELECT n_regionkey,\n"
+      + "CASE WHEN n_name IN ('CANADA', 'RUSSIA') THEN 'COOL' ELSE 'Other' END\n"
+      + "FROM cp.\"tpch/nation.parquet\"\n"
+      + "GROUP BY GROUPING SETS (\n"
+      + "(n_regionkey, CASE WHEN n_name IN ('CANADA', 'RUSSIA') THEN 'COOL' ELSE 'Other' END),\n"
+      + "(n_regionkey),\n"
+      + "()\n"
+      + ")";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("n_regionkey", "EXPR$1")
+      .baselineValues(null, null)
+      .baselineValues(1, "Other")
+      .baselineValues(1, "COOL")
+      .baselineValues(0, "Other")
+      .baselineValues(2, null)
+      .baselineValues(4, null)
+      .baselineValues(3, null)
+      .baselineValues(0, null)
+      .baselineValues(3, "Other")
+      .baselineValues(2, "Other")
+      .baselineValues(3, "COOL")
+      .baselineValues(1, null)
+      .baselineValues(4, "Other")
+      .go();
+  }
+
+  @Test
+  public void testGroupingSetWithCaseStmtAlias() throws Exception {
+    String query = "SELECT n_regionkey,\n"
+      + "CASE WHEN n_name IN ('CANADA', 'RUSSIA') THEN 'COOL' ELSE 'Other' END AS x\n"
+      + "FROM cp.\"tpch/nation.parquet\"\n"
+      + "GROUP BY GROUPING SETS (\n"
+      + "(n_regionkey, x),\n"
+      + "(n_regionkey),\n"
+      + "()\n"
+      + ")";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("n_regionkey", "x")
+      .baselineValues(null, null)
+      .baselineValues(1, "Other")
+      .baselineValues(1, "COOL")
+      .baselineValues(0, "Other")
+      .baselineValues(2, null)
+      .baselineValues(4, null)
+      .baselineValues(3, null)
+      .baselineValues(0, null)
+      .baselineValues(3, "Other")
+      .baselineValues(2, "Other")
+      .baselineValues(3, "COOL")
+      .baselineValues(1, null)
+      .baselineValues(4, "Other")
+      .go();
+  }
 }

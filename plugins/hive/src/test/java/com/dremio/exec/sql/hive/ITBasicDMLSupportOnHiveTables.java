@@ -470,7 +470,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
     String truncSql = "TRUNCATE TABLE " + HIVE_TEST_PLUGIN_NAME + ".truncTable5";
     assertThatThrownBy(() -> test(truncSql))
       .isInstanceOf(UserException.class)
-      .hasMessageContaining("Table [" + HIVE_TEST_PLUGIN_NAME + ".truncTable5] not found");
+      .hasMessageContaining("Table [" + HIVE_TEST_PLUGIN_NAME + ".truncTable5] does not exist.");
   }
 
   @Test

@@ -1197,7 +1197,7 @@ public class BaseTestQuery extends ExecTest {
         break;
       case NESSIE:
         icebergModel = new IcebergNessieModel(DREMIO_NESSIE_DEFAULT_NAMESPACE, new Configuration(),
-                getSabotContext().getNessieClientProvider().get(),
+                getSabotContext().getNessieClientProvider(),
                 null, null, new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get()), fileSystemPlugin);
 
         when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);

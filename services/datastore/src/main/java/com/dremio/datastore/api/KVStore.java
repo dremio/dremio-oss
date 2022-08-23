@@ -69,7 +69,13 @@ public interface KVStore<K, V> {
   /**
    * Options for DELETE operations.
    */
-  interface DeleteOption extends KVStoreOption {}
+  interface DeleteOption extends KVStoreOption {
+    /**
+     * This option is a hint to the <code>KVStore</code> implementation that the caller knows that the deleted key
+     * does not represent a metadata object. Therefore, implementations can optimize the delete operation.
+     */
+    DeleteOption NO_META = new DeleteOption() {};
+  }
 
   /**
    * Options for CONTAINS operations.

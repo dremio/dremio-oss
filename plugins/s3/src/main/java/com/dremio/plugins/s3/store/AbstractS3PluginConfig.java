@@ -125,6 +125,11 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Tag(21)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable partition column inference")
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -143,6 +148,11 @@ public abstract class AbstractS3PluginConfig extends FileSystemConf<AbstractS3Pl
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.USER_TABLE;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

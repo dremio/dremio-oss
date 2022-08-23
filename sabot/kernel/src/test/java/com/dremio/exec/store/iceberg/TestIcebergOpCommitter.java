@@ -71,6 +71,7 @@ import org.mockito.stubbing.Answer;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -269,7 +270,9 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       Assert.assertEquals(DatasetCommonProtobuf.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, dataset.getDatasetType());
 
-      Assert.assertEquals(schema, BatchSchema.deserialize(dataset.getBatchSchema().toByteArray()));
+      BatchSchema newschema = BatchSchema.newBuilder().addFields(schema.getFields())
+        .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
+      Assert.assertEquals(newschema, BatchSchema.deserialize(dataset.getBatchSchema().toByteArray()));
 
       Assert.assertEquals(tableFolder.toPath().toString(), dataset.getFileFormat().getLocation());
       Assert.assertEquals(FileProtobuf.FileType.PARQUET, dataset.getFileFormat().getType());
@@ -929,7 +932,9 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
       Assert.assertEquals(DatasetCommonProtobuf.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, dataset.getDatasetType());
 
-      Assert.assertEquals(schema, BatchSchema.deserialize(dataset.getBatchSchema().toByteArray()));
+      BatchSchema newschema = BatchSchema.newBuilder().addFields(schema.getFields())
+        .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
+      Assert.assertEquals(newschema, BatchSchema.deserialize(dataset.getBatchSchema().toByteArray()));
 
       Assert.assertEquals(tableFolder.toPath().toString(), dataset.getFileFormat().getLocation());
       Assert.assertEquals(FileProtobuf.FileType.PARQUET, dataset.getFileFormat().getType());

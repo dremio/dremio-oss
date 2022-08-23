@@ -37,7 +37,7 @@ public class BaseTestImpersonation extends BaseTestMiniDFS {
 
   static {
     // "user0_1" belongs to "groups0_1". From "user1_1" onwards each user belongs to corresponding group and the group
-    // before it, i.e "user1_1" belongs to "group1_1" and "group0_1" and so on.
+    // directly before it, i.e "user2_1" belongs to "group2_1" and "group1_1" (but not group0_1).
     UserGroupInformation.createUserForTesting(org1Users[0], new String[]{org1Groups[0]});
     for(int i=1; i<org1Users.length; i++) {
       UserGroupInformation.createUserForTesting(org1Users[i], new String[] { org1Groups[i], org1Groups[i-1] });

@@ -137,6 +137,32 @@ public class SqlConverter {
           settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
   }
 
+  private SqlConverter(SqlConverter parent, ParserConfig parserConfig) {
+    this.parserConfig = parserConfig;
+    this.substitutions = parent.substitutions;
+    this.functions = parent.functions;
+    this.session = parent.session;
+    this.functionContext = parent.functionContext;
+    this.observer = parent.observer;
+    this.typeFactory = parent.typeFactory;
+    this.costFactory = parent.costFactory;
+    this.settings = parent.settings;
+    this.flattenCounter = parent.flattenCounter;
+    this.cluster = parent.cluster;
+    this.opTab = parent.opTab;
+    this.planner = parent.planner;
+    this.materializations = parent.materializations;
+    this.viewExpansionContext = parent.viewExpansionContext;
+    this.config = parent.config;
+    this.scanResult = parent.scanResult;
+    this.catalog = parent.catalog;
+    this.convertletTable = parent.convertletTable;
+    this.convertletTableNotes = parent.convertletTableNotes;
+  }
+
+  public SqlConverter withSystemDefaultParserConfig() {
+    return new SqlConverter(this, parserConfig.cloneWithSystemDefault());
+  }
 
   private static SqlNodeList parseMultipleStatementsImpl(String sql, SqlParser.Config parserConfig, boolean isInnerQuery) {
     try {

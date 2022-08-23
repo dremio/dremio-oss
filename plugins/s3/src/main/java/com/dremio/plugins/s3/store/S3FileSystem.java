@@ -24,6 +24,8 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PRO
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
+import static org.apache.hadoop.fs.s3a.Constants.AWS_REGION;
+import static org.apache.hadoop.fs.s3a.Constants.CENTRAL_ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
@@ -55,6 +57,7 @@ import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.DefaultS3ClientFactory;
 import org.apache.hadoop.fs.s3a.S3AUtils;
+import org.apache.hadoop.fs.s3a.S3ClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,7 +204,12 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     DefaultS3ClientFactory clientFactory = new DefaultS3ClientFactory();
     clientFactory.setConf(s3Config);
     final AWSCredentialProviderList credentialsProvider = S3AUtils.createAWSCredentialProviderSet(S3_URI, s3Config);
-    final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, "", credentialsProvider);
+    //Use builder pattern for S3Client(AWS SDK1.x) initialization.
+    S3ClientFactory.S3ClientCreationParameters parameters = new S3ClientFactory.S3ClientCreationParameters()
+      .withCredentialSet(credentialsProvider)
+      .withEndpoint(s3Config.get(ENDPOINT, CENTRAL_ENDPOINT)); //If endpoint is not given use s3.amazonaws.com for s3
+    final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, parameters);
+
     final AutoCloseable closeableCredProvider = (credentialsProvider instanceof AutoCloseable) ? credentialsProvider: () -> {};
     final Consumer<AmazonS3> closeFunc = s3 -> AutoCloseables.close(RuntimeException.class, () -> s3.shutdown(), closeableCredProvider);
     final CloseableResource<AmazonS3> closeableS3 = new CloseableResource<>(s3Client, closeFunc);
@@ -432,7 +440,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
           final String targetEndpoint;
           Optional<String> endpoint = getEndpoint(getConf());
 
-          if (isCompatMode() && endpoint.isPresent()) {
+          if (endpoint.isPresent() && (isCompatMode() || getConf().get(AWS_REGION) != null)) {
             // if this is compatibility mode and we have an endpoint, just use that.
             targetEndpoint = endpoint.get();
           } else {
@@ -519,7 +527,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         S3FileSystem.REGION_OVERRIDE,
         Constants.ASSUMED_ROLE_ARN,
         Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER,
-        Constants.ALLOW_REQUESTER_PAYS
+        Constants.ALLOW_REQUESTER_PAYS,
+        Constants.AWS_REGION
       );
 
 

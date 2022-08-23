@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.pf4j;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,6 +28,7 @@ import org.pf4j.JarPluginRepository;
 import org.pf4j.PluginLoader;
 import org.pf4j.PluginRepository;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.config.DremioConfig;
 
 /**
@@ -34,6 +36,8 @@ import com.dremio.config.DremioConfig;
  * bundle.
  */
 public class NativeLibPluginManager extends DefaultPluginManager {
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NativeLibPluginManager.class);
 
   private static final String PLUGINS_PATH_DEV_MODE = "../plugins";
 
@@ -47,6 +51,21 @@ public class NativeLibPluginManager extends DefaultPluginManager {
     final Path pluginsPath = this.isDevelopment() ? Paths.get(PLUGINS_PATH_DEV_MODE) :
       DremioConfig.getPluginsRootPath().resolve("connectors");
     return Collections.singletonList(pluginsPath);
+  }
+
+  @Override
+  public void stopPlugins() {
+    try {
+      int pluginsCount = this.getPlugins().size();
+      List<NativeLibPluginClassLoader> nativeLibPluginClassLoaderList = new ArrayList<>();
+      for (int i = 0; i < pluginsCount; i++) {
+        nativeLibPluginClassLoaderList.add((NativeLibPluginClassLoader) this.getPlugins().get(i).getPluginClassLoader());
+      }
+      AutoCloseables.close(nativeLibPluginClassLoaderList);
+    } catch (Exception e) {
+      logger.warn("Failed to close NativeLibPluginClassLoader", e);
+    }
+    super.stopPlugins();
   }
 
   @Override

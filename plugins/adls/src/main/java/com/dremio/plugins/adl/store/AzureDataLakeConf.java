@@ -131,6 +131,11 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Tag(14)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable partition column inference")
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public AzureDataLakeStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be set.");
@@ -228,6 +233,11 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

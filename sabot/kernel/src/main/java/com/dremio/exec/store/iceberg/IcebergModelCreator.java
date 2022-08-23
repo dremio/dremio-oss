@@ -53,7 +53,7 @@ public class IcebergModelCreator {
     switch (catalogType) {
       case NESSIE:
         return new IcebergNessieModel(namespace, configuration,
-          context.getNessieClientProvider().get(), fs, operatorContext,
+          context.getNessieClientProvider(), fs, operatorContext,
           new DatasetCatalogGrpcClient(context.getDatasetCatalogBlockingStub().get()), plugin);
       case HADOOP:
         return new IcebergHadoopModel(namespace, configuration, fs, operatorContext, dataset,

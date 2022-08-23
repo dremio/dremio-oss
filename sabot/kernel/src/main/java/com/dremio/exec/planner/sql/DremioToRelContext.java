@@ -23,7 +23,10 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.validate.SqlValidatorException;
+import org.apache.commons.lang3.StringUtils;
 
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
 import com.dremio.exec.planner.logical.InvalidViewRel;
@@ -87,8 +90,19 @@ public interface DremioToRelContext {
           root = DremioSqlToRelConverter.expandView(view.getPath(),
             view.getViewOwner(), view.getView().getSql(), view.getView().getWorkspaceSchemaPath(), sqlConverter, view.getSchema());
         } catch (Exception ex) {
+          String message = String.format("Error while expanding view %s. ", view.getPath());
+          final SqlValidatorException sve = ErrorHelper.findWrappedCause(ex, SqlValidatorException.class);
+          if (sve != null && StringUtils.isNotBlank(sve.getMessage())) {
+            // Expose reason why view expansion failed such as specific table or column not found
+            message += String.format("%s. Verify the view’s SQL definition.", sve.getMessage());
+          } else if (StringUtils.isNotBlank(ex.getMessage())){
+            message += String.format("%s", ex.getMessage());
+          } else {
+            message += "Verify the view’s SQL definition.";
+          }
+
           throw UserException.planError(ex)
-            .message("Error while expanding view %s",view.getPath())
+            .message(message)
             .addContext("View SQL", view.getView().getSql())
             .build(logger);
         }

@@ -92,7 +92,8 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
     for (ViewTable view : finder.invalidViews) {
       try {
         SqlValidatorAndToRelContext.Builder builder = SqlValidatorAndToRelContext.builder(sqlConverter)
-          .withSchemaPath(view.getView().getWorkspaceSchemaPath());
+          .withSchemaPath(view.getView().getWorkspaceSchemaPath())
+          .withSystemDefaultParserConfig();
         if(view.getViewOwner() != null) {
           builder = builder.withUser(view.getViewOwner());
         }

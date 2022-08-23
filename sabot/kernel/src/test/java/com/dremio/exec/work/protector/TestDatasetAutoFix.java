@@ -132,7 +132,8 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           Files.write("{b:3, c:4}", f2, StandardCharsets.UTF_8);
 
           assertThatThrownBy(() -> testNoResult("select * from dfs_test.view2_%s order by a", tableName))
-            .hasMessageContaining("Error while expanding view");
+            .hasMessageContaining(
+              String.format("Error while expanding view dfs_test.view2_%s. Column 'a' not found in any table. Verify the view’s SQL definition.", tableName));
         });
   }
 

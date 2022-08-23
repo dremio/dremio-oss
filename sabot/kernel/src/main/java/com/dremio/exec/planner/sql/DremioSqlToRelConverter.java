@@ -260,12 +260,13 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
                                             final SqlConverter sqlConverter,
                                             final BatchSchema batchSchema) {
     SqlValidatorAndToRelContext.Builder builder = SqlValidatorAndToRelContext.builder(sqlConverter)
-      .withSchemaPath(context);
+      .withSchemaPath(context)
+      .withSystemDefaultParserConfig();
     if(viewOwner != null) {
       builder = builder.withUser(viewOwner);
     }
     SqlValidatorAndToRelContext newConverter = builder.build();
-    final SqlNode parsedNode = sqlConverter.parse(queryString);
+    final SqlNode parsedNode = newConverter.getSqlConverter().parse(queryString);
     final SqlNode validatedNode = newConverter.validate(parsedNode);
     if (path != null && sqlConverter.getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
       final RelRootPlus unflattenedRoot = newConverter.toConvertibleRelRoot(validatedNode, true, false, false);

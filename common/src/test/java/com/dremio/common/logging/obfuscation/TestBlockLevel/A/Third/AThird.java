@@ -17,9 +17,10 @@ package com.dremio.common.logging.obfuscation.TestBlockLevel.A.Third;
 
 import java.util.List;
 
+import com.dremio.TestBlockLevel.TestBlockLevelLogging;
+
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 
 /**
  * class for testing custom log filtering
@@ -28,15 +29,7 @@ public class AThird {
   private static ch.qos.logback.classic.Logger logger = (Logger) org.slf4j.LoggerFactory.getLogger(AThird.class);
 
   public List<ILoggingEvent> testLogFiltering() {
-    ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
-    listAppender.start();
-    logger.addAppender(listAppender);
-    logger.info("info message");
-    logger.debug("debug message");
-    logger.error("error message");
-    logger.warn("warn message");
-    logger.trace("trace message");
-    List<ILoggingEvent> logsList = listAppender.list;
-    return logsList;
+    return TestBlockLevelLogging.testLogFilteringUtil(logger);
+
   }
 }

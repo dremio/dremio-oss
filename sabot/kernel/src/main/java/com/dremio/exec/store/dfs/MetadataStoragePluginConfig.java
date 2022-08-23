@@ -184,6 +184,11 @@ public class MetadataStoragePluginConfig extends MayBeDistFileSystemConf<Metadat
         return externalId;
     }
 
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return false;
+  }
+
     @Override
     public CacheProperties getCacheProperties() {
         return new CacheProperties() {

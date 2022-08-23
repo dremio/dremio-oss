@@ -249,9 +249,4 @@ public class NamespaceTable implements DremioTable {
     return String.format("EXTEND (%s)", extendedFields.stream().map(
       field -> String.format("\"%s\" %s", field.getName(), field.getType())).collect(Collectors.joining(", ")));
   }
-
-  @Override
-  public boolean hasNativeRowColumnAccessPolicies() {
-    return false;
-  }
 }

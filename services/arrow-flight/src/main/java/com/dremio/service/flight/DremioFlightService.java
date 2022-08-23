@@ -34,7 +34,7 @@ import java.util.Enumeration;
 
 import javax.inject.Provider;
 
-import org.apache.arrow.flight.FlightServer;
+import org.apache.arrow.flight.DremioFlightServer;
 import org.apache.arrow.flight.FlightServerMiddleware;
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.memory.BufferAllocator;
@@ -87,7 +87,7 @@ public class DremioFlightService implements Service {
 
   private DremioFlightSessionsManager dremioFlightSessionsManager;
 
-  private volatile FlightServer server;
+  private volatile DremioFlightServer server;
   private BufferAllocator allocator;
 
   public DremioFlightService(Provider<DremioConfig> configProvider,
@@ -144,9 +144,17 @@ public class DremioFlightService implements Service {
     final String wildcardAddress = new InetSocketAddress(port).getHostName();
     final Location location = getLocation(wildcardAddress, port);
 
-    FlightServer.Builder builder = FlightServer.builder()
+    DremioFlightServer.Builder builder = DremioFlightServer.builder()
       .location(location)
       .allocator(allocator)
+      .automaticFlowControl(Boolean.getBoolean("dremio.services.arrow-flight.automatic-flow-control"))
+      .maxInboundMessageSize(Integer.getInteger("dremio.services.arrow-flight.max-message-size", Integer.MAX_VALUE))
+      .maxInboundMetadataSize(Integer.getInteger("dremio.services.arrow-flight.max-metadata-size", 0))
+      .keepAliveTime(Integer.getInteger("dremio.services.arrow-flight.keep-alive-time", 120))
+      .clientKeepAliveInterval(Integer.getInteger("dremio.services.arrow-flight.client-keep-alive-interval", 60))
+      .idleTimeout(Integer.getInteger("dremio.services.arrow-flight.idle-timeout", 15))
+      .maxConnectionAgeGrace(Integer.getInteger("dremio.services.arrow-flight.max-connection-age-grace", 0))
+      .maxConnectionAge(Integer.getInteger("dremio.services.arrow-flight.max-connection-age", 0))
       .producer(new DremioFlightProducer(location, dremioFlightSessionsManager, userWorkerProvider,
         optionManagerProvider, allocator, runQueryResponseHandlerFactory));
 
@@ -188,7 +196,7 @@ public class DremioFlightService implements Service {
   }
 
   @VisibleForTesting
-  FlightServer getFlightServer() {
+  DremioFlightServer getFlightServer() {
     return server;
   }
 
@@ -216,7 +224,7 @@ public class DremioFlightService implements Service {
    * @return  The SSL configuration. This is returned to make the SSLConfig accessible by
    * unit tests while avoiding storing the SSLConfig on the service.
    */
-  private void addTlsProperties(FlightServer.Builder builder, SSLConfig sslConfig) {
+  private void addTlsProperties(DremioFlightServer.Builder builder, SSLConfig sslConfig) {
     try {
       final KeyStore keyStore = KeyStore.getInstance(sslConfig.getKeyStoreType());
       try (final InputStream keyStoreStream = Files.newInputStream(Paths.get(sslConfig.getKeyStorePath()))) {

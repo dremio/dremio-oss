@@ -32,6 +32,7 @@ import { compose } from "redux";
 import { getActiveScript } from "@app/selectors/scripts";
 import SqlAutoComplete from "./SqlAutoComplete";
 import FunctionsHelpPanel from "./FunctionsHelpPanel";
+import { extractSqlErrorFromResponse } from "./utils/errorUtils";
 
 const toolbarHeight = 42;
 
@@ -248,43 +249,60 @@ export class SqlEditorController extends PureComponent {
 
     if (isNotEdited && !isMultiQueryRunning && queryStatuses.length) {
       const errorMessages = [];
-      const failedQueryIndexes = [];
 
       queryStatuses.forEach((status, index) => {
         if (status.error) {
-          const errorResponse = status.error.get?.("response");
+          let errorResponse;
 
-          errorMessages.push(
-            (errorResponse &&
-              errorResponse.payload &&
-              errorResponse.payload.response &&
-              errorResponse.payload.response.errorMessage) ??
-              "Error"
+          if (status.error.get?.("response")) {
+            errorResponse = status.error.get("response")?.payload?.response;
+
+            // when a job is canceled, an error is returned in an object instead of an Immutable Map
+          } else if (status.error?.payload) {
+            errorResponse = status.error.payload?.response;
+
+            const errorMessage = errorResponse?.errorMessage;
+
+            // do not show canceled jobs as errors
+            if (errorMessage?.includes("Query cancelled by user")) {
+              return;
+            }
+          }
+
+          const sqlError = extractSqlErrorFromResponse(
+            errorResponse,
+            querySelections[index]
           );
 
-          failedQueryIndexes.push(index);
-        }
-      });
+          // handles impersonation when an unauthorized user tries to access a physical table,
+          // backend error doesn't return a 'range' in those cases so it needs to be handled
+          // on the UI side
+          if (sqlError.range == null && queryStatuses.length === 1) {
+            sqlError.range = {
+              endColumn: status?.sqlStatement?.length + 1 ?? 1,
+              endLineNumber: 1,
+              positionColumn: 1,
+              positionLineNumber: 1,
+              selectionStartColumn: 1,
+              selectionStartLineNumber: 1,
+              startColumn: 1,
+              startLineNumber: 1,
+            };
+          }
 
-      const multiQueryRanges = failedQueryIndexes.map((index) => {
-        if (!querySelections[index]) return {};
-        return {
-          startLineNumber: querySelections[index].startLineNumber,
-          startColumn: querySelections[index].startColumn,
-          endLineNumber: querySelections[index].endLineNumber,
-          endColumn: querySelections[index].endColumn,
-        };
+          errorMessages.push(sqlError);
+        }
       });
 
       // since there is no monaco instance we can't use monaco's enumeration members
       // refer to the below two links for the values used in 'stickiness' and 'position'
       // https://github.com/microsoft/monaco-editor/blob/d987b87/website/typedoc/monaco.d.ts#L1712
       // https://github.com/microsoft/monaco-editor/blob/d987b87/website/typedoc/monaco.d.ts#L1406
-      multiQueryRanges.forEach((errorRange, index) => {
+      errorMessages.forEach((error) => {
         multiQueryDecorations.push({
-          range: errorRange,
+          range: error.range,
           options: {
-            hoverMessage: errorMessages[index],
+            hoverMessage: error.message,
             linesDecorationsClassName: "dremio-error-line",
             stickiness: 1,
             className: "redsquiggly",

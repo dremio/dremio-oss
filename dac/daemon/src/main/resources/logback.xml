@@ -17,6 +17,12 @@
 
 -->
 <configuration debug="true">
+
+  <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
+    <defaultLogLevelThreshold>INFO</defaultLogLevelThreshold>
+    <packageLogLevel>com.dremio,DEBUG</packageLogLevel>
+  </turboFilter>
+
   <appender name="SOCKET" class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">
     <Compressing>true</Compressing>
     <ReconnectionDelay>10000</ReconnectionDelay>

@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.InternalIcebergUtil;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -106,7 +106,7 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
         // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
         int existingPartitionDepth = partitionColumns.size();
         if (dataFile.partition().size() > existingPartitionDepth) {
-            IntStream.range(existingPartitionDepth, dataFile.partition().size()).forEach(p -> partitionColumns.add("dir" + p));
+          partitionColumns = InternalIcebergUtil.getPartitionNames(dataFile);
         }
     }
 
@@ -134,12 +134,10 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
     }
 
   private void addPartitionData() {
-    if (writer.getOptions().isReadSignatureSupport()) {
-      dataFiles.stream()
-              .map(DataFile::partition)
-              .map(partition -> IcebergPartitionData.fromStructLike(getPartitionSpec(writer.getOptions()), partition))
-              .forEach(ipd -> partitionDataInCurrentManifest().add(ipd));
-    }
+    dataFiles.stream()
+      .map(DataFile::partition)
+      .map(partition -> IcebergPartitionData.fromStructLike(getPartitionSpec(writer.getOptions()), partition))
+      .forEach(ipd -> partitionDataInCurrentManifest().add(ipd));
   }
 
     @Override

@@ -32,6 +32,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.users.SystemUser;
 
 /**
@@ -58,15 +59,63 @@ public class UnlimitedSplitsMetadataProvider {
     evaluateExistingMetadata();
   }
 
+  private void createParentEntities() {
+    NamespaceKey folderKey = tableNSKey;
+    // use an ArrayList - reverse uses swap
+    List<NamespaceKey> missingParentEntities = new ArrayList<>();
+    while (folderKey.hasParent()) {
+      folderKey = folderKey.getParent();
+      if (!nsService.exists(folderKey)) {
+        logger.info("Missing parent entity {} for {}", folderKey, tableNSKey);
+        missingParentEntities.add(folderKey);
+      }
+    }
+
+    Collections.reverse(missingParentEntities);
+    for(NamespaceKey missingParent : missingParentEntities) {
+      try {
+        logger.info("Creating parent entity {} for {}", missingParent, tableNSKey);
+        nsService.addOrUpdateFolder(missingParent,
+          new FolderConfig()
+            .setName(missingParent.getName())
+            .setFullPathList(missingParent.getPathComponents())
+        );
+      } catch (NamespaceException namespaceException) {
+        // suppress exception
+        logger.warn("Unable to create parent entity {}", missingParent);
+      }
+    }
+  }
+
+  private void checkIfDatasetExists(boolean createParentFolders) throws NamespaceException {
+    boolean existsCheckPassed = false;
+
+    try {
+      if (nsService.exists(tableNSKey, NameSpaceContainer.Type.DATASET)) {
+        existsCheckPassed = true;
+        config = nsService.getDataset(tableNSKey);
+      }
+    } catch (NamespaceException e) {
+      // due to a bug in an earlier version, exists check returned true while getDataset() threw an exception
+      // because parent entities were deleted
+      if (existsCheckPassed && createParentFolders) {
+        logger.info("Trying to create parent folders for {}", tableNSKey);
+        createParentEntities();
+        checkIfDatasetExists(false);
+      } else {
+        // rethrow the exception
+        throw e;
+      }
+    }
+  }
+
   private void evaluateExistingMetadata() {
     config = null;
 
     try {
-      if (nsService.exists(tableNSKey, NameSpaceContainer.Type.DATASET)) {
-        config = nsService.getDataset(tableNSKey);
-      }
+      checkIfDatasetExists(true);
     } catch (NamespaceException e) {
-      String errorMessage = String.format("Error while getting metadata of [%s] from catalog", tableNSKey.getSchemaPath());
+      String errorMessage = String.format("Error while getting metadata for [%s].", tableNSKey.getSchemaPath());
       logger.error(errorMessage, e);
       throw new RuntimeException(errorMessage, e);
     }

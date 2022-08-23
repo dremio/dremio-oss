@@ -19,6 +19,8 @@ import org.junit.Test;
 
 /**
  * Runs test cases on the local filesystem-based Hadoop source.
+ *
+ * Note: Contains all tests in UpdateTests.
  */
 public class ITUpdate extends ITDmlQueryBase {
 
@@ -27,71 +29,111 @@ public class ITUpdate extends ITDmlQueryBase {
 
   @Test
   public void testMalformedUpdateQueries() throws Exception {
-    UpdateTestCases.testMalformedUpdateQueries(SOURCE);
+    UpdateTests.testMalformedUpdateQueries(SOURCE);
+  }
+
+  @Test
+  public void testUpdateOnView() throws Exception {
+    UpdateTests.testUpdateOnView(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateAll() throws Exception {
-    UpdateTestCases.testUpdateAll(allocator, SOURCE);
+    UpdateTests.testUpdateAll(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateAllColumns() throws Exception {
-    UpdateTestCases.testUpdateAllColumns(allocator, SOURCE);
+    UpdateTests.testUpdateAllColumns(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateById() throws Exception {
-    UpdateTestCases.testUpdateById(allocator, SOURCE);
+    UpdateTests.testUpdateById(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateTargetTableWithAndWithoutAlias() throws Exception {
-    UpdateTestCases.testUpdateTargetTableWithAndWithoutAlias(allocator, SOURCE);
+    UpdateTests.testUpdateTargetTableWithAndWithoutAlias(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdInEquality() throws Exception {
-    UpdateTestCases.testUpdateByIdInEquality(allocator, SOURCE);
+    UpdateTests.testUpdateByIdInEquality(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateWithInClauseFilter() throws Exception {
-    UpdateTestCases.testUpdateWithInClauseFilter(allocator, SOURCE);
+    UpdateTests.testUpdateWithInClauseFilter(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdAndColumn0() throws Exception {
-    UpdateTestCases.testUpdateByIdAndColumn0(allocator, SOURCE);
+    UpdateTests.testUpdateByIdAndColumn0(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdOrColumn0() throws Exception {
-    UpdateTestCases.testUpdateByIdOrColumn0(allocator, SOURCE);
+    UpdateTests.testUpdateByIdOrColumn0(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdTwoColumns() throws Exception {
-    UpdateTestCases.testUpdateByIdTwoColumns(allocator, SOURCE);
+    UpdateTests.testUpdateByIdTwoColumns(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateByIdWithDecimals() throws Exception {
+    UpdateTests.testUpdateByIdWithDecimals(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateByIdWithDoubles() throws Exception {
+    UpdateTests.testUpdateByIdWithDoubles(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateByIdWithFloats() throws Exception {
+    UpdateTests.testUpdateByIdWithFloats(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdWithSubQuery() throws Exception {
-    UpdateTestCases.testUpdateByIdWithSubQuery(allocator, SOURCE);
+    UpdateTests.testUpdateByIdWithSubQuery(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateByIdWithSubQueryWithFloat() throws Exception {
+    UpdateTests.testUpdateByIdWithSubQueryWithFloat(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateByIdWithSubQueryAndLiteralWithFloats() throws Exception {
+    UpdateTests.testUpdateByIdWithSubQueryAndLiteralWithFloats(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdWithSubQueryWithDecimal() throws Exception {
-    UpdateTestCases.testUpdateByIdWithSubQueryWithDecimal(allocator, SOURCE);
+    UpdateTests.testUpdateByIdWithSubQueryWithDecimal(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdWithScalarSubQuery() throws Exception {
-    UpdateTestCases.testUpdateByIdWithScalarSubQuery(allocator, SOURCE);
+    UpdateTests.testUpdateByIdWithScalarSubQuery(allocator, SOURCE);
   }
 
   @Test
   public void testUpdateByIdWithSubQueries() throws Exception {
-    UpdateTestCases.testUpdateByIdWithSubQueries(allocator, SOURCE);
+    UpdateTests.testUpdateByIdWithSubQueries(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithWrongContextWithPathTable() throws Exception {
+    UpdateTests.testUpdateWithWrongContextWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUpdateWithContextWithPathTable() throws Exception {
+    UpdateTests.testUpdateWithContextWithPathTable(allocator, SOURCE);
   }
 }

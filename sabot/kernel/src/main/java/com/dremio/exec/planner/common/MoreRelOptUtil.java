@@ -96,6 +96,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
+import org.apache.commons.lang3.tuple.Triple;
 
 import com.carrotsearch.hppc.IntIntHashMap;
 import com.dremio.common.exceptions.UserException;
@@ -1543,4 +1544,27 @@ public final class MoreRelOptUtil {
     }
   }
 
+  /** Builds an equi-join condition from a list of (leftKey, rightKey, filterNull). */
+  public static RexNode createEquiJoinCondition(
+    final RelNode left,
+    final RelNode right,
+    final List<Triple<Integer, Integer, Boolean>> equiConditions,
+    final RexBuilder rexBuilder) {
+    final List<RelDataType> leftTypes =
+      RelOptUtil.getFieldTypeList(left.getRowType());
+    final List<RelDataType> rightTypes =
+      RelOptUtil.getFieldTypeList(right.getRowType());
+    final List<RexNode> conditions = new ArrayList<>();
+    for (Triple<Integer, Integer, Boolean> key : equiConditions) {
+      final int leftKey = key.getLeft();
+      final int rightKey = key.getMiddle();
+      final Boolean filterNull = key.getRight();
+      final SqlOperator op = filterNull ? SqlStdOperatorTable.EQUALS : SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
+      conditions.add(rexBuilder.makeCall(op,
+        rexBuilder.makeInputRef(leftTypes.get(leftKey), leftKey),
+        rexBuilder.makeInputRef(rightTypes.get(rightKey),
+          leftTypes.size() + rightKey)));
+    }
+    return RexUtil.composeConjunction(rexBuilder, conditions, false);
+  }
 }

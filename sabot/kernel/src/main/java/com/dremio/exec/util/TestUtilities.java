@@ -96,7 +96,22 @@ public class TestUtilities {
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
-
+    // add dfs_partition_inference.
+    {
+      SourceConfig c = new SourceConfig();
+      InternalFileConf conf = new InternalFileConf();
+      conf.connection = "file:///";
+      conf.path = "/";
+      conf.propertyList = Arrays.asList(
+        new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
+        new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE)
+      );
+      conf.isPartitionInferenceEnabled = true;
+      c.setConnectionConf(conf);
+      c.setName("dfs_partition_inference");
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
     // add dfs_test
     {
       SourceConfig c = new SourceConfig();

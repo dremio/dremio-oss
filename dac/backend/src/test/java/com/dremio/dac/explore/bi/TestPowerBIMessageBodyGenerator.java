@@ -15,7 +15,9 @@
  */
 package com.dremio.dac.explore.bi;
 
+import static com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator.SoftwareDSRConnectionInfo.USER_SSL_ENABLED;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 
@@ -28,6 +30,7 @@ import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -112,6 +115,9 @@ public class TestPowerBIMessageBodyGenerator {
   @Mock
   protected Configuration mockConfiguration;
 
+  @Mock
+  protected DremioConfig mockDremioConfig;
+
   protected final String server;
   protected final int port;
   protected final String expectedSchema;
@@ -138,13 +144,22 @@ public class TestPowerBIMessageBodyGenerator {
 
   @Test
   public void verifyDSRFile() {
+    when(mockDremioConfig.hasPath(USER_SSL_ENABLED)).thenReturn(false);
+    verifyDSRFileContents();
+  }
+
+  @Test
+  public void verifyDSRFileWithEncryptionEnabled() {
+    when(mockDremioConfig.hasPath(USER_SSL_ENABLED)).thenReturn(true);
+    when(mockDremioConfig.getBoolean(USER_SSL_ENABLED)).thenReturn(true);
     verifyDSRFileContents();
   }
 
   protected void verifyDSRFileContents() {
     final PowerBIMessageBodyGenerator powerBIMessageBodyGenerator = new PowerBIMessageBodyGenerator(mockConfiguration,
       endpoint,
-      mockOptionManager);
+      mockOptionManager,
+      mockDremioConfig);
     verifyDSRFileAttributes(powerBIMessageBodyGenerator);
   }
 
@@ -175,5 +190,14 @@ public class TestPowerBIMessageBodyGenerator {
 
   protected void verifyExtraDSRFileAttributes(PowerBIMessageBodyGenerator.DSRConnectionInfo address, PowerBIMessageBodyGenerator.DataSourceReference details) {
     assertEquals("dremio", details.getProtocol());
+    verifyEncryptionMethod(address, details);
+  }
+
+  private void verifyEncryptionMethod(PowerBIMessageBodyGenerator.DSRConnectionInfo address, PowerBIMessageBodyGenerator.DataSourceReference details) {
+    if (mockDremioConfig.hasPath(USER_SSL_ENABLED) && mockDremioConfig.getBoolean(USER_SSL_ENABLED)) {
+      assertEquals("Enabled", ((PowerBIMessageBodyGenerator.SoftwareDSRConnectionInfo) (address)).getEncryption());
+    } else {
+      assertEquals("Disabled", ((PowerBIMessageBodyGenerator.SoftwareDSRConnectionInfo) (address)).getEncryption());
+    }
   }
 }

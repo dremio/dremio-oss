@@ -19,10 +19,12 @@ import static com.dremio.exec.store.hive.HiveTestDataGenerator.HIVE_TEST_PLUGIN_
 
 import org.junit.Test;
 
-import com.dremio.exec.planner.sql.MergeTestCases;
+import com.dremio.exec.planner.sql.MergeTests;
 
 /**
  * Runs test cases on the local Hive-based source.
+ *
+ * Note: Contains a basic test *and* (when required) with Hive-specific tests.
  */
 public class ITMergeOnHive extends DmlQueryOnHiveTestBase {
 
@@ -30,102 +32,7 @@ public class ITMergeOnHive extends DmlQueryOnHiveTestBase {
   private static final String SOURCE = HIVE_TEST_PLUGIN_NAME;
 
   @Test
-  public void testMalformedMergeQueries() throws Exception {
-    MergeTestCases.testMalformedMergeQueries(SOURCE);
-  }
-
-  @Test
   public void testMergeUpdateAllWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateAllWithLiteral(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateAllWithScalar() throws Exception {
-    MergeTestCases.testMergeUpdateAllWithScalar(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateAllWithSubQuery() throws Exception {
-    MergeTestCases.testMergeUpdateAllWithSubQuery(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateHalfWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateHalfWithLiteral(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateHalfWithScalar() throws Exception {
-    MergeTestCases.testMergeUpdateHalfWithScalar(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateHalfWithSubQuery() throws Exception {
-    MergeTestCases.testMergeUpdateHalfWithSubQuery(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateWithFloat() throws Exception {
-    MergeTestCases.testMergeUpdateWithFloat(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateUsingSubQueryWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateUsingSubQueryWithLiteral(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeInsertWithScalar() throws Exception {
-    MergeTestCases.testMergeInsertWithScalar(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeInsertWithLiteral() throws Exception {
-    MergeTestCases.testMergeInsertWithLiteral(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeInsertWithFloat() throws Exception {
-    MergeTestCases.testMergeInsertWithFloat(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateInsertWithLiteral() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithLiteral(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateInsertWithFloats() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithFloats(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateInsertWithScalar() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithScalar(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeUpdateInsertWithSubQuery() throws Exception {
-    MergeTestCases.testMergeUpdateInsertWithSubQuery(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeWithMultiplePushDownFilters() throws Exception {
-    MergeTestCases.testMergeWithMultiplePushDownFilters(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeWithSubQuerySourceAndInsert() throws Exception {
-    MergeTestCases.testMergeWithSubQuerySourceAndInsert(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeTargetTableWithAndWithoutAlias() throws Exception {
-    MergeTestCases.testMergeTargetTableWithAndWithoutAlias(allocator, SOURCE);
-  }
-
-  @Test
-  public void testMergeWithDupsInSource() throws Exception {
-    MergeTestCases.testMergeWithDupsInSource(allocator, SOURCE);
+    MergeTests.testMergeUpdateAllWithLiteral(allocator, SOURCE);
   }
 }

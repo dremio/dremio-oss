@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.util.ColumnUtils.isSystemColumn;
 import static org.apache.calcite.rel.core.TableModify.Operation.DELETE;
 import static org.apache.calcite.rel.core.TableModify.Operation.MERGE;
 
@@ -203,11 +204,11 @@ public class DmlPlanGenerator {
 
     // project (tablecol1, ..., tablecolN)
     List<RelDataTypeField> projectFields = insertOnlyMergeInputDataPlan.getRowType().getFieldList().stream()
-      .filter(f -> !isSystemColumn(f))
+      .filter(f -> !isSystemColumn(f.getName()))
       .collect(Collectors.toList());
     List<String> projectNames = table.getRowType().getFieldList()
       .stream()
-      .filter(f -> !isSystemColumn(f))
+      .filter(f -> !isSystemColumn(f.getName()))
       .map(f -> f.getName()).collect(Collectors.toList());
 
     List<RexNode> projectExprs = new ArrayList<>();
@@ -555,25 +556,25 @@ public class DmlPlanGenerator {
 
   private RexNode getCopyOnWriteJoinColumnProjectExpr(
     RexBuilder rexBuilder, RelDataTypeField field, int leftFieldCount,
-    RexNode leftRowIndexNullcondition, RexNode rightRowIndexNullcondition) {
+    RexNode leftRowIndexNullCheck, RexNode rightRowIndexNullCheck) {
     switch (operation) {
       case DELETE:
         return rexBuilder.makeInputRef(field.getType(), field.getIndex());
       case UPDATE:
-        return getUpdateExpr(rexBuilder, field, leftFieldCount, 0, rightRowIndexNullcondition);
+        return getUpdateExpr(rexBuilder, field, leftFieldCount, 0, rightRowIndexNullCheck);
       case MERGE:
         switch(mergeType) {
           case UPDATE_ONLY:
-            return getUpdateExpr(rexBuilder, field, leftFieldCount, 0, rightRowIndexNullcondition);
+            return getUpdateExpr(rexBuilder, field, leftFieldCount, 0, rightRowIndexNullCheck);
           case UPDATE_INSERT:
             RexNode updateExprWithInsertedColumns = getUpdateExpr(rexBuilder, field, leftFieldCount,
-              leftFieldCount - SYSTEM_COLUMN_COUNT, rightRowIndexNullcondition);
-            return getMergeWithInsertExpr(rexBuilder, field, leftFieldCount, leftRowIndexNullcondition, updateExprWithInsertedColumns);
+              leftFieldCount - SYSTEM_COLUMN_COUNT, rightRowIndexNullCheck);
+            return getMergeWithInsertExpr(rexBuilder, field, leftFieldCount, leftRowIndexNullCheck, updateExprWithInsertedColumns);
           default:
-            throw new UnsupportedOperationException(String.format("Invalid merge type: %s", mergeType));
+            throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", mergeType));
         }
       default:
-        throw new UnsupportedOperationException("Invalid operation : " + operation);
+        throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", operation));
     }
   }
 
@@ -582,7 +583,7 @@ public class DmlPlanGenerator {
    */
   private List<RelDataTypeField> getFieldsWithoutSystemColumns(RelNode input) {
     return input.getRowType().getFieldList().stream()
-      .filter(f -> table.getRowType().getField(f.getName(), false, false) != null && !isSystemColumn(f))
+      .filter(f -> table.getRowType().getField(f.getName(), false, false) != null && !isSystemColumn(f.getName()))
       .collect(Collectors.toList());
   }
 
@@ -674,10 +675,5 @@ public class DmlPlanGenerator {
       ImmutableList.of(groupSet),
       ImmutableList.of(aggRowCount),
       null);
-  }
-
-  private static boolean isSystemColumn(RelDataTypeField filed) {
-    return filed.getName().equals(ColumnUtils.FILE_PATH_COLUMN_NAME) ||
-      filed.getName().equals(ColumnUtils.ROW_INDEX_COLUMN_NAME);
   }
 }

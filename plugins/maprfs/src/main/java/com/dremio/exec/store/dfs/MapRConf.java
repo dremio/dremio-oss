@@ -76,6 +76,11 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Tag(10)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable partition column inference")
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -89,6 +94,11 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   @Override
   public List<Property> getProperties() {
     return propertyList;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

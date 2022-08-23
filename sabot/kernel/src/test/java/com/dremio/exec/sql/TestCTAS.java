@@ -575,7 +575,7 @@ public class TestCTAS extends PlanTestBase {
       assertEquals(2, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
-          return name.endsWith(".json");
+          return name.endsWith("metadata.json");
         }
       })).length);
     } finally {

@@ -693,7 +693,7 @@ public class TestServer extends BaseTestServer {
     assertEquals(1, error.getDetails().getErrors().size());
     QueryError queryError = error.getDetails().getErrors().get(0);
 
-    assertContains("Failure parsing the query", queryError.getMessage());
+    assertContains("Was expecting one of", queryError.getMessage());
     assertEquals(1, queryError.getRange().getStartLine());
     assertEquals(10, queryError.getRange().getStartColumn());
     assertEquals(1, queryError.getRange().getEndLine());

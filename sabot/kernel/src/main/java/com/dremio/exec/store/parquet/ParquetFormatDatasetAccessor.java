@@ -166,7 +166,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
 
     if (context.getOptionManager().getOption(PARQUET_TEST_SCHEMA_FALLBACK_ONLY_VALIDATOR)) {
       // Only run tests for reading the records in the first parquet to generate schema
-      return getBatchSchemaFromReader(selection, fs);
+      return getBatchSchemaFromReader(selection, fs).removeNullFields();
     }
 
     final FileAttributes firstFile = firstFileO.get();
@@ -196,7 +196,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
           logger.warn("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter, fall back to generate schema from first parquet file");
           logger.debug("Cannot convert parquet schema to dremio schema using parquet-arrow schema converter", e);
           // Fall back to read the records in the first parquet file to generate schema
-          return getBatchSchemaFromReader(selection, fs);
+          return getBatchSchemaFromReader(selection, fs).removeNullFields();
         }
       }
     } else {
@@ -227,7 +227,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
         }
       }
     }
-    return getSchema(oldSchema, context, firstFile, fields);
+    return getSchema(oldSchema, context, firstFile, fields).removeNullFields();
   }
 
   private BatchSchema getSchema(BatchSchema oldSchema, SabotContext context, FileAttributes firstFile, List<Field> fields) {

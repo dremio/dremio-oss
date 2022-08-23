@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -27,6 +26,7 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -41,8 +41,8 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     try {
       final SqlInsertTable sqlInsertTable = SqlNodeUtil.unwrap(sqlNode, SqlInsertTable.class);
       final Catalog catalog = config.getContext().getCatalog();
-      final NamespaceKey path = catalog.resolveSingle(sqlInsertTable.getPath());
-      validateDmlRequest(catalog, path, SqlKind.INSERT);
+      final NamespaceKey path = DmlUtils.getTablePath(catalog, sqlInsertTable.getPath());
+      validateDmlRequest(catalog, config, path);
       catalog.validatePrivilege(path, Privilege.INSERT);
 
       // TODO: fix parser to disallow this
@@ -64,18 +64,13 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
   }
 
   @VisibleForTesting
-  public static void validateDmlRequest(Catalog catalog, NamespaceKey path, SqlKind sqlKind) {
-    if (!IcebergUtils.validatePluginSupportForIceberg(catalog, path)) {
-      throw UserException.unsupportedError()
-        .message(String.format("%s clause is not supported in the query for this source", sqlKind))
-        .buildSilently();
-    }
+  public static void validateDmlRequest(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, SqlInsertTable.OPERATOR, false);
   }
 
   @VisibleForTesting
   public void validateInsertTableFormatOptions(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
     validateTableFormatOptions(catalog, path, config.getContext().getOptions());
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
   }
 
   private PhysicalPlan doInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlInsertTable sqlInsertTable) throws Exception {

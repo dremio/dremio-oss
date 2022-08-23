@@ -31,6 +31,8 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
 
   public abstract String getConnection();
 
+  public abstract boolean isPartitionInferenceEnabled();
+
   public abstract SchemaMutability getSchemaMutability();
 
   /**

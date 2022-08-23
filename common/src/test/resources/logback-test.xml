@@ -19,16 +19,15 @@
 <configuration>
 
   <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
-    <defaultLogLevelThreshold>trace</defaultLogLevelThreshold>
-    <!---->
+    <defaultLogLevelThreshold>debug</defaultLogLevelThreshold>
     <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A,warn</packageLogLevel>
-    <!--Exceptions to above -->
-    <exceptionPackageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A.First,error</exceptionPackageLogLevel>
-    <exceptionPackageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A.Second,error</exceptionPackageLogLevel>
-    <!---->
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A.First,error</packageLogLevel>
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.A.Second,warn</packageLogLevel>
     <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B,info</packageLogLevel>
-    <!--Exceptions to above-->
-    <exceptionPackageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B.Second,error</exceptionPackageLogLevel>
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B.Second,error</packageLogLevel>
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B.Third,debug</packageLogLevel>
+    <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.C.Second,trace</packageLogLevel>
+
   </turboFilter>
 
   <appender name="SOCKET" class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">
@@ -59,7 +58,7 @@
   </appender>
   -->
   <logger name="com.dremio" additivity="false">
-    <level value="debug" />
+    <level value="trace" />
     <appender-ref ref="SOCKET" />
     <appender-ref ref="STDOUT" />
 <!--     <appender-ref ref="FILE" /> -->

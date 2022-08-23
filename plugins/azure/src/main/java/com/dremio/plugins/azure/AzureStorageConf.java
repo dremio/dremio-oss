@@ -160,6 +160,11 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Tag(17)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable partition column inference")
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public AzureStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be provided.");
@@ -194,6 +199,11 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.USER_TABLE;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

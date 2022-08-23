@@ -34,7 +34,7 @@ public class HiveDirListingRecordReader extends DirListingRecordReader {
 
   public HiveDirListingRecordReader(OperatorContext context, FileSystem fs, DirListInputSplitProto.DirListInputSplit dirListInputSplit, boolean isRecursive,
                                     BatchSchema tableSchema, List<PartitionProtobuf.PartitionValue> partitionValues, boolean discoverPartitions) {
-    super(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, discoverPartitions);
+    super(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, discoverPartitions, false);
   }
 
   @Override

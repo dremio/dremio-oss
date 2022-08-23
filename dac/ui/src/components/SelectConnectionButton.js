@@ -112,5 +112,6 @@ const styles = {
     margin: 0,
     width: 33,
     height: 33,
+    display: "flex",
   },
 };

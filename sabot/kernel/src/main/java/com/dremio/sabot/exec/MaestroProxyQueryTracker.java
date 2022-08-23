@@ -237,27 +237,31 @@ class MaestroProxyQueryTracker implements QueryTracker {
 
   private static QueryProgressMetrics buildProgressMetrics(List<FragmentStatus> fragmentStatuses) {
     long recordCount = 0;
-    long outputRecordCount = 0;
+    long ctasRecordCount = 0;
+    long arrowRecordCount = 0;
     for (FragmentStatus fragmentStatus : fragmentStatuses) {
       for (OperatorProfile operatorProfile : fragmentStatus.getProfile().getOperatorProfileList()) {
         for (StreamProfile streamProfile : operatorProfile.getInputProfileList()) {
           recordCount += streamProfile.getRecords();
-          if (isOutputOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
-              outputRecordCount += streamProfile.getRecords();
+          if (isCtasOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
+            ctasRecordCount += streamProfile.getRecords();
+          } else if (isArrowOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
+            arrowRecordCount += streamProfile.getRecords();
           }
         }
       }
     }
+    // derived from QueryProfileParser.java, all operators which produce output to client except SCREEN,
+    // first check ctas writers, if not present then arrow writer.
+    long outputRecords = (ctasRecordCount > 0) ? ctasRecordCount : arrowRecordCount;
     return QueryProgressMetrics.newBuilder()
       .setRowsProcessed(recordCount)
-      .setOutputRecords(outputRecordCount)
+      .setOutputRecords(outputRecords)
       .build();
   }
 
-  // derived from QueryProfileParser.java, all operators which produce output to client except SCREEN.
-  private static boolean isOutputOperator(CoreOperatorType type) {
+  private static boolean isCtasOperator(CoreOperatorType type) {
     switch (type) {
-      case ARROW_WRITER:
       case PARQUET_WRITER:
       case TEXT_WRITER:
       case JSON_WRITER:
@@ -266,6 +270,10 @@ class MaestroProxyQueryTracker implements QueryTracker {
       default:
         return false;
     }
+  }
+
+  private static boolean isArrowOperator(CoreOperatorType type) {
+    return type == CoreOperatorType.ARROW_WRITER;
   }
 
   /**

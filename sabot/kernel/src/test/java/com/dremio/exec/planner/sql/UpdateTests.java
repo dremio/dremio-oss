@@ -15,25 +15,33 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Table;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Tables;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithDecimals;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithDoubles;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithFloats;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createRandomId;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createView;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.setContext;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testDmlQuery;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQueries;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.Collections;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
 
 /**
- * UPDATE test case repository. It's done this way to allow test cases to be used by different sources.
+ * UPDATE tests.
  *
- * Guidance for adding tests to different suites:
- *  - ITMerge in OSS only really needs a small baseline set of tests to sanity-check that DML is functional in OSS.
- *    Not adding every test here to OSS saves us a bit of test execution time without sacrificing much in the way of
- *    meaningful coverage.
- *  - All (except EE-only) tests here should be a part of CE and Hive suites as these represent core customer configurations.
+ * Note: Add tests used across all platforms here.
  */
-public class UpdateTestCases extends DmlQueryTestCasesBase {
+public class UpdateTests {
 
   public static void testMalformedUpdateQueries(String source) throws Exception {
     try (Table table = createBasicTable(source, 4, 0)) {
@@ -49,6 +57,16 @@ public class UpdateTestCases extends DmlQueryTestCasesBase {
         "UPDATE %s SET %s = 'value1', %s =",
         "UPDATE %s SET %s = 'value1' WHERE"
       );
+    }
+  }
+
+  public static void testUpdateOnView(BufferAllocator allocator, String source) throws Exception {
+    String name = createRandomId();
+    try (AutoCloseable ignored = createView(source, name)) {
+      assertThatThrownBy(() ->
+        testDmlQuery(allocator, "UPDATE %s.%s SET id = 0", new Object[]{source, name}, null, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("UPDATE is not supported on this VIEW at [%s.%s].", source, name);
     }
   }
 
@@ -357,37 +375,8 @@ public class UpdateTestCases extends DmlQueryTestCasesBase {
     }
   }
 
-  public static void testUpdateWithMultiplePushDownFilters(BufferAllocator allocator, String source) throws Exception {
-    try (Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
-      for (Table table : tables.tables) {
-        testDmlQuery(allocator, "UPDATE %s SET id = 999 WHERE id < 5 AND column_1 = '3_1'",
-          new Object[] { table.fqn}, table, 1,
-          ArrayUtils.addAll(
-            ArrayUtils.subarray(table.originalData, 0, 3),
-            new Object[] { 999, table.originalData[3][1], table.originalData[3][2] },
-            table.originalData[4],
-            table.originalData[5],
-            table.originalData[6],
-            table.originalData[7],
-            table.originalData[8],
-            table.originalData[9]));
-      }
-    }
-  }
-
-  public static void testUpdateWithOnePathContext(BufferAllocator allocator, String source) throws Exception {
-    try (
-      Table table = createBasicTable(source, 1, 2, 2);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      testDmlQuery(allocator,
-        "UPDATE %s.%s SET %s = 'One' WHERE id = %s",
-        new Object[]{table.paths[0], table.name, table.columns[1], table.originalData[0][0]}, table, 1,
-        new Object[]{0, "One"},
-        table.originalData[1]);
-    }
-  }
-
-  public static void testUpdateWithBadContext(BufferAllocator allocator, String source) throws Exception {
+  // BEGIN: Contexts + Paths
+  public static void testUpdateWithWrongContextWithPathTable(BufferAllocator allocator, String source) throws Exception {
     try (
       Table table = createBasicTable(source, 1, 2, 2)) {
       assertThatThrownBy(() ->
@@ -395,108 +384,19 @@ public class UpdateTestCases extends DmlQueryTestCasesBase {
           "UPDATE %s.%s SET id = 1 WHERE id = %s",
           new Object[]{table.paths[0], table.name, table.originalData[0][0]}, table, -1))
         .isInstanceOf(Exception.class)
-        .hasMessageContaining(String.format("Table [%s.%s] not found", table.paths[0], table.name));
+        .hasMessageContaining("Table [%s.%s] does not exist.", table.paths[0], table.name);
     }
   }
 
-  // BEGIN: EE-only Tests
-  public static void testUpdateWithColumnMasking(BufferAllocator allocator, String source) throws Exception {
-    testUpdateWithColumnMasking(allocator, source, false);
-  }
-  public static void testUpdateWithColumnMaskingAndFullPath(BufferAllocator allocator, String source) throws Exception {
-    testUpdateWithColumnMasking(allocator, source, true);
-  }
-
-  public static void testUpdateWithColumnMasking(BufferAllocator allocator, String source, boolean fullPath) throws Exception {
-    String function = getColumnMaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
+  public static void testUpdateWithContextWithPathTable(BufferAllocator allocator, String source) throws Exception {
     try (
-      Table table = createTable(source, createRandomId(), new ColumnInfo[]{
-          new ColumnInfo("id", SqlTypeName.INTEGER, false),
-          new ColumnInfo("salary", SqlTypeName.FLOAT, false, String.format("MASKING POLICY %s(salary)", function))
-        },
-        new Object[][]{
-          new Object[]{1, 100.0f},
-          new Object[]{2, 200.0f}
-        });
+      Table table = createBasicTable(source, 1, 2, 2);
       AutoCloseable ignored = setContext(allocator, source)) {
-      testDmlQuery(allocator, "UPDATE %s SET id = 10 WHERE id = 1",
-        new Object[]{fullPath ? table.fqn : table.name}, table, 1,
-        new Object[]{10, 0.0f},
-        new Object[]{2, 0.0f});
-      getColumnUnmaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-      verifyData(allocator, table,
-        new Object[]{10, 100.0f},
-        new Object[]{2, 200.0f});
+      testDmlQuery(allocator,
+        "UPDATE %s.%s SET %s = 'One' WHERE id = %s",
+        new Object[]{table.paths[0], table.name, table.columns[1], table.originalData[0][0]}, table, 1,
+        new Object[]{0, "One"}, table.originalData[1]);
     }
   }
-
-  public static void testUpdateWithColumnMaskingToAnotherColumn(BufferAllocator allocator, String source) throws Exception {
-    testUpdateWithColumnMaskingToAnotherColumn(allocator, source, false);
-  }
-
-  public static void testUpdateWithColumnMaskingToAnotherColumnAndFullPath(BufferAllocator allocator, String source) throws Exception {
-    testUpdateWithColumnMaskingToAnotherColumn(allocator, source, true);
-  }
-
-  private static void testUpdateWithColumnMaskingToAnotherColumn(BufferAllocator allocator, String source, boolean fullPath) throws Exception {
-    String function = getColumnMaskingPolicyFnForAnon(source, "ssn", SqlTypeName.VARCHAR, "'XXX-XX-XXXX'");
-    try (
-      Table table = createTable(source, createRandomId(), new ColumnInfo[]{
-          new ColumnInfo("id", SqlTypeName.INTEGER, false),
-          new ColumnInfo("ssn", SqlTypeName.VARCHAR, false, String.format("MASKING POLICY %s(ssn)", function)),
-          new ColumnInfo("ssn_copy", SqlTypeName.VARCHAR, false)
-        },
-        new Object[][]{
-          new Object[]{0, "000-00-0000", null},
-          new Object[]{1, "111-11-1111", null}
-        });
-      AutoCloseable ignored = setContext(allocator, source)) {
-      testDmlQuery(allocator, "UPDATE %s SET ssn_copy = ssn",
-        new Object[]{fullPath ? table.fqn : table.name}, table, 2,
-        new Object[]{0, "XXX-XX-XXXX", "XXX-XX-XXXX"},
-        new Object[]{1, "XXX-XX-XXXX", "XXX-XX-XXXX"});
-      getColumnUnmaskingPolicyFnForAnon(source, "ssn", SqlTypeName.VARCHAR, "'XXX-XX-XXXX'");
-      verifyData(allocator, table,
-        new Object[]{0, "000-00-0000", "XXX-XX-XXXX"},
-        new Object[]{1, "111-11-1111", "XXX-XX-XXXX"});
-    }
-  }
-
-  public static void testUpdateWithRowFiltering(BufferAllocator allocator, String source) throws Exception {
-    testUpdateWithRowFiltering(allocator, source, false);
-  }
-
-  public static void testUpdateWithRowFilteringAndFullPath(BufferAllocator allocator, String source) throws Exception {
-    testUpdateWithRowFiltering(allocator, source, true);
-  }
-
-  public static void testUpdateWithRowFiltering(BufferAllocator allocator, String source, boolean fullPath) throws Exception {
-    String function = getRowFilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER, "id % 2 = 0");
-    try (
-      Table table = createTable(source, createRandomId(), new ColumnInfo[]{
-          new ColumnInfo("id", SqlTypeName.INTEGER, false),
-          new ColumnInfo("salary", SqlTypeName.FLOAT, false)
-        },
-        new Object[][]{
-          new Object[]{0, 000.0f},
-          new Object[]{1, 100.0f},
-          new Object[]{2, 200.0f},
-          new Object[]{3, 300.0f}
-        });
-      AutoCloseable ignored = setContext(allocator, source)) {
-      setRowFilterPolicy(table.fqn, function, "id");
-      //noinspection RedundantArrayCreation
-      testDmlQuery(allocator, "UPDATE %s SET salary = 0.0",
-        new Object[]{fullPath ? table.fqn : table.name}, table, 2,
-        new Object[]{0, 000.0f},
-        new Object[]{2, 000.0f});
-      getRowUnfilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER);
-      verifyData(allocator, table,
-        new Object[]{0, 000.0f},
-        new Object[]{1, 100.0f},
-        new Object[]{2, 000.0f},
-        new Object[]{3, 300.0f});
-    }
-  }
-  // END: EE-only Tests
+  // END: Contexts + Paths
 }

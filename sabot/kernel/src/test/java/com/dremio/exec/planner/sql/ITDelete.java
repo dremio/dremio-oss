@@ -19,6 +19,8 @@ import org.junit.Test;
 
 /**
  * Runs test cases on the local filesystem-based Hadoop source.
+ *
+ * Note: Contains all tests in DeleteTests.
  */
 public class ITDelete extends ITDmlQueryBase {
 
@@ -27,41 +29,101 @@ public class ITDelete extends ITDmlQueryBase {
 
   @Test
   public void testMalformedDeleteQueries() throws Exception {
-    DeleteTestCases.testMalformedDeleteQueries(SOURCE);
+    DeleteTests.testMalformedDeleteQueries(SOURCE);
+  }
+
+  @Test
+  public void testDeleteOnView() throws Exception {
+    DeleteTests.testDeleteOnView(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteAll() throws Exception {
-    DeleteTestCases.testDeleteAll(allocator, SOURCE);
+    DeleteTests.testDeleteAll(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteById() throws Exception {
-    DeleteTestCases.testDeleteById(allocator, SOURCE);
+    DeleteTests.testDeleteById(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteTargetTableWithAndWithoutAlias() throws Exception {
-    DeleteTestCases.testDeleteTargetTableWithAndWithoutAlias(allocator, SOURCE);
+    DeleteTests.testDeleteTargetTableWithAndWithoutAlias(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteByIdInEquality() throws Exception {
-    DeleteTestCases.testDeleteByIdInEquality(allocator, SOURCE);
+    DeleteTests.testDeleteByIdInEquality(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteByEvenIds() throws Exception {
-    DeleteTestCases.testDeleteByEvenIds(allocator, SOURCE);
+    DeleteTests.testDeleteByEvenIds(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteByIdAndColumn0() throws Exception {
-    DeleteTestCases.testDeleteByIdAndColumn0(allocator, SOURCE);
+    DeleteTests.testDeleteByIdAndColumn0(allocator, SOURCE);
   }
 
   @Test
   public void testDeleteByIdOrColumn0() throws Exception {
-    DeleteTestCases.testDeleteByIdOrColumn0(allocator, SOURCE);
+    DeleteTests.testDeleteByIdOrColumn0(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithWrongContextWithFqn() throws Exception {
+    DeleteTests.testDeleteWithWrongContextWithFqn(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithWrongContextWithPathTable() throws Exception {
+    DeleteTests.testDeleteWithWrongContextWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithWrongContextWithTable() throws Exception {
+    DeleteTests.testDeleteWithWrongContextWithTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithContextWithFqn() throws Exception {
+    DeleteTests.testDeleteWithContextWithFqn(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithContextWithPathTable() throws Exception {
+    DeleteTests.testDeleteWithContextWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithContextWithTable() throws Exception {
+    DeleteTests.testDeleteWithContextWithTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithContextPathWithFqn() throws Exception {
+    DeleteTests.testDeleteWithContextPathWithFqn(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithContextPathWithPathTable() throws Exception {
+    DeleteTests.testDeleteWithContextPathWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithContextPathWithTable() throws Exception {
+    DeleteTests.testDeleteWithContextPathWithTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithSourceAsPathTableWithWrongContextWithPathTable() throws Exception {
+    DeleteTests.testDeleteWithSourceAsPathTableWithWrongContextWithPathTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testDeleteWithSourceAsPathTableWithContextWithPathTable() throws Exception {
+    DeleteTests.testDeleteWithSourceAsPathTableWithContextWithPathTable(allocator, SOURCE);
   }
 }

@@ -20,8 +20,12 @@ import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -42,6 +46,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Maps;
+import com.google.common.io.Resources;
 
 /**
  * Test queries involving direct impersonation and multilevel impersonation including join queries where each side is
@@ -90,6 +95,9 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
     // has access to data in created "orders" table.
     createTestTable(org2Users[0], org2Groups[0], "orders");
 
+    // Create "singlets.parquet" file in /user/user0_1 owned by user0_1:group0_1 with permissions 750
+    createTestFile(org1Users[0], org1Groups[0], "parquet/singlets.parquet");
+
     createNestedTestViewsOnLineItem();
     createNestedTestViewsOnOrders();
   }
@@ -117,6 +125,19 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
     }
 
     return workspaces;
+  }
+
+  private static void createTestFile(String user, String group, String testFileResource) throws Exception {
+    String fileName = FilenameUtils.getName(testFileResource);
+    final Path hdfsFilePath = new Path(getUserHome(user), fileName);
+    final java.nio.file.Path localFilePath = Paths.get(Resources.getResource(testFileResource).toURI());
+    try (OutputStream out = fs.create(hdfsFilePath)) {
+      Files.copy(localFilePath, out);
+      out.flush();
+    }
+    // Change the ownership and permissions manually
+    fs.setOwner(hdfsFilePath, user, group);
+    fs.setPermission(hdfsFilePath, new FsPermission((short)0750));
   }
 
   private static void createTestTable(String user, String group, String tableName) throws Exception {
@@ -193,6 +214,45 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
     // shouldn't expect any errors.
     updateClient(org1Users[0]);
     test(String.format("SELECT * FROM %s ORDER BY l_orderkey LIMIT 1", fullPath(org1Users[0], "lineitem")));
+  }
+
+  @Test
+  public void testDirectImpersonation_ParquetFile_HasUserReadPermissions() throws Exception {
+    // File singlets.parquet owned by "user0_1:group0_1" with permissions 750. Try to promote and read the file
+    // as "user0_1". We shouldn't expect any errors.
+    updateClient(org1Users[0]);
+    test(String.format("SELECT * FROM %s LIMIT 1", fullPath(org1Users[0], "singlets.parquet")));
+  }
+
+  @Test
+  public void testDirectImpersonation_ParquetFile_HasGroupReadPermissions() throws Exception {
+    // File singlets.parquet owned by "user0_1:group0_1" with permissions 750. Try to promote and read the file
+    // as "user1_1". We shouldn't expect any errors as "user1_1" is part of the "group0_1"
+    updateClient(org1Users[1]);
+    test(String.format("SELECT * FROM %s LIMIT 1", fullPath(org1Users[0], "singlets.parquet")));
+
+    // Validate the file can still be read by user0_1. Ensures DX-37600 is not regressed in which the splits metadata
+    // being created for one user breaks it for other users accessing the dataset
+    updateClient(org1Users[0]);
+    test(String.format("SELECT * FROM %s LIMIT 1", fullPath(org1Users[0], "singlets.parquet")));
+  }
+
+  @Test
+  public void testDirectImpersonation_ParquetFile_NoReadPermissions() throws Exception {
+    // First run a query as the owner to auto format the dataset. Otherwise we would fail with VALIDATION error wrapping
+    // the permission error through promotion codepath
+    updateClient(org1Users[0]);
+    test(String.format("SELECT * FROM %s LIMIT 1", fullPath(org1Users[0], "singlets.parquet")));
+
+    // File singlets.parquet owned by "user0_1:group0_1" with permissions 750. Try to read the file as "user2_1". We
+    // should expect a permission denied error as "user2_1" is not part of the "group0_1"
+    updateClient(org1Users[2]);
+    assertThatThrownBy(() -> test(String.format("SELECT * FROM %s LIMIT 1", fullPath(org1Users[0], "singlets.parquet"))))
+      .isInstanceOf(UserRemoteException.class)
+      .hasMessageContaining("PERMISSION ERROR: Access denied reading dataset miniDfsPlugin.\"/user/user0_1/singlets.parquet\"")
+      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+      .extracting(UserRemoteException::getErrorType)
+      .isEqualTo(ErrorType.PERMISSION);
   }
 
   @Test

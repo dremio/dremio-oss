@@ -73,3 +73,9 @@ message Property {
   required string value = 2;
   optional PropertyType type = 3;
 }
+
+enum PreviewEngineState {
+  UNKNOWN = 1;
+  RUNNING = 2;
+  STOPPED = 3;
+}

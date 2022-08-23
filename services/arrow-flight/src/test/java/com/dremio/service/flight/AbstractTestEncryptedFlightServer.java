@@ -15,6 +15,7 @@
  */
 package com.dremio.service.flight;
 
+import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.junit.Test;
 
@@ -26,16 +27,41 @@ public abstract class AbstractTestEncryptedFlightServer extends BaseFlightQueryT
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightEncryptedClientNoCerts() throws Exception {
-    openFlightClient(DUMMY_USER, DUMMY_PASSWORD, getAuthMode());
+    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
+    try (final FlightClient ignored = openFlightClient(
+      DUMMY_USER,
+      DUMMY_PASSWORD,
+      getAuthMode()))
+    {
+      // no-op
+    }
+    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
   }
 
   @Test
   public void testFlightEncryptedClientWithServerCerts() throws Exception {
-    openEncryptedFlightClient(DUMMY_USER, DUMMY_PASSWORD, getCertificateStream(), getAuthMode());
+    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
+    try (final FlightClient ignored = openEncryptedFlightClient(
+      DUMMY_USER,
+      DUMMY_PASSWORD,
+      getCertificateStream(),
+      getAuthMode()))
+    {
+      // no-op
+    }
+    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
   }
 
   @Test(expected = FlightRuntimeException.class)
   public void testFlightClientUnencryptedServerEncrypted() throws Exception {
-    openFlightClient(DUMMY_USER, DUMMY_PASSWORD, getAuthMode());
+    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
+    try (final FlightClient ignored = openFlightClient(
+      DUMMY_USER,
+      DUMMY_PASSWORD,
+      getAuthMode()))
+    {
+      // no-op
+    }
+    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
   }
 }

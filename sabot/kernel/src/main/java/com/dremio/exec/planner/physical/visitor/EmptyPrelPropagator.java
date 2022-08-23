@@ -23,6 +23,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
 import com.dremio.common.types.TypeProtos;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.EmptyPrel;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
@@ -93,12 +94,21 @@ public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeExce
   @Override
   public Prel visitUnion(UnionPrel union, Void value) throws RuntimeException {
     UnionPrel newUnion = (UnionPrel) visitPrel(union, value);
+    List<Prel> newChildren = new ArrayList<>();
     for (Prel child : newUnion) {
       if (!(child instanceof EmptyPrel)) {
-        return newUnion;
+        newChildren.add(child);
       }
     }
-    return createEmptyPrelFromNode(newUnion);
+    if (newChildren.isEmpty()) {
+      return createEmptyPrelFromNode(newUnion);
+    }
+    if (newChildren.size() == 1) {
+      ProjectPrel project = ProjectPrel.create(union.getCluster(), union.getTraitSet(), newChildren.get(0),
+        MoreRelOptUtil.identityProjects(union.getRowType()), union.getRowType());
+      return project;
+    }
+    return newUnion;
   }
 
   @Override

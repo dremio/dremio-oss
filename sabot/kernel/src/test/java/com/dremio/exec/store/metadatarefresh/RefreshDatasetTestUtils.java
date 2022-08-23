@@ -81,7 +81,7 @@ public class RefreshDatasetTestUtils {
     verifyIcebergSchema(sc, expectedSchema);
     Set<String> actualPartitionCols = spec.fields().stream().map(f -> f.name()).collect(Collectors.toSet());
     assertEquals(expectedPartitionCols, actualPartitionCols);
-    Assert.assertEquals(getTotalFileCount(icebergTable), expectedTotalFileCount);
+    Assert.assertEquals(expectedTotalFileCount, getTotalFileCount(icebergTable));
   }
 
   public static void verifyIcebergSchema(Schema tableSchema, Schema expectedSchema) {

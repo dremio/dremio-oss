@@ -310,11 +310,11 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     }
   }
 
-  public void deleteAccelerationRootPointer(String userName, String basePath) {
-    Path icebergTablePath = Path.of(getConfig().getPath().toString()).resolve(basePath);
-    super.deleteIcebergTableRootPointer(userName,icebergTablePath);
+  @Override
+  public void deleteIcebergTableRootPointer(String userName, Path icebergTablePath) {
+    icebergTablePath = Path.of(getConfig().getPath().toString()).resolve(icebergTablePath.toString());
+    super.deleteIcebergTableRootPointer(userName, icebergTablePath);
   }
-
 
   @Override
   public DatasetMetadata getDatasetMetadata(
@@ -389,13 +389,10 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
           .build());
         logger.debug("deleting refresh {}", tableSchemaPath);
         boolean isLayered = r.getIsIcebergRefresh() != null && r.getIsIcebergRefresh();
-        TableMutationOptions tableMutationOptions =  TableMutationOptions.newBuilder().setIsLayered(isLayered).build();
+        TableMutationOptions tableMutationOptions =  TableMutationOptions.newBuilder()
+                                                        .setIsLayered(isLayered)
+                                                        .setShouldDeleteCatalogEntry(isLayered).build();
         super.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
-        if (isLayered) {
-          final List<String> path = super.resolveTableNameToValidPath(tableSchemaPath.getPathComponents());
-          final Path fsPath = PathUtils.toFSPath(path);
-          deleteAccelerationRootPointer(schemaConfig.getUserName(), fsPath.toString());
-        }
       } catch (Exception e) {
         logger.warn("Couldn't delete refresh {}", r.getId().getId(), e);
       } finally {

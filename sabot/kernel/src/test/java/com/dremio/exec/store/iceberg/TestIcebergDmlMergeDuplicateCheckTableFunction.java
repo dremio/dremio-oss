@@ -37,6 +37,7 @@ import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.BaseTestTableFunction;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
+import com.google.common.base.Strings;
 
 public class TestIcebergDmlMergeDuplicateCheckTableFunction extends BaseTestTableFunction {
 
@@ -160,6 +161,15 @@ public class TestIcebergDmlMergeDuplicateCheckTableFunction extends BaseTestTabl
                     tr(6, "six", "file_path_1", 6L)));
 
     assertProperExceptionThrown(input);
+  }
+
+  @Test
+  public void testWithLongFilePath() throws Exception {
+    Table input = t(
+        th(ID, DATA, ColumnUtils.FILE_PATH_COLUMN_NAME, ColumnUtils.ROW_INDEX_COLUMN_NAME),
+        tr(0, "zero", "file_path_1-" + Strings.repeat("0", 1000), 0L));
+
+    validateSingle(getPop(), TableFunctionOperator.class, input, input, 5);
   }
 
   private void assertProperExceptionThrown(Table input) {

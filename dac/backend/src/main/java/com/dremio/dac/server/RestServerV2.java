@@ -94,8 +94,13 @@ public class RestServerV2 extends ResourceConfig {
   protected void registerBIToolMessageBodyGenerators() {
     //  BODY WRITERS //
     register(QlikAppMessageBodyGenerator.class);
-    register(TableauMessageBodyGenerator.class);
     register(PowerBIMessageBodyGenerator.class);
+
+    registerTableauMessageBodyGenerator();
+  }
+
+  protected void registerTableauMessageBodyGenerator() {
+    register(TableauMessageBodyGenerator.class);
     property(TableauMessageBodyGenerator.CUSTOMIZATION_ENABLED, false);
   }
 

@@ -33,4 +33,21 @@ export const tableStyles = {
     width: 240,
     marginRight: "6px",
   },
+  closeIcon: {
+    Icon: {
+      width: 22,
+      height: 22,
+    },
+    Container: {
+      cursor: "pointer",
+      position: "absolute",
+      right: 3,
+      top: 0,
+      bottom: 0,
+      margin: "auto",
+      marginRight: "16px",
+      width: 22,
+      height: 22,
+    },
+  },
 };

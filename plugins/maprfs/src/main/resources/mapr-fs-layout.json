@@ -33,6 +33,13 @@
           {
             "elements": [
               {
+                "propName": "config.isPartitionInferenceEnabled"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
                 "propName": "config.rootPath"
               }
             ]

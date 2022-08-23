@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.arrow.vector.IntVector;
@@ -26,6 +27,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.types.Types;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -40,6 +42,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
@@ -79,8 +82,9 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
     @Override
     public void consumeData(int records) throws Exception {
-        super.consumeData(records);
-        IntStream.range(0, records).filter(i -> schemaVector.isSet(i) != 0).forEach(this::consumeSchema);
+      super.consumeData(records);
+      IntStream.range(0, records).filter(i -> schemaVector.isSet(i) != 0).forEach(this::consumeSchema);
+      IntStream.range(0, records).forEach(this::consumePartitionData);
     }
 
     private void consumeSchema(int recordIdx) {
@@ -99,9 +103,20 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         }
     }
 
+    private void consumePartitionData(int recordIdx) {
+      List<IcebergPartitionData> partitionDataForThisManifest = getPartitionData(recordIdx);
+      int existingPartitionDepth = partitionColumns.size() - implicitColSize;
+      partitionDataForThisManifest.stream().forEach(x -> {
+        if(x.size() > existingPartitionDepth) {
+          partitionColumns = x.getPartitionType().fields().stream().map(Types.NestedField::name).collect(Collectors.toList());
+        }
+      });
+    }
+
+
     @Override
     protected void consumeManifestFile(ManifestFile manifestFile) {
-        icebergManifestFiles.add(manifestFile);
+      icebergManifestFiles.add(manifestFile);
 
       int existingPartitionDepth = partitionColumns.size() - implicitColSize;
       if(config.getIcebergTableProps().isDetectSchema() && manifestFile.partitions().size() > existingPartitionDepth
@@ -109,11 +124,6 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         throw new UnsupportedOperationException ("Addition of a new level dir is not allowed in incremental refresh. Please forget and " +
             "promote the table again.");
       }
-
-        // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
-        if (manifestFile.partitions().size() > existingPartitionDepth) {
-            IntStream.range(existingPartitionDepth, manifestFile.partitions().size()).forEach(p -> partitionColumns.add("dir" + p));
-        }
     }
 
     @Override

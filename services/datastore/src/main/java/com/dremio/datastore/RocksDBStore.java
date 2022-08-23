@@ -568,12 +568,21 @@ class RocksDBStore implements ByteStore {
   public void delete(byte[] key, DeleteOption... options) {
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
-      final byte[] oldValueOrPtr = db.get(handle, key);
-      if (oldValueOrPtr == null) {
-        return;
+      boolean skipMeta = KVStoreOptionUtility.canSkipMeta(options);
+
+      byte[] oldValueOrPtr = null;
+      if (!skipMeta) {
+        oldValueOrPtr = db.get(handle, key);
+        if (oldValueOrPtr == null) {
+          return;
+        }
       }
+
       db.delete(handle, key);
-      metaManager.deleteTranslation(meta(oldValueOrPtr));
+
+      if (oldValueOrPtr != null) {
+        metaManager.deleteTranslation(meta(oldValueOrPtr));
+      }
     } catch (RocksDBException e) {
       throw new RuntimeException(e);
     }

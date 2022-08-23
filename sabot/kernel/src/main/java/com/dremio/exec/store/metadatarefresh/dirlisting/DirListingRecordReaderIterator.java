@@ -15,6 +15,7 @@
  */
 
 package com.dremio.exec.store.metadatarefresh.dirlisting;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;

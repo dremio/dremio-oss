@@ -20,8 +20,8 @@ import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
@@ -45,6 +45,7 @@ import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
@@ -70,35 +71,31 @@ public abstract class DmlHandler implements SqlToPlanHandler {
    * @param sqlNode node representing the query.
    * @return NamespaceKey of the target table's path.
    */
-  protected abstract NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception;
+  @VisibleForTesting
+  public abstract NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception;
 
   /**
-   * An enum from org.apache.calcite.sql.SqlKind that represents the Calcite's equivalent
-   * of the query the implementing handler is processing.
-   *
-   * @return org.apache.calcite.sql.SqlKind enum.
+   * SqlOperator for the DML being handled.
    */
-  protected abstract SqlKind getSqlKind();
+  protected abstract SqlOperator getSqlOperator();
 
   /**
    * Validate the privileges that are needed to run the query.
    */
-  protected abstract void validatePrivileges(Catalog catalog, SqlNode sqlNode) throws Exception;
+  protected abstract void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) throws Exception;
 
 
   @Override
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     try {
       final Catalog catalog = config.getContext().getCatalog();
-      final NamespaceKey key = catalog.resolveSingle(getTargetTablePath(sqlNode));
-      validateDmlRequest(catalog, config, key, getSqlKind());
+      final NamespaceKey path = DmlUtils.getTablePath(catalog, getTargetTablePath(sqlNode));
+      validateDmlRequest(catalog, config, path, getSqlOperator());
       // We should put validate privileges after validating dml requests.
-      validatePrivileges(catalog, sqlNode);
+      validatePrivileges(catalog, path, sqlNode);
 
-      final Prel prel = getNonPhysicalPlan(catalog, config, sqlNode);
+      final Prel prel = getNonPhysicalPlan(catalog, config, sqlNode, path);
       final PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
-      SqlDmlOperator sqlDmlOperator = SqlNodeUtil.unwrap(sqlNode, SqlDmlOperator.class);
-      final NamespaceKey path = catalog.resolveSingle(sqlDmlOperator.getPath());
       Runnable committer = !CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)
         ? () -> refreshDataset(catalog, path, false)
         : null;
@@ -113,7 +110,7 @@ public abstract class DmlHandler implements SqlToPlanHandler {
   }
 
   @VisibleForTesting
-  public Prel getNonPhysicalPlan(Catalog catalog, SqlHandlerConfig config, SqlNode sqlNode) throws Exception{
+  public Prel getNonPhysicalPlan(Catalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path) throws Exception{
     // Extends sqlNode's DML target table with system columns (e.g., file_name and row_index)
     SqlDmlOperator sqlDmlOperator = SqlNodeUtil.unwrap(sqlNode, SqlDmlOperator.class);
     sqlDmlOperator.extendTableWithDataFileSystemColumns();
@@ -122,28 +119,27 @@ public abstract class DmlHandler implements SqlToPlanHandler {
 
     final RelNode relNode = convertedRelNode.getConvertedNode();
 
-    final Rel drel = convertToDrel(config, sqlNode, catalog, relNode);
+    final Rel drel = convertToDrel(config, sqlNode, path, catalog, relNode);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
 
     return prelAndTextPlan.getKey();
   }
 
   @VisibleForTesting
-  public static void validateDmlRequest(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlKind sqlKind) {
-    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML)
-      || !IcebergUtils.validatePluginSupportForIceberg(catalog, path)) {
+  public static void validateDmlRequest(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlOperator sqlOperator) {
+    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML)) {
       throw UserException.unsupportedError()
-        .message(String.format("%s clause is not supported in the query for this source", sqlKind))
+        .message("%s clause is not supported in the query for this source", sqlOperator)
         .buildSilently();
     }
 
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, sqlOperator, false);
   }
 
-  private Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, Catalog catalog, RelNode relNode) throws Exception {
+  private Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, Catalog catalog, RelNode relNode) throws Exception {
     // Allow TableModifyCrel to access CreateTableEntry that can only be created now.
     CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, catalog,
-      catalog.getTable(catalog.resolveSingle(getTargetTablePath(sqlNode))), getSqlKind());
+      catalog.getTable(path), getSqlOperator().getKind());
     Rel convertedRelNode = PrelTransformer.convertToDrel(config, rewriteTableModifyCrel(relNode, createTableEntry));
 
     // below is for results to be returned to client - delete/update/merge operation summary output

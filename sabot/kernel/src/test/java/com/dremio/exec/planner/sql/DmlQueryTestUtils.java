@@ -30,19 +30,25 @@ import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.collections4.CollectionUtils;
+import org.junit.Rule;
 
 import com.dremio.TestBuilder;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.dremio.test.TemporarySystemProperties;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.base.Strings;
 
 /**
- * DML test case helpers
+ * DML test utilities.
  */
-public class DmlQueryTestCasesBase {
+public class DmlQueryTestUtils {
+
+  @Rule
+  public static TemporarySystemProperties PROPERTIES = new TemporarySystemProperties();
 
   public static final Object[][] EMPTY_EXPECTED_DATA = new Object[0][];
   public static final Set<Integer> PARTITION_COLUMN_ONE_INDEX_SET = new HashSet<Integer>() {{
@@ -300,6 +306,16 @@ public class DmlQueryTestCasesBase {
       data);
   }
 
+  public static AutoCloseable createView(String source, String name) throws Exception {
+    PROPERTIES.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+    test("CREATE VIEW %s.%s AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", source, name);
+
+    return () -> {
+      test("DROP VIEW %s.%s", source, name);
+      PROPERTIES.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+    };
+  }
+
   public static void testMalformedDmlQueries(Object[] tables, String ...malformedQueries) throws Exception {
     for (String malformedQuery : malformedQueries) {
       UserExceptionAssert.assertThatThrownBy(() -> test(String.format(malformedQuery, tables)))
@@ -366,54 +382,5 @@ public class DmlQueryTestCasesBase {
     test(String.format("USE %s", context));
 
     return () -> test(String.format("USE %s", previousContext));
-  }
-
-  /**
-   * Creates a function that can be used for column masking. It hides the specified column for 'anonymous'.
-   */
-  public static String getColumnMaskingPolicyFnForAnon(String source, String name, SqlTypeName type, Object toValue) throws Exception {
-    return getColumnMaskingPolicy(true, "anonymous", source, name, type, toValue);
-  }
-
-  /**
-   * Creates a function that can be used for column masking. It shows the specified column for 'anonymous'.
-   */
-  public static String getColumnUnmaskingPolicyFnForAnon(String source, String name, SqlTypeName type, Object toValue) throws Exception {
-    return getColumnMaskingPolicy(false, "anonymous", source, name, type, toValue);
-  }
-
-  private static String getColumnMaskingPolicy(boolean hide, String user, String source, String name, SqlTypeName type, Object toValue) throws Exception {
-    String function = String.format("%s.get_%s", source, name);
-    test(String.format("CREATE OR REPLACE FUNCTION %s(%s %s) RETURNS %s RETURN SELECT CASE WHEN query_user() = '%s%s' THEN %s ELSE %s END",
-      function, name, type.getName(), type.getName(), hide ? "not_" : "", user, name, toValue));
-    return function;
-  }
-
-  /**
-   * Creates a function that can be used for row filtering. It hides rows by matching the user and using the `rules`.
-   */
-  public static String getRowFilterPolicyFnForAnon(String source, String column, SqlTypeName type, String rules) throws Exception {
-    return getRowFilterPolicy(true, "anonymous", source, column, type, rules);
-  }
-
-  /**
-   * Creates a function that can be used for row filtering. It shows rows for the specified user.
-   */
-  public static String getRowUnfilterPolicyFnForAnon(String source, String column, SqlTypeName type) throws Exception {
-    return getRowFilterPolicy(false, "anonymous", source, column, type, null);
-  }
-
-  private static String getRowFilterPolicy(boolean hide, String user, String source, String column, SqlTypeName type, String rules) throws Exception {
-    String function = String.format("%s.%s_filter", source, column);
-    test(String.format("CREATE OR REPLACE FUNCTION %s(%s %s) RETURNS BOOLEAN RETURN SELECT query_user()='%s'%s",
-      function, column, type.getName(), user, !hide ? "" : String.format(" AND %s", rules)));
-    return function;
-  }
-
-  /**
-   * Sets the row filtering for a table.
-   */
-  public static void setRowFilterPolicy(String table, String function, String column) throws Exception {
-    test(String.format("ALTER TABLE %s ADD ROW ACCESS POLICY %s(%s)", table, function, column));
   }
 }

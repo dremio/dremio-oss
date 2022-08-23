@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
@@ -47,6 +48,7 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystem.FetchOnDemandDirectoryStream;
@@ -253,7 +255,64 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
   }
 
-  private void setupFsListIteratorMockWithLargeFiles(HadoopFileSystem fs, Path inputPath) throws IOException {
+  private void setupFsListIteratorMockWithPartitions(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file2.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file3.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=2/data=value/file4.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=2/data=value/file5.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=2/data=value/file6.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=2/data=1234/file7.parquet").toString())),
+    };
+
+
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
+      new FileStatus(70, false, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
+      new FileStatus(1010, false, 0, 0, 4, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[3]),
+      new FileStatus(1200, false, 0, 0, 5, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[4]),
+      new FileStatus(40, false, 0, 0, 6, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[5]),
+      new FileStatus(70, false, 0, 0, 7, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[6])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
+  }
+
+  private void setupFsListIteratorMockInvalidPartitions(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id/data=name/file2.parquet").toString())),
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1])
+      );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
+  }
+
+  private void setupFsListIteratorMockForNullPartitions(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=/data=/file2.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=/data=null/file2.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=/data=__HIVE_DEFAULT_PARTITION__/file2.parquet").toString())),
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
+      new FileStatus(40, false, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
+      new FileStatus(40, false, 0, 0, 4, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[3])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
+  }
+
+    private void setupFsListIteratorMockWithLargeFiles(HadoopFileSystem fs, Path inputPath) throws IOException {
 
     /*FS Structure
     // bar/
@@ -299,7 +358,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     setupMutator();
     setupFsListIteratorMock(fs, inputPath);
     DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null,true);
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, null, null,true, false);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -362,7 +421,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("varCharField").setStringValue("tempVarCharValue").build());
 
     DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(getCtx(), fs, split, true, tableSchema, partitionValues, false);
+    reader = new DirListingRecordReader(getCtx(), fs, split, true, tableSchema, partitionValues, false, false);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -415,7 +474,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
     setupMutator();
     DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, false);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -482,7 +541,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       setupFsListIteratorMock(fs, rootPath);
 
       DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(operatingPath.toString(), rootPath.toString());
-      reader = new DirListingRecordReader(getCtx(), fs, split, false, null, null, true);
+      reader = new DirListingRecordReader(getCtx(), fs, split, false, null, null, true, false);
       reader.allocate(mutator.getFieldVectorMap());
       reader.setup(mutator);
 
@@ -530,7 +589,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
     setupMutator();
     DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
-    reader = new DirListingRecordReader(context, fs, split, true, null, null, true);
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, false);
     reader.allocate(mutator.getFieldVectorMap());
     reader.setup(mutator);
 
@@ -557,5 +616,364 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     java.io.ObjectInputStream ois = new java.io.ObjectInputStream(fis);
     IcebergPartitionData partitionData = (IcebergPartitionData)ois.readObject();
     return partitionData.toString();
+  }
+
+  @Test
+  public void testDirListingParserPartitionPaths() throws Exception {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockWithPartitions(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    int noRecordsRead = reader.next();
+
+
+    assertEquals(7, noRecordsRead);
+    Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+    VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+    VarBinaryVector outputPartInfo = (VarBinaryVector) fieldVectorMap.get("partitioninfo");
+
+    assertEquals(7, outputpaths.getValueCount());
+
+    String partInfo = "";
+
+    assertEquals(outputpaths.getObject(0).toString(), "/randompath/id=1/data=name/file1.parquet?version=1");
+    partInfo = "PartitionData{id=1, data=name, dir0=id=1, dir1=data=name}";
+    assertEquals(extractPartitionData(outputPartInfo.get(0)), partInfo);
+
+    assertEquals(outputpaths.getObject(1).toString(), "/randompath/id=1/data=name/file2.parquet?version=2");
+    partInfo = "PartitionData{id=1, data=name, dir0=id=1, dir1=data=name}";
+    assertEquals(extractPartitionData(outputPartInfo.get(1)), partInfo);
+
+    assertEquals(outputpaths.getObject(2).toString(), "/randompath/id=1/data=name/file3.parquet?version=3");
+    partInfo = "PartitionData{id=1, data=name, dir0=id=1, dir1=data=name}";
+    assertEquals(extractPartitionData(outputPartInfo.get(2)), partInfo);
+
+    assertEquals(outputpaths.getObject(5).toString(), "/randompath/id=2/data=value/file6.parquet?version=6");
+    partInfo = "PartitionData{id=2, data=value, dir0=id=2, dir1=data=value}";
+    assertEquals(extractPartitionData(outputPartInfo.get(5)), partInfo);
+
+    assertEquals(outputpaths.getObject(6).toString(), "/randompath/id=2/data=1234/file7.parquet?version=7");
+    partInfo = "PartitionData{id=2, data=1234, dir0=id=2, dir1=data=1234}";
+    assertEquals(extractPartitionData(outputPartInfo.get(6)), partInfo);
+
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+
+  @Test
+  public void testDirListingParserPartitionPathsWithNull() throws IOException, ExecutionSetupException, ClassNotFoundException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForNullPartitions(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    int noRecordsRead = reader.next();
+
+    assertEquals(4, noRecordsRead);
+    Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+    VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+    VarBinaryVector outputPartInfo = (VarBinaryVector) fieldVectorMap.get("partitioninfo");
+
+    assertEquals(4, outputpaths.getValueCount());
+
+    String partInfo = "";
+
+    assertEquals(outputpaths.getObject(0).toString(), "/randompath/id=1/data=name/file1.parquet?version=1");
+    partInfo = "PartitionData{id=1, data=name, dir0=id=1, dir1=data=name}";
+    assertEquals(extractPartitionData(outputPartInfo.get(0)), partInfo);
+
+    assertEquals(outputpaths.getObject(1).toString(), "/randompath/id=/data=/file2.parquet?version=2");
+    partInfo = "PartitionData{id=null, data=null, dir0=id=, dir1=data=}";
+    assertEquals(extractPartitionData(outputPartInfo.get(1)), partInfo);
+
+    assertEquals(outputpaths.getObject(2).toString(), "/randompath/id=/data=null/file2.parquet?version=3");
+    partInfo = "PartitionData{id=null, data=null, dir0=id=, dir1=data=null}";
+    assertEquals(extractPartitionData(outputPartInfo.get(2)), partInfo);
+
+    assertEquals(outputpaths.getObject(3).toString(), "/randompath/id=/data=__HIVE_DEFAULT_PARTITION__/file2.parquet?version=4");
+    partInfo = "PartitionData{id=null, data=null, dir0=id=, dir1=data=__HIVE_DEFAULT_PARTITION__}";
+    assertEquals(extractPartitionData(outputPartInfo.get(3)), partInfo);
+
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+
+  private void setupFsListIteratorMockForInvalidPartitions1(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id/data=value/file2.parquet").toString())),
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
+  }
+
+  @Test(expected = UserException.class)
+  //First path has id=1/data=name and second path has id/data=value so the second path doesn't have id= so error
+  public void testDirListingParserPartitionPathsError1() throws IOException, ExecutionSetupException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForInvalidPartitions1(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    try {
+      int noRecordsRead = reader.next();
+    }
+    catch (Exception e) {
+      assertTrue(e instanceof UserException);
+      assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
+      assertEquals(e.getCause().getMessage(), "All the directories should have = in the partition structure. Path /randompath/id/data=value/file2.parquet");
+      throw e;
+    }
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+
+  private void setupFsListIteratorMockForInvalidPartitions2(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("otherColumn=1/data=value/file2.parquet").toString())),
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
+  }
+
+  @Test(expected = UserException.class)
+  //First path has id=1/data=name and second path has otherColumn=1/data=value so the column name changed
+  public void testDirListingParserPartitionPathsError2() throws IOException, ExecutionSetupException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForInvalidPartitions2(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    try {
+      int noRecordsRead = reader.next();
+    } catch (Exception e) {
+      assertTrue(e instanceof UserException);
+      assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
+      assertEquals(e.getCause().getMessage(),"Invalid partition structure was specified. Earlier inferred partition names were [id, data]. Parsing current path resulted in partition names [otherColumn, data]. Path /randompath/otherColumn=1/data=value/file2.parquet. Please correct directory structure if possible.");
+      throw e;
+    }
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+
+  private void setupFsListIteratorMockForInvalidPartitions3(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=value/file1.parquet").toString()))
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(20, false, 1, 4096, 2, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[1])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator3);
+  }
+
+
+  @Test(expected = UserException.class)
+  //Test to verify change in partition depth. First path has id=1 and second has id=1/data=value/
+  public void testDirListingParserPartitionPathsError3() throws IOException, ExecutionSetupException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForInvalidPartitions3(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    try {
+      int noRecordsRead = reader.next();
+    } catch (Exception e) {
+      assertTrue(e instanceof UserException);
+      assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
+      assertEquals(e.getCause().getMessage(), "Invalid partition structure was specified. Earlier inferred partition names were [id]. Parsing current path " +
+        "resulted in partition names [id, data]. Path /randompath/id=1/data=value/file1.parquet. Please correct directory structure if possible.");
+      throw e;
+    }
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+
+  private void setupFsListIteratorMockForParsingPartitionPaths4(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("tmp1/tmp2/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("temp1/temp2/file1.parquet").toString()))
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator4 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(20, false, 1, 4096, 2, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[1])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator4);
+  }
+
+  //Should error out when directory names are not in required formats
+  @Test(expected = UserException.class)
+  public void testDirListingParserPartitionPathsOldStructure() throws IOException, ExecutionSetupException, ClassNotFoundException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForParsingPartitionPaths4(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    try {
+      int noRecordsRead = reader.next();
+    } catch (Exception e) {
+      assertTrue(e instanceof UserException);
+      assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
+      assertEquals(e.getCause().getMessage(), "All the directories should have = in the partition structure. Path /randompath/tmp1/tmp2/file1.parquet");
+      throw e;
+    }
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+
+  private void setupFsListIteratorMockForInvalidPartitions4(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=1/file1.parquet").toString())),
+      toHadoopPath(Path.of(inputPath.resolve("id=1/data=value/file1.parquet").toString()))
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[1]),
+      new FileStatus(20, false, 1, 4096, 2, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[2])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator3);
+  }
+
+  //Should error out when directory names are not in required formats
+  @Test(expected = UserException.class)
+  public void testDirListingParserPartitionPathsInconsistentStructure() throws IOException, ExecutionSetupException, ClassNotFoundException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForInvalidPartitions4(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    try {
+      int noRecordsRead = reader.next();
+    } catch (Exception e) {
+      assertTrue(e instanceof UserException);
+      assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
+      assertEquals(e.getCause().getMessage(), "Invalid partition structure was specified. Earlier inferred partition names were []. Parsing current path resulted in partition names [id]. Path /randompath/id=1/file1.parquet. Please correct directory structure if possible.");
+      throw e;
+    }
+    //Reset the vectors for the second batch
+    mutator.close();
+  }
+  private void setupFsListIteratorMockForInvalidPartitions5(HadoopFileSystem fs, Path inputPath) throws IOException {
+    org.apache.hadoop.fs.Path[] testPaths = {
+      toHadoopPath(Path.of(inputPath.resolve("id=1/da=ta=value/file1.parquet").toString())) //directories with more
+    };
+
+    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath,
+      new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0])
+    );
+
+    when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator3);
+  }
+
+  @Test(expected = UserException.class)
+  public void testDirListingParserPartitionPathsInvalidName() throws IOException, ExecutionSetupException, ClassNotFoundException {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+    setupFsListIteratorMockForInvalidPartitions5(fs, inputPath);
+
+    OperatorContext context = getCtx();
+    setupMutator();
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+
+    reader = new DirListingRecordReader(context, fs, split, true, null, null, true, true);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    ((DirListingRecordReader)reader).setBatchSize(100);
+
+    try {
+      int noRecordsRead = reader.next();
+    } catch (Exception e) {
+      assertTrue(e instanceof UserException);
+      assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
+      assertEquals(e.getCause().getMessage(), "All the directories should have = in the partition structure. Path /randompath/id=1/da=ta=value/file1.parquet");
+      throw e;
+    }
+
+    //Reset the vectors for the second batch
+    mutator.close();
   }
 }

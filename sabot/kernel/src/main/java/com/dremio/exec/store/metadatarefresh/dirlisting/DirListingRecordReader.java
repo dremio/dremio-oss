@@ -25,26 +25,20 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
-import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.DirList;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -114,13 +108,16 @@ public class DirListingRecordReader implements RecordReader {
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
     .setMaxRetries(10).build();
 
+  private PartitionParser partitionParser;
+
   public DirListingRecordReader(OperatorContext context,
                                 FileSystem fs,
                                 DirListInputSplitProto.DirListInputSplit dirListInputSplit,
                                 boolean isRecursive,
                                 BatchSchema tableSchema,
                                 List<PartitionProtobuf.PartitionValue> partitionValues,
-                                boolean discoverPartitions) {
+                                boolean discoverPartitions,
+                                boolean inferPartitions) {
     this.fs = fs;
     this.startTime = context.getFunctionContext().getContextInformation().getQueryStartTime();
     this.rootPath = Path.of(dirListInputSplit.getRootPath());
@@ -133,6 +130,7 @@ public class DirListingRecordReader implements RecordReader {
     if(!discoverPartitions) {
       currPartitionInfo = IcebergSerDe.partitionValueToIcebergPartition(partitionValues, tableSchema);
     }
+    partitionParser = PartitionParser.getInstance(rootPath, inferPartitions);
     logger.debug(String.format("Initialized DirListRecordReader with configs %s", this));
   }
 
@@ -271,6 +269,15 @@ public class DirListingRecordReader implements RecordReader {
     if (e.getCause() != null && e.getCause().getMessage() != null && (e.getCause().getMessage().contains("ConditionNotMet") || e.getCause().getMessage().contains("PathNotFound"))) {
       shouldRateLimit = false;
     }
+
+    if (e instanceof UserException) {
+      shouldRateLimit = false;
+    }
+
+    if(e instanceof IllegalStateException) {
+      shouldRateLimit = false;
+    }
+
     logger.info("Rate limit flag is {} for cause {} and message {} ", shouldRateLimit, e.getCause(), e.getMessage());
     return shouldRateLimit;
   }
@@ -293,41 +300,12 @@ public class DirListingRecordReader implements RecordReader {
 
   private void addPartitionInfo(FileAttributes fileStatus, int index) throws IOException {
     if(this.discoverPartitions) {
-      currPartitionInfo = generatePartitionInfoForFileSystem(fileStatus.getPath());
+      currPartitionInfo = partitionParser.parsePartitionToPath(fileStatus.getPath());
     }
 
     //Serialize the IcebergPartitionData to byte array
     byte[] serilaziedIcebergPartitionData = IcebergSerDe.serializeToByteArray(currPartitionInfo);
     partitionInfoVector.setSafe(index, serilaziedIcebergPartitionData);
-  }
-
-  private IcebergPartitionData generatePartitionInfoForFileSystem(Path filePath) {
-    String[] dirs = Path.withoutSchemeAndAuthority(rootPath).relativize(Path.withoutSchemeAndAuthority(filePath)).toString().split(Path.SEPARATOR);
-
-    PartitionSpec.Builder partitionSpecBuilder = PartitionSpec
-      .builderFor(buildIcebergSchema(dirs.length - 1));
-
-    IntStream.range(0, dirs.length - 1).forEach(i -> partitionSpecBuilder.identity("dir" + i));
-
-    IcebergPartitionData icebergPartitionData = new IcebergPartitionData(partitionSpecBuilder.build().partitionType());
-    IntStream.range(0, dirs.length - 1).forEach(i -> icebergPartitionData.setString(i, dirs[i]));
-
-    return icebergPartitionData;
-  }
-
-  //Schema generated here is not related to dataset schema. This is generated just to populate partitionInfo
-  private Schema buildIcebergSchema(int levels) {
-    Field[] fields = new Field[levels];
-
-    for(int i = 0; i < levels; i++) {
-      fields[i] = CompleteType.VARCHAR.toField("dir" + i);
-    }
-
-    BatchSchema tableSchema =
-      BatchSchema.of(fields);
-
-    SchemaConverter schemaConverter = new SchemaConverter();
-    return schemaConverter.toIcebergSchema(tableSchema);
   }
 
   private void setNextBatchSize() {

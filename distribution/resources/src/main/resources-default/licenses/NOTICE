@@ -667,7 +667,7 @@ Micrometer  Copyright (c) 2017-Present VMware, Inc. All Rights Reserved.  Licens
 
 Nimbus JOSE + JWT  Copyright 2012 - 2020, Connect2id Ltd.
 
-Nimbus Language Tags  Copyright 2012-2016, Connect2id Ltd.
+Nimbus Language Tags Backend,,,,Nimbus Content Type,com.nimbusds,content-type,2.1,https://bitbucket.org/connect2id/nimbus-content-type,Apache 2.0,https://bitbucket.org/connect2id/nimbus-content-type/src/master/LICENSE.txt,,  Copyright 2012-2016, Connect2id Ltd.
 
 Nimbus OAuth 2.0 SDK with OpenID Connect extensions  Copyright (c) Connect2id Ltd., 2012 - 2019
 

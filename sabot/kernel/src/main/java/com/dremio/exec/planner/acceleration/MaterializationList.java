@@ -111,6 +111,10 @@ public class MaterializationList implements MaterializationProvider {
       }
 
       try {
+        if (session.getSubstitutionSettings().isExcludeFileBasedIncremental() && descriptor.getIncrementalUpdateSettings().isFileBasedUpdate()) {
+          continue;
+        }
+
         final DremioMaterialization materialization = descriptor.getMaterializationFor(converter);
         if (materialization == null) {
           continue;

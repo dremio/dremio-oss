@@ -72,7 +72,7 @@ public class TestInequalityConditionHashJoin extends PlanTestBase {
       "RIGHT OUTER JOIN cp.\"tpch/customer.parquet\" c ON c.c_custkey = o.o_custkey AND o.o_orderkey / c.c_nationkey > 100.0\n" +
       "INNER JOIN cp.\"tpch/nation.parquet\" n ON c.c_nationkey = n.n_nationkey";
     testPlanMatchingPatterns(query, new String[]{
-        Pattern.quote("HashJoin(condition=[=($6, $7)], joinType=[inner])"),
+        Pattern.quote("HashJoin(condition=[=($3, $4)], joinType=[inner])"),
         Pattern.quote("HashJoin(condition=[=($1, $5)], joinType=[right], extraCondition=[>(/($0, $6), 100.0)])"),
         Pattern.quote("HashJoin(condition=[=($0, $2)], joinType=[right], extraCondition=[<($4, $1)])")
       },

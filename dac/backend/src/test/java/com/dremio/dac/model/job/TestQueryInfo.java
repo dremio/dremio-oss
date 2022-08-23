@@ -25,6 +25,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 
 /**
@@ -42,6 +43,29 @@ public class TestQueryInfo {
         .build(logger);
 
     List<QueryError> errors = QueryError.of(userException);
+
+    assertEquals(1, errors.size());
+
+    QueryError error = errors.get(0);
+    assertEquals("test message", error.getMessage());
+    assertEquals(7, error.getRange().getStartLine());
+    assertEquals(42, error.getRange().getStartColumn());
+    assertEquals(13, error.getRange().getEndLine());
+    assertEquals(57, error.getRange().getEndColumn());
+  }
+
+  @Test
+  public void convertRemoteExceptionToQueryErrors() {
+    // Fake logger to not pollute logs
+    org.slf4j.Logger logger = mock(org.slf4j.Logger.class);
+
+    SqlParseException parseException = new SqlParseException("test message", new SqlParserPos(7, 42, 13, 57), null, null, null);
+    UserException userException = SqlExceptionHelper.parseError("SELECT FOO", parseException)
+            .build(logger);
+
+    UserException remoteException = UserRemoteException.create(userException.getOrCreatePBError(false));
+
+    List<QueryError> errors = QueryError.of(remoteException);
 
     assertEquals(1, errors.size());
 

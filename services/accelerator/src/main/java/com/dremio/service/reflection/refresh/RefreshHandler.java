@@ -29,6 +29,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -55,6 +56,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.ReflectionGoalChecker;
@@ -359,6 +361,12 @@ public class RefreshHandler implements SqlToPlanHandler {
 
     RefreshDecision decision = planGenerator.getRefreshDecision();
     refreshDecisions[0] = decision;
+
+    if (decision.getAccelerationSettings().getMethod() == RefreshMethod.INCREMENTAL &&
+        sqlHandlerConfig.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG) &&
+        sqlHandlerConfig.getContext().getOptions().getOption("reflections.planning.exclude.file_based_incremental.iceberg.accelerations").getBoolVal()) {
+      sqlHandlerConfig.getConverter().getSession().getSubstitutionSettings().setExcludeFileBasedIncremental(true);
+    }
 
     // save the decision for later.
     sqlHandlerConfig.getConverter().getObserver().recordExtraInfo(DECISION_NAME, ABSTRACT_SERIALIZER.serialize(decision));

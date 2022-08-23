@@ -109,14 +109,12 @@ public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
 
   AbstractRefreshPlanBuilder createRefreshDatasetPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset, UnlimitedSplitsMetadataProvider metadataProvider, boolean isFullRefresh);
 
-  default DirListingRecordReader createDirListRecordReader(OperatorContext context,
+  DirListingRecordReader createDirListRecordReader(OperatorContext context,
                                                    FileSystem fs,
                                                    DirListInputSplitProto.DirListInputSplit dirListInputSplit,
                                                    boolean isRecursive,
                                                    BatchSchema tableSchema,
-                                                   List<PartitionProtobuf.PartitionValue> partitionValues) {
-    return new DirListingRecordReader(context, fs, dirListInputSplit, isRecursive, tableSchema, partitionValues, true);
-  }
+                                                   List<PartitionProtobuf.PartitionValue> partitionValues);
 
   default ReadSignatureProvider createReadSignatureProvider(ByteString existingReadSignature,
                                                             final String dataTableRoot,

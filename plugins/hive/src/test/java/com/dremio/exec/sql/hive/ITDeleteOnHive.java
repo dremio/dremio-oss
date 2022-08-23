@@ -19,10 +19,12 @@ import static com.dremio.exec.store.hive.HiveTestDataGenerator.HIVE_TEST_PLUGIN_
 
 import org.junit.Test;
 
-import com.dremio.exec.planner.sql.DeleteTestCases;
+import com.dremio.exec.planner.sql.DeleteTests;
 
 /**
  * Runs test cases on the local Hive-based source.
+ *
+ * Note: Contains a basic test *and* (when required) with Hive-specific tests.
  */
 public class ITDeleteOnHive extends DmlQueryOnHiveTestBase {
 
@@ -30,47 +32,7 @@ public class ITDeleteOnHive extends DmlQueryOnHiveTestBase {
   private static final String SOURCE = HIVE_TEST_PLUGIN_NAME;
 
   @Test
-  public void testMalformedDeleteQueries() throws Exception {
-    DeleteTestCases.testMalformedDeleteQueries(SOURCE);
-  }
-
-  @Test
   public void testDeleteAll() throws Exception {
-    DeleteTestCases.testDeleteAll(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteById() throws Exception {
-    DeleteTestCases.testDeleteById(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteTargetTableWithAndWithoutAlias() throws Exception {
-    DeleteTestCases.testDeleteTargetTableWithAndWithoutAlias(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteByIdInEquality() throws Exception {
-    DeleteTestCases.testDeleteByIdInEquality(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteByEvenIds() throws Exception {
-    DeleteTestCases.testDeleteByEvenIds(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteByIdAndColumn0() throws Exception {
-    DeleteTestCases.testDeleteByIdAndColumn0(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteByIdOrColumn0() throws Exception {
-    DeleteTestCases.testDeleteByIdOrColumn0(allocator, SOURCE);
-  }
-
-  @Test
-  public void testDeleteWithMultiplePushDownFilters() throws Exception {
-    DeleteTestCases.testDeleteWithMultiplePushDownFilters(allocator, SOURCE);
+    DeleteTests.testDeleteAll(allocator, SOURCE);
   }
 }

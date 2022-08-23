@@ -36,7 +36,8 @@ type BreadCrumbsTypes = {
   linkStyle?: React.CSSProperties;
   longCrumbs: boolean;
   hideLastItem?: boolean;
-  showCopyButton: boolean;
+  showCopyButton?: boolean;
+  includeQuotes?: boolean;
 };
 
 export function formatFullPath(fullPath: any) {
@@ -82,6 +83,7 @@ const BreadCrumbs = ({
   hideLastItem = false,
   linkStyle,
   showCopyButton = false,
+  includeQuotes = false,
 }: BreadCrumbsTypes) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const formattedFullPath = formatFullPath(fullPath);
@@ -125,7 +127,11 @@ const BreadCrumbs = ({
           {fullPath && showCopyButton && (
             <CopyButton
               // @ts-ignore
-              text={fullPath.join(".")}
+              text={
+                includeQuotes
+                  ? formatFullPath(fullPath).join(".")
+                  : fullPath.join(".")
+              }
               title={intl.formatMessage({ id: "Path.Copy" })}
               style={{ transform: "translateY(3px)", paddingLeft: "6px" }}
             />
@@ -183,7 +189,11 @@ const BreadCrumbs = ({
         {fullPath && showCopyButton && (
           <CopyButton
             // @ts-ignore
-            text={fullPath.join(".")}
+            text={
+              includeQuotes
+                ? formatFullPath(fullPath).join(".")
+                : fullPath.join(".")
+            }
             title={intl.formatMessage({ id: "Path.Copy" })}
             style={{ transform: "translateY(3px)", paddingLeft: "6px" }}
           />

@@ -15,47 +15,40 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
-import java.util.Arrays;
-import java.util.List;
+import javax.inject.Provider;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.projectnessie.client.api.NessieApiV1;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
-import com.dremio.plugins.NessieClient;
-import com.dremio.plugins.NessieClientImpl;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Iceberg nessie model
  */
 public class IcebergNessieModel extends IcebergBaseModel {
-    private final NessieClient nessieClient;
+    private final Provider<NessieApiV1> nessieApi;
     private final MutablePlugin plugin;
 
     public IcebergNessieModel(String namespace, Configuration configuration,
-                              NessieApiV1 api,
+                              Provider<NessieApiV1> api,
                               FileSystem fs, OperatorContext context,
                               DatasetCatalogGrpcClient datasetCatalogGrpcClient,
                               MutablePlugin plugin) {
         super(namespace, configuration, fs, context, datasetCatalogGrpcClient, plugin);
-        this.nessieClient = new NessieClientImpl(api);
+        this.nessieApi = api;
         this.plugin = plugin;
     }
 
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
     IcebergNessieTableOperations tableOperations = new IcebergNessieTableOperations((context == null ? null : context.getStats()),
-      nessieClient,
+      nessieApi,
       new DremioFileIO(fs, context, null, null, null, configuration, plugin),
       ((IcebergNessieTableIdentifier) tableIdentifier));
     return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations, plugin);
@@ -71,27 +64,4 @@ public class IcebergNessieModel extends IcebergBaseModel {
     super.deleteTable(tableIdentifier);
 
   }
-
-  private void deleteKey(IcebergNessieTableIdentifier icebergNessieTableIdentifier) {
-    nessieClient.deleteCatalogEntry(
-      getNessieKey(icebergNessieTableIdentifier.getTableIdentifier()),
-      getDefaultBranch());
-  }
-
-  private List<String> getNessieKey(TableIdentifier tableIdentifier) {
-    return Arrays.asList(
-      tableIdentifier.namespace().toString(),
-      tableIdentifier.name());
-  }
-
-  private ResolvedVersionContext getDefaultBranch() {
-    try {
-      return nessieClient.getDefaultBranch();
-    } catch (NoDefaultBranchException e) {
-      throw UserException.sourceInBadState(e)
-        .message("No default branch set.")
-        .buildSilently();
-    }
-  }
-
 }

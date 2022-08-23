@@ -20,13 +20,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.File;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.config.DremioConfig;
+import com.dremio.exec.planner.sql.DmlQueryTestUtils;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestTruncateTable extends PlanTestBase {
 
   protected static final String TEMP_SCHEMA = "dfs_test";
+
+  @Before
+  public void before() throws Exception {
+    // Note: dfs_hadoop is immutable.
+    test("USE dfs_hadoop");
+  }
 
   @Test
   public void truncateInvalidSQL() {
@@ -38,11 +48,19 @@ public class TestTruncateTable extends PlanTestBase {
 
   @Test
   public void icebergNotEnabledShouldThrowError() throws Exception {
-    String truncSql = "TRUNCATE TABLE truncTable7";
-    try (AutoCloseable c = disableIcebergFlag()) {
-      assertThatThrownBy(() -> test(truncSql))
-        .isInstanceOf(UserException.class)
-        .hasMessageContaining("TRUNCATE TABLE clause is not supported in the query for this source");
+    String tableName = "icebergNotEnabledShouldThrowError";
+    try (AutoCloseable ignored = enableIcebergTables()) {
+      String ctas = String.format("CREATE TABLE %s.%s(id INT)", TEMP_SCHEMA_HADOOP, tableName);
+      test(ctas);
+      try (AutoCloseable ignoredAgain = disableIcebergFlag()) {
+        String truncSql = String.format("TRUNCATE TABLE %s.%s", TEMP_SCHEMA_HADOOP, tableName);
+        assertThatThrownBy(() -> test(truncSql))
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Please contact customer support for steps to enable the iceberg tables feature.");
+      }
+    } finally {
+      test("DROP TABLE %s.%s", TEMP_SCHEMA_HADOOP, tableName);
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
     }
   }
 
@@ -53,7 +71,7 @@ public class TestTruncateTable extends PlanTestBase {
       try (AutoCloseable c = enableIcebergTables()) {
         assertThatThrownBy(() -> test(truncSql))
           .isInstanceOf(UserException.class)
-          .hasMessageContaining("Table [" + testSchema + ".truncTable6] not found");
+          .hasMessageContaining("Table [" + testSchema + ".truncTable6] does not exist.");
       }
     }
   }
@@ -91,6 +109,21 @@ public class TestTruncateTable extends PlanTestBase {
   }
 
   @Test
+  public void truncateView() throws Exception {
+    TemporarySystemProperties properties = new TemporarySystemProperties();
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+
+    String name = DmlQueryTestUtils.createRandomId();
+    test("CREATE VIEW %s.%s AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", TEMP_SCHEMA, name);
+    assertThatThrownBy(() -> test("TRUNCATE TABLE %s.%s", TEMP_SCHEMA, name))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("TRUNCATE TABLE is not supported on this VIEW at [%s.%s].", TEMP_SCHEMA, name);
+
+    test("DROP VIEW %s.%s", TEMP_SCHEMA, name);
+    properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+  }
+
+  @Test
   public void truncateEmptyTable() throws Exception {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String tableName = "truncTable2";
@@ -102,6 +135,39 @@ public class TestTruncateTable extends PlanTestBase {
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }
+    }
+  }
+
+  @Test
+  public void truncateEmptyWithPathTable() throws Exception {
+      String tableName = "truncateEmptyWithPathTable";
+      String path = "path";
+      try (AutoCloseable c = enableIcebergTables()) {
+        String ctas = String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
+        test(ctas);
+        test("USE %s", TEMP_SCHEMA_HADOOP);
+        String truncSql = String.format("TRUNCATE TABLE %s.%s", path, tableName);
+        test(truncSql);
+      } finally {
+        test("DROP TABLE %s.%s.%s", TEMP_SCHEMA_HADOOP, path, tableName);
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+  }
+
+  @Test
+  public void truncateEmptyWithPathTableWithWrongContext() throws Exception {
+    String tableName = "truncateEmptyWithPathTableWithWrongContext";
+    String path = "path";
+    try (AutoCloseable c = enableIcebergTables()) {
+      String ctas = String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
+      test(ctas);
+      String truncSql = String.format("TRUNCATE TABLE %s.%s", path, tableName);
+      assertThatThrownBy(() -> test(truncSql))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Table [%s.%s] does not exist.", path, tableName);
+    } finally {
+      test("DROP TABLE %s.%s.%s", TEMP_SCHEMA_HADOOP, path, tableName);
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
     }
   }
 

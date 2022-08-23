@@ -59,6 +59,7 @@ import com.dremio.provision.ClusterSpec;
 import com.dremio.provision.ClusterState;
 import com.dremio.provision.ClusterType;
 import com.dremio.provision.DistroType;
+import com.dremio.provision.PreviewEngineState;
 import com.dremio.provision.Property;
 import com.dremio.provision.resource.ProvisioningResource;
 import com.google.common.annotations.VisibleForTesting;
@@ -168,6 +169,20 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     for (ProvisioningServiceDelegate provisioningService: concreteServices.values()) {
       provisioningService.restartPreviewEngine();
     }
+  }
+
+  @Override
+  public PreviewEngineState getPreviewEngineState() {
+    for (ProvisioningServiceDelegate provisioningService: concreteServices.values()) {
+      switch(provisioningService.getPreviewEngineState()) {
+        case RUNNING:
+          return PreviewEngineState.RUNNING;
+        case STOPPED:
+          return PreviewEngineState.STOPPED;
+        default:
+      }
+    }
+    return PreviewEngineState.UNKNOWN;
   }
 
   @VisibleForTesting

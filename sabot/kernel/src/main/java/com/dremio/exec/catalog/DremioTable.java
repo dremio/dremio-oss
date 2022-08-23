@@ -88,11 +88,4 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
   default String getExtendTableSql() {
     throw new UnsupportedOperationException();
   }
-
-  /**
-   * Returns true if the table has fine-grained access policies defined that are enforced.
-   */
-  default boolean hasNativeRowColumnAccessPolicies() {
-    throw new UnsupportedOperationException();
-  }
 }

@@ -46,7 +46,6 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.After;
@@ -216,26 +215,26 @@ public class TestDml extends BaseTestQuery {
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.FALSE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.TRUE);
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlKind.DELETE))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.FALSE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.TRUE);
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlKind.DELETE))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.FALSE);
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlKind.DELETE))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlKind.DELETE))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
   }
 
@@ -247,6 +246,7 @@ public class TestDml extends BaseTestQuery {
     OptionManager mockOptionManager = Mockito.mock(OptionManager.class);
 
     when(mockConfig.getContext()).thenReturn(mockQueryContext);
+    when(mockQueryContext.getCatalog()).thenReturn(mockCatalog);
     when(mockQueryContext.getOptions()).thenReturn(mockOptionManager);
     String sql = "TRUNCATE " + table.getTableName();
     final SqlNode node = converter.parse(sql);
@@ -255,7 +255,7 @@ public class TestDml extends BaseTestQuery {
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
-    assertThatThrownBy(() -> TruncateTableHandler.validateDmlRequest(mockCatalog, path, "TRUNCATE TABLE"))
+    assertThatThrownBy(() -> new TruncateTableHandler(mockConfig).toResult(sql, node))
       .isInstanceOf(UserException.class);
   }
 
@@ -275,7 +275,7 @@ public class TestDml extends BaseTestQuery {
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
-    assertThatThrownBy(() -> InsertTableHandler.validateDmlRequest(mockCatalog, path, SqlKind.INSERT))
+    assertThatThrownBy(() -> InsertTableHandler.validateDmlRequest(mockCatalog, mockConfig, path))
       .isInstanceOf(UserException.class);
   }
 
@@ -497,7 +497,7 @@ public class TestDml extends BaseTestQuery {
 
   private Prel getDmlPlan(Catalog catalog, SqlNode sqlNode) throws Exception {
     DmlHandler dmlHandler = getDmlHandler(sqlNode);
-    return dmlHandler.getNonPhysicalPlan(catalog, config, sqlNode);
+    return dmlHandler.getNonPhysicalPlan(catalog, config, sqlNode, DmlUtils.getTablePath(catalog, dmlHandler.getTargetTablePath(sqlNode)));
   }
 
   private Prel getDmlPlan(String sql) throws Exception {

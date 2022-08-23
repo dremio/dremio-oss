@@ -120,11 +120,13 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
 
   // The factor by which the row count estimate in data files has to be multipled
   private double estimationFactor;
+  private long numAddedFilesReadLimit;
 
   @Override
   public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributesList, long version) throws IOException {
     maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     estimationFactor = context.getOptionManager().getOption(ExecConstants.DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR);
+    numAddedFilesReadLimit = context.getOptionManager().getOption(ExecConstants.DELTALAKE_MAX_ADDED_FILE_ESTIMATION_LIMIT);
     try (BufferAllocator allocator = context.getAllocator().newChildAllocator(BUFFER_ALLOCATOR_NAME, 0, Long.MAX_VALUE);
          OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), allocator, context.getOptionManager(), BATCH_SIZE, context.getExpressionSplitCache());
          SampleMutator mutator = new SampleMutator(allocator)) {
@@ -162,6 +164,8 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
 
       int numRowsRead = 0;
       int numFilesReadToEstimateRowCount = 0;
+      long prevRecordCntEstimate = 0;
+      boolean isRowCountEstimateConverged = false;
       try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, fileAttributes.getPath(), fileAttributes.size(),
         maxFooterLen, false, parquetMetadata, operatorContext, false)) {
 
@@ -169,7 +173,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
           long rowCount = parquetMetadata.getBlocks().get(rowGroupIdx).getRowCount();
           long noOfBatches = rowCount / BATCH_SIZE + 1;
 
-          if (protocolVersionFound && schemaFound) {
+          if (protocolVersionFound && schemaFound && (isRowCountEstimateConverged || numFilesReadToEstimateRowCount > numAddedFilesReadLimit)) {
             break;
           }
 
@@ -189,9 +193,13 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
               numFilesReadToEstimateRowCount += estimateStats(fs, rootFolder, recordCount);
               protocolVersionFound = protocolVersionFound || assertMinReaderVersion();
               schemaFound = schemaFound || findSchemaAndPartitionCols();
-              if (protocolVersionFound && schemaFound) {
+              long newRecordCountEstimate = numFilesReadToEstimateRowCount == 0 ? 0 : Math.round((netRecordsAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
+              isRowCountEstimateConverged = prevRecordCntEstimate == 0 ? false :
+                      isRowCountEstimateConverged || isRecordEstimateConverged(prevRecordCntEstimate, newRecordCountEstimate);
+              if (protocolVersionFound && schemaFound && (isRowCountEstimateConverged || numFilesReadToEstimateRowCount > numAddedFilesReadLimit)) {
                 break;
               }
+              prevRecordCntEstimate = newRecordCountEstimate;
               // reset vectors as they'll be reused in next batch
               resetVectors();
             }
@@ -448,5 +456,11 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   private static <T> T get(JsonNode node, T defaultVal, Function<JsonNode, T> typeFunc, String... paths) {
     node = findNode(node, paths);
     return (node==null) ? defaultVal:typeFunc.apply(node);
+  }
+
+  private static boolean isRecordEstimateConverged(long prevRecordCntEstimate, long newRecordCntEstimate) {
+    long diff = Math.abs(newRecordCntEstimate - prevRecordCntEstimate);
+    int deltaPercentage = 30;
+    return diff * 100 * 1.0 / prevRecordCntEstimate < deltaPercentage;
   }
 }

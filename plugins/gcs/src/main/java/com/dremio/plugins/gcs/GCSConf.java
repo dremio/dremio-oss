@@ -120,6 +120,11 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Tag(17)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable partition column inference")
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -143,6 +148,11 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.USER_TABLE;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

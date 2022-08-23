@@ -310,7 +310,12 @@ public class CatalogServiceHelper {
           includeChildren ? getChildrenForPath(new NamespaceKey(config.getName())) : Collections.emptyList());
         return Optional.of(space);
       case DATASET:
-        DatasetConfig datasetConfig = container.getDataset();
+        // Update container to use dataset from the catalog to ensure we have recordSchema and update the full dataset
+        // config metadata if metadata has not been refreshed within the expiration window.
+        // More info: When user added a new source, the nameSpaceContainer only contains a bare minimum metadata info.
+        String datasetId = container.getDataset().getId().getId();
+        DatasetConfig datasetConfig = catalog.getTable(datasetId).getDatasetConfig();
+        container.setDataset(datasetConfig);
 
         Dataset dataset;
 
@@ -371,7 +376,6 @@ public class CatalogServiceHelper {
         if (container == null) {
           logger.debug("Could not find entity with id [{}]", id);
         }
-
         return Optional.fromNullable(container);
       }
     } catch (NamespaceException e) {

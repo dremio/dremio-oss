@@ -17,17 +17,21 @@ package com.dremio.exec.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.util.PrettyPrintUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.Exchange;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.planner.fragment.Fragment;
@@ -135,13 +139,19 @@ public final class MemoryAllocationUtilities {
     }
 
     // We now have a list of operators per endpoint.
+    boolean isFirst = true;
     for(NodeEndpoint ep : consideredOps.keySet()) {
+      if (isFirst && logger.isDebugEnabled()) {
+        logger.debug(getOpMemoryDetailsString(ep, consideredOps.get(ep), nonConsideredOps.get(ep)));
+        isFirst = false;
+      }
       long outsideReserve = nonConsideredOps.get(ep).stream().mapToLong(t -> t.getProps().getMemReserve()).sum();
 
       List<PhysicalOperator> ops = consideredOps.get(ep);
       long consideredOpsReserve = ops.stream().mapToLong(t -> t.getProps().getMemReserve()).sum();
       // sum of initial allocations must not be less than the query limit
       if (outsideReserve + consideredOpsReserve > queryMaxAllocation) {
+        logger.info(getOpMemoryDetailsString(ep, consideredOps.get(ep), nonConsideredOps.get(ep)));
         throw UserException.resourceError()
           .message("Query was cancelled because the initial memory requirement (%s) is greater than the job memory limit set by the administrator (%s).",
             PrettyPrintUtils.bytePrint(outsideReserve + consideredOpsReserve, true),
@@ -152,6 +162,7 @@ public final class MemoryAllocationUtilities {
       final double totalWeights = ops.stream().mapToDouble(t -> t.getProps().getMemoryFactor()).sum();
       final long memoryForHeavyOperations = maxMemoryPerNodePerQuery - outsideReserve - adjustReservedBytes;
       if(memoryForHeavyOperations < 1) {
+        logger.info(getOpMemoryDetailsString(ep, consideredOps.get(ep), nonConsideredOps.get(ep)));
         throw UserException.memoryError()
           .message("Query was cancelled because it exceeded the memory limits set by the administrator. " +
               "Expected at least %s bytes, but only had %s available. " + System.lineSeparator() +
@@ -222,5 +233,70 @@ public final class MemoryAllocationUtilities {
       return super.visitChildren(op, value);
     }
 
+  }
+
+  private static class DebugOpMemInfo {
+    private final int majorID;
+    private final int operatorID;
+    private final long reservePerInstance;
+    private final boolean isMemoryHeavy;
+    private final String name;
+    private int parallelism;
+
+    DebugOpMemInfo(PhysicalOperator op) {
+      this.name = op.getClass().getSimpleName();
+      this.majorID = op.getProps().getMajorFragmentId();
+      this.operatorID = op.getProps().getLocalOperatorId();
+      this.reservePerInstance = op.getProps().getMemReserve();
+      this.parallelism = 0;
+      this.isMemoryHeavy = op.getProps().isMemoryExpensive();
+    }
+
+    void incrementParallelism() {
+      ++parallelism;
+    }
+
+    int getId() {
+      return OpProps.buildOperatorId(majorID, operatorID);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Op %d-%d name %s reserve %d parallelism %d totalReserve %d isMemoryHeavy %b",
+        majorID, operatorID, name, reservePerInstance, parallelism, reservePerInstance * parallelism,
+        isMemoryHeavy);
+    }
+  }
+
+  private static String getOpMemoryDetailsString(NodeEndpoint ep, List<PhysicalOperator> considered, List<PhysicalOperator> notConsidered) {
+    Map<Integer, DebugOpMemInfo> opToDetailMap = new HashMap<>();
+
+    // group at operator level
+    for (PhysicalOperator op : considered) {
+      DebugOpMemInfo info = opToDetailMap.computeIfAbsent(op.getId(), x -> new DebugOpMemInfo(op));
+      info.incrementParallelism();
+    }
+    for (PhysicalOperator op : notConsidered) {
+      DebugOpMemInfo info = opToDetailMap.computeIfAbsent(op.getId(), x -> new DebugOpMemInfo(op));
+      info.incrementParallelism();
+    }
+
+    StringBuilder builder = new StringBuilder();
+    builder.append("Memory Allocation details for executor end-point ");
+    builder.append(EndpointHelper.getMinimalString(ep));
+    builder.append(" numOperators ");
+    builder.append(opToDetailMap.size());
+    builder.append(" cumulativeParallelism ");
+    builder.append(considered.size() + notConsidered.size());
+    builder.append('\n');
+
+    List<DebugOpMemInfo> opList = new ArrayList<>(opToDetailMap.values());
+    opList.sort(Comparator.comparingInt(DebugOpMemInfo::getId));
+    for (DebugOpMemInfo entry : opList) {
+      builder.append('\t');
+      builder.append(entry);
+      builder.append('\n');
+    }
+    return builder.toString();
   }
 }

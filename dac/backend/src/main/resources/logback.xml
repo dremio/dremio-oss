@@ -17,6 +17,12 @@
 
 -->
 <configuration debug="true">
+
+  <turboFilter class="com.dremio.common.logging.obfuscation.BlockLogLevelTurboFilter">
+    <defaultLogLevelThreshold>INFO</defaultLogLevelThreshold>
+    <packageLogLevel>com.dremio,DEBUG</packageLogLevel>
+  </turboFilter>
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n

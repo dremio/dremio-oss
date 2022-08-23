@@ -19,16 +19,20 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import javax.inject.Provider;
+
 import org.apache.iceberg.BaseMetastoreTableOperations;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.io.FileIO;
+import org.projectnessie.client.api.NessieApiV1;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieClientImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.google.common.base.Stopwatch;
@@ -42,17 +46,24 @@ import io.grpc.StatusRuntimeException;
 class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergNessieTableOperations.class);
   private final FileIO fileIO;
-  private final NessieClient nessieClient;
+  private final Provider<NessieApiV1> nessieApi;
   private final IcebergNessieTableIdentifier nessieTableIdentifier;
   private ResolvedVersionContext reference;
   private final OperatorStats operatorStats;
 
-  public IcebergNessieTableOperations(OperatorStats operatorStats, NessieClient nessieClient, FileIO fileIO, IcebergNessieTableIdentifier nessieTableIdentifier) {
+  public IcebergNessieTableOperations(OperatorStats operatorStats, Provider<NessieApiV1> nessieApi, FileIO fileIO, IcebergNessieTableIdentifier nessieTableIdentifier) {
     this.fileIO = fileIO;
-    this.nessieClient = nessieClient;
+    this.nessieApi = nessieApi;
     this.nessieTableIdentifier = nessieTableIdentifier;
     this.reference = null;
     this.operatorStats = operatorStats;
+  }
+
+  private NessieClient nessieClient() {
+    // Avoid holding a NessieApi instance in this class as it may cause the Nessie client to be held too long and
+    // be used when the underlying connection is no longer valid. Instead, re-create the client on demand.
+    // Provider implementations are expected to cache expensive objects where appropriate.
+    return new NessieClientImpl(nessieApi.get());
   }
 
   @Override
@@ -68,7 +79,7 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   @Override
   protected void doRefresh() {
     reference = getDefaultBranch();
-    String metadataLocation = nessieClient.getMetadataLocation(
+    String metadataLocation = nessieClient().getMetadataLocation(
       getNessieKey(nessieTableIdentifier.getTableIdentifier()),
       reference);
     refreshFromMetadataLocation(metadataLocation, 2);
@@ -91,7 +102,7 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient.commitTable(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
+      nessieClient().commitTable(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
           newMetadataLocation,
           metadata,
           reference);
@@ -119,14 +130,14 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   }
 
   public void deleteKey(){
-   nessieClient.deleteCatalogEntry(
+   nessieClient().deleteCatalogEntry(
      getNessieKey(nessieTableIdentifier.getTableIdentifier()),
      getDefaultBranch());
   }
 
   private ResolvedVersionContext getDefaultBranch() {
     try {
-      return nessieClient.getDefaultBranch();
+      return nessieClient().getDefaultBranch();
     } catch (NoDefaultBranchException e) {
       throw UserException.sourceInBadState(e)
         .message("No default branch set.")

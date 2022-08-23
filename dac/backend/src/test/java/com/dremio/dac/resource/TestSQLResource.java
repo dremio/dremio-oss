@@ -155,7 +155,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(30, returnedSuggestions.getSuggestions().size());
+    assertEquals(23, returnedSuggestions.getSuggestions().size());
   }
 
   @Test

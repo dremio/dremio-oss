@@ -422,6 +422,7 @@ export class MainInfoView extends Component {
               fullPath={entity.get("fullPathList")}
               pathname={pathname}
               showCopyButton
+              includeQuotes
             />
           )
         }

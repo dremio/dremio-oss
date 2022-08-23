@@ -1047,11 +1047,10 @@ public class CatalogImpl implements Catalog {
   public void dropTable(NamespaceKey key, TableMutationOptions tableMutationOptions) {
     final boolean existsInNamespace = systemNamespaceService.exists(key);
     boolean isLayered = false;
-
+    DatasetConfig dataset = null;
     // CTAS does not create a namespace entry (DX-13454), but we want to allow dropping it, so handle the cases
     // where it does not exist in the namespace but does exist at the plugin level.
     if (existsInNamespace) {
-      final DatasetConfig dataset;
       try {
         dataset = systemNamespaceService.getDataset(key);
       } catch (NamespaceException ex) {
@@ -1085,12 +1084,16 @@ public class CatalogImpl implements Catalog {
 
     TableMutationOptions  localTableMutationOptions = tableMutationOptions != null ? ImmutableTableMutationOptions
       .copyOf(tableMutationOptions)
-      .withIsLayered(isLayered) : null;
+      .withIsLayered(isLayered)
+      .withShouldDeleteCatalogEntry(isLayered) : null;
 
     mutablePlugin.dropTable(key, options.getSchemaConfig(), localTableMutationOptions);
 
     if (existsInNamespace) {
       try {
+        if (dataset != null && CatalogUtil.hasIcebergMetadata(dataset)) {
+          CatalogUtil.addIcebergMetadataOrphan(dataset, orphanage);
+        }
         systemNamespaceService.deleteEntity(key);
       } catch (NamespaceException e) {
         throw Throwables.propagate(e);

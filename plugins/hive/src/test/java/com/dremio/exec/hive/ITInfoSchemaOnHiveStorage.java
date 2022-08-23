@@ -188,6 +188,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineColumns("SCHEMA_NAME")
         .baselineValues("cp")
         .baselineValues("dfs")
+        .baselineValues("dfs_partition_inference")
         .baselineValues("dfs_test")
         .baselineValues("dfs_hadoop")
         .baselineValues("dfs_test_hadoop")

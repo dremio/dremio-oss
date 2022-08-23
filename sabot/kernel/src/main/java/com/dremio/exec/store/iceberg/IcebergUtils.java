@@ -79,6 +79,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DremioIndexByName;
@@ -294,14 +295,10 @@ public class IcebergUtils {
      * 3. plugin support for iceberg tables
      * 4. table is an iceberg dataset
      * May return non-empty optional if ifExistsCheck is true
-     * @param catalog
-     * @param config
-     * @param path
-     * @param ifExistsCheck
-     * @return
      */
     public static Optional<SimpleCommandResult> checkTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config,
-                                                                                 NamespaceKey path, boolean ifExistsCheck) {
+                                                                                 NamespaceKey path, SqlOperator sqlOperator,
+                                                                                 boolean ifExistsCheck) {
       boolean icebergFeatureEnabled = isIcebergFeatureEnabled(config.getContext().getOptions(),
           null);
       if (!icebergFeatureEnabled) {
@@ -317,14 +314,18 @@ public class IcebergUtils {
           return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
         } else {
           throw UserException.validationError()
-              .message("Table [%s] not found", path)
+              .message("Table [%s] does not exist.", path)
               .buildSilently();
         }
       }
 
       if (table.getJdbcTableType() != org.apache.calcite.schema.Schema.TableType.TABLE) {
+        // SqlHandlerUtil.validateSupportForDDLOperations passes a null for sqlOperator. However, due
+        // to the way validations happen for DDLs, the caller already does a table type check. Adding
+        // an assertion for an early bug detection if the assumption doesn't hold true.
+        assert sqlOperator != null;
         throw UserException.validationError()
-            .message("[%s] is a %s", path, table.getJdbcTableType())
+            .message("%s is not supported on this %s at [%s].", sqlOperator, table.getJdbcTableType(), path)
             .buildSilently();
       }
 
@@ -345,7 +346,7 @@ public class IcebergUtils {
           return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
         } else {
           throw UserException.validationError()
-              .message("Table [%s] not found", path)
+              .message("Table [%s] does not exist.", path)
               .buildSilently();
         }
       }
@@ -363,7 +364,7 @@ public class IcebergUtils {
       return null;
     }
     // In the absence of partition spec evolution, we'll have just one partition spec file
-    return partitionStatsFileBySpecId.values().iterator().next();
+    return partitionStatsFileBySpecId.size() > 0 ? partitionStatsFileBySpecId.values().iterator().next() : null;
   }
 
   @VisibleForTesting
@@ -914,7 +915,7 @@ public class IcebergUtils {
         case MERGE:
           return IcebergCommandType.MERGE;
         default:
-          throw new UnsupportedOperationException("Unrecognized Sql Kind: " + sqlKind);
+          throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", sqlKind));
       }
   }
 
@@ -927,7 +928,7 @@ public class IcebergUtils {
       case MERGE:
         return WriterOptions.IcebergWriterOperation.MERGE;
       default:
-        throw new UnsupportedOperationException("Unrecognized Sql Kind: " + sqlKind);
+        throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", sqlKind));
     }
   }
 

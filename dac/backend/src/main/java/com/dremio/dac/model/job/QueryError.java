@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.UserBitShared;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
@@ -55,9 +56,9 @@ public final class QueryError {
 
       Range range = (Range) o;
       return startLine == range.startLine &&
-        startColumn == range.startColumn &&
-        endLine == range.endLine &&
-        endColumn == range.endColumn;
+          startColumn == range.startColumn &&
+          endLine == range.endLine &&
+          endColumn == range.endColumn;
     }
 
     @Override
@@ -124,7 +125,7 @@ public final class QueryError {
 
   private static QueryError.Range rangeOf(UserException uex) {
     Map<String, String> context = new HashMap<>();
-    for(String contextString: uex.getContextStrings()) {
+    for (String contextString : uex.getContextStrings()) {
       String[] split = contextString.split(" ", 2);
       if (split.length == 2) {
         context.put(split[0], split[1]);
@@ -144,24 +145,33 @@ public final class QueryError {
       return new Range(
           startLine,
           startColumn,
-          endLine ,
+          endLine,
           endColumn);
 
-    } catch(NullPointerException | NumberFormatException e) {
+    } catch (NullPointerException | NumberFormatException e) {
       return null;
     }
   }
 
   public static List<QueryError> of(UserException e) {
-    switch(e.getErrorType()) {
-    case PARSE:
-    case PLAN:
-    case VALIDATION:
-      return ImmutableList.of(new QueryError(e.getMessage(), rangeOf(e)));
+    switch (e.getErrorType()) {
+      case PARSE:
+      case PLAN:
+      case VALIDATION:
+        return ImmutableList.of(new QueryError(getUnderlyingMessage(e), rangeOf(e)));
 
-    default:
-      return ImmutableList.of();
+      default:
+        return ImmutableList.of();
     }
+  }
+
+  private static String getUnderlyingMessage(UserException e) {
+    UserBitShared.ExceptionWrapper originalException = e.getOrCreatePBError(false)
+        .getException();
+    if (originalException == null) {
+      return e.getMessage();
+    }
+    return originalException.getMessage();
   }
 
 }

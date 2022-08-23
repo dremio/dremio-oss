@@ -189,6 +189,11 @@ public class AccelerationStoragePluginConfig extends MayBeDistFileSystemConf<Acc
   }
 
   @Override
+  public boolean isPartitionInferenceEnabled() {
+    return false;
+  }
+
+  @Override
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override

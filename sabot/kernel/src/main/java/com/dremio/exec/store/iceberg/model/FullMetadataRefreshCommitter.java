@@ -96,6 +96,12 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     try {
       addOrUpdateDataSet();
     } catch (StatusRuntimeException sre) {
+      try {
+        icebergCommand.deleteTable();
+      } catch(Exception i){
+        logger.warn("Failure during cleaning up the unwanted files", i);
+      }
+
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
         logger.error("Metadata refresh failed. Dataset: " + Arrays.toString(datasetPath.toArray())
           + " TableLocation: " + tableLocation, sre);

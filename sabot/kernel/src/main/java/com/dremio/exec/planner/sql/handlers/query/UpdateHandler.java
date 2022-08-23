@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -29,18 +29,19 @@ import com.dremio.service.namespace.NamespaceKey;
  */
 public class UpdateHandler extends DmlHandler {
 
-  protected NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception {
+  @Override
+  public NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception {
     return SqlNodeUtil.unwrap(sqlNode, SqlUpdateTable.class).getPath();
   }
 
-  protected SqlKind getSqlKind() {
-    return SqlKind.UPDATE;
+  @Override
+  protected SqlOperator getSqlOperator() {
+    return SqlUpdateTable.OPERATOR;
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, SqlNode sqlNode) throws Exception {
-    final NamespaceKey targetTablePath = catalog.resolveSingle(getTargetTablePath(sqlNode));
-    catalog.validatePrivilege(targetTablePath, Privilege.UPDATE);
-    catalog.validatePrivilege(targetTablePath, Privilege.SELECT);
+  protected void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) {
+    catalog.validatePrivilege(path, Privilege.UPDATE);
+    catalog.validatePrivilege(path, Privilege.SELECT);
   }
 }

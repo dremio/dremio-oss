@@ -71,6 +71,11 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
   }
 
   @Override
+  public boolean isPartitionInferenceEnabled() {
+    return false;
+  }
+
+  @Override
   public FileSystemPlugin<APrivateSource> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }

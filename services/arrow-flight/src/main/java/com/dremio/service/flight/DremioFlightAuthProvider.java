@@ -15,7 +15,7 @@
  */
 package com.dremio.service.flight;
 
-import org.apache.arrow.flight.FlightServer;
+import org.apache.arrow.flight.DremioFlightServer;
 
 /**
  * Instances of this interface are responsible for adding authentication handling to
@@ -27,5 +27,5 @@ public interface DremioFlightAuthProvider {
    * @param builder FlightServer builder instance
    * @param dremioFlightSessionsManager service for managing user sessions
    */
-  void addAuthHandler(FlightServer.Builder builder, DremioFlightSessionsManager dremioFlightSessionsManager);
+  void addAuthHandler(DremioFlightServer.Builder builder, DremioFlightSessionsManager dremioFlightSessionsManager);
 }

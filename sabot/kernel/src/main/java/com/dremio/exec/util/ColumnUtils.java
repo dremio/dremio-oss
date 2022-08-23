@@ -16,6 +16,8 @@
 package com.dremio.exec.util;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -36,11 +38,16 @@ public final class ColumnUtils {
    * "System" column name used to return the row index of the row in the data file.
    */
   public static final String ROW_INDEX_COLUMN_NAME = "D_R_E_M_I_O_D_A_T_A_F_I_L_E_R_O_W_I_N_D_E_X";
-
   /**
    *  column name used to return the row count
    */
   public static final String ROW_COUNT_COLUMN_NAME = "D_R_E_M_I_O_D_A_T_A_F_I_L_E_R_O_W_C_O_U_N_T";
+
+  private static final Set<String> SYSTEM_COLUMNS = new HashSet<String>() {{
+    add(FILE_PATH_COLUMN_NAME);
+    add(ROW_INDEX_COLUMN_NAME);
+    add(ROW_COUNT_COLUMN_NAME);
+  }};
 
   private ColumnUtils() { }
 
@@ -66,4 +73,7 @@ public final class ColumnUtils {
     return false;
   }
 
+  public static boolean isSystemColumn(String fieldName) {
+    return SYSTEM_COLUMNS.contains(fieldName);
+  }
 }

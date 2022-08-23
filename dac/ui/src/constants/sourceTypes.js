@@ -36,6 +36,9 @@ export const AMAZONELASTIC = "AMAZONELASTIC";
 export const AZURE_STORAGE = "AZURE_STORAGE";
 export const SYNAPSE = "SYNAPSE";
 export const ADX = "ADX";
+export const SNOWFLAKE = "SNOWFLAKE";
+export const MSACCESS = "MSAccess";
+export const SPARK = "SPARK";
 
 // These are not implemented in the backend yet.
 export const CASSANDRA = "CASSANDRA";
@@ -49,6 +52,7 @@ export const sourceProperties = [
   // todo: loc
   { label: "Amazon Redshift", sourceType: REDSHIFT, beta: true },
   { label: "Amazon S3", sourceType: S3, beta: true },
+  { label: "Amazon OpenSearch Service", sourceType: AMAZONELASTIC },
   { label: "Elasticsearch", sourceType: ELASTIC },
   { label: "HBase", sourceType: HBASE, beta: true },
   { label: "HDFS", sourceType: HDFS },
@@ -64,8 +68,8 @@ export const sourceProperties = [
   { label: "Azure Data Lake Store", sourceType: ADL, beta: true },
   { label: "AWS Glue Catalog", sourceType: AWSGLUE, beta: true },
   { label: "Google Cloud Storage", sourceType: GCS, beta: true },
-  { label: "Microsoft Azure Synapse Analytics", sourceType: SYNAPSE},
-  { label: "Microsoft Azure Data Explorer", sourceType: ADX},
+  { label: "Microsoft Azure Synapse Analytics", sourceType: SYNAPSE },
+  { label: "Microsoft Azure Data Explorer", sourceType: ADX },
 ];
 
 export const externalSourceType = {
@@ -95,14 +99,7 @@ export const dataLakeSourceType = {
 };
 
 export const isExternalSourceType = (sourceType) => {
-  const isAvailableSource = sourceProperties.find(
-    ({ sourceType: type }) => type === sourceType
-  );
-  return (
-    !dataLakeSourceType[sourceType] &&
-    !dataPlaneSources[sourceType] &&
-    isAvailableSource
-  );
+  return !dataLakeSourceType[sourceType] && !dataPlaneSources[sourceType];
 };
 
 export const isDataLakeSourceType = (sourceType) => {

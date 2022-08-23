@@ -34,6 +34,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
@@ -48,7 +49,11 @@ import com.google.common.annotations.VisibleForTesting;
  */
 @Produces(APPLICATION_PBIDS)
 public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator {
+  private static final String ENABLED = "Enabled";
+  private static final String DISABLED = "Disabled";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  private final DremioConfig dremioConfig;
 
   /**
    * POJO for an instance of the PBIDS file.
@@ -114,6 +119,7 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
 
   /**
    * POJO for the address section of the PBIDS file.
+   * Contains the common parameters used by both Dremio Software and Cloud.
    */
   @VisibleForTesting
   static class DSRConnectionInfo {
@@ -146,11 +152,36 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
+  /**
+   * POJO for the address section of the PBIDS file for Dremio Software.
+   */
+  @VisibleForTesting
+  static class SoftwareDSRConnectionInfo extends DSRConnectionInfo {
+    protected static final String USER_SSL_ENABLED = "services.coordinator.client-endpoint.ssl.enabled";
+
+    private final String encryption;
+
+    SoftwareDSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig, DremioConfig dremioConfig) {
+      super(hostname, port, datasetConfig);
+      if (dremioConfig.hasPath(USER_SSL_ENABLED) && dremioConfig.getBoolean(USER_SSL_ENABLED)) {
+        encryption = ENABLED;
+      } else {
+        encryption = DISABLED;
+      }
+    }
+
+    public String getEncryption() {
+      return encryption;
+    }
+  }
+
   @Inject
   public PowerBIMessageBodyGenerator(@Context Configuration configuration,
                                      CoordinationProtos.NodeEndpoint endpoint,
-                                     OptionManager optionManager) {
+                                     OptionManager optionManager,
+                                     DremioConfig dremioConfig) {
     super(endpoint, optionManager);
+    this.dremioConfig = dremioConfig;
   }
 
   @Override
@@ -189,6 +220,6 @@ public class PowerBIMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
   }
 
   DSRConnectionInfo createDSRConnectionInfo(String hostname, int port, DatasetConfig datasetConfig) {
-    return new DSRConnectionInfo(hostname, port, datasetConfig);
+    return new SoftwareDSRConnectionInfo(hostname, port, datasetConfig, dremioConfig);
   }
 }

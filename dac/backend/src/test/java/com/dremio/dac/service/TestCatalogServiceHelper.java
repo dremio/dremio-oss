@@ -19,6 +19,7 @@ import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DA
 import static com.dremio.service.namespace.dataset.proto.DatasetType.VIRTUAL_DATASET;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -37,6 +38,8 @@ import java.util.List;
 
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -60,6 +63,7 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
@@ -80,6 +84,8 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+
+import io.protostuff.ByteString;
 
 /**
  * Test for CatalogServiceHelper
@@ -177,9 +183,17 @@ public class TestCatalogServiceHelper {
   @Test
   public void testGetDatasetCatalogEntityById() throws Exception {
     DatasetConfig datasetConfig = new DatasetConfig();
-    datasetConfig.setId(new EntityId("dataset-id"));
+    String datasetId = "dataset-id";
+    datasetConfig.setId(new EntityId(datasetId));
     datasetConfig.setFullPathList(Collections.singletonList("path"));
     datasetConfig.setType(VIRTUAL_DATASET);
+
+    BatchSchema schema = BatchSchema.newBuilder()
+      .addField(Field.nullablePrimitive("id", new ArrowType.Int(64, true)))
+      .addField(Field.nullablePrimitive("name", new ArrowType.Utf8()))
+      .build();
+
+    datasetConfig.setRecordSchema(ByteString.copyFrom(schema.serialize()));
 
     VirtualDataset virtualDataset = new VirtualDataset();
     virtualDataset.setSql("");
@@ -199,7 +213,7 @@ public class TestCatalogServiceHelper {
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
     when(catalog.getTable(any(String.class))).thenReturn(dremioTable);
 
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(datasetConfig.getId().getId(), ImmutableList.of(), ImmutableList.of());
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityById(datasetId, ImmutableList.of(), ImmutableList.of());
 
     assertTrue(entity.isPresent());
 
@@ -207,8 +221,64 @@ public class TestCatalogServiceHelper {
     assertTrue(catalogEntity instanceof Dataset);
 
     Dataset dataset = (Dataset) catalogEntity;
-    assertEquals(dataset.getId(), datasetConfig.getId().getId());
+    assertEquals(datasetId, dataset.getId());
+
+    List<Field> fields = dataset.getFields();
+    assertNotNull(fields);
+    assertEquals(schema.getFields(), fields);
   }
+
+  @Test
+  public void testGetDatasetCatalogEntityByPath() throws Exception {
+    DatasetConfig datasetConfig = new DatasetConfig();
+    String datasetId = "dataset-id";
+    List<String> pathList = Collections.singletonList("path");
+    datasetConfig.setId(new EntityId(datasetId));
+    datasetConfig.setFullPathList(pathList);
+    datasetConfig.setType(VIRTUAL_DATASET);
+
+    BatchSchema schema = BatchSchema.newBuilder()
+      .addField(Field.nullablePrimitive("id", new ArrowType.Int(64, true)))
+      .addField(Field.nullablePrimitive("name", new ArrowType.Utf8()))
+      .build();
+
+    datasetConfig.setRecordSchema(ByteString.copyFrom(schema.serialize()));
+
+    VirtualDataset virtualDataset = new VirtualDataset();
+    virtualDataset.setSql("");
+    datasetConfig.setVirtualDataset(virtualDataset);
+
+    NameSpaceContainer namespaceContainer = new NameSpaceContainer();
+    namespaceContainer.setType(NameSpaceContainer.Type.DATASET);
+    namespaceContainer.setDataset(datasetConfig);
+    List<NameSpaceContainer> namespaceContainerList = Arrays.asList(namespaceContainer);
+
+    List<NamespaceKey> namespaceKeyList = Collections.singletonList(new NamespaceKey(pathList));
+    when(namespaceService.getEntities(namespaceKeyList)).thenReturn(namespaceContainerList);
+
+    DremioTable dremioTable = mock(DremioTable.class);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+    when(catalog.getTable(any(String.class))).thenReturn(dremioTable);
+
+    ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
+    when(reflectionSettings.getStoredReflectionSettings(any(NamespaceKey.class))).thenReturn(Optional.<AccelerationSettings>absent());
+    when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
+
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList, new ArrayList<>(), new ArrayList<>());
+
+    assertTrue(entity.isPresent());
+
+    CatalogEntity catalogEntity = entity.get();
+    assertTrue(catalogEntity instanceof Dataset);
+
+    Dataset dataset = (Dataset) catalogEntity;
+    assertEquals(pathList, dataset.getPath());
+
+    List<Field> fields = dataset.getFields();
+    assertNotNull(fields);
+    assertEquals(schema.getFields(), fields);
+  }
+
 
   @Test
   public void testGetSpaceCatalogEntityById() throws Exception {
@@ -235,6 +305,40 @@ public class TestCatalogServiceHelper {
     Space space = (Space) catalogEntity;
     assertEquals(space.getId(), spaceConfig.getId().getId());
     assertEquals(space.getChildren().size(), 1);
+    assertEquals(space.getName(), spaceConfig.getName());
+  }
+
+  @Test
+  public void testGetSpaceCatalogEntityByPath() throws Exception {
+    SpaceConfig spaceConfig = new SpaceConfig();
+    List<String> pathList = Collections.singletonList("path");
+    spaceConfig.setId(new EntityId("space-id"));
+    spaceConfig.setName("mySpace");
+
+    NameSpaceContainer namespaceContainer = new NameSpaceContainer();
+    namespaceContainer.setType(NameSpaceContainer.Type.SPACE);
+    namespaceContainer.setSpace(spaceConfig);
+    List<NameSpaceContainer> namespaceContainerList = Arrays.asList(namespaceContainer);
+
+    List<NamespaceKey> namespaceKeyListFromPath = Collections.singletonList(new NamespaceKey(pathList));
+    when(namespaceService.getEntities(namespaceKeyListFromPath)).thenReturn(namespaceContainerList);
+    List<NamespaceKey> namespaceKeyListFromName = Collections.singletonList(new NamespaceKey(spaceConfig.getName()));
+    when(namespaceService.getEntities(namespaceKeyListFromName)).thenReturn(namespaceContainerList);
+
+    // for children listing, we just send the space back to keep it simple
+    when(namespaceService.list(new NamespaceKey(spaceConfig.getName()))).thenReturn(Collections.singletonList(namespaceContainer));
+
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList, new ArrayList<>(), new ArrayList<>());
+
+    assertTrue(entity.isPresent());
+
+    CatalogEntity catalogEntity = entity.get();
+    assertTrue(catalogEntity instanceof Space);
+
+    Space space = (Space) catalogEntity;
+    assertEquals(space.getId(), spaceConfig.getId().getId());
+    assertEquals(space.getChildren().size(), 1);
+    assertEquals(space.getName(), spaceConfig.getName());
   }
 
   @Test

@@ -18,6 +18,7 @@ package com.dremio.service.nessie.upgrade.storage;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -167,7 +168,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
         // If / when Embedded Nessie clients start using those IDs retrieved from the Nessie Server, the data
         // will already be managed by a Nessie DatabaseAdapter, so no low-level upgrade tasks will be required
         // at that time (hopefully).
-        IcebergTable table = IcebergTable.of(location, 0, 0, 0, 0);
+        IcebergTable table = IcebergTable.of(location, 0, 0, 0, 0, UUID.randomUUID().toString());
 
         ContentId contentId = ContentId.of(worker.getId(table));
         commit.get().putGlobal(contentId, worker.toStoreGlobalState(table));

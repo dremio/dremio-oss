@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -111,9 +112,15 @@ public class DremioFileIO implements FileIO {
       }
 
       if (fileLength == null && fs != null) {
-        FileAttributes fileAttributes = fs.getFileAttributes(filePath);;
-        fileSize = fileAttributes.size();
-        mtime = fileAttributes.lastModifiedTime().toMillis();
+        try {
+          FileAttributes fileAttributes = fs.getFileAttributes(filePath);
+          fileSize = fileAttributes.size();
+          mtime = fileAttributes.lastModifiedTime().toMillis();
+        } catch (FileNotFoundException e) {
+          // ignore if file not found, it is valid to create an InputFile for a file that does not exist
+          fileSize = null;
+          mtime = null;
+        }
       } else {
         fileSize = fileLength;
       }

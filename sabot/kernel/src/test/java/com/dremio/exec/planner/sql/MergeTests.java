@@ -15,23 +15,31 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.ColumnInfo;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Table;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.Tables;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTableWithFloats;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createRandomId;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createView;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.setContext;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testDmlQuery;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQueries;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.parquet.Strings;
 
 /**
- * MERGE test case repository. It's done this way to allow test cases to be used by different sources.
+ * MERGE tests.
  *
- * Guidance for adding tests to different suites:
- *  - ITMerge in OSS only really needs a small baseline set of tests to sanity-check that DML is functional in OSS.
- *    Not adding every test here to OSS saves us a bit of test execution time without sacrificing much in the way of
- *    meaningful coverage.
- *  - All (except EE-only) tests here should be a part of CE and Hive suites as these represent core customer configurations.
+ * Note: Add tests used across all platforms here.
  */
-public class MergeTestCases extends DmlQueryTestCasesBase {
+public class MergeTests {
 
   private static final Object[][] COLUMN_ALL_777S = new Object[][]{
     new Object[]{0, "777"},
@@ -85,6 +93,17 @@ public class MergeTestCases extends DmlQueryTestCasesBase {
         "MERGE INTO %s USING %s ON %s.id = %s.id WHEN MATCHED THEN UPDATE SET id = 2 WHEN NOT MATCHED THEN INSERT(id, %s)",
         "MERGE INTO %s USING %s ON %s.id = %s.id WHEN MATCHED THEN UPDATE SET id = 2 WHEN NOT MATCHED THEN INSERT(id, %s) VALUES"
       );
+    }
+  }
+
+  public static void testMergeOnView(BufferAllocator allocator, String source) throws Exception {
+    String name = createRandomId();
+    try (AutoCloseable ignored = createView(source, name)) {
+      assertThatThrownBy(() ->
+        testDmlQuery(allocator, "MERGE INTO %s.%s target USING %s.%s source ON (target.id = source.id) WHEN MATCHED THEN UPDATE SET id = 0",
+          new Object[]{source, name, source, name}, null, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("MERGE is not supported on this VIEW at [%s.%s].", source, name);
     }
   }
 
@@ -335,23 +354,6 @@ public class MergeTestCases extends DmlQueryTestCasesBase {
     }
   }
 
-  public static void testMergeWithMultiplePushDownFilters(BufferAllocator allocator, String source) throws Exception {
-    try (Tables sourceTables = createBasicNonPartitionedAndPartitionedTables(source,3, 10, PARTITION_COLUMN_ONE_INDEX_SET);
-         Tables targetTables = createBasicNonPartitionedAndPartitionedTables(source,2, 5, PARTITION_COLUMN_ONE_INDEX_SET)) {
-      for (int i = 0; i < sourceTables.tables.length; i++) {
-        Table sourceTable = sourceTables.tables[i];
-        Table targetTable = targetTables.tables[i];
-        testDmlQuery(allocator, "MERGE INTO %s USING (SELECT * FROM %s WHERE id < 5 AND column_1 = '%s') s ON (%s.id = s.id)"
-            + " WHEN MATCHED THEN UPDATE SET id = 999",
-          new Object[] {targetTable.fqn, sourceTable.fqn, "3_1", targetTable.fqn}, targetTable, 1,
-          ArrayUtils.addAll(
-            ArrayUtils.subarray(targetTable.originalData, 0, 3),
-            new Object[] {999, sourceTable.originalData[3][1]},
-            targetTable.originalData[4]));
-      }
-    }
-  }
-
   public static void testMergeWithSubQuerySourceAndInsert(BufferAllocator allocator, String source) throws Exception {
     try (Table sourceTable = createBasicTable(source, 2, 10);
          Table targetTable = createBasicTable(source, 2, 5)) {
@@ -428,7 +430,28 @@ public class MergeTestCases extends DmlQueryTestCasesBase {
     }
   }
 
-  public static void testMergeWithOnePathContext(BufferAllocator allocator, String source) throws Exception {
+  // BEGIN: Contexts + Paths
+  public static void testMergeWithWrongContextWithPathTable(BufferAllocator allocator, String source) throws Exception {
+    try (
+      Table sourceTable = createBasicTable(source, 1, 2, 3);
+      Table targetTable = createBasicTable(source, 1, 2, 2)) {
+      assertThatThrownBy(() ->
+        testDmlQuery(allocator,
+          "MERGE INTO %s.%s target\n" +
+            "USING %s.%s source\n" +
+            "ON source.id = target.id\n" +
+            "WHEN MATCHED THEN\n" +
+            "UPDATE SET %s = source.%s\n" +
+            "WHEN NOT MATCHED THEN\n" +
+            "INSERT VALUES(source.%s, source.%s)",
+          new Object[]{targetTable.paths[0], targetTable.name, sourceTable.paths[0], sourceTable.name,
+            targetTable.columns[1], sourceTable.columns[1], sourceTable.columns[0], sourceTable.columns[1]}, targetTable, -1))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("Table [%s.%s] does not exist.", targetTable.paths[0], targetTable.name);
+    }
+  }
+
+  public static void testMergeWithContextWithPathTable(BufferAllocator allocator, String source) throws Exception {
     try (
       Table sourceTable = createBasicTable(source, 1, 2, 3);
       Table targetTable = createBasicTable(source, 1, 2, 2);
@@ -448,217 +471,5 @@ public class MergeTestCases extends DmlQueryTestCasesBase {
         sourceTable.originalData[2]);
     }
   }
-
-  public static void testMergeWithBadContext(BufferAllocator allocator, String source) throws Exception {
-    try (
-      Table sourceTable = createBasicTable(source, 1, 2, 3);
-      Table targetTable = createBasicTable(source, 1, 2, 2)) {
-      assertThatThrownBy(() ->
-        testDmlQuery(allocator,
-          "MERGE INTO %s.%s target\n" +
-            "USING %s.%s source\n" +
-            "ON source.id = target.id\n" +
-            "WHEN MATCHED THEN\n" +
-            "UPDATE SET %s = source.%s\n" +
-            "WHEN NOT MATCHED THEN\n" +
-            "INSERT VALUES(source.%s, source.%s)",
-          new Object[]{targetTable.paths[0], targetTable.name, sourceTable.paths[0], sourceTable.name,
-            targetTable.columns[1], sourceTable.columns[1], sourceTable.columns[0], sourceTable.columns[1]}, targetTable, -1))
-        .isInstanceOf(Exception.class)
-        .hasMessageContaining(String.format("Table [%s.%s] not found", targetTable.paths[0], targetTable.name));
-    }
-  }
-
-  // BEGIN: EE-only Tests
-  private static Tables createTablesForColumnMaskingTests(String source, String targetFn, String sourceFn) throws Exception {
-    Table targetTable = createTable(source, createRandomId(), new ColumnInfo[]{
-      new ColumnInfo("id", SqlTypeName.INTEGER, false),
-      new ColumnInfo("salary", SqlTypeName.FLOAT, false, Strings.isNullOrEmpty(targetFn) ? null : String.format("MASKING POLICY %s(salary)", targetFn))
-    },
-      new Object[][]{
-        new Object[]{0, 000.0f},
-        new Object[]{1, 100.0f},
-        new Object[]{2, 200.0f}
-      });
-
-    Table sourceTable = createTable(source, createRandomId(), new ColumnInfo[]{
-        new ColumnInfo("id", SqlTypeName.INTEGER, false),
-        new ColumnInfo("salary", SqlTypeName.FLOAT, false, Strings.isNullOrEmpty(sourceFn) ? null : String.format("MASKING POLICY %s(salary)", sourceFn))
-      },
-      new Object[][]{
-        new Object[]{1, 1000.0f},
-        new Object[]{3, 3000.0f},
-        new Object[]{4, 4000.0f}
-      });
-
-    return new Tables(new Table[]{targetTable, sourceTable});
-  }
-
-  private static Tables createTablesForRowFilteringTests(String source) throws Exception {
-    return createTablesForColumnMaskingTests(source, null, null);
-  }
-
-  private static final String MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL =
-    "MERGE INTO %s target\n" +
-    "USING %s source\n" +
-    "ON source.id = target.id\n" +
-    "WHEN MATCHED THEN\n" +
-    "UPDATE SET salary = source.salary\n" +
-    "WHEN NOT MATCHED THEN\n" +
-    "INSERT VALUES(source.id, source.salary)";
-
-  public static void testMergeWithColumnMaskingOnTarget(BufferAllocator allocator, String source) throws Exception {
-    testMergeWithColumnMaskingOnTarget(allocator, source, false);
-  }
-
-  public static void testMergeWithColumnMaskingAndFullPathOnTarget(BufferAllocator allocator, String source) throws Exception {
-    testMergeWithColumnMaskingOnTarget(allocator, source, true);
-  }
-
-  public static void testMergeWithColumnMaskingOnTarget(BufferAllocator allocator, String source, boolean fullPath) throws Exception {
-    String function = getColumnMaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-    try (
-      Tables tables = createTablesForColumnMaskingTests(source, function, null);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      Table targetTable = tables.tables[0];
-      Table sourceTable = tables.tables[1];
-      testDmlQuery(allocator, MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL, new Object[]{fullPath ? targetTable.fqn :
-          targetTable.name, sourceTable.name}, targetTable, 3,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 0.0f},
-        new Object[]{2, 0.0f},
-        new Object[]{3, 0.0f},
-        new Object[]{4, 0.0f});
-      getColumnUnmaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-      verifyData(allocator, targetTable,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 1000.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{3, 3000.0f},
-        new Object[]{4, 4000.0f});
-    }
-  }
-
-  public static void testMergeWithColumnMaskingOnTargetAndSource(BufferAllocator allocator, String source) throws Exception {
-    String function = getColumnMaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-    try (
-      Tables tables = createTablesForColumnMaskingTests(source, function, function);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      Table targetTable = tables.tables[0];
-      Table sourceTable = tables.tables[1];
-      testDmlQuery(allocator, MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL, new Object[]{targetTable.name, sourceTable.name}, targetTable, 3,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 0.0f},
-        new Object[]{2, 0.0f},
-        new Object[]{3, 0.0f},
-        new Object[]{4, 0.0f});
-      getColumnUnmaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-      verifyData(allocator, targetTable,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 0.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{3, 0.0f},
-        new Object[]{4, 0.0f});
-    }
-  }
-
-  public static void testMergeWithColumnMaskingOnSource(BufferAllocator allocator, String source) throws Exception {
-    String function = getColumnMaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-    try (
-      Tables tables = createTablesForColumnMaskingTests(source, null, function);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      Table targetTable = tables.tables[0];
-      Table sourceTable = tables.tables[1];
-      testDmlQuery(allocator, MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL, new Object[]{targetTable.name, sourceTable.name}, targetTable, 3,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 0.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{3, 0.0f},
-        new Object[]{4, 0.0f});
-      getColumnUnmaskingPolicyFnForAnon(source, "salary", SqlTypeName.FLOAT, 0.0f);
-      verifyData(allocator, targetTable,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 0.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{3, 0.0f},
-        new Object[]{4, 0.0f});
-    }
-  }
-
-  public static void testMergeWithRowFilteringOnTarget(BufferAllocator allocator, String source) throws Exception {
-    testMergeWithRowFilteringOnTarget(allocator, source, false);
-  }
-
-  public static void testMergeWithRowFilteringAndFullPathOnTarget(BufferAllocator allocator, String source) throws Exception {
-    testMergeWithRowFilteringOnTarget(allocator, source, true);
-  }
-
-  public static void testMergeWithRowFilteringOnTarget(BufferAllocator allocator, String source, boolean fullPath) throws Exception {
-    String function = getRowFilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER, "id % 2 = 0");
-    try (
-      Tables tables = createTablesForRowFilteringTests(source);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      Table targetTable = tables.tables[0];
-      Table sourceTable = tables.tables[1];
-      setRowFilterPolicy(targetTable.fqn, function, "id");
-      testDmlQuery(allocator, MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL, new Object[]{fullPath ? targetTable.fqn :
-          targetTable.name, sourceTable.name}, targetTable, 3,
-        new Object[]{0, 0.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{4, 4000.0f});
-      getRowUnfilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER);
-      verifyData(allocator, targetTable,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 100.0f},
-        new Object[]{1, 1000.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{3, 3000.0f},
-        new Object[]{4, 4000.0f});
-    }
-  }
-
-  public static void testMergeWithRowFilteringOnTargetAndSource(BufferAllocator allocator, String source) throws Exception {
-    String function = getRowFilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER, "id % 2 = 0");
-    try (
-      Tables tables = createTablesForRowFilteringTests(source);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      Table targetTable = tables.tables[0];
-      Table sourceTable = tables.tables[1];
-      setRowFilterPolicy(targetTable.fqn, function, "id");
-      setRowFilterPolicy(sourceTable.fqn, function, "id");
-      testDmlQuery(allocator, MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL, new Object[]{targetTable.name, sourceTable.name}, targetTable, 1,
-        new Object[]{0, 0.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{4, 4000.0f});
-      getRowUnfilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER);
-      verifyData(allocator, targetTable,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 100.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{4, 4000.0f});
-    }
-  }
-
-  public static void testMergeWithRowFilteringOnSource(BufferAllocator allocator, String source) throws Exception {
-    String function = getRowFilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER, "id % 2 = 0");
-    try (
-      Tables tables = createTablesForRowFilteringTests(source);
-      AutoCloseable ignored = setContext(allocator, source)) {
-      Table targetTable = tables.tables[0];
-      Table sourceTable = tables.tables[1];
-      setRowFilterPolicy(sourceTable.fqn, function, "id");
-      testDmlQuery(allocator, MERGE_COLUMN_MASKING_AND_ROW_FILTERING_TEST_SQL, new Object[]{targetTable.name, sourceTable.name}, targetTable, 1,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 100.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{4, 4000.0f});
-      getRowUnfilterPolicyFnForAnon(source, "id", SqlTypeName.INTEGER);
-      verifyData(allocator, targetTable,
-        new Object[]{0, 0.0f},
-        new Object[]{1, 100.0f},
-        new Object[]{2, 200.0f},
-        new Object[]{4, 4000.0f});
-    }
-  }
-  // END: EE-only Tests
+  // END: Contexts + Paths
 }

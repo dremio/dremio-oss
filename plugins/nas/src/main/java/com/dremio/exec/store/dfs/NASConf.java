@@ -58,6 +58,11 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Tag(5)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable partition column inference")
+  public boolean isPartitionInferenceEnabled = false;
+
   @Override
   public Path getPath() {
     return Path.of(path);
@@ -81,6 +86,11 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.USER_TABLE;
+  }
+
+  @Override
+  public boolean isPartitionInferenceEnabled() {
+    return isPartitionInferenceEnabled;
   }
 
   @Override

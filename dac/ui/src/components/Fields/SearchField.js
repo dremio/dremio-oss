@@ -29,6 +29,7 @@ class SearchField extends Component {
     inputStyle: PropTypes.object,
     searchIconTheme: PropTypes.object,
     showCloseIcon: PropTypes.bool,
+    closeIconTheme: PropTypes.object,
     inputClassName: PropTypes.string,
     dataQa: PropTypes.string,
     className: PropTypes.string,
@@ -108,7 +109,7 @@ class SearchField extends Component {
         {showCloseIcon && (
           <FontIcon
             type="XBig"
-            theme={styles.clearIcon}
+            theme={this.props.closeIconTheme || styles.clearIcon}
             onClick={this.clearFilter}
           />
         )}

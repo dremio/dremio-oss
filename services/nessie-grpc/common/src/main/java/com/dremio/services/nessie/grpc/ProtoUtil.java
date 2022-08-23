@@ -321,11 +321,19 @@ public final class ProtoUtil {
       String.format("'%s' must be an IcebergTable/DeltaLakeTable/IcebergView/Namespace", obj));
   }
 
+  private static String asId(String idFromProto) {
+    if (idFromProto != null && idFromProto.isEmpty()) {
+      return null;
+    }
+
+    return idFromProto;
+  }
+
   public static DeltaLakeTable fromProto(com.dremio.services.nessie.grpc.api.DeltaLakeTable deltaLakeTable) {
     Preconditions.checkArgument(null != deltaLakeTable, "DeltaLakeTable must be non-null");
     ImmutableDeltaLakeTable.Builder builder =
       ImmutableDeltaLakeTable.builder()
-        .id(deltaLakeTable.getId())
+        .id(asId(deltaLakeTable.getId()))
         .checkpointLocationHistory(deltaLakeTable.getCheckpointLocationHistoryList())
         .metadataLocationHistory(deltaLakeTable.getMetadataLocationHistoryList());
     if (deltaLakeTable.hasLastCheckpoint()) {
@@ -336,8 +344,13 @@ public final class ProtoUtil {
 
   public static com.dremio.services.nessie.grpc.api.DeltaLakeTable toProto(DeltaLakeTable deltaLakeTable) {
     Preconditions.checkArgument(null != deltaLakeTable, "DeltaLakeTable must be non-null");
-    Builder builder =
-      com.dremio.services.nessie.grpc.api.DeltaLakeTable.newBuilder().setId(deltaLakeTable.getId());
+    Builder builder = com.dremio.services.nessie.grpc.api.DeltaLakeTable.newBuilder();
+
+    // the ID is optional when a new table is created - will be assigned on the server side
+    if (null != deltaLakeTable.getId()) {
+      builder.setId(deltaLakeTable.getId());
+    }
+
     if (null != deltaLakeTable.getLastCheckpoint()) {
       builder.setLastCheckpoint(deltaLakeTable.getLastCheckpoint());
     }
@@ -349,7 +362,7 @@ public final class ProtoUtil {
   public static IcebergTable fromProto(com.dremio.services.nessie.grpc.api.IcebergTable icebergTable) {
     Preconditions.checkArgument(null != icebergTable, "IcebergTable must be non-null");
     return ImmutableIcebergTable.builder()
-      .id(icebergTable.getId())
+      .id(asId(icebergTable.getId()))
       .metadataLocation(icebergTable.getMetadataLocation())
       .snapshotId(icebergTable.getSnapshotId())
       .schemaId(icebergTable.getSchemaId())
@@ -360,20 +373,25 @@ public final class ProtoUtil {
 
   public static com.dremio.services.nessie.grpc.api.IcebergTable toProto(IcebergTable icebergTable) {
     Preconditions.checkArgument(null != icebergTable, "IcebergTable must be non-null");
-    return com.dremio.services.nessie.grpc.api.IcebergTable.newBuilder()
-      .setId(icebergTable.getId())
+    com.dremio.services.nessie.grpc.api.IcebergTable.Builder builder =
+      com.dremio.services.nessie.grpc.api.IcebergTable.newBuilder()
       .setMetadataLocation(icebergTable.getMetadataLocation())
       .setSnapshotId(icebergTable.getSnapshotId())
       .setSchemaId(icebergTable.getSchemaId())
       .setSpecId(icebergTable.getSpecId())
-      .setSortOrderId(icebergTable.getSortOrderId())
-      .build();
+      .setSortOrderId(icebergTable.getSortOrderId());
+    // the ID is optional when a new table is created - will be assigned on the server side
+    if (null != icebergTable.getId()) {
+      builder.setId(icebergTable.getId());
+    }
+
+    return builder.build();
   }
 
   public static IcebergView fromProto(com.dremio.services.nessie.grpc.api.IcebergView view) {
     Preconditions.checkArgument(null != view, "IcebergView must be non-null");
     return ImmutableIcebergView.builder()
-      .id(view.getId())
+      .id(asId(view.getId()))
       .metadataLocation(view.getMetadataLocation())
       .versionId(view.getVersionId())
       .schemaId(view.getSchemaId())
@@ -384,14 +402,19 @@ public final class ProtoUtil {
 
   public static com.dremio.services.nessie.grpc.api.IcebergView toProto(IcebergView view) {
     Preconditions.checkArgument(null != view, "IcebergView must be non-null");
-    return com.dremio.services.nessie.grpc.api.IcebergView.newBuilder()
-      .setId(view.getId())
+    com.dremio.services.nessie.grpc.api.IcebergView.Builder builder =
+      com.dremio.services.nessie.grpc.api.IcebergView.newBuilder()
       .setMetadataLocation(view.getMetadataLocation())
       .setVersionId(view.getVersionId())
       .setSchemaId(view.getSchemaId())
       .setDialect(view.getDialect())
-      .setSqlText(view.getSqlText())
-      .build();
+      .setSqlText(view.getSqlText());
+    // the ID is optional when a new table is created - will be assigned on the server side
+    if (null != view.getId()) {
+      builder.setId(view.getId());
+    }
+
+    return builder.build();
   }
 
   public static NessieConfiguration toProto(org.projectnessie.model.NessieConfiguration config) {

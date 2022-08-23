@@ -35,8 +35,12 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.dfs.CreateParquetTableEntry;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
@@ -94,5 +98,38 @@ public class DmlUtils {
           SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.BIGINT),
           true))
       .build();
+  }
+
+  /**
+   * Returns the validated table path, if one exists.
+   *
+   * Note: Due to the way the tables get cached, we have to use Catalog.getTableNoResolve, rather than
+   * using Catalog.getTable.
+   */
+  public static NamespaceKey getTablePath(Catalog catalog, NamespaceKey path) {
+    NamespaceKey resolvedPath = catalog.resolveToDefault(path);
+    DremioTable table = resolvedPath != null ? catalog.getTableNoResolve(resolvedPath) : null;
+    if (table != null) {
+      // If the returned table type is a `ViewTable`, there's a chance that we got back a view that actually
+      // doesn't exist due to bug DX-52808. We should check if the view also gets returned when the path is
+      // not resolved. If we find it, that's the correct view.
+      if (table instanceof ViewTable) {
+        DremioTable maybeViewTable = catalog.getTableNoResolve(path);
+        if (maybeViewTable != null) {
+          return maybeViewTable.getPath();
+        }
+      }
+
+      // Since we didn't find a View using just `path`, return the table discovered with the resolved path.
+      return table.getPath();
+    }
+
+    // Since the table was undiscovered with the resolved path, use `path` and try again.
+    table = catalog.getTableNoResolve(path);
+    if (table != null) {
+      return table.getPath();
+    }
+
+    throw UserException.validationError().message("Table [%s] does not exist.", path).buildSilently();
   }
 }

@@ -29,12 +29,15 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -79,10 +82,13 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
 
     copyFromJar("metadatarefresh/onlyFull", java.nio.file.Paths.get(testRootPath + "/onlyFull"));
     copyFromJar("metadatarefresh/onlyFullWithPartition", java.nio.file.Paths.get(testRootPath + "/onlyFullWithPartition"));
+    copyFromJar("metadatarefresh/onlyFullWithPartitionInference", java.nio.file.Paths.get(testRootPath + "/onlyFullWithPartitionInference"));
     copyFromJar("metadatarefresh/incrementalRefresh", java.nio.file.Paths.get(testRootPath + "/incrementalRefresh"));
     copyFromJar("metadatarefresh/incrementalRefreshDeleteFile", java.nio.file.Paths.get(testRootPath + "/incrementalRefreshDeleteFile"));
     copyFromJar("metadatarefresh/incrementalRefreshDeletePartition", java.nio.file.Paths.get(testRootPath + "/incrementalRefreshDeletePartition"));
+    copyFromJar("metadatarefresh/incrementalRefreshDeletePartitionWithInference", java.nio.file.Paths.get(testRootPath + "/incrementalRefreshDeletePartitionWithInference"));
     copyFromJar("metadatarefresh/incrementRefreshAddingPartition", java.nio.file.Paths.get(testRootPath + "/incrementRefreshAddingPartition"));
+    copyFromJar("metadatarefresh/incrementRefreshAddingPartitionWithInference", java.nio.file.Paths.get(testRootPath + "/incrementRefreshAddingPartitionWithInference"));
     copyFromJar("metadatarefresh/concatSchemaFullRefresh", java.nio.file.Paths.get(testRootPath + "/concatSchemaFullRefresh"));
     copyFromJar("metadatarefresh/old2new", java.nio.file.Paths.get(testRootPath + "/old2new"));
     copyFromJar("metadatarefresh/partialRefreshAddingFile", java.nio.file.Paths.get(testRootPath + "/partialRefreshAddingFile"));
@@ -277,6 +283,57 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testFullRefreshWithPartitionInference() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      final String sql = "alter table dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInference refresh metadata";
+
+      runSQL(sql);
+
+      Schema expectedSchema = new Schema(Arrays.asList(
+        Types.NestedField.optional(1, "col1", new Types.IntegerType()),
+        Types.NestedField.optional(2, "dir0", new Types.StringType()),
+        Types.NestedField.optional(3, "level1", new Types.StringType())
+      ));
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 3, 0, expectedSchema , Sets.newHashSet("dir0", "level1"), 3);
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select * from dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInference")
+        .baselineColumns("col1", "dir0", "level1")
+        .baselineValues(135768, "level1=1", "1")
+        .baselineValues(135748, "level1=1", "1")
+        .baselineValues(135768, "level1=2", "2")
+        .baselineValues(135748, "level1=2", "2")
+        .baselineValues(135768, "level1=__HIVE_DEFAULT_PARTITION__", null)
+        .baselineValues(135748, "level1=__HIVE_DEFAULT_PARTITION__", null)
+        .go();
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInference")
+        .baselineColumns("cnt")
+        .baselineValues(6L)
+        .go();
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInference where level1 = '1'")
+        .baselineColumns("cnt")
+        .baselineValues(2L)
+        .go();
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInference where dir0 = 'level1=1'")
+        .baselineColumns("cnt")
+        .baselineValues(2L)
+        .go();
+
+    }
+  }
+
   static Map<String, Object> toMap(String k1, Object v1, String k2, Object v2) {
     Map<String, Object> m = new HashMap<>(2);
     m.put(k1, v1);
@@ -353,6 +410,107 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testIncrementalRefreshAddingPartitionWithInference() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      final String sql = "alter table dfs_partition_inference.tmp.metadatarefresh.incrementRefreshAddingPartitionWithInference refresh metadata";
+
+      //this will do a full refresh first
+      runSQL(sql);
+
+      Schema expectedSchema = new Schema(Arrays.asList(
+        Types.NestedField.optional(1, "dir0", new Types.StringType()),
+        Types.NestedField.optional(2, "col1", new Types.IntegerType()),
+        Types.NestedField.optional(3, "level1", new Types.StringType())
+      ));
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema , Sets.newHashSet("dir0", "level1"), 1);
+
+      Table icebergTable = RefreshDatasetTestUtils.getIcebergTable(finalIcebergMetadataLocation);
+      final ImmutableList.Builder<Map<String, Object>> recordBuilder = ImmutableList.builder();
+      recordBuilder.add(Stream.of(
+          new AbstractMap.SimpleImmutableEntry<>("`col1`", 135768),
+          new AbstractMap.SimpleImmutableEntry<>("`dir0`", "level1=1"),
+          new AbstractMap.SimpleImmutableEntry<>("`level1`", "1"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+      );
+      recordBuilder.add(Stream.of(
+          new AbstractMap.SimpleImmutableEntry<>("`col1`", 135748),
+          new AbstractMap.SimpleImmutableEntry<>("`dir0`", "level1=1"),
+          new AbstractMap.SimpleImmutableEntry<>("`level1`", "1"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+      );
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select * from dfs_partition_inference.tmp.metadatarefresh.incrementRefreshAddingPartitionWithInference")
+        .baselineColumns("col1", "dir0", "level1")
+        .baselineRecords(recordBuilder.build())
+        .go();
+
+      //adding level1=2/float.parquet to the level2 new partition
+      copyFromJar("metadatarefresh/level1=2", java.nio.file.Paths.get(testRootPath + "incrementRefreshAddingPartitionWithInference/level1=2"));
+
+      //this will do an incremental refresh now
+      runSQL(sql);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      expectedSchema = new Schema(Arrays.asList(
+        Types.NestedField.optional(1, "dir0", new Types.StringType()),
+        Types.NestedField.optional(2, "col1", new Types.DoubleType()),
+        Types.NestedField.optional(3, "level1", new Types.StringType())
+      ));
+
+      //schema of col1 updated from int -> double
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, Sets.newHashSet("dir0", "level1"), 2);
+
+      long modTime = new File("/tmp/metadatarefresh/incrementRefreshAddingPartitionWithInference/level1=2/float.parquet").lastModified();
+      Assert.assertEquals(RefreshDatasetTestUtils.getAddedFilePaths(icebergTable).get(0),"file:/tmp/metadatarefresh/incrementRefreshAddingPartitionWithInference/level1=2/float.parquet?version=" + modTime);
+      final ImmutableList.Builder<Map<String, Object>> recordBuilder1 = ImmutableList.builder();
+      recordBuilder1.add(Stream.of(
+          new AbstractMap.SimpleImmutableEntry<>("`col1`", 135768d),
+          new AbstractMap.SimpleImmutableEntry<>("`dir0`", "level1=1"),
+          new AbstractMap.SimpleImmutableEntry<>("`level1`", "1"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+      );
+      recordBuilder1.add(Stream.of(
+          new AbstractMap.SimpleImmutableEntry<>("`col1`", 135748d),
+          new AbstractMap.SimpleImmutableEntry<>("`dir0`", "level1=1"),
+          new AbstractMap.SimpleImmutableEntry<>("`level1`", "1"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+      );
+      Float val1 = 10.12f;
+      Float val2 = 12.12f;
+      recordBuilder1.add(Stream.of(
+          new AbstractMap.SimpleImmutableEntry<>("`col1`", (double)val1),
+          new AbstractMap.SimpleImmutableEntry<>("`dir0`", "level1=2"),
+          new AbstractMap.SimpleImmutableEntry<>("`level1`", "2"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+      );
+      recordBuilder1.add(Stream.of(
+          new AbstractMap.SimpleImmutableEntry<>("`col1`", (double)val2),
+          new AbstractMap.SimpleImmutableEntry<>("`dir0`", "level1=2"),
+          new AbstractMap.SimpleImmutableEntry<>("`level1`", "2"))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+      );
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select * from dfs_partition_inference.tmp.metadatarefresh.incrementRefreshAddingPartitionWithInference")
+        .baselineColumns("col1", "dir0", "level1")
+        .baselineRecords(recordBuilder1.build())
+        .go();
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs_partition_inference.tmp.metadatarefresh.incrementRefreshAddingPartitionWithInference")
+        .baselineColumns("cnt")
+        .baselineValues(4L)
+        .go();
+    }
+  }
   @Test
   public void
   testIncrementalRefreshFileAdditionAndSchemaUpdate() throws Exception {
@@ -500,6 +658,54 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       verifyIcebergMetadata(finalIcebergMetadataLocation, 0, 1, expectedSchema , Sets.newHashSet("dir0"), 1);
 
       Assert.assertEquals(RefreshDatasetTestUtils.getDeletedFilePaths(icebergTable).get(0), "file:/tmp/metadatarefresh/incrementalRefreshDeletePartition/level1/float.parquet?version=" + modTime);
+    }
+  }
+
+  @Test
+  public void testIncrementalRefreshDeletePartitionWithInference() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      final String sql = "alter table dfs_partition_inference.tmp.metadatarefresh.incrementalRefreshDeletePartitionWithInference refresh metadata";
+
+      //this will do a full refresh first
+      runSQL(sql);
+
+      Schema expectedSchema = new Schema(Arrays.asList(
+        Types.NestedField.optional(1, "col1", new Types.DoubleType()),
+        Types.NestedField.optional(2, "dir0", new Types.StringType()),
+        Types.NestedField.optional(3, "level1", new Types.StringType())
+      ));
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 2, 0, expectedSchema , Sets.newHashSet("dir0", "level1"), 2);
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs_partition_inference.tmp.metadatarefresh.incrementalRefreshDeletePartitionWithInference")
+        .baselineColumns("cnt")
+        .baselineValues(4L)
+        .go();
+
+      long modTime = new File("/tmp/metadatarefresh/incrementalRefreshDeletePartitionWithInference/level1=2/float.parquet").lastModified();
+
+      Table icebergTable = RefreshDatasetTestUtils.getIcebergTable(finalIcebergMetadataLocation);
+      File file = new File(testRootPath + "incrementalRefreshDeletePartitionWithInference/level1=2");
+      FileUtils.deleteDirectory(file);
+
+      //this will do an incremental refresh now
+      runSQL(sql);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 0, 1, expectedSchema , Sets.newHashSet("dir0", "level1"), 1);
+
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs_partition_inference.tmp.metadatarefresh.incrementalRefreshDeletePartitionWithInference")
+        .baselineColumns("cnt")
+        .baselineValues(2L)
+        .go();
+
+      Assert.assertEquals(RefreshDatasetTestUtils.getDeletedFilePaths(icebergTable).get(0), "file:/tmp/metadatarefresh/incrementalRefreshDeletePartitionWithInference/level1=2/float.parquet?version=" + modTime);
     }
   }
 

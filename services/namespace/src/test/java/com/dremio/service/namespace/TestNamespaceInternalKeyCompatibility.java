@@ -71,7 +71,7 @@ public class TestNamespaceInternalKeyCompatibility {
 
   private void verifyRangeEndKey(byte[] expected, byte[] actual) {
     final int expectedKeyLength = expected.length - 1;
-    assertEquals(expectedKeyLength, actual.length - NamespaceInternalKey.MAX_2_BYTES_UTF8_VALUE.length);
+    assertEquals(expectedKeyLength, actual.length - NamespaceInternalKey.MAX_UTF8_VALUE.length);
 
     final byte[] ex = new byte[expectedKeyLength];
     final byte[] ac = new byte[expectedKeyLength];
@@ -80,10 +80,10 @@ public class TestNamespaceInternalKeyCompatibility {
     assertThat(ac).isEqualTo(ex);
 
 
-    final byte[] terminator = NamespaceInternalKey.MAX_2_BYTES_UTF8_VALUE;
-    final byte[] lastTwoBytes = new byte[2];
-    System.arraycopy(actual, actual.length - 2, lastTwoBytes, 0, terminator.length);
-    assertThat(lastTwoBytes).isEqualTo(terminator);
+    final byte[] expectedTerminator = NamespaceInternalKey.MAX_UTF8_VALUE;
+    final byte[] actualTerminator = new byte[expectedTerminator.length];
+    System.arraycopy(actual, actual.length - expectedTerminator.length, actualTerminator, 0, expectedTerminator.length);
+    assertThat(actualTerminator).isEqualTo(expectedTerminator);
   }
 
   @Test

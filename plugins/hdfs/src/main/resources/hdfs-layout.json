@@ -43,6 +43,9 @@
             "elements": [
               {
                 "propName": "config.enableAsync"
+              },
+              {
+                "propName": "config.isPartitionInferenceEnabled"
               }
             ]
           },

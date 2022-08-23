@@ -79,6 +79,9 @@
               },
               {
                 "propName": "config.allowCreateDrop"
+              },
+              {
+                "propName": "config.isPartitionInferenceEnabled"
               }
             ]
           },

@@ -279,6 +279,7 @@ public abstract class AbstractTestNamespaceService {
     NamespaceTestUtils.addDS(namespaceService, "b.ds1");
     NamespaceTestUtils.addDS(namespaceService, "b.ds2");
     NamespaceTestUtils.addDS(namespaceService, "b.ds3");
+    NamespaceTestUtils.addFolder(namespaceService, "b.例子");
     NamespaceTestUtils.addFolder(namespaceService, "b.b1");
     NamespaceTestUtils.addFolder(namespaceService, "b.b2");
     NamespaceTestUtils.addFolder(namespaceService, "b.b3");
@@ -304,22 +305,24 @@ public abstract class AbstractTestNamespaceService {
     NamespaceTestUtils.addFile(namespaceService, asList("@user1", "file1"));
     NamespaceTestUtils.addFile(namespaceService, asList("@user1", "foo", "file1"));
     NamespaceTestUtils.addFile(namespaceService, asList("@user1", "foo2", "bar2", "file2"));
+    NamespaceTestUtils.addSource(namespaceService, "자원"); // src4
+    NamespaceTestUtils.addSpace(namespaceService, "根"); // space6
 
     System.out.println("listing sources");
     List<SourceConfig> sources = namespaceService.getSources();
     System.out.println(sources);
-    assertEquals(3, sources.size());
+    assertEquals(4, sources.size());
 
     System.out.println("listing spaces");
     List<SpaceConfig> spaces = namespaceService.getSpaces();
     System.out.println(spaces);
-    assertEquals(5, spaces.size());
+    assertEquals(6, spaces.size());
 
 
     System.out.println("listing /b");
     Map<String, NameSpaceContainer> items = NamespaceTestUtils.listFolder(namespaceService, "b");
     //System.out.println(items.keySet());
-    assertEquals(7, items.size());
+    assertEquals(8, items.size());
 
     System.out.println("listing /a1");
     items = NamespaceTestUtils.listFolder(namespaceService, "a1");

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>22.0.0-202206221430090603-1fa4049f</version>
+    <version>22.1.1-202208230402290397-a7010f28</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -292,7 +292,17 @@
         <dependency>
           <groupId>com.amazon.redshift</groupId>
           <artifactId>redshift-jdbc42</artifactId>
-          <version>2.0.0.6</version>
+          <version>2.1.0.8</version>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-redshift-internal</artifactId>
+          <version>1.12.x</version>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-redshift-arcadia-internal</artifactId>
+          <version>1.0</version>
         </dependency>
         <dependency>
           <!-- Necessary for IAM authentication in Redshift (marked as optional in redshift-jdbc42) -->

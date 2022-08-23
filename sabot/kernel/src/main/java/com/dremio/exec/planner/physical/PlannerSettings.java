@@ -213,7 +213,7 @@ public class PlannerSettings implements Context{
   public static final PositiveLongValidator METADATA_EXPIRY_CHECK_INTERVAL_SECS = new PositiveLongValidator("dremio.metadata_expiry_check_interval_in_secs", MAX_METADATA_VALIDITY_CHECK_INTERVAL, 60);
 
   public static final BooleanValidator ENABLE_AGGRESSIVE_MEMORY_CALCULATION =
-    new BooleanValidator("planner.memory.aggressive", false);
+    new BooleanValidator("planner.memory.aggressive", true);
   public static final TypeValidators.LongValidator ADJUST_RESERVED_WHEN_AGGRESSIVE =
     new TypeValidators.LongValidator("planner.memory.adjust_aggressive_by_mb", 1024);
   public static final BooleanValidator ENABLE_ACCURATE_MEMORY_ESTIMATION = new BooleanValidator("planner.memory.accurate.estimation", true);
@@ -291,7 +291,9 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator ENABLE_JOIN_OPTIMIZATION = new BooleanValidator("planner.enable_join_optimization", true);
 
-  public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", false);
+  public static final BooleanValidator ENABLE_JOIN_BOOLEAN_REWRITE = new BooleanValidator("planner.enable_join_boolean_rewrite", true);
+
+  public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", true);
   public static final BooleanValidator JOIN_USE_KEY_FOR_NEXT_FACTOR = new BooleanValidator("planner.join.use_key_for_next_factor", false);
   public static final BooleanValidator JOIN_ROTATE_FACTORS = new BooleanValidator("planner.join.rotate_factors", true);
 
@@ -814,6 +816,10 @@ public class PlannerSettings implements Context{
 
   public boolean isJoinOptimizationEnabled() {
     return options.getOption(ENABLE_JOIN_OPTIMIZATION);
+  }
+
+  public boolean isJoinBooleanRewriteEnabled() {
+    return options.getOption(ENABLE_JOIN_BOOLEAN_REWRITE);
   }
 
   public boolean isExperimentalBushyJoinOptimizerEnabled() {

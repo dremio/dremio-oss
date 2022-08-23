@@ -33,53 +33,64 @@ import ch.qos.logback.core.spi.FilterReply;
  */
 public class BlockLogLevelTurboFilter extends TurboFilter {
 
-  //arrays that contain the name of the class of the logger and the threshold (comma separated)
-  private List<String> packageThresholdLevelException = new ArrayList<>();
-  private List<String> packageThresholdLevel = new ArrayList<>();
+  //array that contain the name of the class of the logger and the threshold (comma separated)
+  private List<String[]> packageThresholdLevel = new ArrayList<>();
   //default- used for third party loggers
   private Level defaultLogLevelThreshold;
   private boolean start = false;
 
+  private boolean matches(String classPath, String logger)
+  {
+    int i;
+    for(i=0 ; i<classPath.length();i++)
+    {
+      if(logger.charAt(i)!=classPath.charAt(i))
+      {
+        return false;
+      }
+    }
+    //if i is pointing to the end of the logger -> there is an exact match
+    if(i == logger.length())
+    {
+      return true;
+    }
+    //classpath is a prefix of logger according to sl4j convention
+    if(logger.charAt(i) == '.')
+    {
+      return true;
+    }
+    return false;
+
+  }
+
+
   @Override
   public FilterReply decide(Marker marker, Logger logger, Level level, String s, Object[] objects, Throwable throwable) {
 
-    for (int i = 0; i < this.packageThresholdLevelException.size(); i++) {
-      //since arrOfStr has the name of the logger and threshold comma separated
-      String[] arrOfStr = this.packageThresholdLevelException.get(i).split(",");
-      if (logger.getName().startsWith(arrOfStr[0])) {
-        if (level.isGreaterOrEqual(Level.toLevel(arrOfStr[1]))) {
-          return FilterReply.ACCEPT;
-        } else {
-          return FilterReply.DENY;
+    int maximumMatchingPackageLength = 0;
+    //we intitalise longestMatchingPackageThreshold to the default threshold. Hence if no match is found we use the default
+    String[] longestMatchingPackageThreshold = new String[]{"defaultLog",defaultLogLevelThreshold.levelStr};
+    for (int i = 0; i < packageThresholdLevel.size(); i++) {
+      if (matches(this.packageThresholdLevel.get(i)[0], logger.getName())) {
+        if (this.packageThresholdLevel.get(i)[0].length() > maximumMatchingPackageLength) {
+          longestMatchingPackageThreshold = this.packageThresholdLevel.get(i);
+          maximumMatchingPackageLength = this.packageThresholdLevel.get(i)[0].length();
         }
       }
     }
 
-    for (int i = 0; i < this.packageThresholdLevel.size(); i++) {
-      String[] arrOfStr = this.packageThresholdLevel.get(i).split(",");
-      if (logger.getName().startsWith(arrOfStr[0])) {
-        if (level.isGreaterOrEqual(Level.toLevel(arrOfStr[1]))) {
-          return FilterReply.ACCEPT;
-        } else {
-          return FilterReply.DENY;
-        }
-      }
+    if (!level.isGreaterOrEqual(Level.toLevel(longestMatchingPackageThreshold[1]))) {
+      return FilterReply.DENY;
     }
 
-    //if we do not find the logger in packageThresholdLevel or packageThresholdLevelException we resort to using the defaultThresholdLevel (used by third party loggers)
-    if (level.isGreaterOrEqual(defaultLogLevelThreshold)) {
-      return FilterReply.ACCEPT;
-    }
+    return FilterReply.NEUTRAL;
 
-    return FilterReply.DENY;
-  }
 
-  public void addExceptionPackageLogLevel(String exceptionPackageLogLevel) {
-    this.packageThresholdLevelException.add(exceptionPackageLogLevel);
   }
 
   public void addPackageLogLevel(String packageLogLevel) {
-    this.packageThresholdLevel.add(packageLogLevel);
+    String[] arrOfStr = packageLogLevel.split(",");
+    this.packageThresholdLevel.add(arrOfStr);
   }
 
   public void setDefaultLogLevelThreshold(String defaultLogLevelThreshold) {

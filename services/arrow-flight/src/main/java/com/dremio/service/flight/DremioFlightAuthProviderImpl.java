@@ -20,7 +20,7 @@ import static com.dremio.service.flight.DremioFlightService.FLIGHT_LEGACY_AUTH_M
 
 import javax.inject.Provider;
 
-import org.apache.arrow.flight.FlightServer;
+import org.apache.arrow.flight.DremioFlightServer;
 import org.apache.arrow.flight.auth.BasicServerAuthHandler;
 
 import com.dremio.config.DremioConfig;
@@ -48,7 +48,7 @@ public class DremioFlightAuthProviderImpl implements DremioFlightAuthProvider {
   }
 
   @Override
-  public void addAuthHandler(FlightServer.Builder builder, DremioFlightSessionsManager dremioFlightSessionsManager) {
+  public void addAuthHandler(DremioFlightServer.Builder builder, DremioFlightSessionsManager dremioFlightSessionsManager) {
     final String authMode = configProvider.get().getString(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE);
     if (FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
       builder.authHandler(new BasicServerAuthHandler(

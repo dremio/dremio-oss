@@ -245,6 +245,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
   private final String confUniqueIdentifier;
 
   private final AtomicBoolean isOpen = new AtomicBoolean(false);
+  private final AtomicBoolean isFirstPluginCreate = new AtomicBoolean(false);
 
   private int signatureValidationParallelism = 16;
   private long signatureValidationTimeoutMS = 2_000L;
@@ -259,6 +260,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
   public HiveStoragePlugin(HiveConf hiveConf, PluginManager pf4jManager, SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     super(context, name);
+    this.isFirstPluginCreate.set(true);
     this.isCoordinator = context.isCoordinator();
     this.hiveConf = hiveConf;
     this.pf4jManager = pf4jManager;
@@ -1458,7 +1460,9 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     HivePf4jPlugin.unregisterMetricMBean();
 
     if (!isOpen.getAndSet(false)) {
-      return;
+      if (!isFirstPluginCreate.getAndSet(false)) {
+        return;
+      }
     }
 
     if (processUserMetastoreClient != null) {
@@ -1470,10 +1474,6 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
       clientsByUser.cleanUp();
       clientsByUser = null;
     }
-    if (pf4jManager != null) {
-      pf4jManager.stopPlugins();
-    }
-
     try {
       hadoopFsSupplierProviderDremioClassLoader.close();
     } catch (Exception e) {
@@ -1488,6 +1488,10 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
 
     if(HiveFsUtils.isFsPluginCacheEnabled(hiveConf)) {
       HadoopFsWrapperWithCachePluginClassLoader.cleanCache(confUniqueIdentifier);
+    }
+
+    if (pf4jManager != null) {
+      pf4jManager.stopPlugins();
     }
   }
 

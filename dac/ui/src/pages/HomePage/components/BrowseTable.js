@@ -202,6 +202,10 @@ export default class BrowseTable extends Component {
                       ref={(searchField) => (this.searchField = searchField)}
                       onChange={this.handleFilterChange}
                       style={tableStyles.searchField}
+                      inputStyle={{ paddingRight: "24px" }}
+                      closeIconTheme={
+                        showButtonDivider ? tableStyles.closeIcon : undefined
+                      }
                       placeholder={intl.formatMessage({
                         id: "Dataset.SearchEllipsis",
                       })}

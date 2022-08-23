@@ -299,7 +299,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     }
   }
 
-    private List<IcebergPartitionData> getPartitionData(int i) {
+    protected List<IcebergPartitionData> getPartitionData(int i) {
       List<IcebergPartitionData> partitionDataList = new ArrayList<>();
       UnionListReader partitionDataVectorReader = partitionDataVector.getReader();
       partitionDataVectorReader.setPosition(i);

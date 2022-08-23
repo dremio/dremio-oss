@@ -15,32 +15,38 @@
  */
 package com.dremio.io;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.base.Preconditions;
 
 /**
  * An async byte reader that can be reused
  */
 public abstract class ReusableAsyncByteReader implements AsyncByteReader {
-  private final AtomicLong refCount = new AtomicLong(1);
+  private int refCount = 1;
 
   /**
    * Increments the ref count on the object
-   * @return the incremented ref count
+   * @return true if the ref could be successfully taken.
    */
-  public final long addRef() {
-    Preconditions.checkArgument(refCount.get() > 0, "Illegal state while reusing async byte reader");
-    return refCount.incrementAndGet();
+  public final boolean tryAddRef() {
+    synchronized (this) {
+      if (refCount > 0) {
+        ++refCount;
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
    * Releases a ref on the object
-   * @return the decremented ref count
+   * @return true if this was the final ref.
    */
-  public final long releaseRef() {
-    Preconditions.checkArgument(refCount.get() > 0, "Illegal state while dropping ref on async byte reader");
-    return refCount.decrementAndGet();
+  public final boolean releaseRef() {
+    synchronized (this) {
+      Preconditions.checkArgument(refCount > 0, "Illegal state while dropping ref on async byte reader");
+      --refCount;
+      return refCount == 0;
+    }
   }
 
   /**
@@ -52,9 +58,8 @@ public abstract class ReusableAsyncByteReader implements AsyncByteReader {
 
   @Override
   public final void close() throws Exception {
-    long currentRef = releaseRef();
-    Preconditions.checkArgument(currentRef >= 0, "Invalid ref count on async byte reader");
-    if (currentRef == 0) {
+    boolean isFinal = releaseRef();
+    if (isFinal) {
       onClose();
     }
   }

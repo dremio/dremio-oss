@@ -516,7 +516,7 @@ public class SqlHandlerUtil {
       }
     } else {
       // For NativeIceberg tables in different catalogs supported
-      validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
+      validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, null, false);
     }
     return validate.isPresent() ? validate.get() : new SimpleCommandResult(true, "");
   }

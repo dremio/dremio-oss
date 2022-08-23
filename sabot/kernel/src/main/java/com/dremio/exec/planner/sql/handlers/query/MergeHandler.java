@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -29,27 +29,26 @@ import com.dremio.service.namespace.NamespaceKey;
  */
 public class MergeHandler extends DmlHandler {
 
-  protected NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception {
+  @Override
+  public NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception {
     return SqlNodeUtil.unwrap(sqlNode, SqlMergeIntoTable.class).getPath();
   }
 
-  protected SqlKind getSqlKind() {
-    return SqlKind.MERGE;
+  @Override
+  protected SqlOperator getSqlOperator() {
+    return SqlMergeIntoTable.OPERATOR;
   }
 
   @Override
-  protected void validatePrivileges(Catalog catalog, SqlNode sqlNode) throws Exception {
+  protected void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) throws Exception {
     // Validate sub queries privileges
     SqlMergeIntoTable mergeTable = SqlNodeUtil.unwrap(sqlNode, SqlMergeIntoTable.class);
-
-    final NamespaceKey targetTablePath = catalog.resolveSingle(getTargetTablePath(sqlNode));
     if (mergeTable.getInsertCall() != null) {
-      catalog.validatePrivilege(targetTablePath, Privilege.INSERT);
+      catalog.validatePrivilege(path, Privilege.INSERT);
     }
-
     if (mergeTable.getUpdateCall() != null) {
-      catalog.validatePrivilege(targetTablePath, Privilege.UPDATE);
+      catalog.validatePrivilege(path, Privilege.UPDATE);
     }
-    catalog.validatePrivilege(targetTablePath, Privilege.SELECT);
+    catalog.validatePrivilege(path, Privilege.SELECT);
   }
 }

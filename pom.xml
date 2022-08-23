@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>22.0.0-202206221430090603-1fa4049f</version>
+  <version>22.1.1-202208230402290397-a7010f28</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -39,7 +39,7 @@
     -->
     <arrow.version>8.0.0-20220615173757-4698c877a6-dremio</arrow.version>
     <avatica.version>1.18.0</avatica.version>
-    <calcite.version>1.16.0-202204211330220132-beaa487</calcite.version>
+    <calcite.version>1.16.0-202207212212440996-a0708ff8</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -51,9 +51,9 @@
 
     <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
 
-    <hadoop.version>3.2.1-dremio-202107061151520241-a2c072f</hadoop.version>
+    <hadoop.version>3.3.2-dremio-202207041927090255-61c2bd1</hadoop.version>
     <avro.version>1.9.2</avro.version>
-    <iceberg.version>0.13-4d6b6b4-20220601135536-6505ede</iceberg.version>
+    <iceberg.version>0.13-4d6b6b4-202208160450030995-a1fb78dc</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive2.azure-datalake.version>
@@ -78,13 +78,13 @@
     -->
     <plugin.hive2.hbase.version>1.1.13</plugin.hive2.hbase.version>
 
-    <plugin.hive3.hadoop.version>3.2.1-dremio-202107061151520241-a2c072f</plugin.hive3.hadoop.version>
+    <plugin.hive3.hadoop.version>3.3.2-dremio-202207041927090255-61c2bd1</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
     <plugin.hive3.azure-datalake.version>2.3.3-202107080930050113-179a837</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
-    <plugin.hive3.aws-sdk.version>1.11.761</plugin.hive3.aws-sdk.version>
+    <plugin.hive3.aws-sdk.version>${aws-sdk.version}</plugin.hive3.aws-sdk.version>
     <plugin.hive3.hive.version>3.1.1-dremio-202108260418420981-22681bb</plugin.hive3.hive.version>
     <plugin.hive3.hbase.version>2.2.0</plugin.hive3.hbase.version>
     <plugin.hive3.orc.version>1.5.1-dremio-202007271350010286-8131f30</plugin.hive3.orc.version>
@@ -135,7 +135,7 @@
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
     <nessie-cel.version>0.2.4</nessie-cel.version>
     <nessie-apprunner.version>0.21.4</nessie-apprunner.version>
-    <nessie.version>0.27.0</nessie.version>
+    <nessie.version>0.30.0</nessie.version>
     <netty.version>4.1.68.Final</netty.version>
     <netty.tcnative.version>2.0.46.Final</netty.tcnative.version>
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
@@ -201,7 +201,7 @@
     -->
     <project.sentry.token>NO_TOKEN</project.sentry.token>
     <project.sentry.skip>true</project.sentry.skip>
-    <assertj.version>3.21.0</assertj.version>
+    <assertj.version>3.22.0</assertj.version>
     <rerunFailingTestsCount>3</rerunFailingTestsCount>
   </properties>
 

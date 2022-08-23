@@ -49,6 +49,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.UpdateMode;
+import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
@@ -352,6 +353,14 @@ public class MetadataSynchronizer {
    *
    */
   private void deleteOrphanFolders() {
+    /*
+    if (!options.deleteUnavailableDatasets()) {
+      logger.debug("Source '{}' in state {} may have orphaned folders, not deleting them to honor source property",
+        sourceKey, bridge.getState());
+      return;
+    }
+    */
+
     logger.trace("Source '{}' deleting orphan folders", sourceKey);
     for (NamespaceKey toBeDeleted : existingDatasets) {
 
@@ -364,7 +373,8 @@ public class MetadataSynchronizer {
         }
 
         try {
-          systemNamespace.deleteEntity(ancestorKey);
+          final FolderConfig folderConfig = systemNamespace.getFolder(ancestorKey);
+          systemNamespace.deleteFolder(ancestorKey, folderConfig.getTag());
           logger.trace("Folder '{}' deleted", ancestorKey);
           syncStatus.setRefreshed();
         } catch (NamespaceNotFoundException ignored) {
@@ -397,12 +407,11 @@ public class MetadataSynchronizer {
 
       final DatasetConfig datasetConfig;
       try {
-        datasetConfig = systemNamespace.getEntityByPath(toBeDeleted).getDataset();
-        assert datasetConfig != null;
+        datasetConfig = systemNamespace.getDataset(toBeDeleted);
         if (CatalogUtil.hasIcebergMetadata(datasetConfig)) {
           CatalogUtil.addIcebergMetadataOrphan(datasetConfig, orphanage);
         }
-        systemNamespace.deleteEntity(toBeDeleted);
+        systemNamespace.deleteDataset(toBeDeleted, datasetConfig.getTag());
         syncStatus.setRefreshed();
         if (datasetConfig.getReadDefinition() == null) {
           syncStatus.incrementShallowDeleted();
