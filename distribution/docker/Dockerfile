@@ -43,6 +43,7 @@ RUN \
 
 EXPOSE 9047/tcp
 EXPOSE 31010/tcp
+EXPOSE 32010/tcp
 EXPOSE 45678/tcp
 
 USER dremio
